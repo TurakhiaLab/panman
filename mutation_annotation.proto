@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package MAT;
+
+
+enum mutation_type 
+{
+    S = 0;
+    D = 1;
+    I = 2;
+    G = 3;
+}
+
+message mutation 
+{
+    mutation_type type = 1;
+    int32 index_char = 2;
+    string parent_char = 3;
+    string mutation_char = 4;
+    int32 index_gap = 5;
+}
+
+message node 
+{
+    string node_id = 1; 
+    repeated mutation mutation_list = 2; 
+}
+
+message block 
+{
+    string block_id = 1;
+    repeated node node_list = 2;
+    // Doubtful (index of block's starting position)
+    int32 index = 3;
+}
+
+message mutation_annotation_tree 
+{
+    string newick = 1;
+    repeated block block_list = 2;
+}
