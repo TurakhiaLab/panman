@@ -2,7 +2,15 @@ syntax = "proto3";
 
 package MAT;
 
+// tree -> block -> node -> mutation -> mutation_type
 
+/*
+mutation type could be:
+1. Substitution: S
+2. Deletion: D
+3. Insertion: I 
+4. Gap: G (Every insertion happens with a specific gap)
+*/
 enum mutation_type 
 {
     S = 0;
@@ -11,21 +19,34 @@ enum mutation_type
     G = 3;
 }
 
+/*
+mutation is noted with respect to parent node in the graph.
+char index: occurance of mutation
+gap index: (only in case of insertion), index of gap in which insertion occurs 
+*/
 message mutation 
 {
     mutation_type type = 1;
-    int32 index_char = 2;
+    int32 char_index = 2;
     string parent_char = 3;
     string mutation_char = 4;
-    int32 index_gap = 5;
+    int32 gap_index = 5;
 }
 
+/*
+Each node has its unique identifier and contains list of mutations
+*/
 message node 
 {
     string node_id = 1; 
     repeated mutation mutation_list = 2; 
 }
 
+/*
+block is equivalent to a pancontig. Each block has a unique string of identifier (10 char)
+Each block contains nodes corresponding to sequences that lies in that block.
+Do we need index of block? 
+*/
 message block 
 {
     string block_id = 1;
@@ -34,8 +55,19 @@ message block
     int32 index = 3;
 }
 
-message mutation_annotation_tree 
+/*
+Tree stores:
+1. Newick form of the given tree
+2. List of blocks 
+*/
+message tree 
 {
     string newick = 1;
     repeated block block_list = 2;
 }
+
+/*
+ToDo:
+1. Do we need to store paths?
+2. How to align a new sequence and append mutations associated with it in tree
+*/
