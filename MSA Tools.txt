@@ -1,0 +1,43 @@
+﻿* Graph based
+   * Minimap2
+      * 1 thread : Real time: 12.683 sec; CPU: 12.685 sec; Peak RSS: 0.116 GB
+         * minimap2 -t 1 ~/localdata/sars/sars_4k_r.fa ~/localdata/sars/sars_4k_n-1.fa > sars_4k.sam
+      * 8 threads: Real time: 1.999 sec; CPU: 13.286 sec; Peak RSS: 0.121 GB
+         * minimap2 -t 8 ~/localdata/sars/sars_4k_r.fa ~/localdata/sars/sars_4k_n-1.fa > sars_4k.sam
+         *    * MiniGraph(pairwise alignment, not MSA)
+      * 1 thread: Real time: 4.269 sec; CPU: 4.271 sec; Peak RSS: 0.455 GB
+         * minigraph -t 1 ~/localdata/sars/sars_4k_n-1.fa ~/localdata/sars/sars_4k_r.fa > sars_4k.fftns2
+         *       * 8 threads: Real time: 3.187 sec; CPU: 4.624 sec; Peak RSS: 0.538 GB
+         * minigraph -t 8 ~/localdata/sars/sars_4k_n-1.fa ~/localdata/sars/sars_4k_r.fa > sars_4k.fftns2
+   * ViralMSA 
+      * 1 thread: 35.39s
+         * python3 ViralMSA.py -s ~/localdata/sars/sars_4k_n-1.fa -r ~/localdata/sars/sars_4k_r.fa -e y1bao@ucsd.edu -o viralmsa -t
+      * 8 threads: 5.8s
+         * python3 ViralMSA.py -s ~/localdata/sars/sars_4k_n-1.fa -r ~/localdata/sars/sars_4k_r.fa -e y1bao@ucsd.edu -o viralmsa -t 8 
+
+
+
+
+* Non-graph based
+   * PASTA
+      * Taking too long to run, used up all CPU, so did not allow it to finish
+         * python3 run_pasta.py -i ~/localdata/sars/sars_4k.fa 
+   * MAFFT
+      * 1 thread:50:24.51elapsed
+         *  mafft --thread -1 ~/localdata/sars/sars_4k.fa > test.fftns2 
+      * 8 threads: 49:13.09 elapsed
+         *  mafft --thread 8 ~/localdata/sars/sars_4k.fa > test.fftns2 
+   * MUSCLE 
+      * Has segmentation fault when try running it
+         *  muscle -super5  ~/localdata/sars/sars_4k.fa -output ~/localdata/sars/muscle.afa -threads 1
+         * 00:01 140Mb   100.0% Derep 3801 uniques, 185 dupes
+         * 00:01 142Mb  CPU has 64 cores, running 8 threads                     
+         * Segmentation fault (core dumped)
+   * CLUSTAL (takes forever to run on large sequences)
+      * 1 thread: 
+         * clustalo -i ~/localdata/sars/sars_4k.fa --threads=1pasta & >clustalo1thread
+      * 8 threads: 
+         * ​​clustalo -i ~/localdata/sars/sars_4k.fa --threads=8 & >clustalo8threads
+
+
+Tried on 10 sequences and the runtime is: 9m24.189s
