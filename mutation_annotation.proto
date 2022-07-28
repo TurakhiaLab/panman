@@ -2,23 +2,34 @@ syntax = "proto3";
 
 package MAT;
 
-message mut
+message nuc_mut
 {
     int32 position = 1; 
     int32 gap_position = 2;  
     int32 condensed = 3; 
-    int32 mut_nucs = 4;
+    int32 nucs = 4;
 }
 
-message nodes 
+message block_mut
 {
-    repeated mut mutation = 1;
-    repeated int32 blockid = 2;
-    repeated string chromosome_name = 3;
+    repeated int32 condensed_block_mut = 1;
+}
+
+message node 
+{
+    repeated nuc_mut nuc_mutation = 1;
+    block_mut block_mutation = 2;
+}
+
+message block_list
+{
+    repeated int32 blockid = 1;
+    repeated int32 chromosome_name = 2;
 }
 
 message tree 
 {
     string newick = 1;
-    repeated nodes node = 2;
+    repeated node nodes = 2;
+    block_list blocks = 3
 }
