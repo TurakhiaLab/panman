@@ -7,7 +7,7 @@
                       |
                 _____________________________
                |              |              |               
-            Node Name      Mutations       Blocks        
+              Mut          Blockid        Chromosome_name                     
             
 -->
 
@@ -25,7 +25,8 @@ Mutations has four attributes:
       b. length of contiguous mutation (2 bits)
       c. mutation character (4 bits)
       d. type of mutation (2 bits)
-4. mutated_chars: list of mutation characters. Each character is represented by 4 bits (One-hot encoding), therefore maximum 8 characters can be stored.
+4. mut_nucs: list of mutation characters. Each character is represented by 4 bits (One-hot encoding), therefore maximum 8 characters can be stored.
    Note: We do not need to store mutations character list in case of deletions
 
-Blocks: List of blocks at a particular node after applying Fitch's Sankoff algorithm
+Blockid: List of blocks at a particular node after applying Fitch's Sankoff algorithm
+Chromosome_name: List of chromosome name corresponding to each block (one-one mapping with blockid) 
