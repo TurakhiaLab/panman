@@ -13,7 +13,7 @@ message mut
 message nodes 
 {
     repeated mut mutation = 1;
-    repeated blocks blockid = 2;
+    repeated int32 blockid = 2;
     repeated string chromosome_name = 3;
 }
 
