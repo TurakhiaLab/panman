@@ -1,0 +1,31 @@
+<!--        
+            tree
+             |                 
+        ______________
+       |              |
+    newick          nodes
+                      |
+                _____________________________
+               |              |              |               
+            Node Name      Mutations       Blocks        
+            
+-->
+
+Mutations has four attributes:
+1. position: mutation co-ordinate
+2. gap_position: mutation gap co-ordinate w.r.t. position
+3. condensed: it has 3 (or 4) sub-attributes
+   Note: Depending upon type of mutation, sub-attributes changes
+   if (type of mutation: S, D, I: 00, 01, 10):
+      a. block-id (3B)
+      b. length of contiguous mutation (6 bits)
+      c. type of mutation (2 bits)
+   else (type of mutaion: SNP: 11):
+      a. block-id (3B)
+      b. length of contiguous mutation (2 bits)
+      c. mutation character (4 bits)
+      d. type of mutation (2 bits)
+4. mutated_chars: list of mutation characters. Each character is represented by 4 bits (One-hot encoding), therefore maximum 8 characters can be stored.
+   Note: We do not need to store mutations character list in case of deletions
+
+Blocks: List of blocks at a particular node after applying Fitch's Sankoff algorithm
