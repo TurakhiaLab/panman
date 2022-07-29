@@ -27,9 +27,16 @@ message block_list
     repeated int32 chromosome_name = 2;
 }
 
+message gap_list
+{
+    repeated int32 position = 1;
+    repeated int32 condensed = 2;
+}
+
 message tree 
 {
     string newick = 1;
     repeated node nodes = 2;
-    block_list blocks = 3
+    gap_list gaps = 3;
+    block_list blocks = 4;
 }
