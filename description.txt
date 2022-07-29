@@ -33,7 +33,16 @@ Node:
          a. block-id (3B)
          b. type of mutation (2 bits)
 
+Gap list:
+   It has 2 attributes:
+   1. position: gap co-ordinate
+   2. condensed: it has 2 sub-attributes
+      a. block-id (3B)
+      b. length of contiguous gaps (1B)
+      
 Block list: (Currently not used)
    It has 2 attributes:
    1. blockid: List of block ids
    2. chromosome_name: List of chromosome name associated with corresponding blocks
+
+
