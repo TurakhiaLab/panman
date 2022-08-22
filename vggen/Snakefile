@@ -1,7 +1,4 @@
-# ToDo: install vg using this link: https://github.com/vgteam/vg/releases/tag/v1.42.0
-# use wget to download the release and follow the instructions on the page
-
-
+# Run the following command: snakemake --use-conda --cores 32 output/ecoli_10.vg
 
 rule index_gen:
     output:
