@@ -1,0 +1,69 @@
+# ToDo: install vg using this link: https://github.com/vgteam/vg/releases/tag/v1.42.0
+# use wget to download the release and follow the instructions on the page
+
+
+
+rule index_gen:
+    output:
+        "output/{dataset}_{seqcount}/{dataset}_{seqcount}.fa.gz"
+    
+    input:
+        "dataset/{dataset}/{dataset}_{seqcount}.fa"
+
+    conda:
+        "envs/pggb.yaml"
+
+    shell:
+        '''
+        bgzip -c {input} > {output}
+        samtools faidx {output}
+        '''
+
+rule gfa:
+    output:
+        "output/{dataset}_{seqcount}.gfa"
+    
+    input:
+        # "output/{dataset}_{seqcount}/",
+        "output/{dataset}_{seqcount}/{dataset}_{seqcount}.fa.gz"
+        
+    
+    conda:
+        "envs/pggb.yaml"
+    
+    shell:
+        '''
+        pggb -i {input} -p 95 -s 30000 -G 2000 -n 2 -t 32 -v -o output/{wildcards.dataset}_{wildcards.seqcount}/ -M -m
+        mv output/{wildcards.dataset}_{wildcards.seqcount}/*.gfa {output}
+        rm -rf output/{wildcards.dataset}_{wildcards.seqcount}/
+	'''
+
+
+rule vg_install:
+    output:
+        "vg/vg"
+    
+    shell:
+        '''
+        cd vg/
+        wget https://github.com/vgteam/vg/releases/download/v1.42.0/vg
+        chmod +x vg
+        cd ../
+        '''
+
+
+rule vg:
+    output:
+        "output/{dataset}_{seqcount}.vg"
+    
+    input:
+        "vg/vg",
+        "output/{dataset}_{seqcount}.gfa"
+    
+    conda:
+        "envs/pggb.yaml"
+    
+    shell:
+        '''
+	./vg/vg convert -p {input[1]} -v > {output}
+        '''
