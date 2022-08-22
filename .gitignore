@@ -1,0 +1,5 @@
+output/
+vg/
+.Snakefile
+data/
+*.log
