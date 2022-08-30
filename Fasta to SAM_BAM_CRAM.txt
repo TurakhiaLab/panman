@@ -1,0 +1,52 @@
+Sars-CoV 2 (4k) Dataset
+
+
+Use minimap2 to align and save as SAM
+
+
+minimap2 -a -t  8 ~/localdata/sars/sars_4k_r.fa ~/localdata/sars/sars_4k_n-1.fa > sar_4k.sam
+
+
+
+Sam to bam
+samtools view -S -b sar_4k.sam > sar_4k.bam
+
+
+bam to sam
+samtools view -h sar_4k.bam > sar_4k.sam
+
+
+CRAM is primarily a reference-based compressed format, meaning that only differences between the stored sequences and the reference are stored.
+
+
+Bam to cram
+samtools view -C -T ~/localdata/sars/sars_4k_r.fa sar_4k.bam > sar_4k.cram
+
+
+Cram to bam
+samtools view -b -T ~/localdata/sars/sars_4k_r.fa -o file.bam sar_4k.cram
+
+
+
+Sars-CoV 2 (4k) 
+	fasta 116MB
+	sam   14MB
+	bam   30MB
+	cram  165KB
+	
+	
+
+Ecoli_50 Dataset
+
+
+minimap2 -t 8 -a  ~/ecoli/ecoli_artificial_50_r.fa  ~/ecoli/ecoli_artificial_50_n-1.fa  >ecoli.sam
+samtools view -S -b ecoli.sam > ecoli.bam
+samtools view -C  -T  ~/ecoli/ecoli_artificial_50_r.fa  ecoli.bam  > ecoli.cram
+
+
+Ecoli (50) 
+	fasta 220MB
+	sam  427MB
+	bam  114MB
+	cram 60MB
+	
