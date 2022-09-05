@@ -1,10 +1,10 @@
-# Run the following command: snakemake --use-conda --cores 32 -n output/ecoli_50.cram
+# Run the following command: snakemake --cores 32 output/ecoli_50.cram
 rule sam:
     output:
         "output/{dataset}_{seqcount}.sam"
     input:
-        "output/{dataset}_{seqcount}_r.fa",
-        "output/{dataset}_{seqcount}_n-1.fa",
+        "dataset/{dataset}_{seqcount}_r.fa",
+        "dataset/{dataset}_{seqcount}_n-1.fa",
     threads: 8
     conda:
         "envs/samtools.yaml"
@@ -20,17 +20,18 @@ rule bam:
     conda:
         "envs/samtools.yaml"
     shell:
-        "samtools view -S -b -t {threads} {input} > {output}"
+        "samtools view -@ {threads} -S -b  {input} > {output}"
 
 
 rule cram:
     output:
         "output/{dataset}_{seqcount}.cram"
     input:
-        "output/{dataset}_{seqcount}_r.fa",
+        "dataset/{dataset}_{seqcount}_r.fa",
         "output/{dataset}_{seqcount}.bam"
     threads: 8
     conda:
         "envs/samtools.yaml"
     shell:
-        "samtools view -C -T -t {threads} {input} > {output}"
+        "samtools view -@ {threads}-C -T  {input} > {output}"
+
