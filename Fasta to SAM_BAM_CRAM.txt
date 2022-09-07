@@ -49,4 +49,16 @@ Ecoli (50)
 	sam  427MB
 	bam  114MB
 	cram 60MB
+
+
+Ecoli (2968) 
+fasta  12GB
+sam    20GB
+bam    5.2G
+cram   2.7GB
+
+
+
+
+
 	
