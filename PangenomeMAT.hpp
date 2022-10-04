@@ -26,6 +26,7 @@ namespace PangenomeMAT {
 
 	class Node {
 	public:
+		std::string id;
 		Node* parent;
 		std::vector< Node* > children;
 		std::vector< NucMut > nucMutations;

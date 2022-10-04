@@ -18,13 +18,13 @@ int main(){
 	firstNodeNucMutationOne.set_position(2);
 	firstNodeNucMutationOne.set_gap_position(18);
 	firstNodeNucMutationOne.set_condensed(56);
-	firstNodeNucMutationOne.set_condensed(7);
+	firstNodeNucMutationOne.set_nucs(7);
 
 	MAT::nuc_mut firstNodeNucMutationTwo;
 	firstNodeNucMutationTwo.set_position(7);
 	firstNodeNucMutationTwo.set_gap_position(19);
 	firstNodeNucMutationTwo.set_condensed(53);
-	firstNodeNucMutationTwo.set_condensed(67);
+	firstNodeNucMutationTwo.set_nucs(67);
 
 	MAT::block_mut firstNodeBlockMutation;
 	firstNodeBlockMutation.add_condensed_block_mut(34);
@@ -43,13 +43,13 @@ int main(){
 	secondNodeNucMutationOne.set_position(34);
 	secondNodeNucMutationOne.set_gap_position(43);
 	secondNodeNucMutationOne.set_condensed(67);
-	secondNodeNucMutationOne.set_condensed(84);
+	secondNodeNucMutationOne.set_nucs(84);
 
 	MAT::nuc_mut secondNodeNucMutationTwo;
 	secondNodeNucMutationTwo.set_position(32);
 	secondNodeNucMutationTwo.set_gap_position(64);
 	secondNodeNucMutationTwo.set_condensed(92);
-	secondNodeNucMutationTwo.set_condensed(46);
+	secondNodeNucMutationTwo.set_nucs(46);
 
 	MAT::block_mut secondNodeBlockMutation;
 	secondNodeBlockMutation.add_condensed_block_mut(56);
