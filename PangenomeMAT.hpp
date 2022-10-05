@@ -12,11 +12,12 @@ namespace PangenomeMAT {
 	};
 
 	struct BlockMut {
-		std::vector< int32_t > condensedBlockMuts;
+		std::vector< int32_t > condensedBlockMut;
 	};
 
 	struct BlockList {
-		std::vector< int32_t > blockIdsAndChromosomeNames; // Since blockId takes 3 bytes and chromosomeName takes one byte, we can store it efficiently
+		std::vector< int32_t > blockId;
+		std::vector< int32_t > chromosome_name;
 	};
 
 	struct GapList {
@@ -29,21 +30,21 @@ namespace PangenomeMAT {
 		std::string id;
 		Node* parent;
 		std::vector< Node* > children;
-		std::vector< NucMut > nucMutations;
-		BlockMut blockMutations;
+		std::vector< NucMut > nucMutation;
+		BlockMut blockMutation;
 	};
 
 	class Tree {
 	private:
 		Node* getTreeFromNewickString(std::string newick);
-		std::unordered_map<std::string, Node*> nodes;
+		std::unordered_map<std::string, Node*> node;
 		
 	public:
 		Tree(std::ifstream& fin);
 
 		Node* root;
-		GapList gaps;
-		BlockList blocks;
+		GapList gap;
+		BlockList block;
 	};
 
 };
