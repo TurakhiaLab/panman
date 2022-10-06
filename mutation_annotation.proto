@@ -4,15 +4,15 @@ package MAT;
 
 message nuc_mut
 {
-    int32 position = 1; 
-    int32 gap_position = 2;  
-    int32 condensed = 3; 
-    int32 nucs = 4;
+    uint32 position = 1; 
+    uint32 gap_position = 2;  
+    uint32 condensed = 3; 
+    uint64 nucs = 4;
 }
 
 message block_mut
 {
-    repeated int32 condensed_block_mut = 1;
+    repeated uint32 condensed_block_mut = 1;
 }
 
 message node 
@@ -21,16 +21,22 @@ message node
     block_mut block_mutation = 2;
 }
 
+message consensus
+{
+    repeated uint32 condensed_seq = 1;
+}
+
 message block_list
 {
-    repeated int32 blockid = 1;
-    repeated int32 chromosome_name = 2;
+    repeated uint32 blockid = 1;
+    repeated consensus consensus_list = 2;
+    repeated uint32 chromosome_name = 3;
 }
 
 message gap_list
 {
-    repeated int32 position = 1;
-    repeated int32 condensed = 2;
+    repeated uint32 position = 1;
+    repeated uint32 condensed = 2;
 }
 
 message tree 
@@ -40,3 +46,4 @@ message tree
     gap_list gaps = 3;
     block_list blocks = 4;
 }
+        
