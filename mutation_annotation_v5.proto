@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package MAT;
+
+message nuc_mut
+{
+    uint32 position = 1; 
+    uint32 gap_position = 2;  
+    uint32 condensed = 3; 
+    uint64 nucs = 4;
+}
+
+message block_mut
+{
+    repeated uint32 condensed_block_mut = 1;
+}
+
+message node 
+{
+    repeated nuc_mut nuc_mutation = 1;
+    block_mut block_mutation = 2;
+}
+
+
+message block
+{
+    uint32 block_id = 1;
+    repeated uint32 consensus_seq = 2;
+    uint32 chromosome_name = 3;
+}
+
+message gap_list
+{
+    repeated uint32 position = 1;
+    repeated uint32 condensed = 2;
+}
+
+message tree 
+{
+    string newick = 1;
+    repeated node nodes = 2;
+    repeated block blocks = 3;
+    gap_list gaps = 4;
+}
+        
