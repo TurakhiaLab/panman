@@ -5,11 +5,16 @@
 
 #include "mutation_annotation.pb.h"
 
-int main(){
+int main(int argc, char* argv[]){
 
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-	std::ifstream input("sample_mat.pb");
+	if(argc != 2){
+		std::cout << "Please enter name of file\n";
+		return -1;
+	}
+
+	std::ifstream input(argv[1]);
 
 	MAT::tree mainTree;
 
@@ -29,6 +34,7 @@ int main(){
 			<< mainTree.nodes(i).nuc_mutation(j).condensed() << ", " << mainTree.nodes(i).nuc_mutation(j).nucs() << ") ";
 		}
 		std::cout << "\n";
+		std::cout << "block_mutation:\n";
 		for(int j = 0; j < mainTree.nodes(i).block_mutation().condensed_block_mut_size(); j++){
 			std::cout << mainTree.nodes(i).block_mutation().condensed_block_mut(j) << " ";
 		}

@@ -1,8 +1,12 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <unordered_map>
+#include <queue>
 
 namespace PangenomeMAT {
+
+	void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
 	struct NucMut {
 		int32_t position;
@@ -27,7 +31,14 @@ namespace PangenomeMAT {
 
 	class Node {
 	public:
-		std::string id;
+		Node(std::string id, float len);
+		Node(std::string id, Node* par, float len);
+
+		// Check this with professor
+		size_t level;
+    	float branchLength;
+
+    	std::string identifier;
 		Node* parent;
 		std::vector< Node* > children;
 		std::vector< NucMut > nucMutation;
@@ -36,9 +47,14 @@ namespace PangenomeMAT {
 
 	class Tree {
 	private:
-		Node* getTreeFromNewickString(std::string newick);
+		Node* createTreeFromNewickString(std::string newick);
 		std::unordered_map<std::string, Node*> node;
-		
+		size_t currInternalNode;
+
+		std::string newInternalNodeId() {
+        	return "node_" + std::to_string(++currInternalNode);
+    	}
+
 	public:
 		Tree(std::ifstream& fin);
 
