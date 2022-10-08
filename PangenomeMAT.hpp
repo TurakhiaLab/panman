@@ -25,10 +25,10 @@ namespace PangenomeMAT {
 			nucs = mutation.nucs();
 		}
 
-		int32_t position;
-		int32_t gapPosition;
-		int32_t condensed; // The first two bits here should indicate the type of mutation and the other parameters would be read accordingly;
-		int32_t nucs;
+		uint32_t position;
+		uint32_t gapPosition;
+		uint32_t condensed; // The first two bits here should indicate the type of mutation and the other parameters would be read accordingly;
+		uint64_t nucs;
 	};
 
 	struct BlockMut {
@@ -39,7 +39,7 @@ namespace PangenomeMAT {
 			}
 		}
 
-		std::vector< int32_t > condensedBlockMut;
+		std::vector< uint32_t > condensedBlockMut;
 	};
 
 	struct Block {
@@ -49,8 +49,8 @@ namespace PangenomeMAT {
 	};
 
 	struct GapList {
-		std::vector< int32_t > position;
-		std::vector< int32_t > condensed;
+		std::vector< uint32_t > position;
+		std::vector< uint32_t > condensed;
 	};
 
 	class Node {
@@ -65,6 +65,7 @@ namespace PangenomeMAT {
     	std::string identifier;
 		Node* parent;
 		std::vector< Node* > children;
+
 		std::vector< NucMut > nucMutation;
 		BlockMut blockMutation;
 	};
@@ -93,8 +94,8 @@ namespace PangenomeMAT {
 		void printBfs(); // Temporary function. To be removed later;
 
 		Node* root;
-		GapList gap;
-		std::vector< Block > block;
+		GapList gaps;
+		std::vector< Block > blocks;
 	};
 
 };
