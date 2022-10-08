@@ -1,23 +1,25 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <tbb/parallel_invoke.h> 
+#include <tbb/parallel_for_each.h>
+
 #include "PangenomeMAT.hpp"
-#include "mutation_annotation.pb.h"
 
 PangenomeMAT::Node::Node(std::string id, float len){
 	identifier = id;
-	level = 1;
+    level = 1;
 	branchLength = len;
 	parent = NULL;
 }
 
 PangenomeMAT::Node::Node(std::string id, Node* par, float len){
 	identifier = id;
+    branchLength = len;
 	parent = par;
-	level = par->level + 1;
-	branchLength = len;
+    level = par->level + 1;
+    par->children.push_back(this);
 }
-
 
 void PangenomeMAT::stringSplit (std::string const& s, char delim, std::vector<std::string>& words) {
     // TIMEIT();
@@ -36,94 +38,111 @@ void PangenomeMAT::stringSplit (std::string const& s, char delim, std::vector<st
     }
 }
 
-PangenomeMAT::Node* PangenomeMAT::Tree::createTreeFromNewickString(std::string newick_string) {
-    // TIMEIT();
+PangenomeMAT::Node* PangenomeMAT::Tree::createTreeFromNewickString(std::string newickString) {
 
     PangenomeMAT::Node* newTreeRoot;
 
     std::vector<std::string> leaves;
-    std::vector<size_t> num_open;
-    std::vector<size_t> num_close;
-    std::vector<std::queue<float>> branch_len (128);  // will be resized later if needed
+    std::vector<size_t> numOpen;
+    std::vector<size_t> numClose;
+    std::vector<std::queue<float>> branchLen (128);  // will be resized later if needed
     size_t level = 0;
 
     std::vector<std::string> s1;
-    stringSplit(newick_string, ',', s1);
+    stringSplit(newickString, ',', s1);
 
-    num_open.reserve(s1.size());
-    num_close.reserve(s1.size());
+    numOpen.reserve(s1.size());
+    numClose.reserve(s1.size());
 
     for (auto s: s1) {
         size_t no = 0;
         size_t nc = 0;
+        size_t leafDepth = 0;
+
         bool stop = false;
-        bool branch_start = false;
+        bool branchStart = false;
         std::string leaf = "";
         std::string branch = "";
+
         for (auto c: s) {
             if (c == ':') {
                 stop = true;
                 branch = "";
-                branch_start = true;
+                branchStart = true;
             } else if (c == '(') {
                 no++;
                 level++;
-                if (branch_len.size() <= level) {
-                    branch_len.resize(level*2);
+                if (branchLen.size() <= level) {
+                    branchLen.resize(level*2);
                 }
             } else if (c == ')') {
                 stop = true;
                 nc++;
                 float len = (branch.size() > 0) ? std::stof(branch) : -1.0;
-                branch_len[level].push(len);
+                branchLen[level].push(len);
                 level--;
-                branch_start = false;
+                branchStart = false;
             } else if (!stop) {
                 leaf += c;
-                branch_start = false;
-            } else if (branch_start) {
+                branchStart = false;
+                leafDepth = level;
+
+            } else if (branchStart) {
                 if (isdigit(c)  || c == '.' || c == 'e' || c == 'E' || c == '-' || c == '+') {
                     branch += c;
                 }
             }
         }
         leaves.push_back(std::move(leaf));
-        num_open.push_back(no);
-        num_close.push_back(nc);
+        numOpen.push_back(no);
+        numClose.push_back(nc);
         float len = (branch.size() > 0) ? std::stof(branch) : -1.0;
-        branch_len[level].push(len);
+        branchLen[level].push(len);
+
+        // Adjusting max and mean depths
+        maxDepth = std::max(maxDepth, leafDepth);
+        meanDepth += leafDepth;
+
     }
+
+    meanDepth /= leaves.size();
 
     if (level != 0) {
         fprintf(stderr, "ERROR: incorrect Newick format!\n");
         exit(1);
     }
 
-    std::stack<Node*> parent_stack;
+    numLeaves = leaves.size();
+
+    std::stack<Node*> parentStack;
 
     for (size_t i=0; i<leaves.size(); i++) {
         auto leaf = leaves[i];
-        auto no = num_open[i];
-        auto nc = num_close[i];
+        auto no = numOpen[i];
+        auto nc = numClose[i];
         for (size_t j=0; j<no; j++) {
             std::string nid = newInternalNodeId();
-            Node* new_node = NULL;
-            if (parent_stack.size() == 0) {
-                newTreeRoot = new Node(nid, branch_len[level].front());
+            Node* newNode = NULL;
+            if (parentStack.size() == 0) {
+                newNode = new Node(nid, branchLen[level].front());
+                newTreeRoot = newNode;
             } else {
-                new_node = new Node(nid, parent_stack.top(), branch_len[level].front());
-                (parent_stack.top()->children).push_back(new_node);
-
+                newNode = new Node(nid, parentStack.top(), branchLen[level].front());
             }
-            branch_len[level].pop();
+            branchLen[level].pop();
             level++;
-            parent_stack.push(new_node);
+
+            allNodes[nid] = newNode;
+            parentStack.push(newNode);
         }
-        Node* tempNode = new Node(leaf, parent_stack.top(), branch_len[level].front());
-        parent_stack.top()->children.push_back(tempNode);
-        branch_len[level].pop();
+        Node* leafNode = new Node(leaf, parentStack.top(), branchLen[level].front());
+        parentStack.top()->children.push_back(leafNode);
+
+        allNodes[leaf] = leafNode;
+
+        branchLen[level].pop();
         for (size_t j=0; j<nc; j++) {
-            parent_stack.pop();
+            parentStack.pop();
             level--;
         }
     }
@@ -135,8 +154,32 @@ PangenomeMAT::Node* PangenomeMAT::Tree::createTreeFromNewickString(std::string n
     return newTreeRoot;
 }
 
+void PangenomeMAT::Tree::assignMutationsToNodes(Node* root, size_t currentIndex, std::vector< MAT::node >& nodes){
+    std::vector< PangenomeMAT::NucMut > storedNucMutation;
+    for(int i = 0; i < nodes[currentIndex].nuc_mutation_size(); i++){
+        storedNucMutation.push_back( PangenomeMAT::NucMut(nodes[currentIndex].nuc_mutation(i)) );
+    }
+
+    PangenomeMAT::BlockMut storedBlockMutation;
+    storedBlockMutation.loadFromProtobuf(nodes[currentIndex].block_mutation());
+
+    root->nucMutation = storedNucMutation;
+    root->blockMutation = storedBlockMutation;
+
+    for(auto child: root->children){
+        assignMutationsToNodes(child, currentIndex+1, nodes);
+    }
+
+}
+
 PangenomeMAT::Tree::Tree(std::ifstream& fin){
-	MAT::tree mainTree;
+
+    currInternalNode = 0;
+	numLeaves = 0;
+    maxDepth = 0;
+    meanDepth = 0;
+
+    MAT::tree mainTree;
 
 	if(!mainTree.ParseFromIstream(&fin)){
 		std::cerr << "Could not read tree from input file." << std::endl;
@@ -145,28 +188,101 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin){
 
 	root = createTreeFromNewickString(mainTree.newick());
 
-	// Traversal test
-	std::queue<Node *> bfsQueue;
-	int prevLev = 0;
-	bfsQueue.push(root);
-	while(!bfsQueue.empty()){
-		Node* current = bfsQueue.front();
-		bfsQueue.pop();
+    std::vector< MAT::node > storedNodes;
+    for(int i = 0; i < mainTree.nodes_size(); i++){
+        storedNodes.push_back(mainTree.nodes(i));
+    }
 
-		if(current->level != prevLev){
-			std::cout << '\n';
-			prevLev = current->level;
-		}
-		std::cout << '(' << current->identifier << "," << current->branchLength << ") ";
+    assignMutationsToNodes(root, 0, storedNodes);
+}
 
-		for(auto child: current->children){
-			bfsQueue.push(child);
-		}
-	}
+int PangenomeMAT::Tree::getTotalParsimonyParallel(PangenomeMAT::MutationType type){
+    int totalMutations = 0;
+
+    std::queue<Node *> bfsQueue;
+
+    bfsQueue.push(root);
+    while(!bfsQueue.empty()){
+        Node* current = bfsQueue.front();
+        bfsQueue.pop();
+
+        // Process children of current node
+        for(auto nucMutation: current->nucMutation){
+            if((nucMutation.condensed & 0x3) == type){
+                totalMutations++;
+            }
+        }
+
+        for(auto child: current->children){
+            bfsQueue.push(child);
+        }
+    }
+
+    return totalMutations;
+}
+
+int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::MutationType type){
+    int totalMutations = 0;
+
+    std::queue<Node *> bfsQueue;
+
+    bfsQueue.push(root);
+    while(!bfsQueue.empty()){
+        Node* current = bfsQueue.front();
+        bfsQueue.pop();
+
+        // Process children of current node
+        for(auto nucMutation: current->nucMutation){
+            if((nucMutation.condensed & 0x3) == type){
+                totalMutations++;
+            }
+        }
+
+        for(auto child: current->children){
+            bfsQueue.push(child);
+        }
+    }
+
+    return totalMutations;
+}
+
+void PangenomeMAT::Tree::printSummary(){
+    // Traversal test
+    std::cout << "Total Nodes in Tree: " << currInternalNode + numLeaves << std::endl;
+    std::cout << "Total Samples in Tree: " << numLeaves << std::endl;
+    std::cout << "Total Substitutions: " << getTotalParsimony(PangenomeMAT::MutationType::S) << std::endl;
+    std::cout << "Total Insertions: " << getTotalParsimony(PangenomeMAT::MutationType::I) << std::endl;
+    std::cout << "Total Deletions: " << getTotalParsimony(PangenomeMAT::MutationType::D) << std::endl;
+    std::cout << "Total SNP mutations: " << getTotalParsimony(PangenomeMAT::MutationType::SNP) << std::endl;
+    std::cout << "Max Tree Depth: " << maxDepth << std::endl;
+    std::cout << "Mean Tree Depth: " << meanDepth << std::endl;
+}
+
+void PangenomeMAT::Tree::printBfs(){
+    // Traversal test
+    std::queue<Node *> bfsQueue;
+    int prevLev = 0;
+    bfsQueue.push(root);
+    while(!bfsQueue.empty()){
+        Node* current = bfsQueue.front();
+        bfsQueue.pop();
+
+        if(current->level != prevLev){
+            std::cout << '\n';
+            prevLev = current->level;
+        }
+        std::cout << '(' << current->identifier << "," << current->branchLength << ") ";
+
+        for(auto child: current->children){
+            bfsQueue.push(child);
+        }
+    }
 }
 
 int main(int argc, char* argv[]){
 	std::ifstream input(argv[1]);
 
 	PangenomeMAT::Tree T(input);
+    // T.printBfs();
+    T.printSummary();
 }

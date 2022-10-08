@@ -54,9 +54,9 @@ struct TableStruct_mutation_5fannotation_2eproto {
 };
 extern const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_mutation_5fannotation_2eproto;
 namespace MAT {
-class block;
-struct blockDefaultTypeInternal;
-extern blockDefaultTypeInternal _block_default_instance_;
+class block_list;
+struct block_listDefaultTypeInternal;
+extern block_listDefaultTypeInternal _block_list_default_instance_;
 class block_mut;
 struct block_mutDefaultTypeInternal;
 extern block_mutDefaultTypeInternal _block_mut_default_instance_;
@@ -74,7 +74,7 @@ struct treeDefaultTypeInternal;
 extern treeDefaultTypeInternal _tree_default_instance_;
 }  // namespace MAT
 PROTOBUF_NAMESPACE_OPEN
-template<> ::MAT::block* Arena::CreateMaybeMessage<::MAT::block>(Arena*);
+template<> ::MAT::block_list* Arena::CreateMaybeMessage<::MAT::block_list>(Arena*);
 template<> ::MAT::block_mut* Arena::CreateMaybeMessage<::MAT::block_mut>(Arena*);
 template<> ::MAT::gap_list* Arena::CreateMaybeMessage<::MAT::gap_list>(Arena*);
 template<> ::MAT::node* Arena::CreateMaybeMessage<::MAT::node>(Arena*);
@@ -209,43 +209,43 @@ class nuc_mut final :
   enum : int {
     kPositionFieldNumber = 1,
     kGapPositionFieldNumber = 2,
-    kNucsFieldNumber = 4,
     kCondensedFieldNumber = 3,
+    kNucsFieldNumber = 4,
   };
-  // uint32 position = 1;
+  // int32 position = 1;
   void clear_position();
-  uint32_t position() const;
-  void set_position(uint32_t value);
+  int32_t position() const;
+  void set_position(int32_t value);
   private:
-  uint32_t _internal_position() const;
-  void _internal_set_position(uint32_t value);
+  int32_t _internal_position() const;
+  void _internal_set_position(int32_t value);
   public:
 
-  // uint32 gap_position = 2;
+  // int32 gap_position = 2;
   void clear_gap_position();
-  uint32_t gap_position() const;
-  void set_gap_position(uint32_t value);
+  int32_t gap_position() const;
+  void set_gap_position(int32_t value);
   private:
-  uint32_t _internal_gap_position() const;
-  void _internal_set_gap_position(uint32_t value);
+  int32_t _internal_gap_position() const;
+  void _internal_set_gap_position(int32_t value);
   public:
 
-  // uint64 nucs = 4;
-  void clear_nucs();
-  uint64_t nucs() const;
-  void set_nucs(uint64_t value);
-  private:
-  uint64_t _internal_nucs() const;
-  void _internal_set_nucs(uint64_t value);
-  public:
-
-  // uint32 condensed = 3;
+  // int32 condensed = 3;
   void clear_condensed();
-  uint32_t condensed() const;
-  void set_condensed(uint32_t value);
+  int32_t condensed() const;
+  void set_condensed(int32_t value);
   private:
-  uint32_t _internal_condensed() const;
-  void _internal_set_condensed(uint32_t value);
+  int32_t _internal_condensed() const;
+  void _internal_set_condensed(int32_t value);
+  public:
+
+  // int32 nucs = 4;
+  void clear_nucs();
+  int32_t nucs() const;
+  void set_nucs(int32_t value);
+  private:
+  int32_t _internal_nucs() const;
+  void _internal_set_nucs(int32_t value);
   public:
 
   // @@protoc_insertion_point(class_scope:MAT.nuc_mut)
@@ -255,10 +255,10 @@ class nuc_mut final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  uint32_t position_;
-  uint32_t gap_position_;
-  uint64_t nucs_;
-  uint32_t condensed_;
+  int32_t position_;
+  int32_t gap_position_;
+  int32_t condensed_;
+  int32_t nucs_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_mutation_5fannotation_2eproto;
 };
@@ -388,26 +388,26 @@ class block_mut final :
   enum : int {
     kCondensedBlockMutFieldNumber = 1,
   };
-  // repeated uint32 condensed_block_mut = 1;
+  // repeated int32 condensed_block_mut = 1;
   int condensed_block_mut_size() const;
   private:
   int _internal_condensed_block_mut_size() const;
   public:
   void clear_condensed_block_mut();
   private:
-  uint32_t _internal_condensed_block_mut(int index) const;
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+  int32_t _internal_condensed_block_mut(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
       _internal_condensed_block_mut() const;
-  void _internal_add_condensed_block_mut(uint32_t value);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+  void _internal_add_condensed_block_mut(int32_t value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
       _internal_mutable_condensed_block_mut();
   public:
-  uint32_t condensed_block_mut(int index) const;
-  void set_condensed_block_mut(int index, uint32_t value);
-  void add_condensed_block_mut(uint32_t value);
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+  int32_t condensed_block_mut(int index) const;
+  void set_condensed_block_mut(int index, int32_t value);
+  void add_condensed_block_mut(int32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
       condensed_block_mut() const;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
       mutable_condensed_block_mut();
 
   // @@protoc_insertion_point(class_scope:MAT.block_mut)
@@ -417,7 +417,7 @@ class block_mut final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t > condensed_block_mut_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t > condensed_block_mut_;
   mutable std::atomic<int> _condensed_block_mut_cached_byte_size_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_mutation_5fannotation_2eproto;
@@ -599,24 +599,24 @@ class node final :
 };
 // -------------------------------------------------------------------
 
-class block final :
-    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:MAT.block) */ {
+class block_list final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:MAT.block_list) */ {
  public:
-  inline block() : block(nullptr) {}
-  ~block() override;
-  explicit constexpr block(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  inline block_list() : block_list(nullptr) {}
+  ~block_list() override;
+  explicit constexpr block_list(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
 
-  block(const block& from);
-  block(block&& from) noexcept
-    : block() {
+  block_list(const block_list& from);
+  block_list(block_list&& from) noexcept
+    : block_list() {
     *this = ::std::move(from);
   }
 
-  inline block& operator=(const block& from) {
+  inline block_list& operator=(const block_list& from) {
     CopyFrom(from);
     return *this;
   }
-  inline block& operator=(block&& from) noexcept {
+  inline block_list& operator=(block_list&& from) noexcept {
     if (this == &from) return *this;
     if (GetOwningArena() == from.GetOwningArena()
   #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
@@ -639,20 +639,20 @@ class block final :
   static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const block& default_instance() {
+  static const block_list& default_instance() {
     return *internal_default_instance();
   }
-  static inline const block* internal_default_instance() {
-    return reinterpret_cast<const block*>(
-               &_block_default_instance_);
+  static inline const block_list* internal_default_instance() {
+    return reinterpret_cast<const block_list*>(
+               &_block_list_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
     3;
 
-  friend void swap(block& a, block& b) {
+  friend void swap(block_list& a, block_list& b) {
     a.Swap(&b);
   }
-  inline void Swap(block* other) {
+  inline void Swap(block_list* other) {
     if (other == this) return;
   #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
     if (GetOwningArena() != nullptr &&
@@ -665,7 +665,7 @@ class block final :
       ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(block* other) {
+  void UnsafeArenaSwap(block_list* other) {
     if (other == this) return;
     GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
     InternalSwap(other);
@@ -673,13 +673,13 @@ class block final :
 
   // implements Message ----------------------------------------------
 
-  block* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
-    return CreateMaybeMessage<block>(arena);
+  block_list* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<block_list>(arena);
   }
   using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
-  void CopyFrom(const block& from);
+  void CopyFrom(const block_list& from);
   using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
-  void MergeFrom(const block& from);
+  void MergeFrom(const block_list& from);
   private:
   static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to, const ::PROTOBUF_NAMESPACE_ID::Message& from);
   public:
@@ -696,15 +696,15 @@ class block final :
   void SharedCtor();
   void SharedDtor();
   void SetCachedSize(int size) const final;
-  void InternalSwap(block* other);
+  void InternalSwap(block_list* other);
 
   private:
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "MAT.block";
+    return "MAT.block_list";
   }
   protected:
-  explicit block(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+  explicit block_list(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                        bool is_message_owned = false);
   private:
   static void ArenaDtor(void* object);
@@ -721,61 +721,64 @@ class block final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kConsensusSeqFieldNumber = 2,
-    kBlockIdFieldNumber = 1,
-    kChromosomeNameFieldNumber = 3,
+    kBlockidFieldNumber = 1,
+    kChromosomeNameFieldNumber = 2,
   };
-  // repeated uint32 consensus_seq = 2;
-  int consensus_seq_size() const;
+  // repeated int32 blockid = 1;
+  int blockid_size() const;
   private:
-  int _internal_consensus_seq_size() const;
+  int _internal_blockid_size() const;
   public:
-  void clear_consensus_seq();
+  void clear_blockid();
   private:
-  uint32_t _internal_consensus_seq(int index) const;
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
-      _internal_consensus_seq() const;
-  void _internal_add_consensus_seq(uint32_t value);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
-      _internal_mutable_consensus_seq();
+  int32_t _internal_blockid(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
+      _internal_blockid() const;
+  void _internal_add_blockid(int32_t value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
+      _internal_mutable_blockid();
   public:
-  uint32_t consensus_seq(int index) const;
-  void set_consensus_seq(int index, uint32_t value);
-  void add_consensus_seq(uint32_t value);
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
-      consensus_seq() const;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
-      mutable_consensus_seq();
+  int32_t blockid(int index) const;
+  void set_blockid(int index, int32_t value);
+  void add_blockid(int32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
+      blockid() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
+      mutable_blockid();
 
-  // uint32 block_id = 1;
-  void clear_block_id();
-  uint32_t block_id() const;
-  void set_block_id(uint32_t value);
+  // repeated int32 chromosome_name = 2;
+  int chromosome_name_size() const;
   private:
-  uint32_t _internal_block_id() const;
-  void _internal_set_block_id(uint32_t value);
+  int _internal_chromosome_name_size() const;
   public:
-
-  // uint32 chromosome_name = 3;
   void clear_chromosome_name();
-  uint32_t chromosome_name() const;
-  void set_chromosome_name(uint32_t value);
   private:
-  uint32_t _internal_chromosome_name() const;
-  void _internal_set_chromosome_name(uint32_t value);
+  int32_t _internal_chromosome_name(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
+      _internal_chromosome_name() const;
+  void _internal_add_chromosome_name(int32_t value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
+      _internal_mutable_chromosome_name();
   public:
+  int32_t chromosome_name(int index) const;
+  void set_chromosome_name(int index, int32_t value);
+  void add_chromosome_name(int32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
+      chromosome_name() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
+      mutable_chromosome_name();
 
-  // @@protoc_insertion_point(class_scope:MAT.block)
+  // @@protoc_insertion_point(class_scope:MAT.block_list)
  private:
   class _Internal;
 
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t > consensus_seq_;
-  mutable std::atomic<int> _consensus_seq_cached_byte_size_;
-  uint32_t block_id_;
-  uint32_t chromosome_name_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t > blockid_;
+  mutable std::atomic<int> _blockid_cached_byte_size_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t > chromosome_name_;
+  mutable std::atomic<int> _chromosome_name_cached_byte_size_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_mutation_5fannotation_2eproto;
 };
@@ -906,48 +909,48 @@ class gap_list final :
     kPositionFieldNumber = 1,
     kCondensedFieldNumber = 2,
   };
-  // repeated uint32 position = 1;
+  // repeated int32 position = 1;
   int position_size() const;
   private:
   int _internal_position_size() const;
   public:
   void clear_position();
   private:
-  uint32_t _internal_position(int index) const;
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+  int32_t _internal_position(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
       _internal_position() const;
-  void _internal_add_position(uint32_t value);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+  void _internal_add_position(int32_t value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
       _internal_mutable_position();
   public:
-  uint32_t position(int index) const;
-  void set_position(int index, uint32_t value);
-  void add_position(uint32_t value);
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+  int32_t position(int index) const;
+  void set_position(int index, int32_t value);
+  void add_position(int32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
       position() const;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
       mutable_position();
 
-  // repeated uint32 condensed = 2;
+  // repeated int32 condensed = 2;
   int condensed_size() const;
   private:
   int _internal_condensed_size() const;
   public:
   void clear_condensed();
   private:
-  uint32_t _internal_condensed(int index) const;
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+  int32_t _internal_condensed(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
       _internal_condensed() const;
-  void _internal_add_condensed(uint32_t value);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+  void _internal_add_condensed(int32_t value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
       _internal_mutable_condensed();
   public:
-  uint32_t condensed(int index) const;
-  void set_condensed(int index, uint32_t value);
-  void add_condensed(uint32_t value);
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+  int32_t condensed(int index) const;
+  void set_condensed(int index, int32_t value);
+  void add_condensed(int32_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
       condensed() const;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
       mutable_condensed();
 
   // @@protoc_insertion_point(class_scope:MAT.gap_list)
@@ -957,9 +960,9 @@ class gap_list final :
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t > position_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t > position_;
   mutable std::atomic<int> _position_cached_byte_size_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t > condensed_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t > condensed_;
   mutable std::atomic<int> _condensed_cached_byte_size_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_mutation_5fannotation_2eproto;
@@ -1089,9 +1092,9 @@ class tree final :
 
   enum : int {
     kNodesFieldNumber = 2,
-    kBlocksFieldNumber = 3,
     kNewickFieldNumber = 1,
-    kGapsFieldNumber = 4,
+    kGapsFieldNumber = 3,
+    kBlocksFieldNumber = 4,
   };
   // repeated .MAT.node nodes = 2;
   int nodes_size() const;
@@ -1111,24 +1114,6 @@ class tree final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::node >&
       nodes() const;
 
-  // repeated .MAT.block blocks = 3;
-  int blocks_size() const;
-  private:
-  int _internal_blocks_size() const;
-  public:
-  void clear_blocks();
-  ::MAT::block* mutable_blocks(int index);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::block >*
-      mutable_blocks();
-  private:
-  const ::MAT::block& _internal_blocks(int index) const;
-  ::MAT::block* _internal_add_blocks();
-  public:
-  const ::MAT::block& blocks(int index) const;
-  ::MAT::block* add_blocks();
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::block >&
-      blocks() const;
-
   // string newick = 1;
   void clear_newick();
   const std::string& newick() const;
@@ -1143,7 +1128,7 @@ class tree final :
   std::string* _internal_mutable_newick();
   public:
 
-  // .MAT.gap_list gaps = 4;
+  // .MAT.gap_list gaps = 3;
   bool has_gaps() const;
   private:
   bool _internal_has_gaps() const;
@@ -1161,6 +1146,24 @@ class tree final :
       ::MAT::gap_list* gaps);
   ::MAT::gap_list* unsafe_arena_release_gaps();
 
+  // .MAT.block_list blocks = 4;
+  bool has_blocks() const;
+  private:
+  bool _internal_has_blocks() const;
+  public:
+  void clear_blocks();
+  const ::MAT::block_list& blocks() const;
+  PROTOBUF_NODISCARD ::MAT::block_list* release_blocks();
+  ::MAT::block_list* mutable_blocks();
+  void set_allocated_blocks(::MAT::block_list* blocks);
+  private:
+  const ::MAT::block_list& _internal_blocks() const;
+  ::MAT::block_list* _internal_mutable_blocks();
+  public:
+  void unsafe_arena_set_allocated_blocks(
+      ::MAT::block_list* blocks);
+  ::MAT::block_list* unsafe_arena_release_blocks();
+
   // @@protoc_insertion_point(class_scope:MAT.tree)
  private:
   class _Internal;
@@ -1169,9 +1172,9 @@ class tree final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::node > nodes_;
-  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::block > blocks_;
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr newick_;
   ::MAT::gap_list* gaps_;
+  ::MAT::block_list* blocks_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_mutation_5fannotation_2eproto;
 };
@@ -1186,82 +1189,82 @@ class tree final :
 #endif  // __GNUC__
 // nuc_mut
 
-// uint32 position = 1;
+// int32 position = 1;
 inline void nuc_mut::clear_position() {
-  position_ = 0u;
+  position_ = 0;
 }
-inline uint32_t nuc_mut::_internal_position() const {
+inline int32_t nuc_mut::_internal_position() const {
   return position_;
 }
-inline uint32_t nuc_mut::position() const {
+inline int32_t nuc_mut::position() const {
   // @@protoc_insertion_point(field_get:MAT.nuc_mut.position)
   return _internal_position();
 }
-inline void nuc_mut::_internal_set_position(uint32_t value) {
+inline void nuc_mut::_internal_set_position(int32_t value) {
   
   position_ = value;
 }
-inline void nuc_mut::set_position(uint32_t value) {
+inline void nuc_mut::set_position(int32_t value) {
   _internal_set_position(value);
   // @@protoc_insertion_point(field_set:MAT.nuc_mut.position)
 }
 
-// uint32 gap_position = 2;
+// int32 gap_position = 2;
 inline void nuc_mut::clear_gap_position() {
-  gap_position_ = 0u;
+  gap_position_ = 0;
 }
-inline uint32_t nuc_mut::_internal_gap_position() const {
+inline int32_t nuc_mut::_internal_gap_position() const {
   return gap_position_;
 }
-inline uint32_t nuc_mut::gap_position() const {
+inline int32_t nuc_mut::gap_position() const {
   // @@protoc_insertion_point(field_get:MAT.nuc_mut.gap_position)
   return _internal_gap_position();
 }
-inline void nuc_mut::_internal_set_gap_position(uint32_t value) {
+inline void nuc_mut::_internal_set_gap_position(int32_t value) {
   
   gap_position_ = value;
 }
-inline void nuc_mut::set_gap_position(uint32_t value) {
+inline void nuc_mut::set_gap_position(int32_t value) {
   _internal_set_gap_position(value);
   // @@protoc_insertion_point(field_set:MAT.nuc_mut.gap_position)
 }
 
-// uint32 condensed = 3;
+// int32 condensed = 3;
 inline void nuc_mut::clear_condensed() {
-  condensed_ = 0u;
+  condensed_ = 0;
 }
-inline uint32_t nuc_mut::_internal_condensed() const {
+inline int32_t nuc_mut::_internal_condensed() const {
   return condensed_;
 }
-inline uint32_t nuc_mut::condensed() const {
+inline int32_t nuc_mut::condensed() const {
   // @@protoc_insertion_point(field_get:MAT.nuc_mut.condensed)
   return _internal_condensed();
 }
-inline void nuc_mut::_internal_set_condensed(uint32_t value) {
+inline void nuc_mut::_internal_set_condensed(int32_t value) {
   
   condensed_ = value;
 }
-inline void nuc_mut::set_condensed(uint32_t value) {
+inline void nuc_mut::set_condensed(int32_t value) {
   _internal_set_condensed(value);
   // @@protoc_insertion_point(field_set:MAT.nuc_mut.condensed)
 }
 
-// uint64 nucs = 4;
+// int32 nucs = 4;
 inline void nuc_mut::clear_nucs() {
-  nucs_ = uint64_t{0u};
+  nucs_ = 0;
 }
-inline uint64_t nuc_mut::_internal_nucs() const {
+inline int32_t nuc_mut::_internal_nucs() const {
   return nucs_;
 }
-inline uint64_t nuc_mut::nucs() const {
+inline int32_t nuc_mut::nucs() const {
   // @@protoc_insertion_point(field_get:MAT.nuc_mut.nucs)
   return _internal_nucs();
 }
-inline void nuc_mut::_internal_set_nucs(uint64_t value) {
+inline void nuc_mut::_internal_set_nucs(int32_t value) {
   
   nucs_ = value;
 }
-inline void nuc_mut::set_nucs(uint64_t value) {
+inline void nuc_mut::set_nucs(int32_t value) {
   _internal_set_nucs(value);
   // @@protoc_insertion_point(field_set:MAT.nuc_mut.nucs)
 }
@@ -1270,7 +1273,7 @@ inline void nuc_mut::set_nucs(uint64_t value) {
 
 // block_mut
 
-// repeated uint32 condensed_block_mut = 1;
+// repeated int32 condensed_block_mut = 1;
 inline int block_mut::_internal_condensed_block_mut_size() const {
   return condensed_block_mut_.size();
 }
@@ -1280,38 +1283,38 @@ inline int block_mut::condensed_block_mut_size() const {
 inline void block_mut::clear_condensed_block_mut() {
   condensed_block_mut_.Clear();
 }
-inline uint32_t block_mut::_internal_condensed_block_mut(int index) const {
+inline int32_t block_mut::_internal_condensed_block_mut(int index) const {
   return condensed_block_mut_.Get(index);
 }
-inline uint32_t block_mut::condensed_block_mut(int index) const {
+inline int32_t block_mut::condensed_block_mut(int index) const {
   // @@protoc_insertion_point(field_get:MAT.block_mut.condensed_block_mut)
   return _internal_condensed_block_mut(index);
 }
-inline void block_mut::set_condensed_block_mut(int index, uint32_t value) {
+inline void block_mut::set_condensed_block_mut(int index, int32_t value) {
   condensed_block_mut_.Set(index, value);
   // @@protoc_insertion_point(field_set:MAT.block_mut.condensed_block_mut)
 }
-inline void block_mut::_internal_add_condensed_block_mut(uint32_t value) {
+inline void block_mut::_internal_add_condensed_block_mut(int32_t value) {
   condensed_block_mut_.Add(value);
 }
-inline void block_mut::add_condensed_block_mut(uint32_t value) {
+inline void block_mut::add_condensed_block_mut(int32_t value) {
   _internal_add_condensed_block_mut(value);
   // @@protoc_insertion_point(field_add:MAT.block_mut.condensed_block_mut)
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
 block_mut::_internal_condensed_block_mut() const {
   return condensed_block_mut_;
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
 block_mut::condensed_block_mut() const {
   // @@protoc_insertion_point(field_list:MAT.block_mut.condensed_block_mut)
   return _internal_condensed_block_mut();
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
 block_mut::_internal_mutable_condensed_block_mut() {
   return &condensed_block_mut_;
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
 block_mut::mutable_condensed_block_mut() {
   // @@protoc_insertion_point(field_mutable_list:MAT.block_mut.condensed_block_mut)
   return _internal_mutable_condensed_block_mut();
@@ -1453,100 +1456,107 @@ inline void node::set_allocated_block_mutation(::MAT::block_mut* block_mutation)
 
 // -------------------------------------------------------------------
 
-// block
+// block_list
 
-// uint32 block_id = 1;
-inline void block::clear_block_id() {
-  block_id_ = 0u;
+// repeated int32 blockid = 1;
+inline int block_list::_internal_blockid_size() const {
+  return blockid_.size();
 }
-inline uint32_t block::_internal_block_id() const {
-  return block_id_;
+inline int block_list::blockid_size() const {
+  return _internal_blockid_size();
 }
-inline uint32_t block::block_id() const {
-  // @@protoc_insertion_point(field_get:MAT.block.block_id)
-  return _internal_block_id();
+inline void block_list::clear_blockid() {
+  blockid_.Clear();
 }
-inline void block::_internal_set_block_id(uint32_t value) {
-  
-  block_id_ = value;
+inline int32_t block_list::_internal_blockid(int index) const {
+  return blockid_.Get(index);
 }
-inline void block::set_block_id(uint32_t value) {
-  _internal_set_block_id(value);
-  // @@protoc_insertion_point(field_set:MAT.block.block_id)
+inline int32_t block_list::blockid(int index) const {
+  // @@protoc_insertion_point(field_get:MAT.block_list.blockid)
+  return _internal_blockid(index);
 }
-
-// repeated uint32 consensus_seq = 2;
-inline int block::_internal_consensus_seq_size() const {
-  return consensus_seq_.size();
+inline void block_list::set_blockid(int index, int32_t value) {
+  blockid_.Set(index, value);
+  // @@protoc_insertion_point(field_set:MAT.block_list.blockid)
 }
-inline int block::consensus_seq_size() const {
-  return _internal_consensus_seq_size();
+inline void block_list::_internal_add_blockid(int32_t value) {
+  blockid_.Add(value);
 }
-inline void block::clear_consensus_seq() {
-  consensus_seq_.Clear();
+inline void block_list::add_blockid(int32_t value) {
+  _internal_add_blockid(value);
+  // @@protoc_insertion_point(field_add:MAT.block_list.blockid)
 }
-inline uint32_t block::_internal_consensus_seq(int index) const {
-  return consensus_seq_.Get(index);
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
+block_list::_internal_blockid() const {
+  return blockid_;
 }
-inline uint32_t block::consensus_seq(int index) const {
-  // @@protoc_insertion_point(field_get:MAT.block.consensus_seq)
-  return _internal_consensus_seq(index);
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
+block_list::blockid() const {
+  // @@protoc_insertion_point(field_list:MAT.block_list.blockid)
+  return _internal_blockid();
 }
-inline void block::set_consensus_seq(int index, uint32_t value) {
-  consensus_seq_.Set(index, value);
-  // @@protoc_insertion_point(field_set:MAT.block.consensus_seq)
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
+block_list::_internal_mutable_blockid() {
+  return &blockid_;
 }
-inline void block::_internal_add_consensus_seq(uint32_t value) {
-  consensus_seq_.Add(value);
-}
-inline void block::add_consensus_seq(uint32_t value) {
-  _internal_add_consensus_seq(value);
-  // @@protoc_insertion_point(field_add:MAT.block.consensus_seq)
-}
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
-block::_internal_consensus_seq() const {
-  return consensus_seq_;
-}
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
-block::consensus_seq() const {
-  // @@protoc_insertion_point(field_list:MAT.block.consensus_seq)
-  return _internal_consensus_seq();
-}
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
-block::_internal_mutable_consensus_seq() {
-  return &consensus_seq_;
-}
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
-block::mutable_consensus_seq() {
-  // @@protoc_insertion_point(field_mutable_list:MAT.block.consensus_seq)
-  return _internal_mutable_consensus_seq();
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
+block_list::mutable_blockid() {
+  // @@protoc_insertion_point(field_mutable_list:MAT.block_list.blockid)
+  return _internal_mutable_blockid();
 }
 
-// uint32 chromosome_name = 3;
-inline void block::clear_chromosome_name() {
-  chromosome_name_ = 0u;
+// repeated int32 chromosome_name = 2;
+inline int block_list::_internal_chromosome_name_size() const {
+  return chromosome_name_.size();
 }
-inline uint32_t block::_internal_chromosome_name() const {
+inline int block_list::chromosome_name_size() const {
+  return _internal_chromosome_name_size();
+}
+inline void block_list::clear_chromosome_name() {
+  chromosome_name_.Clear();
+}
+inline int32_t block_list::_internal_chromosome_name(int index) const {
+  return chromosome_name_.Get(index);
+}
+inline int32_t block_list::chromosome_name(int index) const {
+  // @@protoc_insertion_point(field_get:MAT.block_list.chromosome_name)
+  return _internal_chromosome_name(index);
+}
+inline void block_list::set_chromosome_name(int index, int32_t value) {
+  chromosome_name_.Set(index, value);
+  // @@protoc_insertion_point(field_set:MAT.block_list.chromosome_name)
+}
+inline void block_list::_internal_add_chromosome_name(int32_t value) {
+  chromosome_name_.Add(value);
+}
+inline void block_list::add_chromosome_name(int32_t value) {
+  _internal_add_chromosome_name(value);
+  // @@protoc_insertion_point(field_add:MAT.block_list.chromosome_name)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
+block_list::_internal_chromosome_name() const {
   return chromosome_name_;
 }
-inline uint32_t block::chromosome_name() const {
-  // @@protoc_insertion_point(field_get:MAT.block.chromosome_name)
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
+block_list::chromosome_name() const {
+  // @@protoc_insertion_point(field_list:MAT.block_list.chromosome_name)
   return _internal_chromosome_name();
 }
-inline void block::_internal_set_chromosome_name(uint32_t value) {
-  
-  chromosome_name_ = value;
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
+block_list::_internal_mutable_chromosome_name() {
+  return &chromosome_name_;
 }
-inline void block::set_chromosome_name(uint32_t value) {
-  _internal_set_chromosome_name(value);
-  // @@protoc_insertion_point(field_set:MAT.block.chromosome_name)
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
+block_list::mutable_chromosome_name() {
+  // @@protoc_insertion_point(field_mutable_list:MAT.block_list.chromosome_name)
+  return _internal_mutable_chromosome_name();
 }
 
 // -------------------------------------------------------------------
 
 // gap_list
 
-// repeated uint32 position = 1;
+// repeated int32 position = 1;
 inline int gap_list::_internal_position_size() const {
   return position_.size();
 }
@@ -1556,44 +1566,44 @@ inline int gap_list::position_size() const {
 inline void gap_list::clear_position() {
   position_.Clear();
 }
-inline uint32_t gap_list::_internal_position(int index) const {
+inline int32_t gap_list::_internal_position(int index) const {
   return position_.Get(index);
 }
-inline uint32_t gap_list::position(int index) const {
+inline int32_t gap_list::position(int index) const {
   // @@protoc_insertion_point(field_get:MAT.gap_list.position)
   return _internal_position(index);
 }
-inline void gap_list::set_position(int index, uint32_t value) {
+inline void gap_list::set_position(int index, int32_t value) {
   position_.Set(index, value);
   // @@protoc_insertion_point(field_set:MAT.gap_list.position)
 }
-inline void gap_list::_internal_add_position(uint32_t value) {
+inline void gap_list::_internal_add_position(int32_t value) {
   position_.Add(value);
 }
-inline void gap_list::add_position(uint32_t value) {
+inline void gap_list::add_position(int32_t value) {
   _internal_add_position(value);
   // @@protoc_insertion_point(field_add:MAT.gap_list.position)
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
 gap_list::_internal_position() const {
   return position_;
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
 gap_list::position() const {
   // @@protoc_insertion_point(field_list:MAT.gap_list.position)
   return _internal_position();
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
 gap_list::_internal_mutable_position() {
   return &position_;
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
 gap_list::mutable_position() {
   // @@protoc_insertion_point(field_mutable_list:MAT.gap_list.position)
   return _internal_mutable_position();
 }
 
-// repeated uint32 condensed = 2;
+// repeated int32 condensed = 2;
 inline int gap_list::_internal_condensed_size() const {
   return condensed_.size();
 }
@@ -1603,38 +1613,38 @@ inline int gap_list::condensed_size() const {
 inline void gap_list::clear_condensed() {
   condensed_.Clear();
 }
-inline uint32_t gap_list::_internal_condensed(int index) const {
+inline int32_t gap_list::_internal_condensed(int index) const {
   return condensed_.Get(index);
 }
-inline uint32_t gap_list::condensed(int index) const {
+inline int32_t gap_list::condensed(int index) const {
   // @@protoc_insertion_point(field_get:MAT.gap_list.condensed)
   return _internal_condensed(index);
 }
-inline void gap_list::set_condensed(int index, uint32_t value) {
+inline void gap_list::set_condensed(int index, int32_t value) {
   condensed_.Set(index, value);
   // @@protoc_insertion_point(field_set:MAT.gap_list.condensed)
 }
-inline void gap_list::_internal_add_condensed(uint32_t value) {
+inline void gap_list::_internal_add_condensed(int32_t value) {
   condensed_.Add(value);
 }
-inline void gap_list::add_condensed(uint32_t value) {
+inline void gap_list::add_condensed(int32_t value) {
   _internal_add_condensed(value);
   // @@protoc_insertion_point(field_add:MAT.gap_list.condensed)
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
 gap_list::_internal_condensed() const {
   return condensed_;
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >&
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >&
 gap_list::condensed() const {
   // @@protoc_insertion_point(field_list:MAT.gap_list.condensed)
   return _internal_condensed();
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
 gap_list::_internal_mutable_condensed() {
   return &condensed_;
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< int32_t >*
 gap_list::mutable_condensed() {
   // @@protoc_insertion_point(field_mutable_list:MAT.gap_list.condensed)
   return _internal_mutable_condensed();
@@ -1735,47 +1745,7 @@ tree::nodes() const {
   return nodes_;
 }
 
-// repeated .MAT.block blocks = 3;
-inline int tree::_internal_blocks_size() const {
-  return blocks_.size();
-}
-inline int tree::blocks_size() const {
-  return _internal_blocks_size();
-}
-inline void tree::clear_blocks() {
-  blocks_.Clear();
-}
-inline ::MAT::block* tree::mutable_blocks(int index) {
-  // @@protoc_insertion_point(field_mutable:MAT.tree.blocks)
-  return blocks_.Mutable(index);
-}
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::block >*
-tree::mutable_blocks() {
-  // @@protoc_insertion_point(field_mutable_list:MAT.tree.blocks)
-  return &blocks_;
-}
-inline const ::MAT::block& tree::_internal_blocks(int index) const {
-  return blocks_.Get(index);
-}
-inline const ::MAT::block& tree::blocks(int index) const {
-  // @@protoc_insertion_point(field_get:MAT.tree.blocks)
-  return _internal_blocks(index);
-}
-inline ::MAT::block* tree::_internal_add_blocks() {
-  return blocks_.Add();
-}
-inline ::MAT::block* tree::add_blocks() {
-  ::MAT::block* _add = _internal_add_blocks();
-  // @@protoc_insertion_point(field_add:MAT.tree.blocks)
-  return _add;
-}
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::block >&
-tree::blocks() const {
-  // @@protoc_insertion_point(field_list:MAT.tree.blocks)
-  return blocks_;
-}
-
-// .MAT.gap_list gaps = 4;
+// .MAT.gap_list gaps = 3;
 inline bool tree::_internal_has_gaps() const {
   return this != internal_default_instance() && gaps_ != nullptr;
 }
@@ -1863,6 +1833,96 @@ inline void tree::set_allocated_gaps(::MAT::gap_list* gaps) {
   }
   gaps_ = gaps;
   // @@protoc_insertion_point(field_set_allocated:MAT.tree.gaps)
+}
+
+// .MAT.block_list blocks = 4;
+inline bool tree::_internal_has_blocks() const {
+  return this != internal_default_instance() && blocks_ != nullptr;
+}
+inline bool tree::has_blocks() const {
+  return _internal_has_blocks();
+}
+inline void tree::clear_blocks() {
+  if (GetArenaForAllocation() == nullptr && blocks_ != nullptr) {
+    delete blocks_;
+  }
+  blocks_ = nullptr;
+}
+inline const ::MAT::block_list& tree::_internal_blocks() const {
+  const ::MAT::block_list* p = blocks_;
+  return p != nullptr ? *p : reinterpret_cast<const ::MAT::block_list&>(
+      ::MAT::_block_list_default_instance_);
+}
+inline const ::MAT::block_list& tree::blocks() const {
+  // @@protoc_insertion_point(field_get:MAT.tree.blocks)
+  return _internal_blocks();
+}
+inline void tree::unsafe_arena_set_allocated_blocks(
+    ::MAT::block_list* blocks) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(blocks_);
+  }
+  blocks_ = blocks;
+  if (blocks) {
+    
+  } else {
+    
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:MAT.tree.blocks)
+}
+inline ::MAT::block_list* tree::release_blocks() {
+  
+  ::MAT::block_list* temp = blocks_;
+  blocks_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::MAT::block_list* tree::unsafe_arena_release_blocks() {
+  // @@protoc_insertion_point(field_release:MAT.tree.blocks)
+  
+  ::MAT::block_list* temp = blocks_;
+  blocks_ = nullptr;
+  return temp;
+}
+inline ::MAT::block_list* tree::_internal_mutable_blocks() {
+  
+  if (blocks_ == nullptr) {
+    auto* p = CreateMaybeMessage<::MAT::block_list>(GetArenaForAllocation());
+    blocks_ = p;
+  }
+  return blocks_;
+}
+inline ::MAT::block_list* tree::mutable_blocks() {
+  ::MAT::block_list* _msg = _internal_mutable_blocks();
+  // @@protoc_insertion_point(field_mutable:MAT.tree.blocks)
+  return _msg;
+}
+inline void tree::set_allocated_blocks(::MAT::block_list* blocks) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete blocks_;
+  }
+  if (blocks) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper<::MAT::block_list>::GetOwningArena(blocks);
+    if (message_arena != submessage_arena) {
+      blocks = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, blocks, submessage_arena);
+    }
+    
+  } else {
+    
+  }
+  blocks_ = blocks;
+  // @@protoc_insertion_point(field_set_allocated:MAT.tree.blocks)
 }
 
 #ifdef __GNUC__
