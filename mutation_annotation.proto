@@ -42,4 +42,3 @@ message tree
     repeated block blocks = 3;
     gap_list gaps = 4;
 }
-        
