@@ -7,16 +7,16 @@
 #include "PangenomeMAT.hpp"
 
 PangenomeMAT::Node::Node(std::string id, float len){
-	identifier = id;
+    identifier = id;
     level = 1;
-	branchLength = len;
-	parent = NULL;
+    branchLength = len;
+    parent = nullptr;
 }
 
 PangenomeMAT::Node::Node(std::string id, Node* par, float len){
-	identifier = id;
+    identifier = id;
     branchLength = len;
-	parent = par;
+    parent = par;
     level = par->level + 1;
     par->children.push_back(this);
 }
@@ -100,19 +100,19 @@ PangenomeMAT::Node* PangenomeMAT::Tree::createTreeFromNewickString(std::string n
         branchLen[level].push(len);
 
         // Adjusting max and mean depths
-        maxDepth = std::max(maxDepth, leafDepth);
-        meanDepth += leafDepth;
+        m_maxDepth = std::max(m_maxDepth, leafDepth);
+        m_meanDepth += leafDepth;
 
     }
 
-    meanDepth /= leaves.size();
+    m_meanDepth /= leaves.size();
 
     if (level != 0) {
         fprintf(stderr, "ERROR: incorrect Newick format!\n");
         exit(1);
     }
 
-    numLeaves = leaves.size();
+    m_numLeaves = leaves.size();
 
     std::stack<Node*> parentStack;
 
@@ -122,7 +122,7 @@ PangenomeMAT::Node* PangenomeMAT::Tree::createTreeFromNewickString(std::string n
         auto nc = numClose[i];
         for (size_t j=0; j<no; j++) {
             std::string nid = newInternalNodeId();
-            Node* newNode = NULL;
+            Node* newNode = nullptr;
             if (parentStack.size() == 0) {
                 newNode = new Node(nid, branchLen[level].front());
                 newTreeRoot = newNode;
@@ -147,7 +147,7 @@ PangenomeMAT::Node* PangenomeMAT::Tree::createTreeFromNewickString(std::string n
         }
     }
 
-    if (newTreeRoot == NULL) {
+    if (newTreeRoot == nullptr) {
         fprintf(stderr, "WARNING: Tree found empty!\n");
     }
 
@@ -174,19 +174,14 @@ void PangenomeMAT::Tree::assignMutationsToNodes(Node* root, size_t currentIndex,
 
 PangenomeMAT::Tree::Tree(std::ifstream& fin){
 
-    currInternalNode = 0;
-	numLeaves = 0;
-    maxDepth = 0;
-    meanDepth = 0;
-
     MAT::tree mainTree;
 
-	if(!mainTree.ParseFromIstream(&fin)){
-		std::cerr << "Could not read tree from input file." << std::endl;
-		return;
-	}
+    if(!mainTree.ParseFromIstream(&fin)){
+        std::cerr << "Could not read tree from input file." << std::endl;
+        return;
+    }
 
-	root = createTreeFromNewickString(mainTree.newick());
+    root = createTreeFromNewickString(mainTree.newick());
 
     std::vector< MAT::node > storedNodes;
     for(int i = 0; i < mainTree.nodes_size(); i++){
@@ -196,7 +191,14 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin){
     assignMutationsToNodes(root, 0, storedNodes);
 }
 
-int PangenomeMAT::Tree::getTotalParsimonyParallel(PangenomeMAT::MutationType type){
+int PangenomeMAT::Tree::getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType){
+    int totalMutations = 0;
+
+    
+    return totalMutations;
+}
+
+int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::NucMutationType nucMutType, PangenomeMAT::BlockMutationType blockMutType){
     int totalMutations = 0;
 
     std::queue<Node *> bfsQueue;
@@ -208,33 +210,16 @@ int PangenomeMAT::Tree::getTotalParsimonyParallel(PangenomeMAT::MutationType typ
 
         // Process children of current node
         for(auto nucMutation: current->nucMutation){
-            if((nucMutation.condensed & 0x3) == type){
+            if((nucMutation.condensed & 0x3) == nucMutType){
                 totalMutations++;
             }
         }
 
-        for(auto child: current->children){
-            bfsQueue.push(child);
-        }
-    }
-
-    return totalMutations;
-}
-
-int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::MutationType type){
-    int totalMutations = 0;
-
-    std::queue<Node *> bfsQueue;
-
-    bfsQueue.push(root);
-    while(!bfsQueue.empty()){
-        Node* current = bfsQueue.front();
-        bfsQueue.pop();
-
-        // Process children of current node
-        for(auto nucMutation: current->nucMutation){
-            if((nucMutation.condensed & 0x3) == type){
-                totalMutations++;
+        if(blockMutType != NONE){
+            for(auto blockMutation: current->blockMutation.condensedBlockMut){
+                if((blockMutation & 0x1) == blockMutType){
+                    totalMutations++;
+                }
             }
         }
 
@@ -248,14 +233,14 @@ int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::MutationType type){
 
 void PangenomeMAT::Tree::printSummary(){
     // Traversal test
-    std::cout << "Total Nodes in Tree: " << currInternalNode + numLeaves << std::endl;
-    std::cout << "Total Samples in Tree: " << numLeaves << std::endl;
-    std::cout << "Total Substitutions: " << getTotalParsimony(PangenomeMAT::MutationType::S) << std::endl;
-    std::cout << "Total Insertions: " << getTotalParsimony(PangenomeMAT::MutationType::I) << std::endl;
-    std::cout << "Total Deletions: " << getTotalParsimony(PangenomeMAT::MutationType::D) << std::endl;
-    std::cout << "Total SNP mutations: " << getTotalParsimony(PangenomeMAT::MutationType::SNP) << std::endl;
-    std::cout << "Max Tree Depth: " << maxDepth << std::endl;
-    std::cout << "Mean Tree Depth: " << meanDepth << std::endl;
+    std::cout << "Total Nodes in Tree: " << m_currInternalNode + m_numLeaves << std::endl;
+    std::cout << "Total Samples in Tree: " << m_numLeaves << std::endl;
+    std::cout << "Total Substitutions: " << getTotalParsimony(PangenomeMAT::NucMutationType::NS) << std::endl;
+    std::cout << "Total Insertions: " << getTotalParsimony(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
+    std::cout << "Total Deletions: " << getTotalParsimony(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
+    std::cout << "Total SNP mutations: " << getTotalParsimony(PangenomeMAT::NucMutationType::NSNP) << std::endl;
+    std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
+    std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
 }
 
 void PangenomeMAT::Tree::printBfs(){
@@ -280,9 +265,9 @@ void PangenomeMAT::Tree::printBfs(){
 }
 
 int main(int argc, char* argv[]){
-	std::ifstream input(argv[1]);
+    std::ifstream input(argv[1]);
 
-	PangenomeMAT::Tree T(input);
+    PangenomeMAT::Tree T(input);
     // T.printBfs();
     T.printSummary();
 }
