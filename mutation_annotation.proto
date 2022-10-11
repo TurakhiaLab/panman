@@ -19,6 +19,7 @@ message node
 {
     repeated nuc_mut nuc_mutation = 1;
     block_mut block_mutation = 2;
+    repeated string annotations = 3;
 }
 
 
@@ -26,7 +27,7 @@ message block
 {
     uint32 block_id = 1;
     repeated uint32 consensus_seq = 2;
-    uint32 chromosome_name = 3;
+    string chromosome_name = 3;
 }
 
 message gap_list
