@@ -4,3 +4,4 @@ write_sample.cpp
 mutation_annotation_old_old.pb.cc
 mutation_annotation_old.pb.h
 main
+sample_mat.pb
