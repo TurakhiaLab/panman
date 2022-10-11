@@ -1,8 +1,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <tbb/parallel_invoke.h> 
-#include <tbb/parallel_for_each.h>
+// #include <tbb/parallel_invoke.h> 
+#include <tbb/parallel_reduce.h>
+#include <tbb/parallel_for.h>
 
 #include "PangenomeMAT.hpp"
 
@@ -191,11 +192,51 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin){
     assignMutationsToNodes(root, 0, storedNodes);
 }
 
-int PangenomeMAT::Tree::getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType){
+int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucMutationType nucMutType, PangenomeMAT::BlockMutationType blockMutType){
     int totalMutations = 0;
 
-    
+    totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+        for(int i = r.begin(); i != r.end(); i++){
+            if((root->nucMutation[i].condensed & 0x3) == nucMutType){
+                init++;
+            }
+        }
+        return init;
+    }, [&](int x, int y){
+        return x + y;
+    });
+
+    if(blockMutType != PangenomeMAT::BlockMutationType::NONE){
+        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.condensedBlockMut.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+            for(int i = r.begin(); i != r.end(); i++){
+                if((root->blockMutation.condensedBlockMut[i] & 0x1) == blockMutType){
+                    init++;
+                }
+            }
+            return init;
+        }, [&](int x, int y){
+            return x + y;
+        });
+    }
+
+
+    totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->children.size()), 0, [&](tbb::blocked_range<int>& r, int init) -> int{
+        for(int i = r.begin(); i != r.end(); i++){
+            init += getTotalParsimonyParallelHelper(root->children[i], nucMutType, blockMutType);
+        }
+        return init;
+    },
+    [](int x, int y) -> int {
+        return x+y;
+    });
+
     return totalMutations;
+}
+
+int PangenomeMAT::Tree::getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType){
+
+    return getTotalParsimonyParallelHelper(root, nucMutType, blockMutType);
+
 }
 
 int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::NucMutationType nucMutType, PangenomeMAT::BlockMutationType blockMutType){
@@ -241,6 +282,13 @@ void PangenomeMAT::Tree::printSummary(){
     std::cout << "Total SNP mutations: " << getTotalParsimony(PangenomeMAT::NucMutationType::NSNP) << std::endl;
     std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
     std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
+
+    std::cout << "\nParallel Results:\n";
+    std::cout << "Total Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NS) << std::endl;
+    std::cout << "Total Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
+    std::cout << "Total Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
+    std::cout << "Total SNP mutations: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNP) << std::endl;
+
 }
 
 void PangenomeMAT::Tree::printBfs(){
