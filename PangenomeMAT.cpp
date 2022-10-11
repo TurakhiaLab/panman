@@ -1,11 +1,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
-// #include <tbb/parallel_invoke.h> 
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_for.h>
 
 #include "PangenomeMAT.hpp"
+
+// #define DEBUG
 
 PangenomeMAT::Node::Node(std::string id, float len){
     identifier = id;
@@ -178,8 +179,7 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin){
     MAT::tree mainTree;
 
     if(!mainTree.ParseFromIstream(&fin)){
-        std::cerr << "Could not read tree from input file." << std::endl;
-        return;
+        throw std::invalid_argument("Could not read tree from input file.");
     }
 
     root = createTreeFromNewickString(mainTree.newick());
@@ -274,6 +274,8 @@ int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::NucMutationType nucMutTy
 
 void PangenomeMAT::Tree::printSummary(){
     // Traversal test
+
+#ifdef DEBUG
     std::cout << "Total Nodes in Tree: " << m_currInternalNode + m_numLeaves << std::endl;
     std::cout << "Total Samples in Tree: " << m_numLeaves << std::endl;
     std::cout << "Total Substitutions: " << getTotalParsimony(PangenomeMAT::NucMutationType::NS) << std::endl;
@@ -288,6 +290,17 @@ void PangenomeMAT::Tree::printSummary(){
     std::cout << "Total Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
     std::cout << "Total Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
     std::cout << "Total SNP mutations: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNP) << std::endl;
+
+#else
+    std::cout << "Total Nodes in Tree: " << m_currInternalNode + m_numLeaves << std::endl;
+    std::cout << "Total Samples in Tree: " << m_numLeaves << std::endl;
+    std::cout << "Total Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NS) << std::endl;
+    std::cout << "Total Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
+    std::cout << "Total Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
+    std::cout << "Total SNP mutations: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNP) << std::endl;
+    std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
+    std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
+#endif
 
 }
 
@@ -310,12 +323,4 @@ void PangenomeMAT::Tree::printBfs(){
             bfsQueue.push(child);
         }
     }
-}
-
-int main(int argc, char* argv[]){
-    std::ifstream input(argv[1]);
-
-    PangenomeMAT::Tree T(input);
-    // T.printBfs();
-    T.printSummary();
 }

@@ -54,7 +54,7 @@ namespace PangenomeMAT {
     struct Block {
         uint32_t blockId;
         std::vector< uint32_t > consensusSeq;
-        uint32_t chromosomeName;
+        std::string chromosomeName;
     };
 
     struct GapList {
@@ -77,6 +77,7 @@ namespace PangenomeMAT {
 
         std::vector< NucMut > nucMutation;
         BlockMut blockMutation;
+        std::vector< std::string > annotations;
     };
 
     class Tree {

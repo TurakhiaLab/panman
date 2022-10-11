@@ -547,6 +547,7 @@ class node final :
 
   enum : int {
     kNucMutationFieldNumber = 1,
+    kAnnotationsFieldNumber = 3,
     kBlockMutationFieldNumber = 2,
   };
   // repeated .MAT.nuc_mut nuc_mutation = 1;
@@ -566,6 +567,30 @@ class node final :
   ::MAT::nuc_mut* add_nuc_mutation();
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::nuc_mut >&
       nuc_mutation() const;
+
+  // repeated string annotations = 3;
+  int annotations_size() const;
+  private:
+  int _internal_annotations_size() const;
+  public:
+  void clear_annotations();
+  const std::string& annotations(int index) const;
+  std::string* mutable_annotations(int index);
+  void set_annotations(int index, const std::string& value);
+  void set_annotations(int index, std::string&& value);
+  void set_annotations(int index, const char* value);
+  void set_annotations(int index, const char* value, size_t size);
+  std::string* add_annotations();
+  void add_annotations(const std::string& value);
+  void add_annotations(std::string&& value);
+  void add_annotations(const char* value);
+  void add_annotations(const char* value, size_t size);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>& annotations() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>* mutable_annotations();
+  private:
+  const std::string& _internal_annotations(int index) const;
+  std::string* _internal_add_annotations();
+  public:
 
   // .MAT.block_mut block_mutation = 2;
   bool has_block_mutation() const;
@@ -593,6 +618,7 @@ class node final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::MAT::nuc_mut > nuc_mutation_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string> annotations_;
   ::MAT::block_mut* block_mutation_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_mutation_5fannotation_2eproto;
@@ -722,8 +748,8 @@ class block final :
 
   enum : int {
     kConsensusSeqFieldNumber = 2,
-    kBlockIdFieldNumber = 1,
     kChromosomeNameFieldNumber = 3,
+    kBlockIdFieldNumber = 1,
   };
   // repeated uint32 consensus_seq = 2;
   int consensus_seq_size() const;
@@ -747,6 +773,20 @@ class block final :
   ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t >*
       mutable_consensus_seq();
 
+  // string chromosome_name = 3;
+  void clear_chromosome_name();
+  const std::string& chromosome_name() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_chromosome_name(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_chromosome_name();
+  PROTOBUF_NODISCARD std::string* release_chromosome_name();
+  void set_allocated_chromosome_name(std::string* chromosome_name);
+  private:
+  const std::string& _internal_chromosome_name() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_chromosome_name(const std::string& value);
+  std::string* _internal_mutable_chromosome_name();
+  public:
+
   // uint32 block_id = 1;
   void clear_block_id();
   uint32_t block_id() const;
@@ -754,15 +794,6 @@ class block final :
   private:
   uint32_t _internal_block_id() const;
   void _internal_set_block_id(uint32_t value);
-  public:
-
-  // uint32 chromosome_name = 3;
-  void clear_chromosome_name();
-  uint32_t chromosome_name() const;
-  void set_chromosome_name(uint32_t value);
-  private:
-  uint32_t _internal_chromosome_name() const;
-  void _internal_set_chromosome_name(uint32_t value);
   public:
 
   // @@protoc_insertion_point(class_scope:MAT.block)
@@ -774,8 +805,8 @@ class block final :
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedField< uint32_t > consensus_seq_;
   mutable std::atomic<int> _consensus_seq_cached_byte_size_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr chromosome_name_;
   uint32_t block_id_;
-  uint32_t chromosome_name_;
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_mutation_5fannotation_2eproto;
 };
@@ -1451,6 +1482,81 @@ inline void node::set_allocated_block_mutation(::MAT::block_mut* block_mutation)
   // @@protoc_insertion_point(field_set_allocated:MAT.node.block_mutation)
 }
 
+// repeated string annotations = 3;
+inline int node::_internal_annotations_size() const {
+  return annotations_.size();
+}
+inline int node::annotations_size() const {
+  return _internal_annotations_size();
+}
+inline void node::clear_annotations() {
+  annotations_.Clear();
+}
+inline std::string* node::add_annotations() {
+  std::string* _s = _internal_add_annotations();
+  // @@protoc_insertion_point(field_add_mutable:MAT.node.annotations)
+  return _s;
+}
+inline const std::string& node::_internal_annotations(int index) const {
+  return annotations_.Get(index);
+}
+inline const std::string& node::annotations(int index) const {
+  // @@protoc_insertion_point(field_get:MAT.node.annotations)
+  return _internal_annotations(index);
+}
+inline std::string* node::mutable_annotations(int index) {
+  // @@protoc_insertion_point(field_mutable:MAT.node.annotations)
+  return annotations_.Mutable(index);
+}
+inline void node::set_annotations(int index, const std::string& value) {
+  annotations_.Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set:MAT.node.annotations)
+}
+inline void node::set_annotations(int index, std::string&& value) {
+  annotations_.Mutable(index)->assign(std::move(value));
+  // @@protoc_insertion_point(field_set:MAT.node.annotations)
+}
+inline void node::set_annotations(int index, const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  annotations_.Mutable(index)->assign(value);
+  // @@protoc_insertion_point(field_set_char:MAT.node.annotations)
+}
+inline void node::set_annotations(int index, const char* value, size_t size) {
+  annotations_.Mutable(index)->assign(
+    reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_set_pointer:MAT.node.annotations)
+}
+inline std::string* node::_internal_add_annotations() {
+  return annotations_.Add();
+}
+inline void node::add_annotations(const std::string& value) {
+  annotations_.Add()->assign(value);
+  // @@protoc_insertion_point(field_add:MAT.node.annotations)
+}
+inline void node::add_annotations(std::string&& value) {
+  annotations_.Add(std::move(value));
+  // @@protoc_insertion_point(field_add:MAT.node.annotations)
+}
+inline void node::add_annotations(const char* value) {
+  GOOGLE_DCHECK(value != nullptr);
+  annotations_.Add()->assign(value);
+  // @@protoc_insertion_point(field_add_char:MAT.node.annotations)
+}
+inline void node::add_annotations(const char* value, size_t size) {
+  annotations_.Add()->assign(reinterpret_cast<const char*>(value), size);
+  // @@protoc_insertion_point(field_add_pointer:MAT.node.annotations)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>&
+node::annotations() const {
+  // @@protoc_insertion_point(field_list:MAT.node.annotations)
+  return annotations_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<std::string>*
+node::mutable_annotations() {
+  // @@protoc_insertion_point(field_mutable_list:MAT.node.annotations)
+  return &annotations_;
+}
+
 // -------------------------------------------------------------------
 
 // block
@@ -1522,24 +1628,55 @@ block::mutable_consensus_seq() {
   return _internal_mutable_consensus_seq();
 }
 
-// uint32 chromosome_name = 3;
+// string chromosome_name = 3;
 inline void block::clear_chromosome_name() {
-  chromosome_name_ = 0u;
+  chromosome_name_.ClearToEmpty();
 }
-inline uint32_t block::_internal_chromosome_name() const {
-  return chromosome_name_;
-}
-inline uint32_t block::chromosome_name() const {
+inline const std::string& block::chromosome_name() const {
   // @@protoc_insertion_point(field_get:MAT.block.chromosome_name)
   return _internal_chromosome_name();
 }
-inline void block::_internal_set_chromosome_name(uint32_t value) {
-  
-  chromosome_name_ = value;
-}
-inline void block::set_chromosome_name(uint32_t value) {
-  _internal_set_chromosome_name(value);
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void block::set_chromosome_name(ArgT0&& arg0, ArgT... args) {
+ 
+ chromosome_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
   // @@protoc_insertion_point(field_set:MAT.block.chromosome_name)
+}
+inline std::string* block::mutable_chromosome_name() {
+  std::string* _s = _internal_mutable_chromosome_name();
+  // @@protoc_insertion_point(field_mutable:MAT.block.chromosome_name)
+  return _s;
+}
+inline const std::string& block::_internal_chromosome_name() const {
+  return chromosome_name_.Get();
+}
+inline void block::_internal_set_chromosome_name(const std::string& value) {
+  
+  chromosome_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, value, GetArenaForAllocation());
+}
+inline std::string* block::_internal_mutable_chromosome_name() {
+  
+  return chromosome_name_.Mutable(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, GetArenaForAllocation());
+}
+inline std::string* block::release_chromosome_name() {
+  // @@protoc_insertion_point(field_release:MAT.block.chromosome_name)
+  return chromosome_name_.Release(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArenaForAllocation());
+}
+inline void block::set_allocated_chromosome_name(std::string* chromosome_name) {
+  if (chromosome_name != nullptr) {
+    
+  } else {
+    
+  }
+  chromosome_name_.SetAllocated(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), chromosome_name,
+      GetArenaForAllocation());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (chromosome_name_.IsDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited())) {
+    chromosome_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
+  }
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:MAT.block.chromosome_name)
 }
 
 // -------------------------------------------------------------------
