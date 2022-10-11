@@ -48,6 +48,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT block_mutDefaultTypeInternal _b
 constexpr node::node(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : nuc_mutation_()
+  , annotations_()
   , block_mutation_(nullptr){}
 struct nodeDefaultTypeInternal {
   constexpr nodeDefaultTypeInternal()
@@ -62,8 +63,8 @@ constexpr block::block(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : consensus_seq_()
   , _consensus_seq_cached_byte_size_(0)
-  , block_id_(0u)
-  , chromosome_name_(0u){}
+  , chromosome_name_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
+  , block_id_(0u){}
 struct blockDefaultTypeInternal {
   constexpr blockDefaultTypeInternal()
     : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
@@ -134,6 +135,7 @@ const uint32_t TableStruct_mutation_5fannotation_2eproto::offsets[] PROTOBUF_SEC
   ~0u,  // no _inlined_string_donated_
   PROTOBUF_FIELD_OFFSET(::MAT::node, nuc_mutation_),
   PROTOBUF_FIELD_OFFSET(::MAT::node, block_mutation_),
+  PROTOBUF_FIELD_OFFSET(::MAT::node, annotations_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::MAT::block, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -166,9 +168,9 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 0, -1, -1, sizeof(::MAT::nuc_mut)},
   { 10, -1, -1, sizeof(::MAT::block_mut)},
   { 17, -1, -1, sizeof(::MAT::node)},
-  { 25, -1, -1, sizeof(::MAT::block)},
-  { 34, -1, -1, sizeof(::MAT::gap_list)},
-  { 42, -1, -1, sizeof(::MAT::tree)},
+  { 26, -1, -1, sizeof(::MAT::block)},
+  { 35, -1, -1, sizeof(::MAT::gap_list)},
+  { 43, -1, -1, sizeof(::MAT::tree)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -184,20 +186,20 @@ const char descriptor_table_protodef_mutation_5fannotation_2eproto[] PROTOBUF_SE
   "\n\031mutation_annotation.proto\022\003MAT\"R\n\007nuc_"
   "mut\022\020\n\010position\030\001 \001(\r\022\024\n\014gap_position\030\002 "
   "\001(\r\022\021\n\tcondensed\030\003 \001(\r\022\014\n\004nucs\030\004 \001(\004\"(\n\t"
-  "block_mut\022\033\n\023condensed_block_mut\030\001 \003(\r\"R"
+  "block_mut\022\033\n\023condensed_block_mut\030\001 \003(\r\"g"
   "\n\004node\022\"\n\014nuc_mutation\030\001 \003(\0132\014.MAT.nuc_m"
   "ut\022&\n\016block_mutation\030\002 \001(\0132\016.MAT.block_m"
-  "ut\"I\n\005block\022\020\n\010block_id\030\001 \001(\r\022\025\n\rconsens"
-  "us_seq\030\002 \003(\r\022\027\n\017chromosome_name\030\003 \001(\r\"/\n"
-  "\010gap_list\022\020\n\010position\030\001 \003(\r\022\021\n\tcondensed"
-  "\030\002 \003(\r\"i\n\004tree\022\016\n\006newick\030\001 \001(\t\022\030\n\005nodes\030"
-  "\002 \003(\0132\t.MAT.node\022\032\n\006blocks\030\003 \003(\0132\n.MAT.b"
-  "lock\022\033\n\004gaps\030\004 \001(\0132\r.MAT.gap_listb\006proto"
-  "3"
+  "ut\022\023\n\013annotations\030\003 \003(\t\"I\n\005block\022\020\n\010bloc"
+  "k_id\030\001 \001(\r\022\025\n\rconsensus_seq\030\002 \003(\r\022\027\n\017chr"
+  "omosome_name\030\003 \001(\t\"/\n\010gap_list\022\020\n\010positi"
+  "on\030\001 \003(\r\022\021\n\tcondensed\030\002 \003(\r\"i\n\004tree\022\016\n\006n"
+  "ewick\030\001 \001(\t\022\030\n\005nodes\030\002 \003(\0132\t.MAT.node\022\032\n"
+  "\006blocks\030\003 \003(\0132\n.MAT.block\022\033\n\004gaps\030\004 \001(\0132"
+  "\r.MAT.gap_listb\006proto3"
   ;
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_mutation_5fannotation_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_mutation_5fannotation_2eproto = {
-  false, false, 481, descriptor_table_protodef_mutation_5fannotation_2eproto, "mutation_annotation.proto", 
+  false, false, 502, descriptor_table_protodef_mutation_5fannotation_2eproto, "mutation_annotation.proto", 
   &descriptor_table_mutation_5fannotation_2eproto_once, nullptr, 0, 6,
   schemas, file_default_instances, TableStruct_mutation_5fannotation_2eproto::offsets,
   file_level_metadata_mutation_5fannotation_2eproto, file_level_enum_descriptors_mutation_5fannotation_2eproto, file_level_service_descriptors_mutation_5fannotation_2eproto,
@@ -672,7 +674,8 @@ node::_Internal::block_mutation(const node* msg) {
 node::node(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
-  nuc_mutation_(arena) {
+  nuc_mutation_(arena),
+  annotations_(arena) {
   SharedCtor();
   if (!is_message_owned) {
     RegisterArenaDtor(arena);
@@ -681,7 +684,8 @@ node::node(::PROTOBUF_NAMESPACE_ID::Arena* arena,
 }
 node::node(const node& from)
   : ::PROTOBUF_NAMESPACE_ID::Message(),
-      nuc_mutation_(from.nuc_mutation_) {
+      nuc_mutation_(from.nuc_mutation_),
+      annotations_(from.annotations_) {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   if (from._internal_has_block_mutation()) {
     block_mutation_ = new ::MAT::block_mut(*from.block_mutation_);
@@ -724,6 +728,7 @@ void node::Clear() {
   (void) cached_has_bits;
 
   nuc_mutation_.Clear();
+  annotations_.Clear();
   if (GetArenaForAllocation() == nullptr && block_mutation_ != nullptr) {
     delete block_mutation_;
   }
@@ -755,6 +760,21 @@ const char* node::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::inter
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
           ptr = ctx->ParseMessage(_internal_mutable_block_mutation(), ptr);
           CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // repeated string annotations = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 26)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            auto str = _internal_add_annotations();
+            ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+            CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "MAT.node.annotations"));
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<26>(ptr));
         } else
           goto handle_unusual;
         continue;
@@ -803,6 +823,16 @@ uint8_t* node::_InternalSerialize(
         2, _Internal::block_mutation(this), target, stream);
   }
 
+  // repeated string annotations = 3;
+  for (int i = 0, n = this->_internal_annotations_size(); i < n; i++) {
+    const auto& s = this->_internal_annotations(i);
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      s.data(), static_cast<int>(s.length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "MAT.node.annotations");
+    target = stream->WriteString(3, s, target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -824,6 +854,14 @@ size_t node::ByteSizeLong() const {
   for (const auto& msg : this->nuc_mutation_) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // repeated string annotations = 3;
+  total_size += 1 *
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(annotations_.size());
+  for (int i = 0, n = annotations_.size(); i < n; i++) {
+    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+      annotations_.Get(i));
   }
 
   // .MAT.block_mut block_mutation = 2;
@@ -856,6 +894,7 @@ void node::MergeFrom(const node& from) {
   (void) cached_has_bits;
 
   nuc_mutation_.MergeFrom(from.nuc_mutation_);
+  annotations_.MergeFrom(from.annotations_);
   if (from._internal_has_block_mutation()) {
     _internal_mutable_block_mutation()->::MAT::block_mut::MergeFrom(from._internal_block_mutation());
   }
@@ -877,6 +916,7 @@ void node::InternalSwap(node* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   nuc_mutation_.InternalSwap(&other->nuc_mutation_);
+  annotations_.InternalSwap(&other->annotations_);
   swap(block_mutation_, other->block_mutation_);
 }
 
@@ -906,17 +946,24 @@ block::block(const block& from)
   : ::PROTOBUF_NAMESPACE_ID::Message(),
       consensus_seq_(from.consensus_seq_) {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  ::memcpy(&block_id_, &from.block_id_,
-    static_cast<size_t>(reinterpret_cast<char*>(&chromosome_name_) -
-    reinterpret_cast<char*>(&block_id_)) + sizeof(chromosome_name_));
+  chromosome_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+    chromosome_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
+  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_chromosome_name().empty()) {
+    chromosome_name_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_chromosome_name(), 
+      GetArenaForAllocation());
+  }
+  block_id_ = from.block_id_;
   // @@protoc_insertion_point(copy_constructor:MAT.block)
 }
 
 inline void block::SharedCtor() {
-::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&block_id_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&chromosome_name_) -
-    reinterpret_cast<char*>(&block_id_)) + sizeof(chromosome_name_));
+chromosome_name_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  chromosome_name_.Set(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), "", GetArenaForAllocation());
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+block_id_ = 0u;
 }
 
 block::~block() {
@@ -928,6 +975,7 @@ block::~block() {
 
 inline void block::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  chromosome_name_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
 }
 
 void block::ArenaDtor(void* object) {
@@ -947,9 +995,8 @@ void block::Clear() {
   (void) cached_has_bits;
 
   consensus_seq_.Clear();
-  ::memset(&block_id_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&chromosome_name_) -
-      reinterpret_cast<char*>(&block_id_)) + sizeof(chromosome_name_));
+  chromosome_name_.ClearToEmpty();
+  block_id_ = 0u;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -978,10 +1025,12 @@ const char* block::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::inte
         } else
           goto handle_unusual;
         continue;
-      // uint32 chromosome_name = 3;
+      // string chromosome_name = 3;
       case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 24)) {
-          chromosome_name_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 26)) {
+          auto str = _internal_mutable_chromosome_name();
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "MAT.block.chromosome_name"));
           CHK_(ptr);
         } else
           goto handle_unusual;
@@ -1030,10 +1079,14 @@ uint8_t* block::_InternalSerialize(
     }
   }
 
-  // uint32 chromosome_name = 3;
-  if (this->_internal_chromosome_name() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::WriteUInt32ToArray(3, this->_internal_chromosome_name(), target);
+  // string chromosome_name = 3;
+  if (!this->_internal_chromosome_name().empty()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->_internal_chromosome_name().data(), static_cast<int>(this->_internal_chromosome_name().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "MAT.block.chromosome_name");
+    target = stream->WriteStringMaybeAliased(
+        3, this->_internal_chromosome_name(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -1067,14 +1120,16 @@ size_t block::ByteSizeLong() const {
     total_size += data_size;
   }
 
+  // string chromosome_name = 3;
+  if (!this->_internal_chromosome_name().empty()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->_internal_chromosome_name());
+  }
+
   // uint32 block_id = 1;
   if (this->_internal_block_id() != 0) {
     total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32SizePlusOne(this->_internal_block_id());
-  }
-
-  // uint32 chromosome_name = 3;
-  if (this->_internal_chromosome_name() != 0) {
-    total_size += ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::UInt32SizePlusOne(this->_internal_chromosome_name());
   }
 
   return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
@@ -1100,11 +1155,11 @@ void block::MergeFrom(const block& from) {
   (void) cached_has_bits;
 
   consensus_seq_.MergeFrom(from.consensus_seq_);
+  if (!from._internal_chromosome_name().empty()) {
+    _internal_set_chromosome_name(from._internal_chromosome_name());
+  }
   if (from._internal_block_id() != 0) {
     _internal_set_block_id(from._internal_block_id());
-  }
-  if (from._internal_chromosome_name() != 0) {
-    _internal_set_chromosome_name(from._internal_chromosome_name());
   }
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
@@ -1122,14 +1177,16 @@ bool block::IsInitialized() const {
 
 void block::InternalSwap(block* other) {
   using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   consensus_seq_.InternalSwap(&other->consensus_seq_);
-  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(block, chromosome_name_)
-      + sizeof(block::chromosome_name_)
-      - PROTOBUF_FIELD_OFFSET(block, block_id_)>(
-          reinterpret_cast<char*>(&block_id_),
-          reinterpret_cast<char*>(&other->block_id_));
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
+      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      &chromosome_name_, lhs_arena,
+      &other->chromosome_name_, rhs_arena
+  );
+  swap(block_id_, other->block_id_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata block::GetMetadata() const {

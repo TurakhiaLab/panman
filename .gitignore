@@ -3,4 +3,4 @@ read_sample.cpp
 write_sample.cpp
 mutation_annotation_old_old.pb.cc
 mutation_annotation_old.pb.h
-PangenomeMAT
+main
