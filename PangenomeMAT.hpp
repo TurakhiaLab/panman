@@ -1,3 +1,6 @@
+#ifndef PANGENOME_MAT_HPP
+#define PANGENOME_MAT_HPP
+
 #include <vector>
 #include <string>
 #include <fstream>
@@ -8,94 +11,102 @@
 
 namespace PangenomeMAT {
 
-	enum MutationType {
-		S = 0,
-		D = 1,
-		I = 2,
-		SNP = 3
-	};
+    enum NucMutationType {
+        NS = 0,
+        ND = 1,
+        NI = 2,
+        NSNP = 3
+    };
 
-	void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
+    enum BlockMutationType {
+        BI = 0,
+        BD = 1,
+        NONE = 1000
+    };
 
-	struct NucMut {
-		NucMut(MAT::nuc_mut mutation){
-			position = mutation.position();
-			gapPosition = mutation.gap_position();
-			condensed = mutation.condensed();
-			nucs = mutation.nucs();
-		}
+    void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
-		uint32_t position;
-		uint32_t gapPosition;
-		uint32_t condensed; // The first two bits here should indicate the type of mutation and the other parameters would be read accordingly;
-		uint64_t nucs;
-	};
+    struct NucMut {
+        NucMut(MAT::nuc_mut mutation){
+            position = mutation.position();
+            gapPosition = mutation.gap_position();
+            condensed = mutation.condensed();
+            nucs = mutation.nucs();
+        }
 
-	struct BlockMut {
+        uint32_t position;
+        uint32_t gapPosition;
+        uint32_t condensed;
+        uint64_t nucs;
+    };
 
-		void loadFromProtobuf( MAT::block_mut mutation ){
-			for(int i = 0; i < mutation.condensed_block_mut_size(); i++){
-				condensedBlockMut.push_back(mutation.condensed_block_mut(i));
-			}
-		}
+    struct BlockMut {
 
-		std::vector< uint32_t > condensedBlockMut;
-	};
+        void loadFromProtobuf( MAT::block_mut mutation ){
+            for(size_t i = 0; i < mutation.condensed_block_mut_size(); i++){
+                condensedBlockMut.push_back(mutation.condensed_block_mut(i));
+            }
+        }
 
-	struct Block {
-		uint32_t blockId;
-		std::vector< uint32_t > consensusSeq;
-		uint32_t chromosomeName;
-	};
+        std::vector< uint32_t > condensedBlockMut;
+    };
 
-	struct GapList {
-		std::vector< uint32_t > position;
-		std::vector< uint32_t > condensed;
-	};
+    struct Block {
+        uint32_t blockId;
+        std::vector< uint32_t > consensusSeq;
+        uint32_t chromosomeName;
+    };
 
-	class Node {
-	public:
-		Node(std::string id, float len);
-		Node(std::string id, Node* par, float len);
+    struct GapList {
+        std::vector< uint32_t > position;
+        std::vector< uint32_t > condensed;
+    };
 
-		// Check this with professor
-    	float branchLength;
-    	size_t level;
+    class Node {
+    public:
+        Node(std::string id, float len);
+        Node(std::string id, Node* par, float len);
 
-    	std::string identifier;
-		Node* parent;
-		std::vector< Node* > children;
+        // Check this with professor
+        float branchLength;
+        size_t level;
 
-		std::vector< NucMut > nucMutation;
-		BlockMut blockMutation;
-	};
+        std::string identifier;
+        Node* parent;
+        std::vector< Node* > children;
 
-	class Tree {
-	private:
-		size_t currInternalNode;
-		size_t numLeaves;
-		size_t maxDepth;
-		float meanDepth;
+        std::vector< NucMut > nucMutation;
+        BlockMut blockMutation;
+    };
 
-		Node* createTreeFromNewickString(std::string newick);
-		void assignMutationsToNodes(Node* root, size_t currentIndex, std::vector< MAT::node >& nodes);
-		int getTotalParsimony(MutationType type);
-		int getTotalParsimonyParallel(MutationType type);
+    class Tree {
+    private:
+        size_t m_currInternalNode{ 0 };
+        size_t m_numLeaves{ 0 };
+        size_t m_maxDepth{ 0 };
+        float m_meanDepth{ 0 };
 
-		std::unordered_map<std::string, Node*> allNodes;
+        Node* createTreeFromNewickString(std::string newick);
+        void assignMutationsToNodes(Node* root, size_t currentIndex, std::vector< MAT::node >& nodes);
+        int getTotalParsimony(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
+        int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
 
-		std::string newInternalNodeId() {
-        	return "node_" + std::to_string(++currInternalNode);
-    	}
+        std::unordered_map<std::string, Node*> allNodes;
 
-	public:
-		Tree(std::ifstream& fin);
-		void printSummary();
-		void printBfs(); // Temporary function. To be removed later;
+        std::string newInternalNodeId() {
+            return "node_" + std::to_string(++m_currInternalNode);
+        }
 
-		Node* root;
-		GapList gaps;
-		std::vector< Block > blocks;
-	};
+    public:
+        Tree(std::ifstream& fin);
+        void printSummary();
+        void printBfs(); // Temporary function. To be removed later;
+
+        Node* root;
+        GapList gaps;
+        std::vector< Block > blocks;
+    };
 
 };
+
+#endif // PANGENOME_MAP_HPP
