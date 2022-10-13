@@ -11,7 +11,7 @@ int main(int argc, char* argv[]){
         std::ifstream input(argv[1]);
         PangenomeMAT::Tree T(input);
         T.printSummary();
-    } catch(std::exception e){
+    } catch(std::exception& e){
         std::cout << e.what() << std::endl;
         return -1;
     }

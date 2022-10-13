@@ -43,7 +43,7 @@ namespace PangenomeMAT {
     struct BlockMut {
 
         void loadFromProtobuf( MAT::block_mut mutation ){
-            for(size_t i = 0; i < mutation.condensed_block_mut_size(); i++){
+            for(int i = 0; i < mutation.condensed_block_mut_size(); i++){
                 condensedBlockMut.push_back(mutation.condensed_block_mut(i));
             }
         }
@@ -101,6 +101,7 @@ namespace PangenomeMAT {
     public:
         Tree(std::ifstream& fin);
         void printSummary();
+        void printFASTA();
         void printBfs(); // Temporary function. To be removed later;
 
         Node* root;

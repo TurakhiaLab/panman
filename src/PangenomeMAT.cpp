@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <stack>
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_for.h>
 
@@ -198,7 +199,12 @@ int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucM
     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
         for(int i = r.begin(); i != r.end(); i++){
             if((root->nucMutation[i].condensed & 0x3) == nucMutType){
-                init++;
+                if(nucMutType == PangenomeMAT::NucMutationType::NS){
+                    init += ((root->nucMutation[i].condensed) & (((1<<6)-1)<<2)); // Length of contiguous mutation in case of substitution
+                } else {
+                    init++;
+                }
+                // init++;
             }
         }
         return init;
@@ -252,7 +258,11 @@ int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::NucMutationType nucMutTy
         // Process children of current node
         for(auto nucMutation: current->nucMutation){
             if((nucMutation.condensed & 0x3) == nucMutType){
-                totalMutations++;
+                if(nucMutType == PangenomeMAT::NucMutationType::NS){
+                    totalMutations += (nucMutation.condensed & (((1<<6)-1)<<2)); // Length of contiguous mutation in case of substitution
+                } else {
+                    totalMutations++;
+                }
             }
         }
 
@@ -307,7 +317,7 @@ void PangenomeMAT::Tree::printSummary(){
 void PangenomeMAT::Tree::printBfs(){
     // Traversal test
     std::queue<Node *> bfsQueue;
-    int prevLev = 0;
+    size_t prevLev = 0;
     bfsQueue.push(root);
     while(!bfsQueue.empty()){
         Node* current = bfsQueue.front();
