@@ -101,7 +101,6 @@ namespace PangenomeMAT {
     public:
         Tree(std::ifstream& fin);
         void printSummary();
-        void printFASTA();
         void printBfs(); // Temporary function. To be removed later;
 
         Node* root;

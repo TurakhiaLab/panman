@@ -199,12 +199,7 @@ int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucM
     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
         for(int i = r.begin(); i != r.end(); i++){
             if((root->nucMutation[i].condensed & 0x3) == nucMutType){
-                if(nucMutType == PangenomeMAT::NucMutationType::NS){
-                    init += ((root->nucMutation[i].condensed) & (((1<<6)-1)<<2)); // Length of contiguous mutation in case of substitution
-                } else {
-                    init++;
-                }
-                // init++;
+                init++;
             }
         }
         return init;
@@ -258,11 +253,7 @@ int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::NucMutationType nucMutTy
         // Process children of current node
         for(auto nucMutation: current->nucMutation){
             if((nucMutation.condensed & 0x3) == nucMutType){
-                if(nucMutType == PangenomeMAT::NucMutationType::NS){
-                    totalMutations += (nucMutation.condensed & (((1<<6)-1)<<2)); // Length of contiguous mutation in case of substitution
-                } else {
-                    totalMutations++;
-                }
+                totalMutations++;
             }
         }
 
