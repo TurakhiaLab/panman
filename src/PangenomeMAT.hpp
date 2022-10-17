@@ -29,13 +29,20 @@ namespace PangenomeMAT {
     struct NucMut {
         NucMut(MAT::nuc_mut mutation){
             position = mutation.position();
-            gapPosition = mutation.gap_position();
+
+            if(mutation.has_gap_position()){
+                gapPosition = mutation.gap_position();
+                // std::cout << '0';
+            } else {
+                gapPosition = -1;
+                // std::cout << '1';
+            }
             condensed = mutation.condensed();
             nucs = mutation.nucs();
         }
 
         uint32_t position;
-        uint32_t gapPosition;
+        int32_t gapPosition;
         uint32_t condensed;
         uint64_t nucs;
     };
@@ -52,12 +59,15 @@ namespace PangenomeMAT {
     };
 
     struct Block {
+        Block(MAT::block b);
+
         uint32_t blockId;
         std::vector< uint32_t > consensusSeq;
         std::string chromosomeName;
     };
 
     struct GapList {
+
         std::vector< uint32_t > position;
         std::vector< uint32_t > condensed;
     };
@@ -101,7 +111,7 @@ namespace PangenomeMAT {
     public:
         Tree(std::ifstream& fin);
         void printSummary();
-        void printFASTA();
+        void printFASTA(std::ofstream& fout);
         void printBfs(); // Temporary function. To be removed later;
 
         Node* root;
