@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 
 project(panmat-utils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
 if(DEFINED Protobuf_PATH) 
