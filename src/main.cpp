@@ -79,6 +79,38 @@ int main(int argc, char* argv[]){
                 std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
 
                 fout.close();
+            } else if(splitCommand.size() == 2 && splitCommand[0] == "write") {
+                std::string fileName = splitCommand[1];
+                std::filesystem::create_directory("./pmat");
+                std::ofstream fout("./pmat/" + fileName + ".pmat");
+
+                auto writeStart = std::chrono::high_resolution_clock::now();
+                
+                T.writeToFile(fout);
+
+                auto writeEnd = std::chrono::high_resolution_clock::now();
+                
+                std::chrono::nanoseconds writeTime = writeEnd - writeStart;
+
+                std::cout << "\nTree Write execution time: " << writeTime.count() << '\n';
+
+                fout.close();
+            } else if(splitCommand.size() == 2 && splitCommand[0] == "swrite") {
+                std::string fileName = splitCommand[1];
+                std::filesystem::create_directory("./spmat");
+                std::ofstream fout("./spmat/" + fileName + ".spmat");
+
+                auto writeStart = std::chrono::high_resolution_clock::now();
+                
+                T.sampleWriteToFile(fout);
+
+                auto writeEnd = std::chrono::high_resolution_clock::now();
+                
+                std::chrono::nanoseconds writeTime = writeEnd - writeStart;
+
+                std::cout << "\nSample Write execution time: " << writeTime.count() << '\n';
+
+                fout.close();
             } else if(splitCommand.size() == 1 && splitCommand[0] == "exit"){
                 return 0;
             }
