@@ -14,8 +14,10 @@ std::vector< std::string > splitString(const std::string& s){
         if(s[i] != ' '){
             current += s[i];
         } else {
-            res.push_back(current);
-            current = "";
+            if(current.length()){
+                res.push_back(current);
+                current = "";
+            }
         }
     }
 
