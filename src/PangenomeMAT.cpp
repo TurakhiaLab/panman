@@ -223,9 +223,9 @@ int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucM
 
     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
         for(int i = r.begin(); i != r.end(); i++){
-            if((root->nucMutation[i].condensed & 0x3) == nucMutType){
+            if((root->nucMutation[i].condensed & 0x7) == nucMutType){
                 if(nucMutType == PangenomeMAT::NucMutationType::NS){
-                    init += ((root->nucMutation[i].condensed) & (((1<<6)-1)<<2)); // Length of contiguous mutation in case of substitution
+                    init += (((root->nucMutation[i].condensed) >> 3) & 0x1F); // Length of contiguous mutation in case of substitution
                 } else {
                     init++;
                 }
@@ -282,9 +282,9 @@ int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::NucMutationType nucMutTy
 
         // Process children of current node
         for(auto nucMutation: current->nucMutation){
-            if((nucMutation.condensed & 0x3) == nucMutType){
+            if((nucMutation.condensed & 0x7) == nucMutType){
                 if(nucMutType == PangenomeMAT::NucMutationType::NS){
-                    totalMutations += (nucMutation.condensed & (((1<<6)-1)<<2)); // Length of contiguous mutation in case of substitution
+                    totalMutations += ((nucMutation.condensed >> 3) & 0x1F); // Length of contiguous mutation in case of substitution
                 } else {
                     totalMutations++;
                 }
@@ -316,7 +316,9 @@ void PangenomeMAT::Tree::printSummary(){
     std::cout << "Total Substitutions: " << getTotalParsimony(PangenomeMAT::NucMutationType::NS) << std::endl;
     std::cout << "Total Insertions: " << getTotalParsimony(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
     std::cout << "Total Deletions: " << getTotalParsimony(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
-    std::cout << "Total SNP mutations: " << getTotalParsimony(PangenomeMAT::NucMutationType::NSNP) << std::endl;
+    std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPS) << std::endl;
+    std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPI) << std::endl;
+    std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
     std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
     std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
 
@@ -324,7 +326,9 @@ void PangenomeMAT::Tree::printSummary(){
     std::cout << "Total Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NS) << std::endl;
     std::cout << "Total Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
     std::cout << "Total Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
-    std::cout << "Total SNP mutations: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNP) << std::endl;
+    std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPS) << std::endl;
+    std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPI) << std::endl;
+    std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
 
 #else
     std::cout << "Total Nodes in Tree: " << m_currInternalNode + m_numLeaves << std::endl;
@@ -332,7 +336,9 @@ void PangenomeMAT::Tree::printSummary(){
     std::cout << "Total Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NS) << std::endl;
     std::cout << "Total Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
     std::cout << "Total Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
-    std::cout << "Total SNP mutations: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNP) << std::endl;
+    std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPS) << std::endl;
+    std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPI) << std::endl;
+    std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
     std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
     std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
 #endif
@@ -479,6 +485,8 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
     // Apply mutations
     // Block mutations - ignored for now since the block IDs don't seem right in the files
 
+    std::vector< std::tuple< int, bool, bool > > blockMutationInfo;
+
     for(uint32_t mutation: root->blockMutation.condensedBlockMut){
         int bid = ((mutation >> 8) & ((1 << 24) - 1));
         int type = (mutation & 0x1);
@@ -486,9 +494,13 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         // std::cout << mutation << " " << bid  << " " << sequence.size() << " " << type << std::endl;
 
         if(type == 0){
+            bool oldVal = blockExists[bid];
             blockExists[bid] = true;
+            blockMutationInfo.push_back( std::make_tuple(bid, oldVal, true) );
         } else {
+            bool oldVal = blockExists[bid];
             blockExists[bid] = false;
+            blockMutationInfo.push_back( std::make_tuple(bid, oldVal, false) );
         }
 
     }
@@ -500,10 +512,6 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
     for(size_t i = 0; i < root->nucMutation.size(); i++){
 
         int bid = ((root->nucMutation[i].condensed >> 8) & (((1 << 24) - 1)));
-
-        // std::cout << bid << " " << blockExists[bid] << std::endl;
-
-        // std::cout << '>' << root->identifier << " " << i << " " << root->nucMutation.size() << " " << bid << " " <<sequence.size() << std::endl;
 
         int pos = root->nucMutation[i].position;
         int gapPos = root->nucMutation[i].gapPosition;
@@ -520,25 +528,6 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                     char oldVal = sequence[bid][pos + j].first;
                     newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
 
-                    // switch(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15){
-                    //     case 1:
-                    //         newVal = 'A';
-                    //         break;
-                    //     case 2:
-                    //         newVal = 'C';
-                    //         break;
-                    //     case 4:
-                    //         newVal = 'G';
-                    //         break;
-                    //     case 8:
-                    //         newVal = 'T';
-                    //         break;
-                    //     default:
-                    //         newVal = 'N';
-                    //         break;
-                    // }
-
-
                     sequence[bid][pos + j].first = newVal;
                     mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, oldVal, newVal));
                 }
@@ -546,46 +535,15 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                 
                 if(gapPos == -1){
                     for(int j = 0; j < len; j++){
-                        switch(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15){
-                            case 1:
-                                newVal = 'A';
-                                break;
-                            case 2:
-                                newVal = 'C';
-                                break;
-                            case 4:
-                                newVal = 'G';
-                                break;
-                            case 8:
-                                newVal = 'T';
-                                break;
-                            default:
-                                newVal = 'N';
-                                break;
-                        }
-
+                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                        
                         sequence[bid][pos + j].first = newVal;
                         mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, '-', newVal));
                     }
                 } else {
                     for(int j = 0; j < len; j++){
-                        switch(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15){
-                            case 1:
-                                newVal = 'A';
-                                break;
-                            case 2:
-                                newVal = 'C';
-                                break;
-                            case 4:
-                                newVal = 'G';
-                                break;
-                            case 8:
-                                newVal = 'T';
-                                break;
-                            default:
-                                newVal = 'N';
-                                break;
-                        }
+                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+
                         sequence[bid][pos].second[gapPos + j] = newVal;
                         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
                     }
@@ -608,22 +566,32 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         } else {
             // Todo: SNP
             if(type == PangenomeMAT::NucMutationType::NSNPS){
-                switch(((root->nucMutation[i].condensed) >> 3) & 0xF){
-                    case 1:
-                        newVal = 'A';
-                        break;
-                    case 2:
-                        newVal = 'C';
-                        break;
-                    case 4:
-                        newVal = 'G';
-                        break;
-                    case 8:
-                        newVal = 'T';
-                        break;
-                    default:
-                        newVal = 'N'
-                        break;
+                newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
+                char oldVal = sequence[bid][pos].first;
+                sequence[bid][pos].first = newVal;
+                mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+            }
+            // else if(type == PangenomeMAT::NucMutationType::NSNPI){
+            //     newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
+            //     if(gapPos == -1){
+            //         char oldVal = sequence[bid][pos].first;
+            //         sequence[bid][pos].first = newVal;
+            //         mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+            //     } else {
+            //         char oldVal = sequence[bid][pos].second[gapPos];
+            //         sequence[bid][pos].second[gapPos] = newVal;
+            //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
+            //     }
+            // }
+            else if(type == PangenomeMAT::NucMutationType::NSNPD){
+                if(gapPos == -1){
+                    char oldVal = sequence[bid][pos].first;
+                    sequence[bid][pos].first = '-';
+                    mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, '-'));
+                } else {
+                    char oldVal = sequence[bid][pos].second[gapPos];
+                    sequence[bid][pos].second[gapPos] = '-';
+                    mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, '-'));
                 }
             }
         }
@@ -633,16 +601,16 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         // Print sequence
         fout << '>' << root->identifier << std::endl;
         printSequenceLines(sequence, blockExists, 50, false, fout);
-        // for(auto line: lines){
-        //     fout << line << '\n';
-        // }
-        // fout << '\n';
 
     } else {
         // DFS on children
         for(PangenomeMAT::Node* child: root->children){
             printFASTAHelper(child, sequence, blockExists, fout);
         }
+    }
+
+    for(auto mutation: blockMutationInfo){
+        blockExists[std::get<0>(mutation)] = std::get<1>(mutation);
     }
 
     // Undo mutations
@@ -660,7 +628,7 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
     // First block is empty since the block IDs start at 1
     std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence(blocks.size() + 1);
     
-    std::vector< bool > blockExists(blocks.size() + 1, true);
+    std::vector< bool > blockExists(blocks.size() + 1, false);
 
     // std::cout << blocks.size() << " " << blocks[0].consensusSeq.size() << std::endl;
 
@@ -700,9 +668,6 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
 
         int len = ((gaps.condensed[i]) & 255);
         int pos = gaps.position[i];
-
-        // if(bId == 53)
-        //     std::cout << bId << " " << len << " " << pos << " " << sequence[bId].size() << std::endl;
 
         sequence[bId][pos].second.resize(len, '-');
     }
