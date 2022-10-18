@@ -225,6 +225,7 @@ int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucM
 
     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
         for(int i = r.begin(); i != r.end(); i++){
+            
             if((root->nucMutation[i].condensed & 0x7) == nucMutType){
                 if(nucMutType == PangenomeMAT::NucMutationType::NS){
                     init += (((root->nucMutation[i].condensed) >> 3) & 0x1F); // Length of contiguous mutation in case of substitution
@@ -239,18 +240,18 @@ int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucM
         return x + y;
     });
 
-    if(blockMutType != PangenomeMAT::BlockMutationType::NONE){
-        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.condensedBlockMut.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-            for(int i = r.begin(); i != r.end(); i++){
-                if((root->blockMutation.condensedBlockMut[i] & 0x1) == blockMutType){
-                    init++;
-                }
-            }
-            return init;
-        }, [&](int x, int y){
-            return x + y;
-        });
-    }
+    // if(blockMutType != PangenomeMAT::BlockMutationType::NONE){
+    //     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.condensedBlockMut.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+    //         for(int i = r.begin(); i != r.end(); i++){
+    //             if((root->blockMutation.condensedBlockMut[i] & 0x1) == blockMutType){
+    //                 init++;
+    //             }
+    //         }
+    //         return init;
+    //     }, [&](int x, int y){
+    //         return x + y;
+    //     });
+    // }
 
 
     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->children.size()), 0, [&](tbb::blocked_range<int>& r, int init) -> int{
@@ -293,13 +294,13 @@ int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::NucMutationType nucMutTy
             }
         }
 
-        if(blockMutType != NONE){
-            for(auto blockMutation: current->blockMutation.condensedBlockMut){
-                if((blockMutation & 0x1) == blockMutType){
-                    totalMutations++;
-                }
-            }
-        }
+        // if(blockMutType != NONE){
+        //     for(auto blockMutation: current->blockMutation.condensedBlockMut){
+        //         if((blockMutation & 0x1) == blockMutType){
+        //             totalMutations++;
+        //         }
+        //     }
+        // }
 
         for(auto child: current->children){
             bfsQueue.push(child);
