@@ -15,7 +15,9 @@ namespace PangenomeMAT {
         NS = 0,
         ND = 1,
         NI = 2,
-        NSNP = 3
+        NSNPS = 3,
+        NSNPI = 4,
+        NSNPD = 5,
     };
 
     enum BlockMutationType {
