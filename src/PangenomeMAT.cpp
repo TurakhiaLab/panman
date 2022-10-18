@@ -164,7 +164,7 @@ PangenomeMAT::Node* PangenomeMAT::Tree::createTreeFromNewickString(std::string n
     return newTreeRoot;
 }
 
-void PangenomeMAT::Tree::assignMutationsToNodes(Node* root, size_t currentIndex, std::vector< MAT::node >& nodes){
+void PangenomeMAT::Tree::assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MAT::node >& nodes){
     std::vector< PangenomeMAT::NucMut > storedNucMutation;
     for(int i = 0; i < nodes[currentIndex].nuc_mutation_size(); i++){
         storedNucMutation.push_back( PangenomeMAT::NucMut(nodes[currentIndex].nuc_mutation(i)) );
@@ -177,7 +177,8 @@ void PangenomeMAT::Tree::assignMutationsToNodes(Node* root, size_t currentIndex,
     root->blockMutation = storedBlockMutation;
 
     for(auto child: root->children){
-        assignMutationsToNodes(child, currentIndex+1, nodes);
+        currentIndex++;
+        assignMutationsToNodes(child, currentIndex, nodes);
     }
 
 }
@@ -200,7 +201,8 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin){
         storedNodes.push_back(mainTree.nodes(i));
     }
 
-    assignMutationsToNodes(root, 0, storedNodes);
+    size_t initialIndex = 0;
+    assignMutationsToNodes(root, initialIndex, storedNodes);
 
     // Block sequence
     for(int i = 0; i < mainTree.blocks_size(); i++){
@@ -674,4 +676,93 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
 
     printFASTAHelper(root, sequence, blockExists, fout);
 
+}
+
+void getNodesPreorder(PangenomeMAT::Node* root, MAT::tree& treeToWrite){
+    
+    MAT::node n;
+    
+    MAT::block_mut bm;
+    for(auto mutation: root->blockMutation.condensedBlockMut){
+        bm.add_condensed_block_mut(mutation);
+    }
+
+    *n.mutable_block_mutation() = bm;
+
+    for(size_t i = 0; i < root->nucMutation.size(); i++){
+        const PangenomeMAT::NucMut& mutation = root->nucMutation[i];
+
+        MAT::nuc_mut nm;
+        nm.set_position(mutation.position);
+        if(mutation.gapPosition != -1){
+            nm.set_gap_position(mutation.gapPosition);
+        }
+        nm.set_condensed(mutation.condensed);
+        nm.set_nucs(mutation.nucs);
+
+        n.add_nuc_mutation();
+        *n.mutable_nuc_mutation(i) = nm;
+    }
+
+    treeToWrite.add_nodes();
+    *treeToWrite.mutable_nodes( treeToWrite.nodes_size() - 1 ) = n;
+
+    for(auto child: root->children){
+        getNodesPreorder(child, treeToWrite);
+    }
+}
+
+void PangenomeMAT::Tree::writeToFile(std::ofstream& fout){
+    MAT::tree treeToWrite;
+    getNodesPreorder(root, treeToWrite);
+
+    for(auto block: blocks){
+        MAT::block b;
+        b.set_block_id(block.blockId);
+        b.set_chromosome_name(block.chromosomeName);
+        for(auto n: block.consensusSeq){
+            b.add_consensus_seq(n);
+        }
+        treeToWrite.add_blocks();
+        *treeToWrite.mutable_blocks( treeToWrite.blocks_size() - 1 ) = b;
+    }
+
+    MAT::gap_list gl;
+    for(size_t i = 0; i < gaps.position.size(); i++){
+        gl.add_position(gaps.position[i]);
+        gl.add_condensed(gaps.position[i]);
+    }
+
+    *treeToWrite.mutable_gaps() = gl;
+
+    if (!treeToWrite.SerializeToOstream(&fout)) {
+		std::cerr << "Failed to write output file." << std::endl;
+    }
+
+}
+
+void sampleWriteToFileHelper(PangenomeMAT::Node* root, int& currentNode, std::ofstream& fout){
+    fout << "node " << currentNode << ":\n";
+    fout << "nuc_mutation:\n";
+    for(auto mutation: root->nucMutation){
+        fout << "(" << mutation.position << ", " << (mutation.gapPosition == -1? 0: mutation.gapPosition) << ", " << mutation.condensed << ", " << mutation.nucs << ") ";
+    }
+    fout << "\n";
+	fout << "block_mutation:\n";
+
+    for(auto mutation: root->blockMutation.condensedBlockMut){
+        fout << mutation << " ";
+    }
+    fout << "\n";
+    for(auto child: root->children){
+        currentNode++;
+        sampleWriteToFileHelper(child, currentNode, fout);
+    }
+
+}
+
+void PangenomeMAT::Tree::sampleWriteToFile(std::ofstream& fout){
+    fout << "nodes:\n";
+    int initialNode = 0;
+    sampleWriteToFileHelper(root, initialNode, fout);
 }

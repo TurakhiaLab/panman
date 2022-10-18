@@ -100,7 +100,7 @@ namespace PangenomeMAT {
         float m_meanDepth{ 0 };
 
         Node* createTreeFromNewickString(std::string newick);
-        void assignMutationsToNodes(Node* root, size_t currentIndex, std::vector< MAT::node >& nodes);
+        void assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MAT::node >& nodes);
         int getTotalParsimony(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
         int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
 
@@ -114,7 +114,9 @@ namespace PangenomeMAT {
         Tree(std::ifstream& fin);
         void printSummary();
         void printFASTA(std::ofstream& fout);
+        void writeToFile(std::ofstream& fout);
         void printBfs(); // Temporary function. To be removed later;
+        void sampleWriteToFile(std::ofstream& fout); // Temporary function. To be removed later;
 
         Node* root;
         GapList gaps;
