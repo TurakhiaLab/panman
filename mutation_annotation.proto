@@ -33,7 +33,8 @@ message block
 message gap_list
 {
     repeated uint32 position = 1;
-    repeated uint32 condensed = 2;
+    repeated uint32 block_id = 2;
+    repeated uint32 gap_length = 3;
 }
 
 message tree 

@@ -34,11 +34,10 @@ Node:
          b. type of mutation (3 bits)
 
 Gap list:
-   It has 2 attributes:
+   It has 3 attributes:
    1. position: gap co-ordinate
-   2. condensed: it has 2 sub-attributes
-      a. block-id (3B)
-      b. length of contiguous gaps (1B)
+   2. block-id: (3B -> Stored in int32)
+   b. length of contiguous gaps (4B)
       
 Block list: (Currently not used)
    It has 2 attributes:
