@@ -4,7 +4,8 @@ on:
   pull_request:
   push:
     branches: 
-      - yatish-workflow
+      - main
+      - '*'
 
 env:
   BUILD_TYPE: Release
