@@ -37,7 +37,7 @@ int main(int argc, char* argv[]){
 
     try {
 
-        if (argv[1] == "--help") {
+        if (std::string(argv[1]) == "--help") {
             std::cout << "./panmat-utils [FILENAME]\n";
             return 0;
         }
