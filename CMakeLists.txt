@@ -40,13 +40,13 @@ if(DEFINED Protobuf_PATH)
 	protobuf_generate(
 		LANGUAGE cpp
 		TARGET panmat-utils 
-		PROTOS mutation_annotation.proto)
+		PROTOS mutation_annotation_test_proto3_optional.proto)
 
 
 else()
 	protobuf_generate_cpp(
 		PROTO_SRCS PROTO_HDRS
-		mutation_annotation.proto)
+		mutation_annotation_test_proto3_optional.proto)
 
 	add_executable(panmat-utils
 		${PANMAT_SRCS}
