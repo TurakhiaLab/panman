@@ -16,12 +16,6 @@ if(Protobuf_FOUND)
 	message(STATUS "Using Protocol Buffers ${Protobuf_VERSION}")
 endif()
 include_directories(${Protobuf_INCLUDE_DIRS})
-option(protobuf_VERBOSE "Enable for verbose output" ON)
-if(protobuf_VERBOSE)
-    message(STATUS "Using protoc : ${protobuf_PROTOC_EXE}")
-endif(protobuf_VERBOSE)
-
-
 
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)

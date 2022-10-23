@@ -6,7 +6,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <queue>
-#include "mutation_annotation.pb.h"
+#include "mutation_annotation_test_proto3_optional.pb.h"
 
 
 namespace PangenomeMAT {
