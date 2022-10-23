@@ -36,6 +36,12 @@ int main(int argc, char* argv[]){
     }
 
     try {
+
+        if (argv[1] == "--help") {
+            std::cout << "./panmat-utils [FILENAME]\n";
+            return 0;
+        }
+
         std::ifstream input(argv[1]);
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
