@@ -105,6 +105,8 @@ namespace PangenomeMAT {
         int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
 
         std::unordered_map<std::string, Node*> allNodes;
+        
+        std::vector< Node* > allLeaves; // Probably temporary for testing
 
         std::string newInternalNodeId() {
             return "node_" + std::to_string(++m_currInternalNode);
@@ -113,7 +115,9 @@ namespace PangenomeMAT {
     public:
         Tree(std::ifstream& fin);
         void printSummary();
-        void printFASTA(std::ofstream& fout);
+        void printFASTA(std::ofstream& fout); // Old. Delete when done with testing
+        void printFASTA_updated(std::ofstream& fout);
+
         void writeToFile(std::ofstream& fout);
         void printBfs(); // Temporary function. To be removed later;
         void sampleWriteToFile(std::ofstream& fout); // Temporary function. To be removed later;

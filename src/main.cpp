@@ -47,6 +47,8 @@ int main(int argc, char* argv[]){
 
         std::cout << "Data load time: " << treeBuiltTime.count() << '\n';
         
+        // T.printBfs();
+
         while(true){
             std::cout << "> ";
 
@@ -71,6 +73,22 @@ int main(int argc, char* argv[]){
                 auto fastaStart = std::chrono::high_resolution_clock::now();
                 
                 T.printFASTA(fout);
+
+                auto fastaEnd = std::chrono::high_resolution_clock::now();
+                
+                std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+
+                std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
+
+                fout.close();
+            } else if(splitCommand.size() == 2 && splitCommand[0] == "ufasta") {
+                std::string fileName = splitCommand[1];
+                std::filesystem::create_directory("./fasta");
+                std::ofstream fout("./fasta/" + fileName + ".fasta");
+
+                auto fastaStart = std::chrono::high_resolution_clock::now();
+                
+                T.printFASTA_updated(fout);
 
                 auto fastaEnd = std::chrono::high_resolution_clock::now();
                 
