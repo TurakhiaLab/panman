@@ -81,7 +81,6 @@ namespace PangenomeMAT {
         Node(std::string id, float len);
         Node(std::string id, Node* par, float len);
 
-        // Check this with professor
         float branchLength;
         size_t level;
 
@@ -120,12 +119,14 @@ namespace PangenomeMAT {
         Tree(std::ifstream& fin);
         void printSummary();
         void printFASTA(std::ofstream& fout);
-        Node* subtreeExtract(std::vector< Node* > requiredNodes);
+        Node* subtreeExtract(std::vector< std::string > nodeIds);
 
         void printFASTA_updated(std::ofstream& fout);  // Updated algorithm for parallelising
 
-        void writeToFile(std::ofstream& fout);
-        void printBfs(); // Temporary function. To be removed later;
+        std::string getNewickString(Node* node); // Make private later. Public for testing purposes
+
+        void writeToFile(std::ofstream& fout, Node* node = nullptr);
+        void printBfs(Node* node = nullptr); // Temporary function. To be removed later;
         void sampleWriteToFile(std::ofstream& fout); // Temporary function. To be removed later;
 
         Node* root;

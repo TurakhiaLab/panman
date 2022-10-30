@@ -355,12 +355,16 @@ void PangenomeMAT::Tree::printSummary(){
 
 }
 
-void PangenomeMAT::Tree::printBfs(){
+void PangenomeMAT::Tree::printBfs(Node* node){
+    if(node == nullptr){
+        node = root;
+    }
+
     // Traversal test
     std::queue<Node *> bfsQueue;
     size_t prevLev = 0;
     
-    bfsQueue.push(root);
+    bfsQueue.push(node);
     // bfsQueue.push(allNodes["node_10"]);
 
     while(!bfsQueue.empty()){
@@ -377,6 +381,7 @@ void PangenomeMAT::Tree::printBfs(){
             bfsQueue.push(child);
         }
     }
+    std::cout << '\n';
 }
 
 void printSequenceLines(const std::vector< std::vector< std::pair< char, std::vector< char > > > >& sequence,\
@@ -527,9 +532,9 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         int bid = ((root->nucMutation[i].condensed >> 8) & (((1 << 24) - 1)));
 
         int pos = root->nucMutation[i].position;
-        // if(pos < sequence[bid].size()){
-        //     std::cout << pos << " " << sequence[bid].size() << std::endl;
-        // }
+        if(pos >= sequence[bid].size()){
+            std::cout << bid << " " << sequence[bid].size() << " " << pos << std::endl;
+        }
 
         int gapPos = root->nucMutation[i].gapPosition;
         int type = ((root->nucMutation[i].condensed) & 7);
@@ -756,7 +761,9 @@ void mergeNodes(PangenomeMAT::Node* par, PangenomeMAT::Node* chi){
     delete chi;
 }
 
-void compressTree(PangenomeMAT::Node* node){
+void compressTree(PangenomeMAT::Node* node, size_t level){
+    node->level = level;
+
     if(node->children.size() == 0){
         return;
     }
@@ -765,8 +772,121 @@ void compressTree(PangenomeMAT::Node* node){
         while(node->children[i]->children.size() == 1){
             mergeNodes(node->children[i], node->children[i]->children[0]);
         }
-        compressTree(node->children[i]);
+        compressTree(node->children[i], level + 1);
     }
+}
+
+void dfsExpansion(PangenomeMAT::Node* node, std::vector< PangenomeMAT::Node* >& vec){
+    vec.push_back(node);
+    for(auto child: node->children){
+        dfsExpansion(child, vec);
+    }
+}
+
+std::string PangenomeMAT::Tree::getNewickString(Node* node){
+    std::vector< PangenomeMAT::Node* > traversal;
+    dfsExpansion(node, traversal);
+
+    std::string newick;
+
+    size_t level_offset = node->level-1;
+    size_t curr_level = 0;
+    bool prev_open = true;
+
+    std::stack<std::string> node_stack;
+    std::stack<float> branch_length_stack;
+
+    for (auto n: traversal) {
+        size_t level = n->level-level_offset;
+        float branch_length = n->branchLength;
+        
+        if(curr_level < level){
+            if (!prev_open) {
+                newick += ',';
+            }
+            size_t l = level - 1;
+            if (curr_level > 1) {
+                l = level - curr_level;
+            }
+            for (size_t i=0; i < l; i++) {
+                newick += '(';
+                prev_open = true;
+            }
+            if (n->children.size() == 0) {
+
+                newick += n->identifier;
+
+                if (branch_length >= 0) {
+                    newick += ':';
+                    newick += branch_length;
+                }
+                prev_open = false;
+            } else {
+                node_stack.push(n->identifier);
+                branch_length_stack.push(branch_length);
+            }
+        } else if (curr_level > level) {
+            prev_open = false;
+            for (size_t i = level; i < curr_level; i++) {
+                newick += ')';
+
+                newick += node_stack.top();
+
+                if (branch_length_stack.top() >= 0) {
+                    newick += ':';
+                    newick += branch_length_stack.top();
+                }
+                node_stack.pop();
+                branch_length_stack.pop();
+            }
+            if (n->children.size() == 0) {
+                
+                newick += ',';
+                newick += n->identifier;
+
+                if (branch_length >= 0) {
+                    newick += ':';
+                    newick += branch_length;
+                }
+            } else {
+                node_stack.push(n->identifier);
+                branch_length_stack.push(branch_length);
+            }
+        } else {
+            prev_open = false;
+            if (n->children.size() == 0) {
+                
+                newick += ',';
+                newick += n->identifier;
+
+                if (branch_length >= 0) {
+                    newick += ':';
+                    newick += branch_length;
+                }
+            } else {
+                node_stack.push(n->identifier);
+                branch_length_stack.push(branch_length);
+            }
+        }
+        curr_level = level;
+    }
+    size_t remaining = node_stack.size();
+    for (size_t i = 0; i < remaining; i++) {
+        newick += ')';
+        newick += node_stack.top();
+        
+        if (branch_length_stack.top() >= 0) {
+            newick += ':';
+            newick += branch_length_stack.top();
+        }
+        node_stack.pop();
+        branch_length_stack.pop();
+    }
+
+    newick += ';';
+
+    return newick;
+
 }
 
 PangenomeMAT::Node* subtreeExtractHelper(PangenomeMAT::Node* node, const std::unordered_map< PangenomeMAT::Node*, size_t >& ticks){
@@ -775,9 +895,6 @@ PangenomeMAT::Node* subtreeExtractHelper(PangenomeMAT::Node* node, const std::un
     }
 
     PangenomeMAT::Node* newNode = new PangenomeMAT::Node(node->identifier, node->branchLength);
-    
-    // We don't care about level anymore since that is just preprocessing for the summary
-    newNode->level = -1;
 
     for(auto mutation: node->nucMutation){
         newNode->nucMutation.push_back(mutation);
@@ -799,7 +916,11 @@ PangenomeMAT::Node* subtreeExtractHelper(PangenomeMAT::Node* node, const std::un
 
 }
 
-PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtract(std::vector< PangenomeMAT::Node* > requiredNodes){
+PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtract(std::vector< std::string > nodeIds){
+    std::vector< PangenomeMAT::Node* > requiredNodes;
+    for(auto id: nodeIds){
+        requiredNodes.push_back(allNodes[id]);
+    }
 
     std::unordered_map< PangenomeMAT::Node*, size_t > ticks;
     for(auto node: requiredNodes){
@@ -811,7 +932,10 @@ PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtract(std::vector< PangenomeMAT
         }
     }
 
-    return nullptr;
+    PangenomeMAT::Node* newTreeRoot = subtreeExtractHelper(root, ticks);
+    compressTree(newTreeRoot, 1);
+
+    return newTreeRoot;
 
 }
 
@@ -1051,9 +1175,17 @@ void getNodesPreorder(PangenomeMAT::Node* root, MAT::tree& treeToWrite){
     }
 }
 
-void PangenomeMAT::Tree::writeToFile(std::ofstream& fout){
+void PangenomeMAT::Tree::writeToFile(std::ofstream& fout, Node* node){
+    if(node == nullptr){
+        node = root;
+    }
+
     MAT::tree treeToWrite;
-    getNodesPreorder(root, treeToWrite);
+    getNodesPreorder(node, treeToWrite);
+
+    std::string newick = getNewickString(node);
+
+    treeToWrite.set_newick(newick);
 
     for(auto block: blocks){
         MAT::block b;
