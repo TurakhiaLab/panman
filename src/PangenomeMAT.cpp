@@ -820,10 +820,16 @@ void PangenomeMAT::Tree::printFASTA_updated(std::ofstream& fout){
                     //     newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
                     //     if(gapPos == -1){
                     //         sequence[bid][pos].first = newVal;
-                    //         mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+                    //         // mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
                     //     } else {
+                    //         if((size_t)gapPos >= sequence[bid][pos].second.size()){
+                    //             std::cout << (*node)->identifier << " " << i << " " << bid << " " << pos << " " << gapPos << " " << sequence[bid][pos].second.size() << std::endl;
+                    //         }
                     //         sequence[bid][pos].second[gapPos] = newVal;
-                    //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
+                    //         // mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
+                    //         if((size_t)gapPos >= sequence[bid][pos].second.size()){
+                    //             std::cout << bid << " " << pos << " " << gapPos << " " << sequence[bid][pos].second.size() << std::endl;
+                    //         }
                     //     }
                     // }
                     else if(type == PangenomeMAT::NucMutationType::NSNPD){
