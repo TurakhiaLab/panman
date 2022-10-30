@@ -1,0 +1,28 @@
+name: build
+
+on: 
+  pull_request:
+  push:
+    branches: 
+      - main
+      - '*'
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  ubuntu-22-04:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@main
+    - name: install pre-reqs and build
+      run: sudo ./install/installUbuntu.sh
+    - name: test
+      run: |
+        mkdir build
+        cd build
+        wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
+        tar -xvzf 2019_U9.tar.gz
+        cmake  -DTBB_DIR=${PWD}/oneTBB-2019_U9  -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake ..
+        make -j2
+        ./panmat-utils --help
