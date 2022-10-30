@@ -215,8 +215,14 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin){
     for(int i = 0; i < mainTree.gaps().position_size(); i++){
         gaps.position.push_back(mainTree.gaps().position(i));
     }
-    for(int i = 0; i < mainTree.gaps().condensed_size(); i++){
-        gaps.condensed.push_back(mainTree.gaps().condensed(i));
+    // for(int i = 0; i < mainTree.gaps().condensed_size(); i++){
+    //     gaps.condensed.push_back(mainTree.gaps().condensed(i));
+    // }
+    for(int i = 0; i < mainTree.gaps().block_id_size(); i++){
+        gaps.blockId.push_back(mainTree.gaps().block_id(i));
+    }
+    for(int i = 0; i < mainTree.gaps().gap_length_size(); i++){
+        gaps.gapLength.push_back(mainTree.gaps().gap_length(i));
     }
 
 }
@@ -521,6 +527,10 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         int bid = ((root->nucMutation[i].condensed >> 8) & (((1 << 24) - 1)));
 
         int pos = root->nucMutation[i].position;
+        // if(pos < sequence[bid].size()){
+        //     std::cout << pos << " " << sequence[bid].size() << std::endl;
+        // }
+
         int gapPos = root->nucMutation[i].gapPosition;
         int type = ((root->nucMutation[i].condensed) & 7);
         char newVal = '-';
@@ -538,76 +548,82 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                     sequence[bid][pos + j].first = newVal;
                     mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, oldVal, newVal));
                 }
-            } else if(type == PangenomeMAT::NucMutationType::NI){
+            }
+            else if(type == PangenomeMAT::NucMutationType::NI){
                 
-                if(gapPos == -1){
-                    for(int j = 0; j < len; j++){
-                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
-                        
-                        sequence[bid][pos + j].first = newVal;
-                        mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, '-', newVal));
-                    }
-                } else {
-                    for(int j = 0; j < len; j++){
-                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                // if(gapPos == -1){
+                //     for(int j = 0; j < len; j++){
+                //         newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                //         if(bid > sequence.size() || pos + j > sequence[bid].size()){
+                //             std::cout << bid << " " << sequence.size() << std::endl;
+                //         }
+                //         sequence[bid][pos + j].first = newVal;
+                //         mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, '-', newVal));
+                //     }
+                // }
+                // else {
+                //     for(int j = 0; j < len; j++){
+                //         newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
 
-                        sequence[bid][pos].second[gapPos + j] = newVal;
-                        mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
-                    }
-                }
-            } else if(type == PangenomeMAT::NucMutationType::ND){
-                if(gapPos == -1){
-                    for(int j = 0; j < len; j++){
-                        char oldVal = sequence[bid][pos + j].first;
-                        sequence[bid][pos + j].first = '-';
-                        mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, oldVal, '-'));
-                    }
-                } else {
-                    for(int j = 0; j < len; j++){
-                        char oldVal = sequence[bid][pos].second[gapPos + j];
-                        sequence[bid][pos].second[gapPos + j] = '-';
-                        mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, oldVal, '-'));
-                    }
-                }
+                //         sequence[bid][pos].second[gapPos + j] = newVal;
+                //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
+                //     }
+                // }
             }
-        } else {
-            // Todo: SNP
-            if(type == PangenomeMAT::NucMutationType::NSNPS){
-
-                newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
-                char oldVal = sequence[bid][pos].first;
-
-                sequence[bid][pos].first = newVal;
-
-                mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
-            }
-            
-            // else if(type == PangenomeMAT::NucMutationType::NSNPI){
-            //     newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
+            // else if(type == PangenomeMAT::NucMutationType::ND){
             //     if(gapPos == -1){
-            //         char oldVal = sequence[bid][pos].first;
-            //         sequence[bid][pos].first = newVal;
-            //         mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+            //         for(int j = 0; j < len; j++){
+            //             char oldVal = sequence[bid][pos + j].first;
+            //             sequence[bid][pos + j].first = '-';
+            //             mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, oldVal, '-'));
+            //         }
             //     } else {
-            //         char oldVal = sequence[bid][pos].second[gapPos];
-            //         sequence[bid][pos].second[gapPos] = newVal;
-            //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
+            //         for(int j = 0; j < len; j++){
+            //             char oldVal = sequence[bid][pos].second[gapPos + j];
+            //             sequence[bid][pos].second[gapPos + j] = '-';
+            //             mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, oldVal, '-'));
+            //         }
             //     }
             // }
-            else if(type == PangenomeMAT::NucMutationType::NSNPD){
-                if(gapPos == -1){
+        } 
+    //     else {
+    //         // Todo: SNP
+    //         if(type == PangenomeMAT::NucMutationType::NSNPS){
 
-                    char oldVal = sequence[bid][pos].first;
+    //             newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
+    //             char oldVal = sequence[bid][pos].first;
 
-                    sequence[bid][pos].first = '-';
-                    mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, '-'));
-                } else {
-                    char oldVal = sequence[bid][pos].second[gapPos];
-                    sequence[bid][pos].second[gapPos] = '-';
-                    mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, '-'));
-                }
-            }
-        }
+    //             sequence[bid][pos].first = newVal;
+
+    //             mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+    //         }
+            
+    //         // else if(type == PangenomeMAT::NucMutationType::NSNPI){
+    //         //     newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
+    //         //     if(gapPos == -1){
+    //         //         char oldVal = sequence[bid][pos].first;
+    //         //         sequence[bid][pos].first = newVal;
+    //         //         mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+    //         //     } else {
+    //         //         char oldVal = sequence[bid][pos].second[gapPos];
+    //         //         sequence[bid][pos].second[gapPos] = newVal;
+    //         //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
+    //         //     }
+    //         // }
+    //         else if(type == PangenomeMAT::NucMutationType::NSNPD){
+    //             if(gapPos == -1){
+
+    //                 char oldVal = sequence[bid][pos].first;
+
+    //                 sequence[bid][pos].first = '-';
+    //                 mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, '-'));
+    //             } else {
+    //                 char oldVal = sequence[bid][pos].second[gapPos];
+    //                 sequence[bid][pos].second[gapPos] = '-';
+    //                 mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, '-'));
+    //             }
+    //         }
+    //     }
     }
 
     if(root->children.size() == 0){
@@ -643,7 +659,7 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
     // List of blocks. Each block has a nucleotide list. Along with each nucleotide is a gap list.
     // First block is empty since the block IDs start at 1
     std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence(blocks.size() + 1);
-    
+
     std::vector< bool > blockExists(blocks.size() + 1, false);
 
     for(size_t i = 0; i < blocks.size(); i++){
@@ -678,9 +694,11 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
 
     // Assigning gaps
     for(size_t i = 0; i < gaps.position.size(); i++){
-        int bId = ((gaps.condensed[i] >> 8) & (0xFFFFFF));
+        // int bId = ((gaps.condensed[i] >> 8) & (0xFFFFFF));
+        int bId = gaps.blockId[i];
 
-        int len = ((gaps.condensed[i]) & 255);
+        // int len = ((gaps.condensed[i]) & 255);
+        int len = gaps.gapLength[i];
         int pos = gaps.position[i];
 
         // if(bId >= sequence.size() || pos >= sequence[bId].size()){
@@ -700,9 +718,14 @@ void PangenomeMAT::Tree::printFASTA_updated(std::ofstream& fout){
     std::map< int, std::vector< std::pair< int, int > > > gapSplit;
     
     for(size_t i = 0; i < gaps.position.size(); i++){
-        int bId = ((gaps.condensed[i] >> 8) & (0xFFFFFF));
 
-        int len = ((gaps.condensed[i]) & 255);
+        // int bId = ((gaps.condensed[i] >> 8) & (0xFFFFFF));
+        int bId = gaps.blockId[i];
+
+
+        // int len = ((gaps.condensed[i]) & 255);
+        int len = gaps.gapLength[i];
+
         int pos = gaps.position[i];
         gapSplit[bId].push_back( std::make_pair(pos, len) );
 
@@ -943,7 +966,8 @@ void PangenomeMAT::Tree::writeToFile(std::ofstream& fout){
     MAT::gap_list gl;
     for(size_t i = 0; i < gaps.position.size(); i++){
         gl.add_position(gaps.position[i]);
-        gl.add_condensed(gaps.position[i]);
+        gl.add_block_id(gaps.blockId[i]);
+        gl.add_gap_length(gaps.gapLength[i]);
     }
 
     *treeToWrite.mutable_gaps() = gl;
