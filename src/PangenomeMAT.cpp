@@ -712,6 +712,52 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
 
 }
 
+void compressTree(PangenomeMAT::Node* node){
+    
+}
+
+PangenomeMAT::Node* subtreeExtractHelper(PangenomeMAT::Node* node, const std::unordered_map< PangenomeMAT::Node*, size_t >& ticks){
+    if(ticks.find(node) == ticks.end()){
+        return nullptr;
+    }
+
+    PangenomeMAT::Node* newNode = new PangenomeMAT::Node(node->identifier, node->branchLength);
+    for(auto mutation: node->nucMutation){
+        newNode->nucMutation.push_back(mutation);
+    }
+
+    for(auto mutation: node->blockMutation.condensedBlockMut){
+        newNode->blockMutation.condensedBlockMut.push_back(mutation);
+    }
+
+    for(auto child: node->children){
+        if(ticks.find(child) != ticks.end()){
+            PangenomeMAT::Node* newChild = subtreeExtractHelper(child, ticks);
+            newChild->parent = newNode;
+            newNode->children.push_back(newChild);
+        }
+    }
+
+    return newNode;
+
+}
+
+PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtract(std::vector< PangenomeMAT::Node* > requiredNodes){
+
+    std::unordered_map< PangenomeMAT::Node*, size_t > ticks;
+    for(auto node: requiredNodes){
+        Node* current = node;
+
+        while(current != nullptr){
+            ticks[current]++;
+            current = current->parent;
+        }
+    }
+
+    return nullptr;
+
+}
+
 void PangenomeMAT::Tree::printFASTA_updated(std::ofstream& fout){
 
     // Categorize gaps by blockId

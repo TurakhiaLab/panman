@@ -117,8 +117,10 @@ namespace PangenomeMAT {
     public:
         Tree(std::ifstream& fin);
         void printSummary();
-        void printFASTA(std::ofstream& fout); // Old. Delete when done with testing
-        void printFASTA_updated(std::ofstream& fout);
+        void printFASTA(std::ofstream& fout);
+        Node* subtreeExtract(std::vector< Node* > requiredNodes);
+
+        void printFASTA_updated(std::ofstream& fout);  // Updated algorithm for parallelising
 
         void writeToFile(std::ofstream& fout);
         void printBfs(); // Temporary function. To be removed later;
