@@ -712,8 +712,61 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
 
 }
 
-void compressTree(PangenomeMAT::Node* node){
+// Merge parent node and child node into parent node
+void mergeNodes(PangenomeMAT::Node* par, PangenomeMAT::Node* chi){
     
+    par->identifier = chi->identifier;
+    par->branchLength += chi->branchLength;
+    par->children = chi->children;
+
+    // For block mutations, we cancel out irrelevant mutations
+    std::unordered_set< int > bidInserts;
+
+    for(auto mutation: par->blockMutation.condensedBlockMut){
+        int bid = ((mutation >> 8) & 0xFFFFFF);
+        int type = (mutation & 0x1);
+        if(type == PangenomeMAT::BlockMutationType::BI){
+            bidInserts.insert(bid);
+        } else {
+            bidInserts.erase(bid);
+        }
+    }
+
+    for(auto mutation: chi->blockMutation.condensedBlockMut){
+        int bid = ((mutation >> 8) & 0xFFFFFF);
+        int type = (mutation & 0x1);
+        if(type == PangenomeMAT::BlockMutationType::BI){
+            bidInserts.insert(bid);
+        } else {
+            bidInserts.erase(bid);
+        }
+    }
+
+    PangenomeMAT::BlockMut newBlockMutation;
+    for(auto bid: bidInserts){
+        newBlockMutation.condensedBlockMut.push_back((( bid << 8 ) ^ 0x1));
+    }
+
+    par->blockMutation = newBlockMutation;
+
+    for(auto mutation: chi->nucMutation){
+        par->nucMutation.push_back(mutation);
+    }
+
+    delete chi;
+}
+
+void compressTree(PangenomeMAT::Node* node){
+    if(node->children.size() == 0){
+        return;
+    }
+
+    for(size_t i = 0; i < node->children.size(); i++){
+        while(node->children[i]->children.size() == 1){
+            mergeNodes(node->children[i], node->children[i]->children[0]);
+        }
+        compressTree(node->children[i]);
+    }
 }
 
 PangenomeMAT::Node* subtreeExtractHelper(PangenomeMAT::Node* node, const std::unordered_map< PangenomeMAT::Node*, size_t >& ticks){
@@ -722,6 +775,10 @@ PangenomeMAT::Node* subtreeExtractHelper(PangenomeMAT::Node* node, const std::un
     }
 
     PangenomeMAT::Node* newNode = new PangenomeMAT::Node(node->identifier, node->branchLength);
+    
+    // We don't care about level anymore since that is just preprocessing for the summary
+    newNode->level = -1;
+
     for(auto mutation: node->nucMutation){
         newNode->nucMutation.push_back(mutation);
     }

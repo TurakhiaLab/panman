@@ -91,6 +91,8 @@ namespace PangenomeMAT {
 
         std::vector< NucMut > nucMutation;
         BlockMut blockMutation;
+
+        // To be incorporated in the future
         std::vector< std::string > annotations;
     };
 
