@@ -71,7 +71,9 @@ namespace PangenomeMAT {
     struct GapList {
 
         std::vector< uint32_t > position;
-        std::vector< uint32_t > condensed;
+        // std::vector< uint32_t > condensed;
+        std::vector< uint32_t > blockId;
+        std::vector< uint32_t > gapLength;
     };
 
     class Node {
