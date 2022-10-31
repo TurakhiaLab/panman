@@ -29,6 +29,16 @@ namespace PangenomeMAT {
     void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
     struct NucMut {
+        // For creating SNP mutation
+        NucMut( const std::tuple< int, int, int, int, int >& mutationInfo ){
+            // bid, pos, gapPos, type, char
+            position = std::get<1>(mutationInfo);
+            gapPosition = std::get<2>(mutationInfo);
+            condensed = (std::get<0>(mutationInfo) << 8) + (std::get<4>(mutationInfo) << 3) + (std::get<3>(mutationInfo));
+        }
+
+
+
         NucMut(MAT::nuc_mut mutation){
             position = mutation.position();
 

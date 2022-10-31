@@ -532,9 +532,9 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         int bid = ((root->nucMutation[i].condensed >> 8) & (((1 << 24) - 1)));
 
         int pos = root->nucMutation[i].position;
-        if(pos >= sequence[bid].size()){
-            std::cout << bid << " " << sequence[bid].size() << " " << pos << std::endl;
-        }
+        // if(pos >= sequence[bid].size()){
+        //     std::cout << bid << " " << sequence[bid].size() << " " << pos << std::endl;
+        // }
 
         int gapPos = root->nucMutation[i].gapPosition;
         int type = ((root->nucMutation[i].condensed) & 7);
@@ -556,24 +556,27 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
             }
             else if(type == PangenomeMAT::NucMutationType::NI){
                 
-                // if(gapPos == -1){
-                //     for(int j = 0; j < len; j++){
-                //         newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
-                //         if(bid > sequence.size() || pos + j > sequence[bid].size()){
-                //             std::cout << bid << " " << sequence.size() << std::endl;
-                //         }
-                //         sequence[bid][pos + j].first = newVal;
-                //         mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, '-', newVal));
-                //     }
-                // }
-                // else {
-                //     for(int j = 0; j < len; j++){
-                //         newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
-
-                //         sequence[bid][pos].second[gapPos + j] = newVal;
-                //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
-                //     }
-                // }
+                if(gapPos == -1){
+                    for(int j = 0; j < len; j++){
+                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                        // if(bid > sequence.size() || pos + j > sequence[bid].size()){
+                        //     std::cout << bid << " " << sequence.size() << std::endl;
+                        // }
+                        sequence[bid][pos + j].first = newVal;
+                        mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, '-', newVal));
+                    }
+                }
+                else {
+                    for(int j = 0; j < len; j++){
+                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                        // if(gapPos + j >= sequence[bid][pos].second.size()){
+                        //     std::cout << root->identifier << " " << i << " " << bid << " " << " " << pos << std::endl;
+                        //     std::cout << sequence[bid][pos].second.size() << " " << gapPos + j << std::endl;
+                        // }
+                        sequence[bid][pos].second[gapPos + j] = newVal;
+                        mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
+                    }
+                }
             }
             // else if(type == PangenomeMAT::NucMutationType::ND){
             //     if(gapPos == -1){
@@ -761,6 +764,141 @@ void mergeNodes(PangenomeMAT::Node* par, PangenomeMAT::Node* chi){
     delete chi;
 }
 
+// Replace old type, char pair with new type char pair
+std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation){
+    std::pair<int, int> ans = newMutation;
+    if(oldMutation.first == newMutation.first){
+        ans = newMutation;
+    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSNPS){
+        // Insertion after substitution (doesn't make sense but just in case)
+        if(newMutation.first == PangenomeMAT::NucMutationType::NSNPI){
+            ans.first = PangenomeMAT::NucMutationType::NSNPS;
+        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSNPD){
+            ans = newMutation;
+        }
+    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSNPI){
+        if(newMutation.first == PangenomeMAT::NucMutationType::NSNPS){
+            ans.first = PangenomeMAT::NucMutationType::NSNPI;
+        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSNPD){
+            // Cancel out the two mutations if deletion after insertion
+            ans = std::make_pair(404, 404);
+        }
+    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSNPD){
+        if(newMutation.first == PangenomeMAT::NucMutationType::NSNPI){
+            ans.first = PangenomeMAT::NucMutationType::NSNPS;
+        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSNPS){
+            // Substitution after deletion. Doesn't make sense but still
+            ans.first = PangenomeMAT::NucMutationType::NSNPI;
+        }
+    }
+    return ans;
+}
+
+std::vector< PangenomeMAT::NucMut > consolidate(const std::vector< PangenomeMAT::NucMut >& nucMutation){
+    // bid, pos, gap_pos -> type, nuc
+    std::map< std::tuple< int, int, int >, std::pair< int, int > > mutationRecords;
+    for(auto mutation: nucMutation){
+        int bid = ((mutation.condensed) >> 8);
+        int pos = mutation.position;
+        int gapPos = mutation.gapPosition;
+
+        // I'm using int instead of NucMutationType because I want the 404 mutation too.
+        int type = ((mutation.condensed) & 0x7);
+        int len = (((mutation.condensed) >> 3) & 0x1F);
+
+        if(type >= 3){
+            len = 1;
+        }
+
+        // Replace variable length mutations into SNP. They will be combined later
+        int newType = type;
+        switch(type){
+            case PangenomeMAT::NucMutationType::NS:
+                newType = PangenomeMAT::NucMutationType::NSNPS;
+                break;
+            case PangenomeMAT::NucMutationType::ND:
+                newType = PangenomeMAT::NucMutationType::NSNPD;
+                break;
+            case PangenomeMAT::NucMutationType::NI:
+                newType = PangenomeMAT::NucMutationType::NSNPI;
+                break;
+        }
+
+        for(int i = 0; i < len; i++){
+            int newChar;
+            if(type < 3){
+                newChar = (((mutation.nucs) >> (4*(7 - i))) & 0xF);
+            } else {
+                // SNP
+                newChar = ((mutation.condensed >> 3) & 0xF);
+            }
+
+            std::pair< int, int > newMutation = std::make_pair( newType, newChar );
+            if(gapPos != -1){
+                if(mutationRecords.find(std::make_tuple( bid, pos, gapPos + i )) == mutationRecords.end()){
+                    mutationRecords[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords[std::make_tuple( bid, pos, gapPos + i )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
+                    } else {
+                        mutationRecords.erase(std::make_tuple( bid, pos, gapPos + i ));
+                    }
+                }
+            } else {
+                if(mutationRecords.find(std::make_tuple( bid, pos + i, gapPos )) == mutationRecords.end()){
+                    mutationRecords[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords[std::make_tuple( bid, pos + i, gapPos )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
+                    } else {
+                        mutationRecords.erase(std::make_tuple( bid, pos + i, gapPos ));
+                    }
+                }
+            }
+        }
+    }
+
+    // bid, pos, gapPos, type, char
+    std::vector< std::tuple< int, int, int, int, int > > mutationArray;
+    for(auto u: mutationRecords){
+        mutationArray.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), u.second.first, u.second.second ) );
+    }
+    
+    // mutation array is already sorted since mutationRecord was sorted
+    std::vector< PangenomeMAT::NucMut > consolidatedMutationArray;
+
+    for(size_t i = 0; i < mutationArray.size(); i++){
+        size_t j = i;
+        for(; j < std::min(i + 8, mutationArray.size()); j++){
+            if(std::get<2>(mutationArray[i]) != -1){
+                // gapPos exists
+                if(!(std::get<0>(mutationArray[i]) == std::get<0>(mutationArray[j]) && std::get<1>(mutationArray[i]) == std::get<1>(mutationArray[j])
+                    && std::get<3>(mutationArray[i]) == std::get<3>(mutationArray[j]) && (size_t)(std::get<2>(mutationArray[j]) - std::get<2>(mutationArray[i])) == j - i)){
+                    break;
+                }
+            } else {
+                if(!(std::get<0>(mutationArray[i]) == std::get<0>(mutationArray[j]) && (size_t)(std::get<1>(mutationArray[j]) - std::get<1>(mutationArray[i])) == j - i
+                    && std::get<3>(mutationArray[i]) == std::get<3>(mutationArray[j]) && std::get<2>(mutationArray[j]) == std::get<2>(mutationArray[i]))){
+                        break;
+                    }
+            }
+        }
+        if(j - i <= 1){
+            consolidatedMutationArray.push_back(PangenomeMAT::NucMut(mutationArray[i]));
+            continue;
+        }
+        // combine mutations from i to j
+        
+    }
+
+    return consolidatedMutationArray;
+
+}
+
 void compressTree(PangenomeMAT::Node* node, size_t level){
     node->level = level;
 
@@ -772,6 +910,9 @@ void compressTree(PangenomeMAT::Node* node, size_t level){
         while(node->children[i]->children.size() == 1){
             mergeNodes(node->children[i], node->children[i]->children[0]);
         }
+        // consolidate mutations of parent
+
+
         compressTree(node->children[i], level + 1);
     }
 }
