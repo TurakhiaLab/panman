@@ -37,7 +37,10 @@ namespace PangenomeMAT {
             condensed = (std::get<0>(mutationInfo) << 8) + (std::get<4>(mutationInfo) << 3) + (std::get<3>(mutationInfo));
         }
 
-
+        // For creating non-SNP mutations from SNP mutations
+        NucMut(const std::vector< std::tuple< int, int, int, int, int > >& mutationArray, int start, int end){
+            int newNucs;
+        }
 
         NucMut(MAT::nuc_mut mutation){
             position = mutation.position();
