@@ -548,7 +548,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
             if(type == PangenomeMAT::NucMutationType::NS){
                 for(int j = 0; j < len; j++){
                     char oldVal = sequence[bid][pos + j].first;
-                    newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                    newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
 
                     sequence[bid][pos + j].first = newVal;
                     mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, oldVal, newVal));
@@ -558,7 +558,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                 
                 if(gapPos == -1){
                     for(int j = 0; j < len; j++){
-                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
                         // if(bid > sequence.size() || pos + j > sequence[bid].size()){
                         //     std::cout << bid << " " << sequence.size() << std::endl;
                         // }
@@ -568,7 +568,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                 }
                 else {
                     for(int j = 0; j < len; j++){
-                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
                         // if(gapPos + j >= sequence[bid][pos].second.size()){
                         //     std::cout << root->identifier << " " << i << " " << bid << " " << " " << pos << std::endl;
                         //     std::cout << sequence[bid][pos].second.size() << " " << gapPos + j << std::endl;
@@ -673,7 +673,7 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
     for(size_t i = 0; i < blocks.size(); i++){
         
         for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++){
-            for(size_t k = 0; k < 16; k++){
+            for(size_t k = 0; k < 8; k++){
                 const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
                 switch(nucCode){
                     case 1:
@@ -827,7 +827,7 @@ std::vector< PangenomeMAT::NucMut > consolidate(const std::vector< PangenomeMAT:
         for(int i = 0; i < len; i++){
             int newChar;
             if(type < 3){
-                newChar = (((mutation.nucs) >> (4*(7 - i))) & 0xF);
+                newChar = (((mutation.nucs) >> (4*(15 - i))) & 0xF);
             } else {
                 // SNP
                 newChar = ((mutation.condensed >> 3) & 0xF);
@@ -1134,7 +1134,7 @@ void PangenomeMAT::Tree::printFASTA_updated(std::ofstream& fout){
             }
 
             for(size_t i = 0; i < blocks[bid - 1].consensusSeq.size(); i++){
-                for(int j = 0; j < 16; j++){
+                for(int j = 0; j < 8; j++){
                     const int nucCode = (((blocks[bid - 1].consensusSeq[i]) >> (4*(7 - j))) & 0xF);
                     sequence[bid].push_back({ getNucleotideFromCode(nucCode), {} });
                 }
@@ -1172,20 +1172,20 @@ void PangenomeMAT::Tree::printFASTA_updated(std::ofstream& fout){
 
                     if(type == PangenomeMAT::NucMutationType::NS){
                         for(int j = 0; j < len; j++){
-                            newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                            newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(15-j))) & 15);
                             sequence[bid][pos + j].first = newVal;
                         }
                     } else if(type == PangenomeMAT::NucMutationType::NI){
                         
                         if(gapPos == -1){
                             for(int j = 0; j < len; j++){
-                                newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                                newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(15-j))) & 15);
                                 
                                 sequence[bid][pos + j].first = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++){
-                                newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(7-j))) & 15);
+                                newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(15-j))) & 15);
 
                                 sequence[bid][pos].second[gapPos + j] = newVal;
                             }
