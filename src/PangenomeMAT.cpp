@@ -673,7 +673,7 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
     for(size_t i = 0; i < blocks.size(); i++){
         
         for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++){
-            for(size_t k = 0; k < 8; k++){
+            for(size_t k = 0; k < 16; k++){
                 const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
                 switch(nucCode){
                     case 1:
@@ -873,7 +873,7 @@ std::vector< PangenomeMAT::NucMut > consolidate(const std::vector< PangenomeMAT:
 
     for(size_t i = 0; i < mutationArray.size(); i++){
         size_t j = i;
-        for(; j < std::min(i + 8, mutationArray.size()); j++){
+        for(; j < std::min(i + 16, mutationArray.size()); j++){
             if(std::get<2>(mutationArray[i]) != -1){
                 // gapPos exists
                 if(!(std::get<0>(mutationArray[i]) == std::get<0>(mutationArray[j]) && std::get<1>(mutationArray[i]) == std::get<1>(mutationArray[j])
@@ -1134,7 +1134,7 @@ void PangenomeMAT::Tree::printFASTA_updated(std::ofstream& fout){
             }
 
             for(size_t i = 0; i < blocks[bid - 1].consensusSeq.size(); i++){
-                for(int j = 0; j < 8; j++){
+                for(int j = 0; j < 16; j++){
                     const int nucCode = (((blocks[bid - 1].consensusSeq[i]) >> (4*(7 - j))) & 0xF);
                     sequence[bid].push_back({ getNucleotideFromCode(nucCode), {} });
                 }
