@@ -794,7 +794,172 @@ std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<
     return ans;
 }
 
-std::vector< PangenomeMAT::NucMut > consolidate(const std::vector< PangenomeMAT::NucMut >& nucMutation){
+bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std::vector< PangenomeMAT::NucMut > array2){
+    std::map< std::tuple< int, int, int >, std::pair< int, int > > mutationRecords1, mutationRecords2;
+    // int totSize1 = 0, totSize2 = 0;
+
+    for(auto mutation: array1){
+        int bid = ((mutation.condensed) >> 8);
+        int pos = mutation.position;
+        int gapPos = mutation.gapPosition;
+
+        // I'm using int instead of NucMutationType because I want the 404 mutation too.
+        int type = ((mutation.condensed) & 0x7);
+        int len = (((mutation.condensed) >> 3) & 0x1F);
+
+        if(type >= 3){
+            len = 1;
+        }
+        // totSize1 += len;
+
+        // Replace variable length mutations into SNP. They will be combined later
+        int newType = type;
+        switch(type){
+            case PangenomeMAT::NucMutationType::NS:
+                newType = PangenomeMAT::NucMutationType::NSNPS;
+                break;
+            case PangenomeMAT::NucMutationType::ND:
+                newType = PangenomeMAT::NucMutationType::NSNPD;
+                break;
+            case PangenomeMAT::NucMutationType::NI:
+                newType = PangenomeMAT::NucMutationType::NSNPI;
+                break;
+        }
+
+        for(int i = 0; i < len; i++){
+            int newChar;
+            if(type < 3){
+                newChar = (((mutation.nucs) >> (4*(15 - i))) & 0xF);
+            } else {
+                // SNP
+                newChar = ((mutation.condensed >> 3) & 0xF);
+            }
+
+            std::pair< int, int > newMutation = std::make_pair( newType, newChar );
+            if(gapPos != -1){
+                if(mutationRecords1.find(std::make_tuple( bid, pos, gapPos + i )) == mutationRecords1.end()){
+                    mutationRecords1[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords1[std::make_tuple( bid, pos, gapPos + i )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords1[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
+                    } else {
+                        mutationRecords1.erase(std::make_tuple( bid, pos, gapPos + i ));
+                    }
+                }
+            } else {
+                if(mutationRecords1.find(std::make_tuple( bid, pos + i, gapPos )) == mutationRecords1.end()){
+                    mutationRecords1[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords1[std::make_tuple( bid, pos + i, gapPos )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords1[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
+                    } else {
+                        mutationRecords1.erase(std::make_tuple( bid, pos + i, gapPos ));
+                    }
+                }
+            }
+        }
+    }
+
+    for(auto mutation: array2){
+        int bid = ((mutation.condensed) >> 8);
+        int pos = mutation.position;
+        int gapPos = mutation.gapPosition;
+
+        // I'm using int instead of NucMutationType because I want the 404 mutation too.
+        int type = ((mutation.condensed) & 0x7);
+        int len = (((mutation.condensed) >> 3) & 0x1F);
+
+        if(type >= 3){
+            len = 1;
+        }
+        // totSize2 += len;
+
+        // Replace variable length mutations into SNP. They will be combined later
+        int newType = type;
+        switch(type){
+            case PangenomeMAT::NucMutationType::NS:
+                newType = PangenomeMAT::NucMutationType::NSNPS;
+                break;
+            case PangenomeMAT::NucMutationType::ND:
+                newType = PangenomeMAT::NucMutationType::NSNPD;
+                break;
+            case PangenomeMAT::NucMutationType::NI:
+                newType = PangenomeMAT::NucMutationType::NSNPI;
+                break;
+        }
+
+        for(int i = 0; i < len; i++){
+            int newChar;
+            if(type < 3){
+                newChar = (((mutation.nucs) >> (4*(15 - i))) & 0xF);
+            } else {
+                // SNP
+                newChar = ((mutation.condensed >> 3) & 0xF);
+            }
+
+            std::pair< int, int > newMutation = std::make_pair( newType, newChar );
+            if(gapPos != -1){
+                if(mutationRecords2.find(std::make_tuple( bid, pos, gapPos + i )) == mutationRecords2.end()){
+                    mutationRecords2[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords2[std::make_tuple( bid, pos, gapPos + i )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords2[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
+                    } else {
+                        mutationRecords2.erase(std::make_tuple( bid, pos, gapPos + i ));
+                    }
+                }
+            } else {
+                if(mutationRecords2.find(std::make_tuple( bid, pos + i, gapPos )) == mutationRecords2.end()){
+                    mutationRecords2[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords2[std::make_tuple( bid, pos + i, gapPos )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords2[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
+                    } else {
+                        mutationRecords2.erase(std::make_tuple( bid, pos + i, gapPos ));
+                    }
+                }
+            }
+        }
+    }
+
+    // if(totSize1 != totSize2){
+    //     std::cout << "totSizes don't match " << totSize1 << " " << totSize2 << std::endl;
+    // }
+
+    std::vector< std::tuple< int, int, int, int, int > > mutationArray1, mutationArray2;
+    for(auto u: mutationRecords1){
+        mutationArray1.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), u.second.first, u.second.second ) );
+    }
+    for(auto u: mutationRecords2){
+        mutationArray2.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), u.second.first, u.second.second ) );
+    }
+
+    if(mutationArray1.size() != mutationArray2.size()){
+        std::cout << "sizes don't match " << mutationArray1.size() << " " << mutationArray2.size() << std::endl;
+        return false;
+    }
+
+    for(size_t i = 0; i < mutationArray1.size(); i++){
+        if(mutationArray1[i] != mutationArray2[i]){
+            std::cout << i << "th index doesn't match" << std::endl;
+            // std::cout << std::get<0>(mutationArray1[i]) << " " << std::get<1>(mutationArray1[i]) << " " << std::get<2>(mutationArray1[i]) << " " << std::get<3>(mutationArray1[i]) << " " << std::get<4>(mutationArray1[i]) << std::endl;
+            // std::cout << std::get<0>(mutationArray2[i]) << " " << std::get<1>(mutationArray2[i]) << " " << std::get<2>(mutationArray2[i]) << " " << std::get<3>(mutationArray2[i]) << " " << std::get<4>(mutationArray2[i]) << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::vector< PangenomeMAT::NucMut > consolidateNucMutations(const std::vector< PangenomeMAT::NucMut >& nucMutation){
     // bid, pos, gap_pos -> type, nuc
     std::map< std::tuple< int, int, int >, std::pair< int, int > > mutationRecords;
     for(auto mutation: nucMutation){
@@ -872,7 +1037,7 @@ std::vector< PangenomeMAT::NucMut > consolidate(const std::vector< PangenomeMAT:
     std::vector< PangenomeMAT::NucMut > consolidatedMutationArray;
 
     for(size_t i = 0; i < mutationArray.size(); i++){
-        size_t j = i;
+        size_t j = i + 1;
         for(; j < std::min(i + 16, mutationArray.size()); j++){
             if(std::get<2>(mutationArray[i]) != -1){
                 // gapPos exists
@@ -883,16 +1048,23 @@ std::vector< PangenomeMAT::NucMut > consolidate(const std::vector< PangenomeMAT:
             } else {
                 if(!(std::get<0>(mutationArray[i]) == std::get<0>(mutationArray[j]) && (size_t)(std::get<1>(mutationArray[j]) - std::get<1>(mutationArray[i])) == j - i
                     && std::get<3>(mutationArray[i]) == std::get<3>(mutationArray[j]) && std::get<2>(mutationArray[j]) == std::get<2>(mutationArray[i]))){
-                        break;
-                    }
+                    break;
+                }
             }
         }
+
         if(j - i <= 1){
             consolidatedMutationArray.push_back(PangenomeMAT::NucMut(mutationArray[i]));
+
+            // consolidatedMutationArray.push_back(PangenomeMAT::NucMut(mutationArray, i, j));
             continue;
         }
         // combine mutations from i to j
-        
+        auto newMutation = PangenomeMAT::NucMut(mutationArray, i, j);
+
+        consolidatedMutationArray.push_back(newMutation);
+
+        i = j - 1;
     }
 
     return consolidatedMutationArray;
@@ -911,7 +1083,13 @@ void compressTree(PangenomeMAT::Node* node, size_t level){
             mergeNodes(node->children[i], node->children[i]->children[0]);
         }
         // consolidate mutations of parent
+        auto oldVector = node->children[i]->nucMutation;
 
+        node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
+
+        // std::cout << oldVector.size() << " " << (node->children[i]->nucMutation).size() << std::endl;
+
+        debugSimilarity(oldVector, node->children[i]->nucMutation);
 
         compressTree(node->children[i], level + 1);
     }
