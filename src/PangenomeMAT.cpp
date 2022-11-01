@@ -498,7 +498,7 @@ char getNucleotideFromCode(int code){
 
 void printFASTAHelper(PangenomeMAT::Node* root,\
     std::vector< std::vector< std::pair< char, std::vector< char > > > >& sequence, std::vector<bool>& blockExists,\
-    std::ofstream& fout){
+    std::ofstream& fout, bool aligned = false){
     
     // Apply mutations
     // Block mutations - ignored for now since the block IDs don't seem right in the files
@@ -638,12 +638,12 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         // Print sequence
         fout << '>' << root->identifier << std::endl;
 
-        printSequenceLines(sequence, blockExists, 50, false, fout);
+        printSequenceLines(sequence, blockExists, 50, aligned, fout);
 
     } else {
         // DFS on children
         for(PangenomeMAT::Node* child: root->children){
-            printFASTAHelper(child, sequence, blockExists, fout);
+            printFASTAHelper(child, sequence, blockExists, fout, aligned);
         }
     }
 
@@ -663,7 +663,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
     }
 }
 
-void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
+void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned){
     // List of blocks. Each block has a nucleotide list. Along with each nucleotide is a gap list.
     // First block is empty since the block IDs start at 1
     std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence(blocks.size() + 1);
@@ -716,7 +716,7 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout){
         sequence[bId][pos].second.resize(len, '-');
     }
 
-    printFASTAHelper(root, sequence, blockExists, fout);
+    printFASTAHelper(root, sequence, blockExists, fout, aligned);
 
 }
 
