@@ -34,12 +34,32 @@ namespace PangenomeMAT {
             // bid, pos, gapPos, type, char
             position = std::get<1>(mutationInfo);
             gapPosition = std::get<2>(mutationInfo);
-            condensed = (std::get<0>(mutationInfo) << 8) + (std::get<4>(mutationInfo) << 3) + (std::get<3>(mutationInfo));
+            condensed = (std::get<0>(mutationInfo) << 8) + (1<<7) + (std::get<4>(mutationInfo) << 3) + (std::get<3>(mutationInfo));
         }
 
         // For creating non-SNP mutations from SNP mutations
         NucMut(const std::vector< std::tuple< int, int, int, int, int > >& mutationArray, int start, int end){
-            int newNucs;
+            condensed = ((std::get<0>(mutationArray[start])) << 8) + ((end - start) << 3);
+            // type
+            switch(std::get<3>(mutationArray[start])){
+                case PangenomeMAT::NucMutationType::NSNPS:
+                    condensed += PangenomeMAT::NucMutationType::NS;
+                    break;
+                case PangenomeMAT::NucMutationType::NSNPI:
+                    condensed += PangenomeMAT::NucMutationType::NI;
+                    break;
+                case PangenomeMAT::NucMutationType::NSNPD:
+                    condensed += PangenomeMAT::NucMutationType::ND;
+                    break;
+            }
+
+            position = std::get<1>(mutationArray[start]);
+            gapPosition = std::get<2>(mutationArray[start]);
+
+            nucs = 0;
+            for(int i = start; i < end; i++){
+                nucs += ((uint64_t)std::get<4>(mutationArray[i]) << (4*(15-(i - start))));
+            }
         }
 
         NucMut(MAT::nuc_mut mutation){
