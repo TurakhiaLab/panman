@@ -71,14 +71,21 @@ int main(int argc, char* argv[]){
                 std::chrono::nanoseconds summaryTime = summaryEnd - summaryStart;
 
                 std::cout << "\nSummary creation time: " << summaryTime.count() << '\n';
-            } else if(splitCommand.size() == 2 && splitCommand[0] == "fasta"){
+            } else if(splitCommand.size() >= 2 && splitCommand[0] == "fasta"){
                 std::string fileName = splitCommand[1];
+                bool aligned = false;
+
+                if(splitCommand.size() == 3 && splitCommand[1] == "--aligned"){
+                    aligned = true;
+                    fileName = splitCommand[2];
+                }
+
                 std::filesystem::create_directory("./fasta");
                 std::ofstream fout("./fasta/" + fileName + ".fasta");
 
                 auto fastaStart = std::chrono::high_resolution_clock::now();
                 
-                T.printFASTA(fout);
+                T.printFASTA(fout, aligned);
 
                 auto fastaEnd = std::chrono::high_resolution_clock::now();
                 
