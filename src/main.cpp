@@ -111,46 +111,106 @@ int main(int argc, char* argv[]){
 
                 fout.close();
             } else if(splitCommand.size() > 2 && splitCommand[0] == "subtree"){
-                std::string fileName = splitCommand[1];
+                if(splitCommand[1].substr(0,8) == "--input="){
+                    std::string inputFileName = splitCommand[1].substr(8);
 
-                std::filesystem::create_directory("./pmat");
-                std::ofstream fout("./pmat/" + fileName + ".pmat");
+                    std::ifstream fin(inputFileName);
 
-                std::vector< std::string > nodeIds;
-                for(size_t i = 2; i < splitCommand.size(); i++){
-                    nodeIds.push_back(splitCommand[i]);
+                    std::vector< std::string > nodeIds;
+                    std::string nodeId;
+
+                    while(fin >> nodeId){
+                        nodeIds.push_back(nodeId);
+                    }
+
+                    fin.close();
+
+                    std::string outputFileName = splitCommand[2];
+                    std::filesystem::create_directory("./pmat");
+                    std::ofstream fout("./pmat/" + outputFileName + ".pmat");
+
+                    auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+                    T.writeToFile(fout, T.subtreeExtractParallel(nodeIds));
+
+                    auto subtreeEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+
+                    fout.close();
+
+                } else {
+                    std::string fileName = splitCommand[1];
+                    std::filesystem::create_directory("./pmat");
+                    std::ofstream fout("./pmat/" + fileName + ".pmat");
+
+                    std::vector< std::string > nodeIds;
+                    for(size_t i = 2; i < splitCommand.size(); i++){
+                        nodeIds.push_back(splitCommand[i]);
+                    }
+                    auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+                    T.writeToFile(fout, T.subtreeExtractParallel(nodeIds));
+
+                    auto subtreeEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+
+                    fout.close();
                 }
-                auto subtreeStart = std::chrono::high_resolution_clock::now();
-
-                T.writeToFile(fout, T.subtreeExtractParallel(nodeIds));
-
-                auto subtreeEnd = std::chrono::high_resolution_clock::now();
-                std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
-
-                std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
-
-                fout.close();
             } else if(splitCommand.size() > 2 && splitCommand[0] == "subtree-newick"){
-                std::string fileName = splitCommand[1];
 
-                std::filesystem::create_directory("./newick");
-                std::ofstream fout("./newick/" + fileName + ".newick");
+                if(splitCommand[1].substr(0,8) == "--input="){
+                    std::string inputFileName = splitCommand[1].substr(8);
 
-                std::vector< std::string > nodeIds;
-                for(size_t i = 2; i < splitCommand.size(); i++){
-                    nodeIds.push_back(splitCommand[i]);
+                    std::ifstream fin(inputFileName);
+
+                    std::vector< std::string > nodeIds;
+                    std::string nodeId;
+
+                    while(fin >> nodeId){
+                        nodeIds.push_back(nodeId);
+                    }
+
+                    fin.close();
+
+                    std::string outputFileName = splitCommand[2];
+                    std::filesystem::create_directory("./newick");
+                    std::ofstream fout("./newick/" + outputFileName + ".newick");
+
+                    auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+                    fout << T.getNewickString(T.subtreeExtractParallel(nodeIds));
+
+                    auto subtreeEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+
+                    fout.close();
+
+                } else {
+                    std::string fileName = splitCommand[1];
+                    std::filesystem::create_directory("./newick");
+                    std::ofstream fout("./newick/" + fileName + ".newick");
+
+                    std::vector< std::string > nodeIds;
+                    for(size_t i = 2; i < splitCommand.size(); i++){
+                        nodeIds.push_back(splitCommand[i]);
+                    }
+                    auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+                    fout << T.getNewickString(T.subtreeExtractParallel(nodeIds));
+
+                    auto subtreeEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+
+                    fout.close();
                 }
-                
-                auto subtreeStart = std::chrono::high_resolution_clock::now();
-
-                fout << T.getNewickString(T.subtreeExtractParallel(nodeIds));
-
-                auto subtreeEnd = std::chrono::high_resolution_clock::now();
-                std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
-
-                std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
-
-                fout.close();
             } else if(splitCommand.size() == 1 && splitCommand[0] == "newick"){
                 std::cout << T.getNewickString(T.root) << std::endl;
             } else if(splitCommand.size() == 1 && splitCommand[0] == "exit"){
