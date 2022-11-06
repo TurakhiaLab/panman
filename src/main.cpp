@@ -161,7 +161,27 @@ int main(int argc, char* argv[]){
                 auto subtreeEnd = std::chrono::high_resolution_clock::now();
                 std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
-                std::cout << "\nSample Subtree Extract execution time: " << subtreeTime.count() << '\n';
+                std::cout << "\nSubtree Extract execution time: " << subtreeTime.count() << '\n';
+
+                fout.close();
+            } else if(splitCommand.size() > 2 && splitCommand[0] == "psubtree"){
+                std::string fileName = splitCommand[1];
+
+                std::filesystem::create_directory("./pmat");
+                std::ofstream fout("./pmat/" + fileName + ".pmat");
+
+                std::vector< std::string > nodeIds;
+                for(size_t i = 2; i < splitCommand.size(); i++){
+                    nodeIds.push_back(splitCommand[i]);
+                }
+                auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+                T.writeToFile(fout, T.subtreeExtractParallel(nodeIds));
+
+                auto subtreeEnd = std::chrono::high_resolution_clock::now();
+                std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+                std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
 
                 fout.close();
             } else if(splitCommand.size() == 1 && splitCommand[0] == "newick"){

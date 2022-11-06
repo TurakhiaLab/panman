@@ -153,6 +153,7 @@ namespace PangenomeMAT {
         void printSummary();
         void printFASTA(std::ofstream& fout, bool aligned = false);
         Node* subtreeExtract(std::vector< std::string > nodeIds);
+        Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
 
         void printFASTA_updated(std::ofstream& fout);  // Updated algorithm for parallelising. Should probably remove later
 
