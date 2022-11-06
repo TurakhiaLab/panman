@@ -155,8 +155,6 @@ namespace PangenomeMAT {
         Node* subtreeExtract(std::vector< std::string > nodeIds);
         Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
 
-        void printFASTA_updated(std::ofstream& fout);  // Updated algorithm for parallelising. Should probably remove later
-
         std::string getNewickString(Node* node); // Make private later. Public for testing purposes
 
         void writeToFile(std::ofstream& fout, Node* node = nullptr);
