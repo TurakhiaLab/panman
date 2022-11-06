@@ -4,6 +4,9 @@
 #include <stack>
 #include <tbb/parallel_reduce.h>
 #include <tbb/parallel_for.h>
+#include <tbb/parallel_for_each.h>
+#include <tbb/concurrent_vector.h>
+#include <tbb/concurrent_unordered_map.h>
 
 #include "PangenomeMAT.hpp"
 
@@ -499,7 +502,7 @@ char getNucleotideFromCode(int code){
 void printFASTAHelper(PangenomeMAT::Node* root,\
     std::vector< std::vector< std::pair< char, std::vector< char > > > >& sequence, std::vector<bool>& blockExists,\
     std::ofstream& fout, bool aligned = false){
-    
+
     // Apply mutations
     // Block mutations - ignored for now since the block IDs don't seem right in the files
 
@@ -526,6 +529,8 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
     // For backtracking. blockId, pos, gapPos, (oldVal, newVal) in substitution, ('-', newVal) in insertion, (oldVal, '-') in deletion
     std::vector< std::tuple< int, int, int, char, char > > mutationInfo;
 
+    std::cout << sequence[253][0].second.size() << std::endl;
+
     // Nuc mutations
     for(size_t i = 0; i < root->nucMutation.size(); i++){
 
@@ -545,6 +550,10 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
 
             int len = (((root->nucMutation[i].condensed) >> 3) & 0x1F);
 
+            // if(root->identifier == "node_3" && i == 8385){
+            //     std::cout << bid << " " << pos << " " << gapPos << " " << type << " " << len << " " << sequence[bid].size() << std::endl;
+            // }
+
             if(type == PangenomeMAT::NucMutationType::NS){
                 for(int j = 0; j < len; j++){
                     char oldVal = sequence[bid][pos + j].first;
@@ -560,23 +569,30 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                     for(int j = 0; j < len; j++){
                         newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
                         // if(bid > sequence.size() || pos + j > sequence[bid].size()){
-                        //     std::cout << bid << " " << sequence.size() << std::endl;
+                        //     std::cout << bid << " " << sequence.size() << " a" << std::endl;
                         // }
                         sequence[bid][pos + j].first = newVal;
                         mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, '-', newVal));
-                    }
-                }
-                else {
-                    for(int j = 0; j < len; j++){
-                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
-                        // if(gapPos + j >= sequence[bid][pos].second.size()){
-                        //     std::cout << root->identifier << " " << i << " " << bid << " " << " " << pos << std::endl;
-                        //     std::cout << sequence[bid][pos].second.size() << " " << gapPos + j << std::endl;
+                        // if(bid > sequence.size() || pos + j > sequence[bid].size()){
+                        //     std::cout << bid << " " << sequence.size() << " a" << std::endl;
                         // }
-                        sequence[bid][pos].second[gapPos + j] = newVal;
-                        mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
                     }
                 }
+            //     else {
+            //         for(int j = 0; j < len; j++){
+            //             newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
+            //             // if(gapPos + j >= sequence[bid][pos].second.size()){
+            //             //     std::cout << root->identifier << " " << i << " " << bid << " " << " " << pos << " " << len << std::endl;
+            //             //     std::cout << " " << sequence[bid][pos].second.size() << " " << gapPos + j << " a" << std::endl;
+            //             // }
+            //             sequence[bid][pos].second[gapPos + j] = newVal;
+            //             mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
+            //             // if(gapPos + j >= sequence[bid][pos].second.size()){
+            //             //     std::cout << root->identifier << " " << i << " " << bid << " " << " " << pos << " " << len << std::endl;
+            //             //     std::cout << sequence[bid][pos].second.size() << " " << gapPos + j << " b" << std::endl;
+            //             // }
+            //         }
+            //     }
             }
             // else if(type == PangenomeMAT::NucMutationType::ND){
             //     if(gapPos == -1){
@@ -714,6 +730,10 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned){
         // }
 
         sequence[bId][pos].second.resize(len, '-');
+
+        // if(bId == 253 && pos == 0){
+        //     std::cout << sequence[bId][pos].second.size() << std::endl;
+        // }
     }
 
     printFASTAHelper(root, sequence, blockExists, fout, aligned);
@@ -1256,6 +1276,110 @@ PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtract(std::vector< std::string 
 
     return newTreeRoot;
 
+}
+
+void compressTreeParallel(PangenomeMAT::Node* node, size_t level){
+    node->level = level;
+
+    if(node->children.size() == 0){
+        return;
+    }
+
+    tbb::parallel_for(tbb::blocked_range<int>(0, (int)node->children.size()), [&](tbb::blocked_range<int> r){
+        for(int i = r.begin(); i < r.end(); i++){
+            while(node->children[i]->children.size() == 1){
+                mergeNodes(node->children[i], node->children[i]->children[0]);
+            }
+            // consolidate mutations of parent
+            auto oldVector = node->children[i]->nucMutation;
+
+            node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
+
+            // std::cout << oldVector.size() << " " << (node->children[i]->nucMutation).size() << std::endl;
+
+            debugSimilarity(oldVector, node->children[i]->nucMutation);
+
+            compressTreeParallel(node->children[i], level + 1);
+        }
+    });
+}
+
+PangenomeMAT::Node* subtreeExtractParallelHelper(PangenomeMAT::Node* node, const tbb::concurrent_unordered_map< PangenomeMAT::Node*, size_t >& ticks){
+    if(ticks.find(node) == ticks.end()){
+        return nullptr;
+    }
+
+    PangenomeMAT::Node* newNode = new PangenomeMAT::Node(node->identifier, node->branchLength);
+
+    for(auto mutation: node->nucMutation){
+        newNode->nucMutation.push_back(mutation);
+    }
+
+    for(auto mutation: node->blockMutation.condensedBlockMut){
+        newNode->blockMutation.condensedBlockMut.push_back(mutation);
+    }
+
+    newNode->children.resize(node->children.size(), nullptr);
+
+    tbb::parallel_for(tbb::blocked_range(0, (int)node->children.size()), [&](tbb::blocked_range<int> r){
+        for(int i = r.begin(); i < r.end(); i++){
+            PangenomeMAT::Node* child = node->children[i];
+            if(ticks.find(child) != ticks.end()){
+
+                PangenomeMAT::Node* newChild = subtreeExtractParallelHelper(child, ticks);
+
+                newChild->parent = newNode;
+                // newNode->children.push_back(newChild);
+                newNode->children[i] = newChild;
+            }
+        }
+    });
+
+    size_t i = 0, j = 0;
+    while(j < newNode->children.size()){
+        if(newNode->children[j] != nullptr){
+            std::swap(newNode->children[i], newNode->children[j]);
+            i++;
+        }
+        j++;
+    }
+    newNode->children.resize(i);
+
+    // tbb::parallel_for_each(node->children.begin(), node->children.end(), [&](PangenomeMAT::Node*& child){
+    //     if(ticks.find(child) != ticks.end()){
+    //         PangenomeMAT::Node* newChild = subtreeExtractParallelHelper(child, ticks);
+    //         newChild->parent = newNode;
+    //         newNode->children.push_back(newChild);
+    //     }
+    // });
+    
+    return newNode;
+
+}
+
+PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtractParallel(std::vector< std::string > nodeIds){
+    tbb::concurrent_vector< PangenomeMAT::Node* > requiredNodes;
+    
+    tbb::parallel_for_each(nodeIds.begin(), nodeIds.end(), [&]( std::string& id ) {
+        requiredNodes.push_back(allNodes[id]);
+    });
+
+    tbb::concurrent_unordered_map< PangenomeMAT::Node*, size_t > ticks;
+
+    tbb::parallel_for_each(requiredNodes.begin(), requiredNodes.end(), [&](PangenomeMAT::Node*& node){
+        Node* current = node;
+
+        while(current != nullptr){
+            ticks[current]++;
+            current = current->parent;
+        }
+    });
+
+    PangenomeMAT::Node* newTreeRoot = subtreeExtractParallelHelper(root, ticks);
+
+    compressTreeParallel(newTreeRoot, 1);
+
+    return newTreeRoot;
 }
 
 void PangenomeMAT::Tree::printFASTA_updated(std::ofstream& fout){
