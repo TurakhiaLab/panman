@@ -62,7 +62,7 @@ Extracts consolidated version of subtree containing given nodes and writes its n
 ```
 
 ## FASTA Writer (In development)
-Extracts sequences from the tree and writes them in FASTA format in the `build/fasta` directory. Currently doesn't incorporate indels.
+Extracts sequences from the tree and writes them in FASTA format in the `build/fasta` directory. Currently doesn't incorporate non-SNP indels.
 ```
 > fasta [--aligned] <filename>
 ```
