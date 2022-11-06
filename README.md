@@ -58,4 +58,12 @@ Extracts consolidated version of subtree containing given nodes and writes its n
 ```
 > subtree-newick <filename> <node identifier 1> <node identifier 2> <node identifier 3> ...
 ```
+
+## FASTA Writer (In development)
+Extracts sequences from the tree and writes them in FASTA format in the `build/fasta` directory
+```
+> fasta [--aligned] <filename>
+```
+
+
    [Usher]: <https://github.com/yatisht/usher>
