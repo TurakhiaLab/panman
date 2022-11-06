@@ -440,7 +440,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         int bid = ((root->nucMutation[i].condensed >> 8) & (((1 << 24) - 1)));
 
         int pos = root->nucMutation[i].position;
-        // int gapPos = root->nucMutation[i].gapPosition;
+        int gapPos = root->nucMutation[i].gapPosition;
         int type = ((root->nucMutation[i].condensed) & 7);
         char newVal = '-';
 
@@ -503,31 +503,31 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                 mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
             }
             
-            // else if(type == PangenomeMAT::NucMutationType::NSNPI){
-            //     newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
-            //     if(gapPos == -1){
-            //         char oldVal = sequence[bid][pos].first;
-            //         sequence[bid][pos].first = newVal;
-            //         mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
-            //     } else {
-            //         char oldVal = sequence[bid][pos].second[gapPos];
-            //         sequence[bid][pos].second[gapPos] = newVal;
-            //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
-            //     }
-            // }
-            // else if(type == PangenomeMAT::NucMutationType::NSNPD){
-            //     if(gapPos == -1){
+            else if(type == PangenomeMAT::NucMutationType::NSNPI){
+                newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
+                if(gapPos == -1){
+                    char oldVal = sequence[bid][pos].first;
+                    sequence[bid][pos].first = newVal;
+                    mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+                } else {
+                    char oldVal = sequence[bid][pos].second[gapPos];
+                    sequence[bid][pos].second[gapPos] = newVal;
+                    mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
+                }
+            }
+            else if(type == PangenomeMAT::NucMutationType::NSNPD){
+                if(gapPos == -1){
 
-            //         char oldVal = sequence[bid][pos].first;
+                    char oldVal = sequence[bid][pos].first;
 
-            //         sequence[bid][pos].first = '-';
-            //         mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, '-'));
-            //     } else {
-            //         char oldVal = sequence[bid][pos].second[gapPos];
-            //         sequence[bid][pos].second[gapPos] = '-';
-            //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, '-'));
-            //     }
-            // }
+                    sequence[bid][pos].first = '-';
+                    mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, '-'));
+                } else {
+                    char oldVal = sequence[bid][pos].second[gapPos];
+                    sequence[bid][pos].second[gapPos] = '-';
+                    mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, '-'));
+                }
+            }
         }
     }
 
