@@ -387,7 +387,7 @@ void printSequenceLines(const std::vector< std::vector< std::pair< char, std::ve
         line = "";
     }
 
-    fout << '\n';
+    // fout << '\n';
 
 }
 
@@ -618,15 +618,23 @@ void mergeNodes(PangenomeMAT::Node* par, PangenomeMAT::Node* chi){
     par->children = chi->children;
 
     // For block mutations, we cancel out irrelevant mutations
-    std::unordered_set< int > bidInserts;
+    std::unordered_map< int, PangenomeMAT::BlockMutationType > bidMutations;
 
     for(auto mutation: par->blockMutation.condensedBlockMut){
         int bid = ((mutation >> 8) & 0xFFFFFF);
         int type = (mutation & 0x1);
         if(type == PangenomeMAT::BlockMutationType::BI){
-            bidInserts.insert(bid);
+            bidMutations[bid] = PangenomeMAT::BlockMutationType::BI;
         } else {
-            bidInserts.erase(bid);
+            if(bidMutations.find(bid) != bidMutations.end()){
+                if(bidMutations[bid] == PangenomeMAT::BlockMutationType::BI){
+                    // If it was insertion earlier, cancel out
+                    bidMutations.erase(bid);
+                }
+                // Otherwise, it remains deletion
+            } else {
+                bidMutations[bid] = PangenomeMAT::BlockMutationType::BD;
+            }
         }
     }
 
@@ -634,15 +642,27 @@ void mergeNodes(PangenomeMAT::Node* par, PangenomeMAT::Node* chi){
         int bid = ((mutation >> 8) & 0xFFFFFF);
         int type = (mutation & 0x1);
         if(type == PangenomeMAT::BlockMutationType::BI){
-            bidInserts.insert(bid);
+            bidMutations[bid] = PangenomeMAT::BlockMutationType::BI;
         } else {
-            bidInserts.erase(bid);
+            if(bidMutations.find(bid) != bidMutations.end()){
+                if(bidMutations[bid] == PangenomeMAT::BlockMutationType::BI){
+                    // If it was insertion earlier, cancel out
+                    bidMutations.erase(bid);
+                }
+                // Otherwise, it remains deletion
+            } else {
+                bidMutations[bid] = PangenomeMAT::BlockMutationType::BD;
+            }
         }
     }
 
     PangenomeMAT::BlockMut newBlockMutation;
-    for(auto bid: bidInserts){
-        newBlockMutation.condensedBlockMut.push_back((( bid << 8 ) ^ 0x1));
+    for(auto mutation: bidMutations){
+        if(mutation.second == PangenomeMAT::BlockMutationType::BI){
+            newBlockMutation.condensedBlockMut.push_back((( mutation.first << 8 ) ^ 0x2));
+        } else {
+            newBlockMutation.condensedBlockMut.push_back((( mutation.first << 8 ) ^ 0x1));
+        }
     }
 
     par->blockMutation = newBlockMutation;
