@@ -10,8 +10,6 @@
 
 #include "PangenomeMAT.hpp"
 
-// #define DEBUG
-
 PangenomeMAT::Node::Node(std::string id, float len){
     identifier = id;
     level = 1;
@@ -36,10 +34,8 @@ PangenomeMAT::Block::Block(MAT::block b){
 }
 
 void PangenomeMAT::stringSplit (std::string const& s, char delim, std::vector<std::string>& words) {
-    // TIMEIT();
     size_t start_pos = 0, end_pos = 0;
     while ((end_pos = s.find(delim, start_pos)) != std::string::npos) {
-        // if ((end_pos == start_pos) || end_pos >= s.length()) {
         if (end_pos >= s.length()) {
             break;
         }
@@ -198,8 +194,6 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin){
     // Create tree
     root = createTreeFromNewickString(mainTree.newick());
 
-    // printBfs();
-
     std::vector< MAT::node > storedNodes;
     for(int i = 0; i < mainTree.nodes_size(); i++){
         storedNodes.push_back(mainTree.nodes(i));
@@ -211,16 +205,13 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin){
     // Block sequence
     for(int i = 0; i < mainTree.blocks_size(); i++){
         blocks.emplace_back(mainTree.blocks(i));
-        // std::cout << blocks[blocks.size() - 1].blockId << " ";
     }
 
     // Gap List
     for(int i = 0; i < mainTree.gaps().position_size(); i++){
         gaps.position.push_back(mainTree.gaps().position(i));
     }
-    // for(int i = 0; i < mainTree.gaps().condensed_size(); i++){
-    //     gaps.condensed.push_back(mainTree.gaps().condensed(i));
-    // }
+
     for(int i = 0; i < mainTree.gaps().block_id_size(); i++){
         gaps.blockId.push_back(mainTree.gaps().block_id(i));
     }
@@ -237,7 +228,6 @@ int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucM
         for(int i = r.begin(); i != r.end(); i++){
             
             if((root->nucMutation[i].condensed & 0x7) == nucMutType){
-                // init += (((root->nucMutation[i].condensed) >> 3) & 0x1F);
                 if(nucMutType == PangenomeMAT::NucMutationType::NS){
                     init += (((root->nucMutation[i].condensed) >> 3) & 0x1F); // Length of contiguous mutation in case of substitution
                 } else {
@@ -283,67 +273,8 @@ int PangenomeMAT::Tree::getTotalParsimonyParallel(NucMutationType nucMutType, Bl
 
 }
 
-int PangenomeMAT::Tree::getTotalParsimony(PangenomeMAT::NucMutationType nucMutType, PangenomeMAT::BlockMutationType blockMutType){
-    int totalMutations = 0;
-
-    std::queue<Node *> bfsQueue;
-
-    bfsQueue.push(root);
-    while(!bfsQueue.empty()){
-        Node* current = bfsQueue.front();
-        bfsQueue.pop();
-
-        // Process children of current node
-        for(auto nucMutation: current->nucMutation){
-            if((nucMutation.condensed & 0x7) == nucMutType){
-                if(nucMutType == PangenomeMAT::NucMutationType::NS){
-                    totalMutations += ((nucMutation.condensed >> 3) & 0x1F); // Length of contiguous mutation in case of substitution
-                } else {
-                    totalMutations++;
-                }
-            }
-        }
-
-        if(blockMutType != NONE){
-            for(auto blockMutation: current->blockMutation.condensedBlockMut){
-                if((blockMutation & 0x1) == blockMutType){
-                    totalMutations++;
-                }
-            }
-        }
-
-        for(auto child: current->children){
-            bfsQueue.push(child);
-        }
-    }
-
-    return totalMutations;
-}
-
 void PangenomeMAT::Tree::printSummary(){
-    // Traversal test
 
-#ifdef DEBUG
-    std::cout << "Total Nodes in Tree: " << m_currInternalNode + m_numLeaves << std::endl;
-    std::cout << "Total Samples in Tree: " << m_numLeaves << std::endl;
-    std::cout << "Total Substitutions: " << getTotalParsimony(PangenomeMAT::NucMutationType::NS) << std::endl;
-    std::cout << "Total Insertions: " << getTotalParsimony(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
-    std::cout << "Total Deletions: " << getTotalParsimony(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
-    std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPS) << std::endl;
-    std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPI) << std::endl;
-    std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
-    std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
-    std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
-
-    std::cout << "\nParallel Results:\n";
-    std::cout << "Total Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NS) << std::endl;
-    std::cout << "Total Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
-    std::cout << "Total Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
-    std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPS) << std::endl;
-    std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPI) << std::endl;
-    std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
-
-#else
     std::cout << "Total Nodes in Tree: " << m_currInternalNode + m_numLeaves << std::endl;
     std::cout << "Total Samples in Tree: " << m_numLeaves << std::endl;
     std::cout << "Total Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NS) << std::endl;
@@ -354,7 +285,6 @@ void PangenomeMAT::Tree::printSummary(){
     std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
     std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
     std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
-#endif
 
 }
 
@@ -368,7 +298,6 @@ void PangenomeMAT::Tree::printBfs(Node* node){
     size_t prevLev = 0;
     
     bfsQueue.push(node);
-    // bfsQueue.push(allNodes["node_10"]);
 
     while(!bfsQueue.empty()){
         Node* current = bfsQueue.front();
@@ -390,7 +319,6 @@ void PangenomeMAT::Tree::printBfs(Node* node){
 void printSequenceLines(const std::vector< std::vector< std::pair< char, std::vector< char > > > >& sequence,\
     const std::vector<bool>& blockExists, size_t lineSize, bool aligned, std::ofstream& fout){
 
-    // std::vector< std::string > lines;
     std::string line;
 
     for(size_t i = 1; i < blockExists.size(); i++){
@@ -428,9 +356,6 @@ void printSequenceLines(const std::vector< std::vector< std::pair< char, std::ve
                     }
                     
                 } else {
-                    // if(sequence[i][j].second[k] != 'A' && sequence[i][j].second[k] != 'C' && sequence[i][j].second[k] != 'G' && sequence[i][j].second[k] != 'T' && sequence[i][j].second[k] != 'N'){
-                    //     std::cout << sequence[i][j].second[k] << std::endl;
-                    // }
                     line += sequence[i][j].second[k];
                 }
                 if(line.length() == lineSize){
@@ -440,40 +365,23 @@ void printSequenceLines(const std::vector< std::vector< std::pair< char, std::ve
 
             }
 
-            // std::cout << "D" << std::endl;
-
             if(sequence[i][j].first != 'x'){
-                // std::cout << "E" << std::endl;
 
                 if(sequence[i][j].first == '-'){
-                    // std::cout << "F" << std::endl;
                     if(aligned){
                         line += '-';
                     }
                 } else {
-                    // if(sequence[i][j].first != 'A' && sequence[i][j].first != 'C' && sequence[i][j].first != 'G' && sequence[i][j].first != 'T' && sequence[i][j].first != 'N'){
-                    //     std::cout << sequence[i][j].first << std::endl;
-                    // }
-
-                    // std::cout << "G" << std::endl;
                     line += sequence[i][j].first;
-                    // std::cout << "G" << std::endl;
                 }
                 if(line.length() == lineSize){
-                    // std::cout << "H" << std::endl;
                     fout << line << '\n';
-                    // std::cout << "H" << std::endl;
                     line = "";
-                    // std::cout << "H\n" << std::endl;
                 }
             }
-
-            // std::cout << "B" << std::endl;
         }
 
     }
-
-    // std::cout << "C" << std::endl;
 
     if(line.length()){
         fout << line << '\n';
@@ -512,8 +420,6 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         int bid = ((mutation >> 8) & ((1 << 24) - 1));
         int type = (mutation & 0x1);
 
-        // std::cout << mutation << " " << bid  << " " << sequence.size() << " " << type << std::endl;
-
         if(type == 0){
             bool oldVal = blockExists[bid];
             blockExists[bid] = true;
@@ -537,10 +443,6 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         int bid = ((root->nucMutation[i].condensed >> 8) & (((1 << 24) - 1)));
 
         int pos = root->nucMutation[i].position;
-        // if(pos >= sequence[bid].size()){
-        //     std::cout << bid << " " << sequence[bid].size() << " " << pos << std::endl;
-        // }
-
         int gapPos = root->nucMutation[i].gapPosition;
         int type = ((root->nucMutation[i].condensed) & 7);
         char newVal = '-';
@@ -549,10 +451,6 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
             // Either S, I or D
 
             int len = (((root->nucMutation[i].condensed) >> 3) & 0x1F);
-
-            // if(root->identifier == "node_3" && i == 8385){
-            //     std::cout << bid << " " << pos << " " << gapPos << " " << type << " " << len << " " << sequence[bid].size() << std::endl;
-            // }
 
             if(type == PangenomeMAT::NucMutationType::NS){
                 for(int j = 0; j < len; j++){
@@ -568,86 +466,72 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                 if(gapPos == -1){
                     for(int j = 0; j < len; j++){
                         newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
-                        // if(bid > sequence.size() || pos + j > sequence[bid].size()){
-                        //     std::cout << bid << " " << sequence.size() << " a" << std::endl;
-                        // }
                         sequence[bid][pos + j].first = newVal;
                         mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, '-', newVal));
-                        // if(bid > sequence.size() || pos + j > sequence[bid].size()){
-                        //     std::cout << bid << " " << sequence.size() << " a" << std::endl;
-                        // }
                     }
                 }
-            //     else {
-            //         for(int j = 0; j < len; j++){
-            //             newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
-            //             // if(gapPos + j >= sequence[bid][pos].second.size()){
-            //             //     std::cout << root->identifier << " " << i << " " << bid << " " << " " << pos << " " << len << std::endl;
-            //             //     std::cout << " " << sequence[bid][pos].second.size() << " " << gapPos + j << " a" << std::endl;
-            //             // }
-            //             sequence[bid][pos].second[gapPos + j] = newVal;
-            //             mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
-            //             // if(gapPos + j >= sequence[bid][pos].second.size()){
-            //             //     std::cout << root->identifier << " " << i << " " << bid << " " << " " << pos << " " << len << std::endl;
-            //             //     std::cout << sequence[bid][pos].second.size() << " " << gapPos + j << " b" << std::endl;
-            //             // }
-            //         }
-            //     }
+                else {
+                    for(int j = 0; j < len; j++){
+                        newVal = getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(15-j))) & 15);
+                        sequence[bid][pos].second[gapPos + j] = newVal;
+                        mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, '-', newVal));
+                    }
+                }
             }
-            // else if(type == PangenomeMAT::NucMutationType::ND){
-            //     if(gapPos == -1){
-            //         for(int j = 0; j < len; j++){
-            //             char oldVal = sequence[bid][pos + j].first;
-            //             sequence[bid][pos + j].first = '-';
-            //             mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, oldVal, '-'));
-            //         }
-            //     } else {
-            //         for(int j = 0; j < len; j++){
-            //             char oldVal = sequence[bid][pos].second[gapPos + j];
-            //             sequence[bid][pos].second[gapPos + j] = '-';
-            //             mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, oldVal, '-'));
-            //         }
-            //     }
-            // }
+            else if(type == PangenomeMAT::NucMutationType::ND){
+                if(gapPos == -1){
+                    for(int j = 0; j < len; j++){
+                        char oldVal = sequence[bid][pos + j].first;
+                        sequence[bid][pos + j].first = '-';
+                        mutationInfo.push_back(std::make_tuple(bid, pos + j, -1, oldVal, '-'));
+                    }
+                } else {
+                    for(int j = 0; j < len; j++){
+                        char oldVal = sequence[bid][pos].second[gapPos + j];
+                        sequence[bid][pos].second[gapPos + j] = '-';
+                        mutationInfo.push_back(std::make_tuple(bid, pos, gapPos + j, oldVal, '-'));
+                    }
+                }
+            }
         } 
-    //     else {
-    //         // Todo: SNP
-    //         if(type == PangenomeMAT::NucMutationType::NSNPS){
+        else {
+            // Todo: SNP
+            if(type == PangenomeMAT::NucMutationType::NSNPS){
 
-    //             newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
-    //             char oldVal = sequence[bid][pos].first;
+                newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
+                char oldVal = sequence[bid][pos].first;
 
-    //             sequence[bid][pos].first = newVal;
+                sequence[bid][pos].first = newVal;
 
-    //             mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
-    //         }
+                mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+            }
             
-    //         // else if(type == PangenomeMAT::NucMutationType::NSNPI){
-    //         //     newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
-    //         //     if(gapPos == -1){
-    //         //         char oldVal = sequence[bid][pos].first;
-    //         //         sequence[bid][pos].first = newVal;
-    //         //         mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
-    //         //     } else {
-    //         //         char oldVal = sequence[bid][pos].second[gapPos];
-    //         //         sequence[bid][pos].second[gapPos] = newVal;
-    //         //         mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
-    //         //     }
-    //         // }
-    //         else if(type == PangenomeMAT::NucMutationType::NSNPD){
-    //             if(gapPos == -1){
+            else if(type == PangenomeMAT::NucMutationType::NSNPI){
+                newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
+                if(gapPos == -1){
+                    char oldVal = sequence[bid][pos].first;
+                    sequence[bid][pos].first = newVal;
+                    mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
+                } else {
+                    char oldVal = sequence[bid][pos].second[gapPos];
+                    sequence[bid][pos].second[gapPos] = newVal;
+                    mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
+                }
+            }
+            else if(type == PangenomeMAT::NucMutationType::NSNPD){
+                if(gapPos == -1){
 
-    //                 char oldVal = sequence[bid][pos].first;
+                    char oldVal = sequence[bid][pos].first;
 
-    //                 sequence[bid][pos].first = '-';
-    //                 mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, '-'));
-    //             } else {
-    //                 char oldVal = sequence[bid][pos].second[gapPos];
-    //                 sequence[bid][pos].second[gapPos] = '-';
-    //                 mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, '-'));
-    //             }
-    //         }
-    //     }
+                    sequence[bid][pos].first = '-';
+                    mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, '-'));
+                } else {
+                    char oldVal = sequence[bid][pos].second[gapPos];
+                    sequence[bid][pos].second[gapPos] = '-';
+                    mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, '-'));
+                }
+            }
+        }
     }
 
     if(root->children.size() == 0){
@@ -710,7 +594,6 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned){
                 }
             }
         }
-        // std::cout << blocks[i].consensusSeq.size() << " " << sequence[i].size() << std::endl;
 
         // End character to incorporate for gaps at the end
         sequence[blocks[i].blockId].push_back({'x',{}});
@@ -718,22 +601,12 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned){
 
     // Assigning gaps
     for(size_t i = 0; i < gaps.position.size(); i++){
-        // int bId = ((gaps.condensed[i] >> 8) & (0xFFFFFF));
         int bId = gaps.blockId[i];
 
-        // int len = ((gaps.condensed[i]) & 255);
         int len = gaps.gapLength[i];
         int pos = gaps.position[i];
 
-        // if(bId >= sequence.size() || pos >= sequence[bId].size()){
-        //     std::cout << "Index: " << i << " Bid: " << bId << " Total Blocks: " << sequence.size() << std::endl;
-        // }
-
         sequence[bId][pos].second.resize(len, '-');
-
-        // if(bId == 253 && pos == 0){
-        //     std::cout << sequence[bId][pos].second.size() << std::endl;
-        // }
     }
 
     printFASTAHelper(root, sequence, blockExists, fout, aligned);
@@ -816,7 +689,6 @@ std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<
 
 bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std::vector< PangenomeMAT::NucMut > array2){
     std::map< std::tuple< int, int, int >, std::pair< int, int > > mutationRecords1, mutationRecords2;
-    // int totSize1 = 0, totSize2 = 0;
 
     for(auto mutation: array1){
         int bid = ((mutation.condensed) >> 8);
@@ -830,7 +702,6 @@ bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std
         if(type >= 3){
             len = 1;
         }
-        // totSize1 += len;
 
         // Replace variable length mutations into SNP. They will be combined later
         int newType = type;
@@ -896,7 +767,6 @@ bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std
         if(type >= 3){
             len = 1;
         }
-        // totSize2 += len;
 
         // Replace variable length mutations into SNP. They will be combined later
         int newType = type;
@@ -950,10 +820,6 @@ bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std
         }
     }
 
-    // if(totSize1 != totSize2){
-    //     std::cout << "totSizes don't match " << totSize1 << " " << totSize2 << std::endl;
-    // }
-
     std::vector< std::tuple< int, int, int, int, int > > mutationArray1, mutationArray2;
     for(auto u: mutationRecords1){
         mutationArray1.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), u.second.first, u.second.second ) );
@@ -970,8 +836,6 @@ bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std
     for(size_t i = 0; i < mutationArray1.size(); i++){
         if(mutationArray1[i] != mutationArray2[i]){
             std::cout << i << "th index doesn't match" << std::endl;
-            // std::cout << std::get<0>(mutationArray1[i]) << " " << std::get<1>(mutationArray1[i]) << " " << std::get<2>(mutationArray1[i]) << " " << std::get<3>(mutationArray1[i]) << " " << std::get<4>(mutationArray1[i]) << std::endl;
-            // std::cout << std::get<0>(mutationArray2[i]) << " " << std::get<1>(mutationArray2[i]) << " " << std::get<2>(mutationArray2[i]) << " " << std::get<3>(mutationArray2[i]) << " " << std::get<4>(mutationArray2[i]) << std::endl;
             return false;
         }
     }
@@ -1076,7 +940,6 @@ std::vector< PangenomeMAT::NucMut > consolidateNucMutations(const std::vector< P
         if(j - i <= 1){
             consolidatedMutationArray.push_back(PangenomeMAT::NucMut(mutationArray[i]));
 
-            // consolidatedMutationArray.push_back(PangenomeMAT::NucMut(mutationArray, i, j));
             continue;
         }
         // combine mutations from i to j
@@ -1089,30 +952,6 @@ std::vector< PangenomeMAT::NucMut > consolidateNucMutations(const std::vector< P
 
     return consolidatedMutationArray;
 
-}
-
-void compressTree(PangenomeMAT::Node* node, size_t level){
-    node->level = level;
-
-    if(node->children.size() == 0){
-        return;
-    }
-
-    for(size_t i = 0; i < node->children.size(); i++){
-        while(node->children[i]->children.size() == 1){
-            mergeNodes(node->children[i], node->children[i]->children[0]);
-        }
-        // consolidate mutations of parent
-        auto oldVector = node->children[i]->nucMutation;
-
-        node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
-
-        // std::cout << oldVector.size() << " " << (node->children[i]->nucMutation).size() << std::endl;
-
-        debugSimilarity(oldVector, node->children[i]->nucMutation);
-
-        compressTree(node->children[i], level + 1);
-    }
 }
 
 void dfsExpansion(PangenomeMAT::Node* node, std::vector< PangenomeMAT::Node* >& vec){
@@ -1228,56 +1067,6 @@ std::string PangenomeMAT::Tree::getNewickString(Node* node){
 
 }
 
-PangenomeMAT::Node* subtreeExtractHelper(PangenomeMAT::Node* node, const std::unordered_map< PangenomeMAT::Node*, size_t >& ticks){
-    if(ticks.find(node) == ticks.end()){
-        return nullptr;
-    }
-
-    PangenomeMAT::Node* newNode = new PangenomeMAT::Node(node->identifier, node->branchLength);
-
-    for(auto mutation: node->nucMutation){
-        newNode->nucMutation.push_back(mutation);
-    }
-
-    for(auto mutation: node->blockMutation.condensedBlockMut){
-        newNode->blockMutation.condensedBlockMut.push_back(mutation);
-    }
-
-    for(auto child: node->children){
-        if(ticks.find(child) != ticks.end()){
-            PangenomeMAT::Node* newChild = subtreeExtractHelper(child, ticks);
-            newChild->parent = newNode;
-            newNode->children.push_back(newChild);
-        }
-    }
-
-    return newNode;
-
-}
-
-PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtract(std::vector< std::string > nodeIds){
-    std::vector< PangenomeMAT::Node* > requiredNodes;
-    for(auto id: nodeIds){
-        requiredNodes.push_back(allNodes[id]);
-    }
-
-    std::unordered_map< PangenomeMAT::Node*, size_t > ticks;
-    for(auto node: requiredNodes){
-        Node* current = node;
-
-        while(current != nullptr){
-            ticks[current]++;
-            current = current->parent;
-        }
-    }
-
-    PangenomeMAT::Node* newTreeRoot = subtreeExtractHelper(root, ticks);
-    compressTree(newTreeRoot, 1);
-
-    return newTreeRoot;
-
-}
-
 void compressTreeParallel(PangenomeMAT::Node* node, size_t level){
     node->level = level;
 
@@ -1294,8 +1083,6 @@ void compressTreeParallel(PangenomeMAT::Node* node, size_t level){
             auto oldVector = node->children[i]->nucMutation;
 
             node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
-
-            // std::cout << oldVector.size() << " " << (node->children[i]->nucMutation).size() << std::endl;
 
             debugSimilarity(oldVector, node->children[i]->nucMutation);
 
@@ -1329,7 +1116,6 @@ PangenomeMAT::Node* subtreeExtractParallelHelper(PangenomeMAT::Node* node, const
                 PangenomeMAT::Node* newChild = subtreeExtractParallelHelper(child, ticks);
 
                 newChild->parent = newNode;
-                // newNode->children.push_back(newChild);
                 newNode->children[i] = newChild;
             }
         }
@@ -1344,14 +1130,6 @@ PangenomeMAT::Node* subtreeExtractParallelHelper(PangenomeMAT::Node* node, const
         j++;
     }
     newNode->children.resize(i);
-
-    // tbb::parallel_for_each(node->children.begin(), node->children.end(), [&](PangenomeMAT::Node*& child){
-    //     if(ticks.find(child) != ticks.end()){
-    //         PangenomeMAT::Node* newChild = subtreeExtractParallelHelper(child, ticks);
-    //         newChild->parent = newNode;
-    //         newNode->children.push_back(newChild);
-    //     }
-    // });
     
     return newNode;
 
@@ -1380,208 +1158,6 @@ PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtractParallel(std::vector< std:
     compressTreeParallel(newTreeRoot, 1);
 
     return newTreeRoot;
-}
-
-void PangenomeMAT::Tree::printFASTA_updated(std::ofstream& fout){
-
-    // Categorize gaps by blockId
-    std::map< int, std::vector< std::pair< int, int > > > gapSplit;
-    
-    for(size_t i = 0; i < gaps.position.size(); i++){
-
-        // int bId = ((gaps.condensed[i] >> 8) & (0xFFFFFF));
-        int bId = gaps.blockId[i];
-
-
-        // int len = ((gaps.condensed[i]) & 255);
-        int len = gaps.gapLength[i];
-
-        int pos = gaps.position[i];
-        gapSplit[bId].push_back( std::make_pair(pos, len) );
-
-    }
-    int lineCount = 1;
-    int charCount = 1;
-
-    // Get path from leaf to root
-    for(auto leaf: allLeaves){
-        std::vector< PangenomeMAT::Node* > path;
-        Node* it = leaf;
-        while(it != root){
-            path.push_back(it);
-            it = it->parent;
-        }
-        path.push_back(root);
-
-        // Get all blocks on the path
-        std::unordered_set< uint32_t > blockIds;
-        for(auto node = path.rbegin(); node != path.rend(); node++){
-            for(uint32_t mutation: (*node)->blockMutation.condensedBlockMut){
-                int bid = ((mutation >> 8) & 0xFFFFFF);
-                int type = (mutation & 0x1);
-
-                if(type == PangenomeMAT::BlockMutationType::BI){
-                    blockIds.insert(bid);
-                } else {
-                    blockIds.erase(bid);
-                }
-            }
-        }
-
-        // Create the required blocks
-        std::map< int, std::vector< std::pair< char, std::vector< char > > > > sequence;
-        for(auto bid: blockIds){
-            if(blocks[bid - 1].blockId != bid){
-                std::cout << "Block not in correct position in blocks array" << std::endl;
-            }
-
-            for(size_t i = 0; i < blocks[bid - 1].consensusSeq.size(); i++){
-                for(int j = 0; j < 8; j++){
-                    const int nucCode = (((blocks[bid - 1].consensusSeq[i]) >> (4*(7 - j))) & 0xF);
-                    sequence[bid].push_back({ getNucleotideFromCode(nucCode), {} });
-                }
-            }
-            sequence[bid].push_back({'x',{}});
-
-            for(auto g: gapSplit[bid]){
-                sequence[bid][g.first].second.resize(g.second, '-');
-            }
-
-        }
-
-        // Apply nucleotide mutations
-        for(auto node = path.rbegin(); node != path.rend(); node++){
-
-            for(size_t i = 0; i < (*node)->nucMutation.size(); i++){
-
-                int bid = (((*node)->nucMutation[i].condensed >> 8) & 0xFFFFFF);
-
-                if(sequence.find(bid) == sequence.end()){
-                    continue;
-                }
-
-                int pos = (*node)->nucMutation[i].position;
-                int gapPos = (*node)->nucMutation[i].gapPosition;
-                int type = (((*node)->nucMutation[i].condensed) & 7);
-                char newVal = '-';
-
-                
-
-                if(type < 3){
-                    // Either S, I or D
-
-                    int len = ((((*node)->nucMutation[i].condensed) >> 3) & 0x1F);
-
-                    if(type == PangenomeMAT::NucMutationType::NS){
-                        for(int j = 0; j < len; j++){
-                            newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(15-j))) & 15);
-                            sequence[bid][pos + j].first = newVal;
-                        }
-                    } else if(type == PangenomeMAT::NucMutationType::NI){
-                        
-                        if(gapPos == -1){
-                            for(int j = 0; j < len; j++){
-                                newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(15-j))) & 15);
-                                
-                                sequence[bid][pos + j].first = newVal;
-                            }
-                        } else {
-                            for(int j = 0; j < len; j++){
-                                newVal = getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(15-j))) & 15);
-
-                                sequence[bid][pos].second[gapPos + j] = newVal;
-                            }
-                        }
-                    } else if(type == PangenomeMAT::NucMutationType::ND){
-                        if(gapPos == -1){
-                            for(int j = 0; j < len; j++){
-                                sequence[bid][pos + j].first = '-';
-                            }
-                        } else {
-                            for(int j = 0; j < len; j++){
-                                sequence[bid][pos].second[gapPos + j] = '-';
-                            }
-                        }
-                    }
-                } else {
-                    // Todo: SNP
-                    if(type == PangenomeMAT::NucMutationType::NSNPS){
-                        newVal = getNucleotideFromCode((((*node)->nucMutation[i].condensed) >> 3) & 0xF);
-                        sequence[bid][pos].first = newVal;
-                    }
-                    // else if(type == PangenomeMAT::NucMutationType::NSNPI){
-                    //     newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
-                    //     if(gapPos == -1){
-                    //         sequence[bid][pos].first = newVal;
-                    //         // mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
-                    //     } else {
-                    //         if((size_t)gapPos >= sequence[bid][pos].second.size()){
-                    //             std::cout << (*node)->identifier << " " << i << " " << bid << " " << pos << " " << gapPos << " " << sequence[bid][pos].second.size() << std::endl;
-                    //         }
-                    //         sequence[bid][pos].second[gapPos] = newVal;
-                    //         // mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
-                    //         if((size_t)gapPos >= sequence[bid][pos].second.size()){
-                    //             std::cout << bid << " " << pos << " " << gapPos << " " << sequence[bid][pos].second.size() << std::endl;
-                    //         }
-                    //     }
-                    // }
-                    else if(type == PangenomeMAT::NucMutationType::NSNPD){
-                        if(gapPos == -1){
-                            sequence[bid][pos].first = '-';
-                        } else {
-                            sequence[bid][pos].second[gapPos] = '-';
-                        }
-                    }
-                }
-            }
-
-
-        }
-
-        // Print the sequence
-        fout << '>' << leaf->identifier << '\n';
-        lineCount++;
-        std::string line;
-        for(const auto &[bid, block]: sequence){
-
-            for(size_t i = 0; i < block.size(); i++){
-                for(size_t j = 0; j < block[i].second.size(); j++){
-                    if(block[i].second[j] != '-'){
-
-                        line += block[i].second[j];
-                        charCount++;
-                        if(line.size() == 50){
-                            fout << line << '\n';
-                            line = "";
-                            lineCount++;
-                            charCount=1;
-                        }
-                    }
-                }
-                if(block[i].first != 'x' && block[i].first != '-'){
-
-                    line += block[i].first;
-                    charCount++;
-                    if(line.size() == 50){
-                        fout << line << '\n';
-                        line = "";
-                        lineCount++;
-                        charCount=1;
-                    }
-                }
-            }
-        }
-        if(line.length()){
-            fout << line << '\n';
-            line = "";
-            lineCount++;
-            charCount=1;
-        }
-        fout << '\n';
-        lineCount++;
-        charCount=1;
-    }
-
 }
 
 void getNodesPreorder(PangenomeMAT::Node* root, MAT::tree& treeToWrite){
@@ -1654,30 +1230,4 @@ void PangenomeMAT::Tree::writeToFile(std::ofstream& fout, Node* node){
 		std::cerr << "Failed to write output file." << std::endl;
     }
 
-}
-
-void sampleWriteToFileHelper(PangenomeMAT::Node* root, int& currentNode, std::ofstream& fout){
-    fout << "node " << currentNode << ":\n";
-    fout << "nuc_mutation:\n";
-    for(auto mutation: root->nucMutation){
-        fout << "(" << mutation.position << ", " << (mutation.gapPosition == -1? 0: mutation.gapPosition) << ", " << mutation.condensed << ", " << mutation.nucs << ") ";
-    }
-    fout << "\n";
-	fout << "block_mutation:\n";
-
-    for(auto mutation: root->blockMutation.condensedBlockMut){
-        fout << mutation << " ";
-    }
-    fout << "\n";
-    for(auto child: root->children){
-        currentNode++;
-        sampleWriteToFileHelper(child, currentNode, fout);
-    }
-
-}
-
-void PangenomeMAT::Tree::sampleWriteToFile(std::ofstream& fout){
-    fout << "nodes:\n";
-    int initialNode = 0;
-    sampleWriteToFileHelper(root, initialNode, fout);
 }

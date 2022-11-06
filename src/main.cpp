@@ -94,22 +94,6 @@ int main(int argc, char* argv[]){
                 std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
 
                 fout.close();
-            } else if(splitCommand.size() == 2 && splitCommand[0] == "ufasta") {
-                std::string fileName = splitCommand[1];
-                std::filesystem::create_directory("./fasta");
-                std::ofstream fout("./fasta/" + fileName + ".fasta");
-
-                auto fastaStart = std::chrono::high_resolution_clock::now();
-                
-                T.printFASTA_updated(fout);
-
-                auto fastaEnd = std::chrono::high_resolution_clock::now();
-                
-                std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
-
-                std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
-
-                fout.close();
             } else if(splitCommand.size() == 2 && splitCommand[0] == "write") {
                 std::string fileName = splitCommand[1];
                 std::filesystem::create_directory("./pmat");
@@ -126,22 +110,6 @@ int main(int argc, char* argv[]){
                 std::cout << "\nTree Write execution time: " << writeTime.count() << '\n';
 
                 fout.close();
-            } else if(splitCommand.size() == 2 && splitCommand[0] == "swrite") {
-                std::string fileName = splitCommand[1];
-                std::filesystem::create_directory("./spmat");
-                std::ofstream fout("./spmat/" + fileName + ".spmat");
-
-                auto writeStart = std::chrono::high_resolution_clock::now();
-                
-                T.sampleWriteToFile(fout);
-
-                auto writeEnd = std::chrono::high_resolution_clock::now();
-                
-                std::chrono::nanoseconds writeTime = writeEnd - writeStart;
-
-                std::cout << "\nSample Write execution time: " << writeTime.count() << '\n';
-
-                fout.close();
             } else if(splitCommand.size() > 2 && splitCommand[0] == "subtree"){
                 std::string fileName = splitCommand[1];
 
@@ -154,29 +122,28 @@ int main(int argc, char* argv[]){
                 }
                 auto subtreeStart = std::chrono::high_resolution_clock::now();
 
-
-                // std::cout << T.getNewickString(T.subtreeExtract(nodeIds)) << std::endl;
-                T.writeToFile(fout, T.subtreeExtract(nodeIds));
+                T.writeToFile(fout, T.subtreeExtractParallel(nodeIds));
 
                 auto subtreeEnd = std::chrono::high_resolution_clock::now();
                 std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
-                std::cout << "\nSubtree Extract execution time: " << subtreeTime.count() << '\n';
+                std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
 
                 fout.close();
-            } else if(splitCommand.size() > 2 && splitCommand[0] == "psubtree"){
+            } else if(splitCommand.size() > 2 && splitCommand[0] == "subtree-newick"){
                 std::string fileName = splitCommand[1];
 
-                std::filesystem::create_directory("./pmat");
-                std::ofstream fout("./pmat/" + fileName + ".pmat");
+                std::filesystem::create_directory("./newick");
+                std::ofstream fout("./newick/" + fileName + ".newick");
 
                 std::vector< std::string > nodeIds;
                 for(size_t i = 2; i < splitCommand.size(); i++){
                     nodeIds.push_back(splitCommand[i]);
                 }
+                
                 auto subtreeStart = std::chrono::high_resolution_clock::now();
 
-                T.writeToFile(fout, T.subtreeExtractParallel(nodeIds));
+                fout << T.getNewickString(T.subtreeExtractParallel(nodeIds));
 
                 auto subtreeEnd = std::chrono::high_resolution_clock::now();
                 std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
