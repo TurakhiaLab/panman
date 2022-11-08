@@ -8,6 +8,8 @@
 #include <queue>
 #include "mutation_annotation_test_proto3_optional.pb.h"
 
+#define PMAT_VERSION "1.0-beta"
+#define VCF_VERSION "4.2"
 
 namespace PangenomeMAT {
 
@@ -152,6 +154,9 @@ namespace PangenomeMAT {
         Tree(std::ifstream& fin);
         void printSummary();
         void printFASTA(std::ofstream& fout, bool aligned = false);
+        std::string getStringFromReference(std::string reference);
+        void printVCF(std::string reference, std::ofstream& fout);
+
         Node* subtreeExtract(std::vector< std::string > nodeIds);
         Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
 

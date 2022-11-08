@@ -211,6 +211,28 @@ int main(int argc, char* argv[]){
 
                     fout.close();
                 }
+            } else if(splitCommand.size() == 3 && splitCommand[0] == "vcf"){
+                if(splitCommand[1].substr(0,12) != "--reference="){
+                    std::cout << "Please enter reference sequence ID as arg1. Format: --reference=<id>\n";
+                    return 0;
+                }
+                std::string reference = splitCommand[1].substr(12);
+                std::string fileName = splitCommand[2];
+                std::filesystem::create_directory("./vcf");
+                std::ofstream fout("./vcf/" + fileName + ".vc");
+
+                auto vcfStart = std::chrono::high_resolution_clock::now();
+
+                T.printVCF(reference, fout);
+
+                auto vcfEnd = std::chrono::high_resolution_clock::now();
+                std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
+
+                std::cout << "\nVCF execution time: " << vcfTime.count() << '\n';
+
+
+                fout.close();
+
             } else if(splitCommand.size() == 1 && splitCommand[0] == "newick"){
                 std::cout << T.getNewickString(T.root) << std::endl;
             } else if(splitCommand.size() == 1 && splitCommand[0] == "exit"){
