@@ -1463,6 +1463,177 @@ std::string PangenomeMAT::Tree::getStringFromReference(std::string reference){
 
 }
 
+std::string stripGaps(std::string sequenceString){
+    std::string result;
+    for(auto u: sequenceString){
+        if(u != '-'){
+            result+=u;
+        }
+    }
+    return result;
+}
+
+std::string PangenomeMAT::Tree::getSequenceFromVCF(std::string sequenceId, std::ifstream& fin){
+    std::string line;
+
+    // get reference line
+    for(int i = 0; i < 4; i++){
+        std::getline(fin, line);
+    }
+
+    if(line.substr(0,12) != "##reference="){
+        std::cout << "Incorrect line format: " << line << std::endl;
+        return "";
+    }
+
+    std::string referenceSequenceId = line.substr(12);
+
+    std::string referenceSequence = stripGaps(getStringFromReference(referenceSequenceId));
+
+    // column headers
+    std::getline(fin, line);
+
+    std::vector< std::string > columnWords;
+    std::string word;
+
+    for(size_t i = 0; i < line.size(); i++){
+        if(line[i] != ' '){
+            word += line[i];
+        } else {
+            if(word.length()){
+                columnWords.push_back(word);
+                word = "";
+            }
+        }
+    }
+    if(word.length()){
+        columnWords.push_back(word);
+    }
+
+    int sequenceIndex = -1;
+
+    for(size_t i = 9; i < columnWords.size(); i++){
+        // std::cout << columnWords[i] << std::endl;
+        if(columnWords[i] == sequenceId){
+            sequenceIndex = i;
+            break;
+        }
+    }
+
+    if(sequenceIndex == -1){
+        std::cout << "sequence not found!" << std::endl;
+        return "";
+    }
+
+    std::vector< std::pair< char, std::vector< char > > > alteredSequence;
+    for(auto u: referenceSequence){
+        alteredSequence.push_back({u, {}});
+    }
+
+    while(getline(fin, line)){
+        std::vector< std::string > words;
+        std::string word;
+
+        for(size_t i = 0; i < line.size(); i++){
+            if(line[i] != ' '){
+                word += line[i];
+            } else {
+                if(word.length()){
+                    words.push_back(word);
+                    word = "";
+                }
+            }
+        }
+        if(word.length()){
+            words.push_back(word);
+            word="";
+        }
+
+        int choice = std::stoll(words[sequenceIndex]);
+        if(choice == 0){
+            continue;
+        }
+
+        choice--;
+
+        int position = std::stoll(words[1]);
+
+        // if(position >= alteredSequence.size()){
+        //     std::cout << "position too hii " << position << " " << alteredSequence.size() << std::endl;
+        // }
+
+        std::string ref = words[3];
+        std::string altStrings = words[4];
+
+        std::string currentAlt;
+        std::vector< std::string > altChoices;
+
+        for(auto u: altStrings){
+            if(u != ','){
+                currentAlt += u;
+            } else {
+                if(currentAlt.length()){
+                    altChoices.push_back(currentAlt);
+                    currentAlt = "";
+                }
+            }
+        }
+
+        if(currentAlt.length()){
+            altChoices.push_back(currentAlt);
+            currentAlt = "";
+        }
+
+        // if(choice >= altChoices.size()){
+        //     std::cout << altChoices.size() << " " << choice << " " << altStrings << " " << position << std::endl;
+        // }
+
+        std::string alt = altChoices[choice];
+
+        if(ref != "."){
+            int len = ref.length();
+            for(int i = position; i < position + len; i++){
+                // if(i >= alteredSequence.size()){
+                //     std::cout << "index exceeding!!!" << std::endl;
+                // }
+                alteredSequence[i].first = '-';
+            }
+        }
+
+        if(alt != "."){
+            if(alt.length() && alteredSequence[position].second.size()){
+                std::cout << "alternate sequence already exists!" << std::endl;
+            }
+            for(size_t i = 0; i < alt.length(); i++){
+                alteredSequence[position].second.push_back(alt[i]);
+            }
+        }
+
+    }
+
+    std::string finalSequence;
+    for(size_t i = 0; i < alteredSequence.size(); i++){
+        for(size_t j = 0; j < alteredSequence[i].second.size();j++){
+            if(alteredSequence[i].second[j] != '-'){
+                finalSequence += alteredSequence[i].second[j];
+            }
+        }
+        if(alteredSequence[i].first != '-'){
+            finalSequence += alteredSequence[i].first;
+        }
+
+    }
+
+    std::string alteredSequenceOriginal = stripGaps(getStringFromReference(sequenceId));
+
+    std::cout << (alteredSequenceOriginal.length() == finalSequence.length()) << (alteredSequenceOriginal == finalSequence) << std::endl;
+    std::cout << (referenceSequence.length() == finalSequence.length()) << (referenceSequence == finalSequence) << std::endl;
+    std::cout << (alteredSequenceOriginal.substr(0,10)) << (finalSequence.substr(0,10)) << std::endl;
+
+    return finalSequence;
+
+}
+
 void PangenomeMAT::Tree::printVCF(std::string reference, std::ofstream& fout){
 
     std::string referenceSequence = getStringFromReference(reference);
@@ -1491,33 +1662,19 @@ void PangenomeMAT::Tree::printVCF(std::string reference, std::ofstream& fout){
 
             for(size_t i = 0; i < referenceSequence.length(); i++){
 
-                // if(currentRefString.length() == 4 || currentAltString.length() == 4){
-                //     vcfMap[diffStart][currentRefString][currentAltString].push_back(n.first);
-                //     // Reset
-                //     diffStart = currentCoordinate;
-                //     currentRefString = "";
-                //     currentAltString = "";
-                // }
-
                 if(referenceSequence[i] == '-' && altSequence[i] == '-'){
                     continue;
                 } else if(referenceSequence[i] != '-' && altSequence[i] == '-'){
                     if(currentRefString == "" && currentAltString == ""){
                         diffStart = currentCoordinate;
                     }
-                    // if(currentRefString == currentAltString){
-                    //     currentRefString = "";
-                    //     currentAltString = "";
-                    // }
+
                     currentRefString += referenceSequence[i];
                 } else if(referenceSequence[i] == '-' && altSequence[i] != '-'){
                     if(currentRefString == "" && currentAltString == ""){
                         diffStart = currentCoordinate;
                     }
-                    // if(currentRefString == currentAltString){
-                    //     currentRefString = "";
-                    //     currentAltString = "";
-                    // }
+
                     currentAltString += altSequence[i];
                 } else if(referenceSequence[i] != altSequence[i]){
                     if(currentRefString == "" && currentAltString == ""){
@@ -1526,6 +1683,7 @@ void PangenomeMAT::Tree::printVCF(std::string reference, std::ofstream& fout){
                     if(currentRefString == currentAltString){
                         currentRefString = "";
                         currentAltString = "";
+                        diffStart = currentCoordinate;
                     }
                     currentRefString += referenceSequence[i];
                     currentAltString += altSequence[i];
@@ -1567,7 +1725,6 @@ void PangenomeMAT::Tree::printVCF(std::string reference, std::ofstream& fout){
     std::map< std::string, size_t > sequenceIds;
     for(auto u: allNodes){
         if(u.second->children.size() == 0 && u.first != reference){
-            // fout << u.first << '\t';
             sequenceIds[u.first] = 0;
         }
     }
@@ -1577,18 +1734,18 @@ void PangenomeMAT::Tree::printVCF(std::string reference, std::ofstream& fout){
     fout << "##fileDate=" << getDate() << '\n';
     fout << "##source=PanMATv" << PMAT_VERSION << '\n';
     fout << "##reference=" << reference << '\n';
-    fout << std::left << std::setw(20) << "#CHROM" << std::setw(20) << "POS" << std::setw(20) << "ID" << std::setw(20) << "REF" << std::setw(20) << "ALT" << std::setw(20) << "QUAL" << std::setw(20) << "FILTER" << std::setw(20) << "INFO" << std::setw(20) << "FORMAT";
+    fout << std::left << std::setw(20) << "#CHROM " << std::setw(20) << "POS " << std::setw(20) << "ID " << std::setw(20) << "REF " << std::setw(20) << "ALT " << std::setw(20) << "QUAL " << std::setw(20) << "FILTER " << std::setw(20) << "INFO " << std::setw(20) << "FORMAT ";
     for(auto u: sequenceIds){
-        fout << std::left << std::setw(20) << u.first;
+        fout << std::left << std::setw(20) << u.first + " ";
     }
     fout << '\n';
 
     for(auto u: vcfMap){
         for(auto v: u.second){
             if(v.first == ""){
-                fout << std::left << std::setw(20) << "." << std::setw(20) << u.first << std::setw(20) << recordID++ << std::setw(20) << ".";
+                fout << std::left << std::setw(20) << ". " << std::setw(20) << u.first << " " << std::setw(20) << recordID++ << " " << std::setw(20) << ". ";
             } else {
-                fout << std::left << std::setw(20) << "." << std::setw(20) << u.first << std::setw(20) << recordID++ << std::setw(20) << v.first;
+                fout << std::left << std::setw(20) << ". " << std::setw(20) << u.first << " " << std::setw(20) << recordID++ << " " << std::setw(20) << v.first << " ";
             }
             
             std::map< std::string, size_t > tempSequenceIds = sequenceIds;
@@ -1608,14 +1765,13 @@ void PangenomeMAT::Tree::printVCF(std::string reference, std::ofstream& fout){
             altStrings.pop_back();
             // altStrings += "\t.\t.\t.\t.\t";
 
-            fout << std::left << std::setw(20) << altStrings << std::setw(20) << "." << std::setw(20) << "." << std::setw(20) << "." << std::setw(20) << ".";
+            fout << std::left << std::setw(20) << altStrings << " " << std::setw(20) << ". " << std::setw(20) << ". " << std::setw(20) << ". " << std::setw(20) << ". ";
 
             for(auto w: tempSequenceIds){
-                fout << std::left << std::setw(20) << w.second;
+                fout << std::left << std::setw(20) << w.second << " ";
             }
 
             fout << '\n';
         }
     }
-
 }
