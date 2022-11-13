@@ -156,6 +156,7 @@ namespace PangenomeMAT {
         void printFASTA(std::ofstream& fout, bool aligned = false);
         std::string getStringFromReference(std::string reference);
         void printVCF(std::string reference, std::ofstream& fout);
+        std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
 
         Node* subtreeExtract(std::vector< std::string > nodeIds);
         Node* subtreeExtractParallel(std::vector< std::string > nodeIds);

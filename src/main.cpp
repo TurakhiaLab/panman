@@ -230,8 +230,15 @@ int main(int argc, char* argv[]){
 
                 std::cout << "\nVCF execution time: " << vcfTime.count() << '\n';
 
-
                 fout.close();
+
+                // Debugging
+
+                // std::ifstream fin("./vcf/" + fileName + ".vc");
+
+                // T.getSequenceFromVCF("NC_007946.1", fin);
+
+                // fin.close();
 
             } else if(splitCommand.size() == 1 && splitCommand[0] == "newick"){
                 std::cout << T.getNewickString(T.root) << std::endl;
