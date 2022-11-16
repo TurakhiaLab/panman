@@ -6,12 +6,12 @@
 
 #include "PangenomeMAT.hpp"
 
-std::vector< std::string > splitString(const std::string& s){
+std::vector< std::string > splitString(const std::string& s, char delim = ' '){
     std::vector< std::string > res;
     std::string current;
 
     for(size_t i = 0; i < s.length(); i++){
-        if(s[i] != ' '){
+        if(s[i] != delim){
             current += s[i];
         } else {
             if(current.length()){
@@ -27,6 +27,18 @@ std::vector< std::string > splitString(const std::string& s){
     }
 
     return res;
+}
+
+void stripString(std::string& s){
+    while(s.length() && s[s.length() - 1] == ' '){
+        s.pop_back();
+    }
+    for(size_t i = 0; i < s.length(); i++){
+        if(s[i] != ' '){
+            s = s.substr(i);
+            return;
+        }
+    }
 }
 
 int main(int argc, char* argv[]){
@@ -242,6 +254,44 @@ int main(int argc, char* argv[]){
 
             } else if(splitCommand.size() == 1 && splitCommand[0] == "newick"){
                 std::cout << T.getNewickString(T.root) << std::endl;
+            } else if(splitCommand.size() == 2 && splitCommand[0] == "annotate"){
+                std::string fileName = splitCommand[1];
+                std::ifstream fin(fileName);
+
+                auto annotateStart = std::chrono::high_resolution_clock::now();
+
+                T.annotate(fin);
+
+                auto annotateEnd = std::chrono::high_resolution_clock::now();
+                std::chrono::nanoseconds annotateTime = annotateEnd - annotateStart;
+
+                std::cout << "Annotate time: " << annotateTime.count() << std::endl;
+
+
+            } else if(splitCommand.size() > 1 && splitCommand[0] == "search"){
+                std::string word;
+                std::string restOfCommand;
+                for(size_t i = 0; i < command.length(); i++){
+                    if(command[i] != ' '){
+                        word+=command[i];
+                    }
+                    if(word == "search"){
+                        restOfCommand = command.substr(i+1);
+                        break;
+                    }
+                }
+
+                std::vector< std::string > annotationVector = splitString(restOfCommand, ',');
+
+                for(size_t i = 0; i < annotationVector.size(); i++){
+                    stripString(annotationVector[i]);
+                    std::cout << annotationVector[i] << ": ";
+                    auto result = T.searchByAnnotation(annotationVector[i]);
+                    for(auto r: result){
+                        std::cout << r << ";";
+                    }
+                    std::cout << std::endl;
+                }
             } else if(splitCommand.size() == 1 && splitCommand[0] == "exit"){
                 return 0;
             }

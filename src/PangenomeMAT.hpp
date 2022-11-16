@@ -143,7 +143,8 @@ namespace PangenomeMAT {
         int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
 
         std::unordered_map<std::string, Node*> allNodes;
-        
+        std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
+
         std::vector< Node* > allLeaves; // Probably temporary for testing
 
         std::string newInternalNodeId() {
@@ -160,6 +161,9 @@ namespace PangenomeMAT {
 
         Node* subtreeExtract(std::vector< std::string > nodeIds);
         Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
+
+        void annotate(std::ifstream& fin);
+        std::vector< std::string > searchByAnnotation(std::string annotation);
 
         std::string getNewickString(Node* node); // Make private later. Public for testing purposes
 
