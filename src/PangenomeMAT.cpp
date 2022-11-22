@@ -146,7 +146,6 @@ PangenomeMAT::Node* PangenomeMAT::Tree::createTreeFromNewickString(std::string n
             parentStack.push(newNode);
         }
         Node* leafNode = new Node(leaf, parentStack.top(), branchLen[level].front());
-        allLeaves.push_back(leafNode);
 
         allNodes[leaf] = leafNode;
 
@@ -280,9 +279,9 @@ void PangenomeMAT::Tree::printSummary(){
     std::cout << "Total Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NS) << std::endl;
     std::cout << "Total Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
     std::cout << "Total Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
-    std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPS) << std::endl;
-    std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPI) << std::endl;
-    std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
+    std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNS) << std::endl;
+    std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNI) << std::endl;
+    std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSND) << std::endl;
     std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
     std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
 
@@ -493,7 +492,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         } 
         else {
             // Todo: SNP
-            if(type == PangenomeMAT::NucMutationType::NSNPS){
+            if(type == PangenomeMAT::NucMutationType::NSNS){
 
                 newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
                 char oldVal = sequence[bid][pos].first;
@@ -503,7 +502,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                 mutationInfo.push_back(std::make_tuple(bid, pos, -1, oldVal, newVal));
             }
             
-            else if(type == PangenomeMAT::NucMutationType::NSNPI){
+            else if(type == PangenomeMAT::NucMutationType::NSNI){
                 newVal = getNucleotideFromCode(((root->nucMutation[i].condensed) >> 3) & 0xF);
                 if(gapPos == -1){
                     char oldVal = sequence[bid][pos].first;
@@ -515,7 +514,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                     mutationInfo.push_back(std::make_tuple(bid, pos, gapPos, oldVal, newVal));
                 }
             }
-            else if(type == PangenomeMAT::NucMutationType::NSNPD){
+            else if(type == PangenomeMAT::NucMutationType::NSND){
                 if(gapPos == -1){
 
                     char oldVal = sequence[bid][pos].first;
@@ -679,26 +678,26 @@ std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<
     std::pair<int, int> ans = newMutation;
     if(oldMutation.first == newMutation.first){
         ans = newMutation;
-    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSNPS){
+    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSNS){
         // Insertion after substitution (doesn't make sense but just in case)
-        if(newMutation.first == PangenomeMAT::NucMutationType::NSNPI){
-            ans.first = PangenomeMAT::NucMutationType::NSNPS;
-        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSNPD){
+        if(newMutation.first == PangenomeMAT::NucMutationType::NSNI){
+            ans.first = PangenomeMAT::NucMutationType::NSNS;
+        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSND){
             ans = newMutation;
         }
-    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSNPI){
-        if(newMutation.first == PangenomeMAT::NucMutationType::NSNPS){
-            ans.first = PangenomeMAT::NucMutationType::NSNPI;
-        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSNPD){
+    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSNI){
+        if(newMutation.first == PangenomeMAT::NucMutationType::NSNS){
+            ans.first = PangenomeMAT::NucMutationType::NSNI;
+        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSND){
             // Cancel out the two mutations if deletion after insertion
             ans = std::make_pair(404, 404);
         }
-    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSNPD){
-        if(newMutation.first == PangenomeMAT::NucMutationType::NSNPI){
-            ans.first = PangenomeMAT::NucMutationType::NSNPS;
-        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSNPS){
+    } else if(oldMutation.first == PangenomeMAT::NucMutationType::NSND){
+        if(newMutation.first == PangenomeMAT::NucMutationType::NSNI){
+            ans.first = PangenomeMAT::NucMutationType::NSNS;
+        } else if(newMutation.first == PangenomeMAT::NucMutationType::NSNS){
             // Substitution after deletion. Doesn't make sense but still
-            ans.first = PangenomeMAT::NucMutationType::NSNPI;
+            ans.first = PangenomeMAT::NucMutationType::NSNI;
         }
     }
     return ans;
@@ -724,13 +723,13 @@ bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std
         int newType = type;
         switch(type){
             case PangenomeMAT::NucMutationType::NS:
-                newType = PangenomeMAT::NucMutationType::NSNPS;
+                newType = PangenomeMAT::NucMutationType::NSNS;
                 break;
             case PangenomeMAT::NucMutationType::ND:
-                newType = PangenomeMAT::NucMutationType::NSNPD;
+                newType = PangenomeMAT::NucMutationType::NSND;
                 break;
             case PangenomeMAT::NucMutationType::NI:
-                newType = PangenomeMAT::NucMutationType::NSNPI;
+                newType = PangenomeMAT::NucMutationType::NSNI;
                 break;
         }
 
@@ -789,13 +788,13 @@ bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std
         int newType = type;
         switch(type){
             case PangenomeMAT::NucMutationType::NS:
-                newType = PangenomeMAT::NucMutationType::NSNPS;
+                newType = PangenomeMAT::NucMutationType::NSNS;
                 break;
             case PangenomeMAT::NucMutationType::ND:
-                newType = PangenomeMAT::NucMutationType::NSNPD;
+                newType = PangenomeMAT::NucMutationType::NSND;
                 break;
             case PangenomeMAT::NucMutationType::NI:
-                newType = PangenomeMAT::NucMutationType::NSNPI;
+                newType = PangenomeMAT::NucMutationType::NSNI;
                 break;
         }
 
@@ -880,13 +879,13 @@ std::vector< PangenomeMAT::NucMut > consolidateNucMutations(const std::vector< P
         int newType = type;
         switch(type){
             case PangenomeMAT::NucMutationType::NS:
-                newType = PangenomeMAT::NucMutationType::NSNPS;
+                newType = PangenomeMAT::NucMutationType::NSNS;
                 break;
             case PangenomeMAT::NucMutationType::ND:
-                newType = PangenomeMAT::NucMutationType::NSNPD;
+                newType = PangenomeMAT::NucMutationType::NSND;
                 break;
             case PangenomeMAT::NucMutationType::NI:
-                newType = PangenomeMAT::NucMutationType::NSNPI;
+                newType = PangenomeMAT::NucMutationType::NSNI;
                 break;
         }
 

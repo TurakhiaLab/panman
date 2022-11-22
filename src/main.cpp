@@ -6,29 +6,6 @@
 
 #include "PangenomeMAT.hpp"
 
-std::vector< std::string > splitString(const std::string& s){
-    std::vector< std::string > res;
-    std::string current;
-
-    for(size_t i = 0; i < s.length(); i++){
-        if(s[i] != ' '){
-            current += s[i];
-        } else {
-            if(current.length()){
-                res.push_back(current);
-                current = "";
-            }
-        }
-    }
-
-    if(current.length()){
-        res.push_back(current);
-        current = "";
-    }
-
-    return res;
-}
-
 int main(int argc, char* argv[]){
     if(argc < 2){
         std::cout << "Please provide file name.\n";
@@ -61,7 +38,10 @@ int main(int argc, char* argv[]){
             std::string command;
             std::getline (std::cin, command);
 
-            std::vector< std::string > splitCommand = splitString(command);
+            // std::vector< std::string > splitCommand = splitString(command);
+
+            std::vector< std::string > splitCommand;
+            PangenomeMAT::stringSplit(command, ' ', splitCommand);
 
             if(splitCommand.size() == 1 && splitCommand[0] == "summary"){
                 auto summaryStart = std::chrono::high_resolution_clock::now();
