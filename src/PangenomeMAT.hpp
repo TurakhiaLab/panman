@@ -15,9 +15,9 @@ namespace PangenomeMAT {
         NS = 0,
         ND = 1,
         NI = 2,
-        NSNPS = 3,
-        NSNPI = 4,
-        NSNPD = 5,
+        NSNS = 3,
+        NSNI = 4,
+        NSND = 5,
     };
 
     enum BlockMutationType {
@@ -42,13 +42,13 @@ namespace PangenomeMAT {
             condensed = ((std::get<0>(mutationArray[start])) << 8) + ((end - start) << 3);
             // type
             switch(std::get<3>(mutationArray[start])){
-                case PangenomeMAT::NucMutationType::NSNPS:
+                case PangenomeMAT::NucMutationType::NSNS:
                     condensed += PangenomeMAT::NucMutationType::NS;
                     break;
-                case PangenomeMAT::NucMutationType::NSNPI:
+                case PangenomeMAT::NucMutationType::NSNI:
                     condensed += PangenomeMAT::NucMutationType::NI;
                     break;
-                case PangenomeMAT::NucMutationType::NSNPD:
+                case PangenomeMAT::NucMutationType::NSND:
                     condensed += PangenomeMAT::NucMutationType::ND;
                     break;
             }
@@ -141,8 +141,6 @@ namespace PangenomeMAT {
         int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
 
         std::unordered_map<std::string, Node*> allNodes;
-        
-        std::vector< Node* > allLeaves; // Probably temporary for testing
 
         std::string newInternalNodeId() {
             return "node_" + std::to_string(++m_currInternalNode);
