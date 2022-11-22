@@ -6,6 +6,7 @@
 #include <fstream>
 #include <unordered_map>
 #include <queue>
+#include <atomic>
 #include "mutation_annotation_test_proto3_optional.pb.h"
 
 #define PMAT_VERSION "1.0-beta"
@@ -67,7 +68,7 @@ namespace PangenomeMAT {
         NucMut(MAT::nuc_mut mutation){
             position = mutation.position();
 
-            if(mutation.has_gap_position()){
+            if(mutation.gap_exist()){
                 gapPosition = mutation.gap_position();
                 // std::cout << '0';
             } else {
@@ -154,9 +155,11 @@ namespace PangenomeMAT {
     public:
         Tree(std::ifstream& fin);
         void printSummary();
-        void printFASTA(std::ofstream& fout, bool aligned = false);
+        void printFASTA(std::ofstream& fout, bool aligned = false, int parallelism = 0);
         std::string getStringFromReference(std::string reference);
         void printVCF(std::string reference, std::ofstream& fout);
+        void printVCFParallel(std::string reference, std::ofstream& fout);
+        
         std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
 
         Node* subtreeExtract(std::vector< std::string > nodeIds);

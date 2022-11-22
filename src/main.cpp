@@ -84,28 +84,54 @@ int main(int argc, char* argv[]){
 
                 std::cout << "\nSummary creation time: " << summaryTime.count() << '\n';
             } else if(splitCommand.size() >= 2 && splitCommand[0] == "fasta"){
-                std::string fileName = splitCommand[1];
-                bool aligned = false;
+                if(splitCommand.size() > 2 && splitCommand[1].substr(0,11) == "--parallel="){
+                    int parallelism = std::stoi(splitCommand[1].substr(11));
+                    std::string fileName = splitCommand[2];
+                    bool aligned = false;
+                    if(splitCommand.size() == 4 && splitCommand[2] == "--aligned"){
+                        aligned = true;
+                        fileName = splitCommand[3];
+                    }
 
-                if(splitCommand.size() == 3 && splitCommand[1] == "--aligned"){
-                    aligned = true;
-                    fileName = splitCommand[2];
+                    std::filesystem::create_directory("./fasta");
+                    std::ofstream fout("./fasta/" + fileName + ".fasta");
+
+                    auto fastaStart = std::chrono::high_resolution_clock::now();
+                    
+                    T.printFASTA(fout, aligned, parallelism);
+
+                    auto fastaEnd = std::chrono::high_resolution_clock::now();
+                    
+                    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+
+                    std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
+
+                    fout.close();
+
+                } else {
+                    std::string fileName = splitCommand[1];
+                    bool aligned = false;
+
+                    if(splitCommand.size() == 3 && splitCommand[1] == "--aligned"){
+                        aligned = true;
+                        fileName = splitCommand[2];
+                    }
+
+                    std::filesystem::create_directory("./fasta");
+                    std::ofstream fout("./fasta/" + fileName + ".fasta");
+
+                    auto fastaStart = std::chrono::high_resolution_clock::now();
+                    
+                    T.printFASTA(fout, aligned);
+
+                    auto fastaEnd = std::chrono::high_resolution_clock::now();
+                    
+                    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+
+                    std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
+
+                    fout.close();
                 }
-
-                std::filesystem::create_directory("./fasta");
-                std::ofstream fout("./fasta/" + fileName + ".fasta");
-
-                auto fastaStart = std::chrono::high_resolution_clock::now();
-                
-                T.printFASTA(fout, aligned);
-
-                auto fastaEnd = std::chrono::high_resolution_clock::now();
-                
-                std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
-
-                std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
-
-                fout.close();
             } else if(splitCommand.size() == 2 && splitCommand[0] == "write") {
                 std::string fileName = splitCommand[1];
                 std::filesystem::create_directory("./pmat");
@@ -235,7 +261,7 @@ int main(int argc, char* argv[]){
 
                 auto vcfStart = std::chrono::high_resolution_clock::now();
 
-                T.printVCF(reference, fout);
+                T.printVCFParallel(reference, fout);
 
                 auto vcfEnd = std::chrono::high_resolution_clock::now();
                 std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
@@ -247,9 +273,39 @@ int main(int argc, char* argv[]){
                 // Debugging
 
                 // std::ifstream fin("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_012892.2", fin);
+                // fin.close();
 
-                // T.getSequenceFromVCF("NC_007946.1", fin);
+                // fin.open("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_007779.1", fin);
+                // fin.close();
 
+                // fin.open("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_000913.3", fin);
+                // fin.close();
+
+                // fin.open("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_002695.2", fin);
+                // fin.close();
+
+                // fin.open("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_004431.1", fin);
+                // fin.close();
+
+                // fin.open("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_013654.1", fin);
+                // fin.close();
+
+                // fin.open("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_013364.1", fin);
+                // fin.close();
+
+                // fin.open("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_011415.1", fin);
+                // fin.close();
+
+                // fin.open("./vcf/" + fileName + ".vc");
+                // T.getSequenceFromVCF("NC_013353.1", fin);
                 // fin.close();
 
             } else if(splitCommand.size() == 1 && splitCommand[0] == "newick"){
