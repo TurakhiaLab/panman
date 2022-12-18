@@ -2,47 +2,57 @@ syntax = "proto3";
 
 package MAT;
 
-message nuc_mut
+message nucMut
 {
-    uint32 position = 1; 
-    uint32 gap_position = 2;  
-    bool gap_exist = 3;
-    uint32 condensed = 4; 
-    uint64 nucs = 5;
+    int32 nucPosition = 1; 
+    int32 nucGapPosition = 2;  
+    bool  nucGapExist = 3;
+    int64 blockId = 4;
+    bool  blockGapExist = 5;
+    int64 mutInfo = 6; 
 }
 
-message block_mut
+message blockMut
 {
-    repeated uint32 condensed_block_mut = 1;
+    int64 blockId = 1;
+    bool  blockGapExist = 2;
+    bool  blockMutInfo = 3;
 }
 
 message node 
 {
-    repeated nuc_mut nuc_mutation = 1;
-    block_mut block_mutation = 2;
-    repeated string annotations = 3;
+    repeated nucMut   nucMutation = 1;
+    repeated blockMut blockMutation = 2;
+    repeated string   annotations = 3;
 }
 
 
 message block
 {
-    uint32 block_id = 1;
-    repeated uint32 consensus_seq = 2;
-    string chromosome_name = 3;
+    int64           blockId = 1;
+    repeated int32  consensusSeq = 2;
+    string          chromosomeName = 3;
 }
 
-message gap_list
+message gapList
 {
-    repeated uint32 position = 1;
-    repeated uint32 block_id = 2;
-    repeated uint32 gap_length = 3;
+    repeated int32 nucPosition = 1;
+    repeated int32 blockId = 2;
+    repeated int32 nucGapLength = 3;
+}
+
+message blockGapList
+{
+    repeated int32  blockPosition = 1;
+    repeated int32  blockGapLength = 2;
 }
 
 message tree 
 {
-    string newick = 1;
-    repeated node nodes = 2;
+    string         newick = 1;
+    repeated node  nodes = 2;
     repeated block blocks = 3;
-    gap_list gaps = 4;
+    gapList        gaps = 4;
+    blockGapList   blockGaps = 5;
 }
         

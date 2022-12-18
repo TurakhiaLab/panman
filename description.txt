@@ -1,48 +1,50 @@
 <!--        
                      tree
                      |                 
-        ____________________________
-       |              |             |
-    newick          node        block list
-                      |
-                ______________
+        _________________________________________
+       |              |              |          |
+    newick           node         gapList    blockGapList
+                      |                         
+                ______________                 
                |              |                             
             nuc_mut        block_mut
                                                           
    
 -->
-Node:
-   Nuc_Mut has four attributes:
-   1. position: mutation co-ordinate
-   2. gap_position: mutation gap co-ordinate w.r.t. position
-   3. condensed: it has 3 (or 4) sub-attributes
-      Note: Depending upon type of mutation, sub-attributes changes
-      if (Non-SNP):
-         a. block-id (3B)
-         b. length of contiguous mutation (5 bits)
-         c. type of mutation (3 bits)
-      else :
-         a. block-id (3B)
-         b. length of contiguous mutation (1 bits)
-         c. mutation character (4 bits)
-         d. type of mutation (3 bits)
-   4. nucs: list of mutation characters. Each character is represented by 4 bits (One-hot encoding), therefore maximum 8 characters can be stored.
-      Note: We do not need to store mutations character list in case of deletions
+newick: Stores the newick tree
+node:
+   a) nucMut has following attributes:
+      1. nucPosition: mutation co-ordinate
+      2. nucGapPosition: mutation gap co-ordinate w.r.t. position
+      3. nucGapExist: whether gap exist or not in nucleotide list 
+      4. blockId: unique block identifier (4B for global co-ordinate and 4B for co-ordinate witin a gap)
+      5. blockGapExist: whether gap exist or not inn block list
+      6. mutInfo: it has 3 sub-attributes
+         a. type of mutation (4 bits)
+         b. length of contiguous mutation (4 bits)
+         b. mutated nucleotides (56 bits)
+         
+   b) blockMut has following attributes:
+      1. blockId
+      2. blockGapExist
+      3. blockMutInfo (True: Insertion, False: Deletion)
 
-   block_mut has one attribute, condensed_block_mut, which has two sub-attributes:
-         a. block-id (3B)
-         b. type of mutation (3 bits)
+block:
+   It has three attributes:
+   a) blockId
+   b) consensus sequence
+   c) chromosomeName 
 
-Gap list:
+gapList:
    It has 3 attributes:
-   1. position: gap co-ordinate
-   2. block-id: (3B -> Stored in int32)
-   b. length of contiguous gaps (4B)
+   a) nucPosition
+   b) blockId
+   c) nucGapLength
       
-Block list: (Currently not used)
+blockGapList:
    It has 2 attributes:
-   1. blockid: List of block ids
-   2. chromosome_name: List of chromosome name associated with corresponding blocks
+   a) blockPosition
+   b) blockGapLength
 
 
 Type of mutations:
