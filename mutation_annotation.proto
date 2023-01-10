@@ -30,14 +30,14 @@ message node
 message block
 {
     int64           blockId = 1;
-    repeated int32  consensusSeq = 2;
+    repeated uint32  consensusSeq = 2;
     string          chromosomeName = 3;
 }
 
 message gapList
 {
     repeated int32 nucPosition = 1;
-    repeated int32 blockId = 2;
+    int64          blockId = 2;
     repeated int32 nucGapLength = 3;
 }
 
@@ -49,10 +49,10 @@ message blockGapList
 
 message tree 
 {
-    string         newick = 1;
-    repeated node  nodes = 2;
-    repeated block blocks = 3;
-    gapList        gaps = 4;
-    blockGapList   blockGaps = 5;
+    string           newick = 1;
+    repeated node    nodes = 2;
+    repeated block   blocks = 3;
+    repeated gapList gaps = 4;
+    blockGapList     blockGaps = 5;
 }
         
