@@ -29,16 +29,18 @@ message node
 
 message block
 {
-    int64           blockId = 1;
-    repeated uint32  consensusSeq = 2;
-    string          chromosomeName = 3;
+    int64            blockId = 1;
+    bool             blockGapExist = 2;
+    repeated uint32  consensusSeq = 3;
+    string           chromosomeName = 4;
 }
 
 message gapList
 {
     repeated int32 nucPosition = 1;
     int64          blockId = 2;
-    repeated int32 nucGapLength = 3;
+    bool           blockGapExist = 3;
+    repeated int32 nucGapLength = 4;
 }
 
 message blockGapList
