@@ -9,7 +9,7 @@ message nucMut
     bool  nucGapExist = 3;
     int64 blockId = 4;
     bool  blockGapExist = 5;
-    int64 mutInfo = 6; 
+    uint32 mutInfo = 6; 
 }
 
 message blockMut

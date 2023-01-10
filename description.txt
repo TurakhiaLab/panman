@@ -22,7 +22,7 @@ node:
       6. mutInfo: it has 3 sub-attributes
          a. type of mutation (4 bits)
          b. length of contiguous mutation (4 bits)
-         b. mutated nucleotides (56 bits)
+         b. mutated nucleotides (24 bits)
          
    b) blockMut has following attributes:
       1. blockId
@@ -48,9 +48,9 @@ blockGapList:
 
 
 Type of mutations:
-SUBS    =   "000"
-DEL     =   "001"
-INS     =   "010"
-SUBS1   =   "011"
-INS1    =   "100"
-DEL1    =   "101"
+SUBS    =   "0000"
+DEL     =   "0001"
+INS     =   "0010"
+SUBS1   =   "0011"
+INS1    =   "0100"
+DEL1    =   "0101"
