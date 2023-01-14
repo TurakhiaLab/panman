@@ -6,7 +6,9 @@
 #include <fstream>
 
 #include "PangenomeMAT.hpp"
+#include "PangenomeMATNew.hpp"
 
+#define NEW_MAT
 #define NEW_PARSER
 
 namespace po = boost::program_options;
@@ -123,6 +125,105 @@ void updatedParser(int argc, char* argv[]){
     po::store(po::command_line_parser(argc, argv).options(globalDesc).positional(globalPositionArgumentDesc).run(), globalVm);
     po::notify(globalVm);
 
+#ifdef NEW_MAT
+
+    PangenomeMATNew::Tree *T;
+    if(globalVm.count("help")){
+        std::cout << globalDesc;
+        return;
+    } else if(globalVm.count("input-file")){
+        std::string fileName = globalVm["input-file"].as< std::string >();
+        std::ifstream inputStream(fileName);
+
+        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+
+        T = new PangenomeMATNew::Tree(inputStream);
+
+        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
+
+        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+
+        inputStream.close();
+    } else {
+        printError("Incorrect Format");
+        // std::cout << "\033[1;31m" << "Error: " << "\033[0m" << "Incorrect Format\n";
+        std::cout << globalDesc;
+        return;
+    }
+
+    char** splitCommandArray;
+
+    while(true){
+        std::cout << "> ";
+
+        std::string command;
+        std::getline (std::cin, command);
+        stripString(command);
+        std::vector< std::string > splitCommand;
+        PangenomeMAT::stringSplit(command, ' ', splitCommand);
+
+        splitCommandArray = new char*[splitCommand.size()];
+        for(size_t i = 0; i < splitCommand.size(); i++){
+            splitCommandArray[i] = new char[splitCommand[i].length() + 1];
+            strcpy(splitCommandArray[i], splitCommand[i].c_str());
+        }
+        
+        try{
+            if(strcmp(splitCommandArray[0], "summary") == 0){
+                // If command was summary
+                auto summaryStart = std::chrono::high_resolution_clock::now();
+                T->printSummary();
+                auto summaryEnd = std::chrono::high_resolution_clock::now();
+
+                std::chrono::nanoseconds summaryTime = summaryEnd - summaryStart;
+
+                std::cout << "\nSummary creation time: " << summaryTime.count() << " nanoseconds\n";
+            } else if(strcmp(splitCommandArray[0], "fasta") == 0){
+                // If command was fasta
+                po::variables_map fastaVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(fastaDesc).positional(fastaPositionArgumentDesc).run(), fastaVm);
+
+                if(fastaVm.count("help")){
+                    std::cout << fastaDesc;
+                } else {
+                    po::notify(fastaVm);
+
+                    std::string fileName = fastaVm["output-file"].as< std::string >();
+
+                    bool aligned = false;
+                    size_t num_cores = 0;
+                    if(fastaVm.count("aligned")){
+                        aligned = true;
+                    }
+                    if(fastaVm.count("num_cores")){
+                        num_cores = fastaVm["num_cores"].as< size_t >();
+                    }
+                    
+                    std::filesystem::create_directory("./fasta");
+                    std::ofstream fout("./fasta/" + fileName + ".fasta");
+
+                    auto fastaStart = std::chrono::high_resolution_clock::now();
+                    
+                    T->printFASTA(fout, aligned, num_cores);
+
+                    auto fastaEnd = std::chrono::high_resolution_clock::now();
+                    
+                    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+
+                    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+
+                    fout.close();
+
+                }
+            }
+        } catch (std::exception& e){
+            std::cout << e.what() << std::endl;
+        }
+    }
+
+#else
+
     PangenomeMAT::Tree *T;
 
     if(globalVm.count("help")){
@@ -176,7 +277,7 @@ void updatedParser(int argc, char* argv[]){
 
                 std::chrono::nanoseconds summaryTime = summaryEnd - summaryStart;
 
-                std::cout << "\nSummary creation time: " << summaryTime.count() << '\n';
+                std::cout << "\nSummary creation time: " << summaryTime.count() << " nanoseconds\n";
             } else if(strcmp(splitCommandArray[0], "fasta") == 0){
                 // If command was fasta
                 po::variables_map fastaVm;
@@ -209,7 +310,7 @@ void updatedParser(int argc, char* argv[]){
                     
                     std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
 
-                    std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
+                    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
 
                     fout.close();
 
@@ -235,7 +336,7 @@ void updatedParser(int argc, char* argv[]){
                     
                     std::chrono::nanoseconds writeTime = writeEnd - writeStart;
 
-                    std::cout << "\nTree Write execution time: " << writeTime.count() << '\n';
+                    std::cout << "\nTree Write execution time: " << writeTime.count() << " nanoseconds\n";
 
                     fout.close();
                 }
@@ -279,7 +380,7 @@ void updatedParser(int argc, char* argv[]){
                         auto subtreeEnd = std::chrono::high_resolution_clock::now();
                         std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
-                        std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+                        std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << " nanoseconds\n";
                         fout.close();
                     } else {
                         std::filesystem::create_directory("./pmat");
@@ -292,7 +393,7 @@ void updatedParser(int argc, char* argv[]){
                         auto subtreeEnd = std::chrono::high_resolution_clock::now();
                         std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
-                        std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+                        std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << " nanoseconds\n";
                         fout.close();
                     }
 
@@ -321,7 +422,7 @@ void updatedParser(int argc, char* argv[]){
                     auto vcfEnd = std::chrono::high_resolution_clock::now();
                     std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
 
-                    std::cout << "\nVCF execution time: " << vcfTime.count() << '\n';
+                    std::cout << "\nVCF execution time: " << vcfTime.count() << " nanoseconds\n";
 
                     fout.close();
                 }
@@ -347,7 +448,7 @@ void updatedParser(int argc, char* argv[]){
                     auto annotateEnd = std::chrono::high_resolution_clock::now();
                     std::chrono::nanoseconds annotateTime = annotateEnd - annotateStart;
 
-                    std::cout << "Annotate time: " << annotateTime.count() << std::endl;
+                    std::cout << "Annotate time: " << annotateTime.count() << " nanoseconds\n";
                 }
 
             } else if(strcmp(splitCommandArray[0], "search") == 0){
@@ -378,9 +479,13 @@ void updatedParser(int argc, char* argv[]){
             delete [] splitCommandArray[i];
         }
         delete [] splitCommandArray;
+
+        std::cout << std::endl;
     }
 
     delete T;
+
+#endif
 
 }
 
@@ -432,7 +537,7 @@ int main(int argc, char* argv[]){
 
                 std::chrono::nanoseconds summaryTime = summaryEnd - summaryStart;
 
-                std::cout << "\nSummary creation time: " << summaryTime.count() << '\n';
+                std::cout << "\nSummary creation time: " << summaryTime.count() << " nanoseconds\n";
             } else if(splitCommand.size() >= 2 && splitCommand[0] == "fasta"){
                 if(splitCommand.size() > 2 && splitCommand[1].substr(0,11) == "--parallel="){
                     int parallelism = std::stoi(splitCommand[1].substr(11));
@@ -454,7 +559,7 @@ int main(int argc, char* argv[]){
                     
                     std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
 
-                    std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
+                    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
 
                     fout.close();
 
@@ -478,7 +583,7 @@ int main(int argc, char* argv[]){
                     
                     std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
 
-                    std::cout << "\nFASTA execution time: " << fastaTime.count() << '\n';
+                    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
 
                     fout.close();
                 }
@@ -495,7 +600,7 @@ int main(int argc, char* argv[]){
                 
                 std::chrono::nanoseconds writeTime = writeEnd - writeStart;
 
-                std::cout << "\nTree Write execution time: " << writeTime.count() << '\n';
+                std::cout << "\nTree Write execution time: " << writeTime.count() << " nanoseconds\n";
 
                 fout.close();
             } else if(splitCommand.size() > 2 && splitCommand[0] == "subtree"){
@@ -524,7 +629,7 @@ int main(int argc, char* argv[]){
                     auto subtreeEnd = std::chrono::high_resolution_clock::now();
                     std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
-                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << " nanoseconds\n";
 
                     fout.close();
 
@@ -544,7 +649,7 @@ int main(int argc, char* argv[]){
                     auto subtreeEnd = std::chrono::high_resolution_clock::now();
                     std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
-                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << " nanoseconds\n";
 
                     fout.close();
                 }
@@ -575,7 +680,7 @@ int main(int argc, char* argv[]){
                     auto subtreeEnd = std::chrono::high_resolution_clock::now();
                     std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
-                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << " nanoseconds\n";
 
                     fout.close();
 
@@ -595,7 +700,7 @@ int main(int argc, char* argv[]){
                     auto subtreeEnd = std::chrono::high_resolution_clock::now();
                     std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
-                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << '\n';
+                    std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << " nanoseconds\n";
 
                     fout.close();
                 }
