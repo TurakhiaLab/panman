@@ -762,6 +762,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
 void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned, int parallelism){
     // List of blocks. Each block has a nucleotide list. Along with each nucleotide is a gap list.
     // First block is empty since the block IDs start at 1
+    
     std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence(blocks.size() + 1);
 
     std::vector< bool > blockExists(blocks.size() + 1, false);
