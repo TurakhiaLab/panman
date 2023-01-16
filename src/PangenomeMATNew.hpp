@@ -84,7 +84,7 @@ namespace PangenomeMATNew {
             nucs = ((nucs) << (24 - (mutInfo >> 4)*4));
 
             if(mutation.blockgapexist()){
-                secondaryBlockId = (mutation.blockid() & 0xFFFF);
+                secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
             } else {
                 secondaryBlockId = -1;                
             }
@@ -109,7 +109,7 @@ namespace PangenomeMATNew {
         void loadFromProtobuf(MATNew::blockMut mutation){
             primaryBlockId = (mutation.blockid() >> 32);
             if(mutation.blockgapexist()){
-                secondaryBlockId = (mutation.blockid() & 0xFFFF);
+                secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
             } else {
                 secondaryBlockId = -1;
             }
@@ -180,7 +180,6 @@ namespace PangenomeMATNew {
             void compressTreeParallel(Node* node, size_t level);
             void mergeNodes(Node* par, Node* chi);
             bool debugSimilarity(const std::vector< NucMut > array1, const std::vector< NucMut > array2);
-            std::string getNewickString(Node* node);
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
             void getNodesPreorder(PangenomeMATNew::Node* root, MATNew::tree& treeToWrite);
 
@@ -197,6 +196,8 @@ namespace PangenomeMATNew {
             void printFASTA(std::ofstream& fout, bool aligned = false, int parallelism = 0);
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
             void writeToFile(std::ofstream& fout, Node* node = nullptr);
+            std::string getNewickString(Node* node);
+            std::string getStringFromReference(std::string reference);
 
             Node *root;
             std::vector< Block > blocks;
@@ -243,7 +244,7 @@ namespace PangenomeMATNew {
     //     void annotate(std::ifstream& fin);
     //     std::vector< std::string > searchByAnnotation(std::string annotation);
 
-    //     std::string getNewickString(Node* node); // Make private later. Public for testing purposes
+        // std::string getNewickString(Node* node); // Make private later. Public for testing purposes
 
     //     void writeToFile(std::ofstream& fout, Node* node = nullptr);
     //     void printBfs(Node* node = nullptr); // Temporary function. To be removed later;

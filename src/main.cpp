@@ -219,6 +219,67 @@ void updatedParser(int argc, char* argv[]){
                     fout.close();
 
                 }
+            } else if(strcmp(splitCommandArray[0], "subtree") == 0){
+                // If command was subtree
+                po::variables_map subtreeVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(subtreeDesc).positional(subtreePositionArgumentDesc).run(), subtreeVm);
+
+                if(subtreeVm.count("help")){
+                    std::cout << subtreeDesc;
+                } else {
+                    po::notify(subtreeVm);
+                    std::string outputFileName = subtreeVm["output-file"].as< std::string >();
+                    std::vector< std::string > nodeIds;
+                    std::string nodeId;
+
+                    if(subtreeVm.count("input-file")){
+                        std::string inputFileName = subtreeVm["input-file"].as< std::string >();
+                        std::ifstream fin(inputFileName);
+
+                        while(fin >> nodeId){
+                            nodeIds.push_back(nodeId);
+                        }
+
+                        fin.close();
+                    } else if(subtreeVm.count("node-ids")){
+                        nodeIds = subtreeVm["node-ids"].as< std::vector< std::string > >();
+                    } else {
+                        printError("No source of node ids provided");
+                        std::cout << subtreeDesc;
+                    }
+
+                    if(subtreeVm["newick"].as< bool >()){
+                        std::filesystem::create_directory("./pmat");
+                        std::ofstream fout("./newick/" + outputFileName + ".newick");
+
+                        auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+                        fout << T->getNewickString(T->subtreeExtractParallel(nodeIds));
+
+                        auto subtreeEnd = std::chrono::high_resolution_clock::now();
+                        std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+                        std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << " nanoseconds\n";
+                        fout.close();
+                    } else {
+                        std::filesystem::create_directory("./pmat");
+                        std::ofstream fout("./pmat/" + outputFileName + ".pmat");
+
+                        auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+                        T->writeToFile(fout, T->subtreeExtractParallel(nodeIds));
+
+                        auto subtreeEnd = std::chrono::high_resolution_clock::now();
+                        std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+                        std::cout << "\nParallel Subtree Extract execution time: " << subtreeTime.count() << " nanoseconds\n";
+                        fout.close();
+                    }
+
+                }
+
+            } else if(strcmp(splitCommandArray[0], "newick") == 0){
+                std::cout << T->getNewickString(T->root) << std::endl;
             }
         } catch (std::exception& e){
             std::cout << e.what() << std::endl;
