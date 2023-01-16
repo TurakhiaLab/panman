@@ -943,161 +943,151 @@ std::pair< int, int > PangenomeMATNew::replaceMutation(std::pair<int,int> oldMut
     return ans;
 }
 
-// bool debugSimilarity(const std::vector< PangenomeMAT::NucMut > array1, const std::vector< PangenomeMAT::NucMut > array2){
-//     std::map< std::tuple< int, int, int >, std::pair< int, int > > mutationRecords1, mutationRecords2;
+bool PangenomeMATNew::Tree::debugSimilarity(const std::vector< PangenomeMATNew::NucMut > array1, const std::vector< PangenomeMATNew::NucMut > array2){
+    std::map< std::tuple< int, int, int, int >, std::pair< int, int > > mutationRecords1, mutationRecords2;
 
-//     for(auto mutation: array1){
-//         int bid = ((mutation.condensed) >> 8);
-//         int pos = mutation.position;
-//         int gapPos = mutation.gapPosition;
+    for(auto mutation: array1){
+        int primaryBlockId = mutation.primaryBlockId;
+        int secondaryBlockId = mutation.secondaryBlockId;
+        int pos = mutation.nucPosition;
+        int gapPos = mutation.nucGapPosition;
 
-//         // I'm using int instead of NucMutationType because I want the 404 mutation too.
-//         int type = ((mutation.condensed) & 0x7);
-//         int len = (((mutation.condensed) >> 3) & 0x1F);
+        // I'm using int instead of NucMutationType because I want the 404 mutation too.
+        int type = ((mutation.mutInfo) & 0x7);
+        int len = ((mutation.mutInfo) >> 4);
 
-//         if(type >= 3){
-//             len = 1;
-//         }
+        if(type >= 3){
+            len = 1;
+        }
 
-//         // Replace variable length mutations into SNP. They will be combined later
-//         int newType = type;
-//         switch(type){
-//             case PangenomeMAT::NucMutationType::NS:
-//                 newType = PangenomeMAT::NucMutationType::NSNPS;
-//                 break;
-//             case PangenomeMAT::NucMutationType::ND:
-//                 newType = PangenomeMAT::NucMutationType::NSNPD;
-//                 break;
-//             case PangenomeMAT::NucMutationType::NI:
-//                 newType = PangenomeMAT::NucMutationType::NSNPI;
-//                 break;
-//         }
+        // Replace variable length mutations into SNP. They will be combined later
+        int newType = type;
+        switch(type){
+            case PangenomeMATNew::NucMutationType::NS:
+                newType = PangenomeMATNew::NucMutationType::NSNPS;
+                break;
+            case PangenomeMATNew::NucMutationType::ND:
+                newType = PangenomeMATNew::NucMutationType::NSNPD;
+                break;
+            case PangenomeMATNew::NucMutationType::NI:
+                newType = PangenomeMATNew::NucMutationType::NSNPI;
+                break;
+        }
 
-//         for(int i = 0; i < len; i++){
-//             int newChar;
-//             if(type < 3){
-//                 newChar = (((mutation.nucs) >> (4*(15 - i))) & 0xF);
-//             } else {
-//                 // SNP
-//                 newChar = ((mutation.condensed >> 3) & 0xF);
-//             }
+        for(int i = 0; i < len; i++){
+            int newChar = (((mutation.nucs) >> (4*(5 - i))) & 0xF);
 
-//             std::pair< int, int > newMutation = std::make_pair( newType, newChar );
-//             if(gapPos != -1){
-//                 if(mutationRecords1.find(std::make_tuple( bid, pos, gapPos + i )) == mutationRecords1.end()){
-//                     mutationRecords1[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
-//                 } else {
-//                     std::pair< int, int > oldMutation = mutationRecords1[std::make_tuple( bid, pos, gapPos + i )];
-//                     newMutation = replaceMutation(oldMutation, newMutation);
-//                     if(newMutation.first != 404){
-//                         mutationRecords1[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
-//                     } else {
-//                         mutationRecords1.erase(std::make_tuple( bid, pos, gapPos + i ));
-//                     }
-//                 }
-//             } else {
-//                 if(mutationRecords1.find(std::make_tuple( bid, pos + i, gapPos )) == mutationRecords1.end()){
-//                     mutationRecords1[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
-//                 } else {
-//                     std::pair< int, int > oldMutation = mutationRecords1[std::make_tuple( bid, pos + i, gapPos )];
-//                     newMutation = replaceMutation(oldMutation, newMutation);
-//                     if(newMutation.first != 404){
-//                         mutationRecords1[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
-//                     } else {
-//                         mutationRecords1.erase(std::make_tuple( bid, pos + i, gapPos ));
-//                     }
-//                 }
-//             }
-//         }
-//     }
+            std::pair< int, int > newMutation = std::make_pair( newType, newChar );
+            if(gapPos != -1){
+                if(mutationRecords1.find(std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )) == mutationRecords1.end()){
+                    mutationRecords1[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords1[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords1[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )] = newMutation;
+                    } else {
+                        mutationRecords1.erase(std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i ));
+                    }
+                }
+            } else {
+                if(mutationRecords1.find(std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )) == mutationRecords1.end()){
+                    mutationRecords1[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords1[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords1[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )] = newMutation;
+                    } else {
+                        mutationRecords1.erase(std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos ));
+                    }
+                }
+            }
+        }
+    }
 
-//     for(auto mutation: array2){
-//         int bid = ((mutation.condensed) >> 8);
-//         int pos = mutation.position;
-//         int gapPos = mutation.gapPosition;
+    for(auto mutation: array2){
+        int primaryBlockId = mutation.primaryBlockId;
+        int secondaryBlockId = mutation.secondaryBlockId;
+        int pos = mutation.nucPosition;
+        int gapPos = mutation.nucGapPosition;
 
-//         // I'm using int instead of NucMutationType because I want the 404 mutation too.
-//         int type = ((mutation.condensed) & 0x7);
-//         int len = (((mutation.condensed) >> 3) & 0x1F);
+        // I'm using int instead of NucMutationType because I want the 404 mutation too.
+        int type = ((mutation.mutInfo) & 0x7);
+        int len = ((mutation.mutInfo) >> 4);
 
-//         if(type >= 3){
-//             len = 1;
-//         }
+        if(type >= 3){
+            len = 1;
+        }
 
-//         // Replace variable length mutations into SNP. They will be combined later
-//         int newType = type;
-//         switch(type){
-//             case PangenomeMAT::NucMutationType::NS:
-//                 newType = PangenomeMAT::NucMutationType::NSNPS;
-//                 break;
-//             case PangenomeMAT::NucMutationType::ND:
-//                 newType = PangenomeMAT::NucMutationType::NSNPD;
-//                 break;
-//             case PangenomeMAT::NucMutationType::NI:
-//                 newType = PangenomeMAT::NucMutationType::NSNPI;
-//                 break;
-//         }
+        // Replace variable length mutations into SNP. They will be combined later
+        int newType = type;
+        switch(type){
+            case PangenomeMATNew::NucMutationType::NS:
+                newType = PangenomeMATNew::NucMutationType::NSNPS;
+                break;
+            case PangenomeMATNew::NucMutationType::ND:
+                newType = PangenomeMATNew::NucMutationType::NSNPD;
+                break;
+            case PangenomeMATNew::NucMutationType::NI:
+                newType = PangenomeMATNew::NucMutationType::NSNPI;
+                break;
+        }
 
-//         for(int i = 0; i < len; i++){
-//             int newChar;
-//             if(type < 3){
-//                 newChar = (((mutation.nucs) >> (4*(15 - i))) & 0xF);
-//             } else {
-//                 // SNP
-//                 newChar = ((mutation.condensed >> 3) & 0xF);
-//             }
+        for(int i = 0; i < len; i++){
+            int newChar = (((mutation.nucs) >> (4*(5 - i))) & 0xF);
 
-//             std::pair< int, int > newMutation = std::make_pair( newType, newChar );
-//             if(gapPos != -1){
-//                 if(mutationRecords2.find(std::make_tuple( bid, pos, gapPos + i )) == mutationRecords2.end()){
-//                     mutationRecords2[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
-//                 } else {
-//                     std::pair< int, int > oldMutation = mutationRecords2[std::make_tuple( bid, pos, gapPos + i )];
-//                     newMutation = replaceMutation(oldMutation, newMutation);
-//                     if(newMutation.first != 404){
-//                         mutationRecords2[std::make_tuple( bid, pos, gapPos + i )] = newMutation;
-//                     } else {
-//                         mutationRecords2.erase(std::make_tuple( bid, pos, gapPos + i ));
-//                     }
-//                 }
-//             } else {
-//                 if(mutationRecords2.find(std::make_tuple( bid, pos + i, gapPos )) == mutationRecords2.end()){
-//                     mutationRecords2[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
-//                 } else {
-//                     std::pair< int, int > oldMutation = mutationRecords2[std::make_tuple( bid, pos + i, gapPos )];
-//                     newMutation = replaceMutation(oldMutation, newMutation);
-//                     if(newMutation.first != 404){
-//                         mutationRecords2[std::make_tuple( bid, pos + i, gapPos )] = newMutation;
-//                     } else {
-//                         mutationRecords2.erase(std::make_tuple( bid, pos + i, gapPos ));
-//                     }
-//                 }
-//             }
-//         }
-//     }
+            std::pair< int, int > newMutation = std::make_pair( newType, newChar );
+            if(gapPos != -1){
+                if(mutationRecords2.find(std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )) == mutationRecords2.end()){
+                    mutationRecords2[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords2[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords2[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )] = newMutation;
+                    } else {
+                        mutationRecords2.erase(std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i ));
+                    }
+                }
+            } else {
+                if(mutationRecords2.find(std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )) == mutationRecords2.end()){
+                    mutationRecords2[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )] = newMutation;
+                } else {
+                    std::pair< int, int > oldMutation = mutationRecords2[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )];
+                    newMutation = replaceMutation(oldMutation, newMutation);
+                    if(newMutation.first != 404){
+                        mutationRecords2[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )] = newMutation;
+                    } else {
+                        mutationRecords2.erase(std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos ));
+                    }
+                }
+            }
+        }
+    }
 
-//     std::vector< std::tuple< int, int, int, int, int > > mutationArray1, mutationArray2;
-//     for(auto u: mutationRecords1){
-//         mutationArray1.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), u.second.first, u.second.second ) );
-//     }
-//     for(auto u: mutationRecords2){
-//         mutationArray2.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), u.second.first, u.second.second ) );
-//     }
+    std::vector< std::tuple< int, int, int, int, int, int > > mutationArray1, mutationArray2;
+    for(auto u: mutationRecords1){
+        mutationArray1.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), std::get<3>(u.first), u.second.first, u.second.second ) );
+    }
+    for(auto u: mutationRecords2){
+        mutationArray2.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), std::get<3>(u.first), u.second.first, u.second.second ) );
+    }
 
-//     if(mutationArray1.size() != mutationArray2.size()){
-//         std::cout << "sizes don't match " << mutationArray1.size() << " " << mutationArray2.size() << std::endl;
-//         return false;
-//     }
+    if(mutationArray1.size() != mutationArray2.size()){
+        std::cout << "sizes don't match " << mutationArray1.size() << " " << mutationArray2.size() << std::endl;
+        return false;
+    }
 
-//     for(size_t i = 0; i < mutationArray1.size(); i++){
-//         if(mutationArray1[i] != mutationArray2[i]){
-//             std::cout << i << "th index doesn't match" << std::endl;
-//             return false;
-//         }
-//     }
+    for(size_t i = 0; i < mutationArray1.size(); i++){
+        if(mutationArray1[i] != mutationArray2[i]){
+            std::cout << i << "th index doesn't match" << std::endl;
+            return false;
+        }
+    }
 
-//     return true;
-// }
+    return true;
+}
 
 std::vector< PangenomeMATNew::NucMut > consolidateNucMutations(const std::vector< PangenomeMATNew::NucMut >& nucMutation){
     // primaryBid, secondaryBid, pos, gap_pos -> type, nuc
@@ -1204,118 +1194,118 @@ std::vector< PangenomeMATNew::NucMut > consolidateNucMutations(const std::vector
 
 }
 
-// void dfsExpansion(PangenomeMAT::Node* node, std::vector< PangenomeMAT::Node* >& vec){
-//     vec.push_back(node);
-//     for(auto child: node->children){
-//         dfsExpansion(child, vec);
-//     }
-// }
+void PangenomeMATNew::Tree::dfsExpansion(PangenomeMATNew::Node* node, std::vector< PangenomeMATNew::Node* >& vec){
+    vec.push_back(node);
+    for(auto child: node->children){
+        dfsExpansion(child, vec);
+    }
+}
 
-// std::string PangenomeMAT::Tree::getNewickString(Node* node){
-//     std::vector< PangenomeMAT::Node* > traversal;
-//     dfsExpansion(node, traversal);
+std::string PangenomeMATNew::Tree::getNewickString(Node* node){
+    std::vector< PangenomeMATNew::Node* > traversal;
+    dfsExpansion(node, traversal);
 
-//     std::string newick;
+    std::string newick;
 
-//     size_t level_offset = node->level-1;
-//     size_t curr_level = 0;
-//     bool prev_open = true;
+    size_t level_offset = node->level-1;
+    size_t curr_level = 0;
+    bool prev_open = true;
 
-//     std::stack<std::string> node_stack;
-//     std::stack<float> branch_length_stack;
+    std::stack<std::string> node_stack;
+    std::stack<float> branch_length_stack;
 
-//     for (auto n: traversal) {
-//         size_t level = n->level-level_offset;
-//         float branch_length = n->branchLength;
+    for (auto n: traversal) {
+        size_t level = n->level-level_offset;
+        float branch_length = n->branchLength;
         
-//         if(curr_level < level){
-//             if (!prev_open) {
-//                 newick += ',';
-//             }
-//             size_t l = level - 1;
-//             if (curr_level > 1) {
-//                 l = level - curr_level;
-//             }
-//             for (size_t i=0; i < l; i++) {
-//                 newick += '(';
-//                 prev_open = true;
-//             }
-//             if (n->children.size() == 0) {
+        if(curr_level < level){
+            if (!prev_open) {
+                newick += ',';
+            }
+            size_t l = level - 1;
+            if (curr_level > 1) {
+                l = level - curr_level;
+            }
+            for (size_t i=0; i < l; i++) {
+                newick += '(';
+                prev_open = true;
+            }
+            if (n->children.size() == 0) {
 
-//                 newick += n->identifier;
+                newick += n->identifier;
 
-//                 if (branch_length >= 0) {
-//                     newick += ':';
-//                     newick += branch_length;
-//                 }
-//                 prev_open = false;
-//             } else {
-//                 node_stack.push(n->identifier);
-//                 branch_length_stack.push(branch_length);
-//             }
-//         } else if (curr_level > level) {
-//             prev_open = false;
-//             for (size_t i = level; i < curr_level; i++) {
-//                 newick += ')';
+                if (branch_length >= 0) {
+                    newick += ':';
+                    newick += branch_length;
+                }
+                prev_open = false;
+            } else {
+                node_stack.push(n->identifier);
+                branch_length_stack.push(branch_length);
+            }
+        } else if (curr_level > level) {
+            prev_open = false;
+            for (size_t i = level; i < curr_level; i++) {
+                newick += ')';
 
-//                 newick += node_stack.top();
+                newick += node_stack.top();
 
-//                 if (branch_length_stack.top() >= 0) {
-//                     newick += ':';
-//                     newick += branch_length_stack.top();
-//                 }
-//                 node_stack.pop();
-//                 branch_length_stack.pop();
-//             }
-//             if (n->children.size() == 0) {
+                if (branch_length_stack.top() >= 0) {
+                    newick += ':';
+                    newick += branch_length_stack.top();
+                }
+                node_stack.pop();
+                branch_length_stack.pop();
+            }
+            if (n->children.size() == 0) {
                 
-//                 newick += ',';
-//                 newick += n->identifier;
+                newick += ',';
+                newick += n->identifier;
 
-//                 if (branch_length >= 0) {
-//                     newick += ':';
-//                     newick += branch_length;
-//                 }
-//             } else {
-//                 node_stack.push(n->identifier);
-//                 branch_length_stack.push(branch_length);
-//             }
-//         } else {
-//             prev_open = false;
-//             if (n->children.size() == 0) {
+                if (branch_length >= 0) {
+                    newick += ':';
+                    newick += branch_length;
+                }
+            } else {
+                node_stack.push(n->identifier);
+                branch_length_stack.push(branch_length);
+            }
+        } else {
+            prev_open = false;
+            if (n->children.size() == 0) {
                 
-//                 newick += ',';
-//                 newick += n->identifier;
+                newick += ',';
+                newick += n->identifier;
 
-//                 if (branch_length >= 0) {
-//                     newick += ':';
-//                     newick += branch_length;
-//                 }
-//             } else {
-//                 node_stack.push(n->identifier);
-//                 branch_length_stack.push(branch_length);
-//             }
-//         }
-//         curr_level = level;
-//     }
-//     size_t remaining = node_stack.size();
-//     for (size_t i = 0; i < remaining; i++) {
-//         newick += ')';
-//         newick += node_stack.top();
+                if (branch_length >= 0) {
+                    newick += ':';
+                    newick += branch_length;
+                }
+            } else {
+                node_stack.push(n->identifier);
+                branch_length_stack.push(branch_length);
+            }
+        }
+        curr_level = level;
+    }
+    size_t remaining = node_stack.size();
+    for (size_t i = 0; i < remaining; i++) {
+        newick += ')';
+        newick += node_stack.top();
         
-//         if (branch_length_stack.top() >= 0) {
-//             newick += ':';
-//             newick += branch_length_stack.top();
-//         }
-//         node_stack.pop();
-//         branch_length_stack.pop();
-//     }
+        if (branch_length_stack.top() >= 0) {
+            newick += ':';
+            newick += branch_length_stack.top();
+        }
+        node_stack.pop();
+        branch_length_stack.pop();
+    }
 
-//     newick += ';';
+    newick += ';';
 
-//     return newick;
+    return newick;
 
-// }
+}
 
 void PangenomeMATNew::Tree::compressTreeParallel(PangenomeMATNew::Node* node, size_t level){
     node->level = level;
@@ -1334,7 +1324,9 @@ void PangenomeMATNew::Tree::compressTreeParallel(PangenomeMATNew::Node* node, si
 
             node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
 
-//             debugSimilarity(oldVector, node->children[i]->nucMutation);
+            if(!debugSimilarity(oldVector, node->children[i]->nucMutation)){
+                std::cout << "Inaccuracy observed in subtree extract." << std::endl;
+            }
 
             compressTreeParallel(node->children[i], level + 1);
         }
@@ -1410,77 +1402,114 @@ PangenomeMATNew::Node* PangenomeMATNew::Tree::subtreeExtractParallel(std::vector
     return newTreeRoot;
 }
 
-// void getNodesPreorder(PangenomeMAT::Node* root, MAT::tree& treeToWrite){
+void PangenomeMATNew::Tree::getNodesPreorder(PangenomeMATNew::Node* root, MATNew::tree& treeToWrite){
     
-//     MAT::node n;
-    
-//     MAT::block_mut bm;
-//     for(auto mutation: root->blockMutation.condensedBlockMut){
-//         bm.add_condensed_block_mut(mutation);
-//     }
+    MATNew::node n;
 
-//     *n.mutable_block_mutation() = bm;
+    for(size_t i = 0; i < root->nucMutation.size(); i++){
+        const PangenomeMATNew::NucMut& mutation = root->nucMutation[i];
 
-//     for(size_t i = 0; i < root->nucMutation.size(); i++){
-//         const PangenomeMAT::NucMut& mutation = root->nucMutation[i];
+        MATNew::nucMut nm;
+        nm.set_nucposition(mutation.nucPosition);
+        if(mutation.nucGapPosition != -1){
+            nm.set_nucgapposition(mutation.nucGapPosition);
+            nm.set_nucgapexist(true);
+        } else {
+            nm.set_nucgapexist(false);
+        }
+        if(mutation.secondaryBlockId != -1){
+            nm.set_blockid(((int64_t)mutation.primaryBlockId << 32) + mutation.secondaryBlockId);
+            nm.set_blockgapexist(true);
+        } else {
+            nm.set_blockid(((int64_t)mutation.primaryBlockId << 32));
+            nm.set_blockgapexist(false);
+        }
+        nm.set_mutinfo((((mutation.nucs) >> (24 - (mutation.mutInfo >> 4)*4)) << 8) + mutation.mutInfo);
 
-//         MAT::nuc_mut nm;
-//         nm.set_position(mutation.position);
-//         if(mutation.gapPosition != -1){
-//             nm.set_gap_position(mutation.gapPosition);
-//         }
-//         nm.set_condensed(mutation.condensed);
-//         nm.set_nucs(mutation.nucs);
+        n.add_nucmutation();
+        *n.mutable_nucmutation(i) = nm;
+    }
 
-//         n.add_nuc_mutation();
-//         *n.mutable_nuc_mutation(i) = nm;
-//     }
+    for(size_t i = 0; i < root->blockMutation.size(); i++){
+        const PangenomeMATNew::BlockMut& mutation = root->blockMutation[i];
 
-//     treeToWrite.add_nodes();
-//     *treeToWrite.mutable_nodes( treeToWrite.nodes_size() - 1 ) = n;
+        MATNew::blockMut bm;
+        if(mutation.secondaryBlockId != -1){
+            bm.set_blockid(((int64_t)mutation.primaryBlockId << 32) + mutation.secondaryBlockId);
+            bm.set_blockgapexist(true);
+        } else {
+            bm.set_blockid(((int64_t)mutation.primaryBlockId << 32));
+            bm.set_blockgapexist(false);
+        }
+        bm.set_blockmutinfo(mutation.blockMutInfo);
 
-//     for(auto child: root->children){
-//         getNodesPreorder(child, treeToWrite);
-//     }
-// }
+        n.add_blockmutation();
+        *n.mutable_blockmutation(i) = bm;
+    }
 
-// void PangenomeMAT::Tree::writeToFile(std::ofstream& fout, Node* node){
-//     if(node == nullptr){
-//         node = root;
-//     }
+    for(size_t i = 0; i < root->annotations.size(); i++){
+        n.add_annotations(root->annotations[i]);
+    }
 
-//     MAT::tree treeToWrite;
-//     getNodesPreorder(node, treeToWrite);
+    treeToWrite.add_nodes();
+    *treeToWrite.mutable_nodes( treeToWrite.nodes_size() - 1 ) = n;
 
-//     std::string newick = getNewickString(node);
+    for(auto child: root->children){
+        getNodesPreorder(child, treeToWrite);
+    }
+}
 
-//     treeToWrite.set_newick(newick);
+void PangenomeMATNew::Tree::writeToFile(std::ofstream& fout, PangenomeMATNew::Node* node){
+    if(node == nullptr){
+        node = root;
+    }
 
-//     for(auto block: blocks){
-//         MAT::block b;
-//         b.set_block_id(block.blockId);
-//         b.set_chromosome_name(block.chromosomeName);
-//         for(auto n: block.consensusSeq){
-//             b.add_consensus_seq(n);
-//         }
-//         treeToWrite.add_blocks();
-//         *treeToWrite.mutable_blocks( treeToWrite.blocks_size() - 1 ) = b;
-//     }
+    MATNew::tree treeToWrite;
+    getNodesPreorder(node, treeToWrite);
 
-//     MAT::gap_list gl;
-//     for(size_t i = 0; i < gaps.position.size(); i++){
-//         gl.add_position(gaps.position[i]);
-//         gl.add_block_id(gaps.blockId[i]);
-//         gl.add_gap_length(gaps.gapLength[i]);
-//     }
+    std::string newick = getNewickString(node);
 
-//     *treeToWrite.mutable_gaps() = gl;
+    treeToWrite.set_newick(newick);
 
-//     if (!treeToWrite.SerializeToOstream(&fout)) {
-// 		std::cerr << "Failed to write output file." << std::endl;
-//     }
+    for(auto block: blocks){
+        MATNew::block b;
+        if(block.secondaryBlockId != -1){
+            b.set_blockid(((int64_t)block.primaryBlockId << 32) + block.secondaryBlockId);
+            b.set_blockgapexist(true);
+        } else {
+            b.set_blockid(((int64_t)block.primaryBlockId << 32));
+            b.set_blockgapexist(false);
+        }
+        b.set_chromosomename(block.chromosomeName);
+        for(auto n: block.consensusSeq){
+            b.add_consensusseq(n);
+        }
+        treeToWrite.add_blocks();
+        *treeToWrite.mutable_blocks( treeToWrite.blocks_size() - 1 ) = b;
+    }
 
-// }
+    for(size_t i = 0; i < gaps.size(); i++){
+        MATNew::gapList gl;
+        for(size_t j = 0; j < gaps[i].nucPosition.size(); j++){
+            gl.add_nucposition(gaps[i].nucPosition[j]);
+            gl.add_nucgaplength(gaps[i].nucGapLength[j]);
+        }
+        if(gaps[i].secondaryBlockId != -1){
+            gl.set_blockid(((int64_t)gaps[i].primaryBlockId << 32) + gaps[i].secondaryBlockId);
+            gl.set_blockgapexist(true);
+        } else {
+            gl.set_blockid(((int64_t)gaps[i].primaryBlockId << 32));
+            gl.set_blockgapexist(false);
+        }
+        treeToWrite.add_gaps();
+        *treeToWrite.mutable_gaps( treeToWrite.gaps_size() - 1 ) = gl;
+    }
+
+    if (!treeToWrite.SerializeToOstream(&fout)) {
+		std::cerr << "Failed to write output file." << std::endl;
+    }
+
+}
 
 // std::string PangenomeMAT::Tree::getStringFromReference(std::string reference){
 //     Node* referenceNode = nullptr;

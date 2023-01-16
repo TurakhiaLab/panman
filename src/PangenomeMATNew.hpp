@@ -179,6 +179,10 @@ namespace PangenomeMATNew {
             void invertTree(Node* root);
             void compressTreeParallel(Node* node, size_t level);
             void mergeNodes(Node* par, Node* chi);
+            bool debugSimilarity(const std::vector< NucMut > array1, const std::vector< NucMut > array2);
+            std::string getNewickString(Node* node);
+            void dfsExpansion(Node* node, std::vector< Node* >& vec);
+            void getNodesPreorder(PangenomeMATNew::Node* root, MATNew::tree& treeToWrite);
 
             std::vector< Node* > allLeaves;
 
@@ -192,6 +196,7 @@ namespace PangenomeMATNew {
             void printBfs(Node* node = nullptr);
             void printFASTA(std::ofstream& fout, bool aligned = false, int parallelism = 0);
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
+            void writeToFile(std::ofstream& fout, Node* node = nullptr);
 
             Node *root;
             std::vector< Block > blocks;
