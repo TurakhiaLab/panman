@@ -1,3 +1,6 @@
+#define NEW_MAT
+#define NEW_PARSER
+
 #include <iostream>
 #include <chrono>
 #include <filesystem>
@@ -5,11 +8,11 @@
 
 #include <fstream>
 
-#include "PangenomeMAT.hpp"
+#ifdef NEW_MAT
 #include "PangenomeMATNew.hpp"
-
-#define NEW_MAT
-#define NEW_PARSER
+#else
+#include "PangenomeMAT.hpp"
+#endif
 
 namespace po = boost::program_options;
 
@@ -161,7 +164,7 @@ void updatedParser(int argc, char* argv[]){
         std::getline (std::cin, command);
         stripString(command);
         std::vector< std::string > splitCommand;
-        PangenomeMAT::stringSplit(command, ' ', splitCommand);
+        PangenomeMATNew::stringSplit(command, ' ', splitCommand);
 
         splitCommandArray = new char*[splitCommand.size()];
         for(size_t i = 0; i < splitCommand.size(); i++){
