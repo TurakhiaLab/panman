@@ -11,33 +11,33 @@ DIAG = 0
 
 def char2bin(char):
     bin = "1111"
-    if ( char == "A"):
+    if ( char == "A" or char == "a"):
         bin = "0001"
-    elif (char == "C"):
+    elif (char == "C" or char == "c"):
         bin = "0010"
-    elif (char == "G"):
+    elif (char == "G" or char == "g"):
         bin = "0100"
-    elif (char == "T"):
+    elif (char == "T" or char == "t"):
         bin = "1000"
-    elif (char == "R"):
+    elif (char == "R" or char == "r"):
         bin = "0101"
-    elif (char == "Y"):
+    elif (char == "Y" or char == "y"):
         bin = "1010"
-    elif (char == "S"):
+    elif (char == "S" or char == "s"):
         bin = "0110"
-    elif (char == "W"):
+    elif (char == "W" or char == "w"):
         bin = "1001"
-    elif (char == "K"):
+    elif (char == "K" or char == "k"):
         bin = "1100"
-    elif (char == "M"):
+    elif (char == "M" or char == "m"):
         bin = "0011"
-    elif (char == "B"):
+    elif (char == "B" or char == "b"):
         bin = "1110"
-    elif (char == "D"):
+    elif (char == "D" or char == "d"):
         bin = "1101"
-    elif (char == "H"):
+    elif (char == "H" or char == "h"):
         bin = "1011"
-    elif (char == "V"):
+    elif (char == "V" or char == "v"):
         bin = "0111"
     else:
         bin = "1111"
@@ -223,12 +223,14 @@ def globalBlocks (seqPaths):
     
     return (globalBlock, idxList) 
 
-f = open("/home/AD.UCSD.EDU/swalia/data/sars/pangraph/sars_1k.json","r")
+# f = open("/home/AD.UCSD.EDU/swalia/data/sars/pangraph/sars_4k.json","r")
+f = open("/home/AD.UCSD.EDU/swalia/sars_4k.json","r")
 data = json.load(f)
 f.close()
 
 ## Import Tree
-newick_read = open("/home/AD.UCSD.EDU/swalia/data/sars/pangraph/sars_1k.nwk", "r")
+newick_read = open("/home/AD.UCSD.EDU/swalia/sars_4k.nwk", "r")
+# newick_read = open("/home/AD.UCSD.EDU/swalia/data/sars/pangraph/sars_4k.nwk", "r")
 tree_read = newick_read.readlines()[0].split("\n")[0]
 # tree_read = newick_read.readlines()[0].split("\n")[0] + ";"
 # tree_new = Tree(tree_read)
@@ -257,16 +259,17 @@ seqName = [i for i in seqPaths]
 
 gBlocks, gIdx = globalBlocks (seqPaths)
 print ("global blocks generated")
-print (gBlocks)
+print ("Global block:", gBlocks)
+# print ("GIdx:", gIdx)
 
 ### Generating Gaps #####
 gapListGlobal = []
 for i in range (len (gIdx) + 1):
-
+    # print (i)
     gapListLocal = []
     if i < len (gIdx):
+        # print ("len of seqName", len(seqName))
         for j in range (len (seqName)):
-
             currIdx = gIdx[i][j]
             if (i == 0):
                 prevIdx = 0
@@ -274,6 +277,7 @@ for i in range (len (gIdx) + 1):
                 prevIdx = gIdx[i-1][j] + 1
 
             gapListLocal, X, Y = blockAlignment(gapListLocal, seqPaths[seqName[j]][prevIdx: currIdx])
+            # print (j, len(gapListLocal))
     else:
 
         for j in range (len (seqName)):
@@ -289,8 +293,8 @@ for i in range (len (gIdx) + 1):
 
     gapListGlobal.append (gapListLocal)
 
-print (gapListGlobal)
 print ("Gaps Generated")
+# print ("GapList:", gapListGlobal)
 
 ### Appending gaps in each Sequence ###
 blockList = dict()
@@ -298,13 +302,20 @@ for j in range (len (seqName)):
     
     blockListLocal = []
 
-    for i in range (len (gIdx)):
-        currIdx = gIdx[i][j]
-        if (i == 0):
-            prevIdx = 0
+    for i in range (len (gIdx) + 1):
+        if (i < len (gIdx)):
+            currIdx = gIdx[i][j]
+            if (i == 0):
+                prevIdx = 0
+            else:
+                prevIdx = gIdx[i-1][j] + 1
         else:
-            prevIdx = gIdx[i-1][j] + 1
-        
+            currIdx = len(seqPaths[ seqName [j]]) 
+            if (i == 0):
+                prevIdx = 0
+            else:
+                prevIdx = gIdx[i-1][j] + 1
+            
         gapListLocal, X, Y = blockAlignment(gapListGlobal[i], seqPaths[seqName[j]][prevIdx: currIdx])
 
         blockListLocal.append(Y)
@@ -358,7 +369,7 @@ for j in range (len (seqName)):
 # print (seqName [0])
 # print (blockListIdx ["ON650346.1"])
 '''
-### Check if Seq lenght is correct
+### Check if Seq length is correct
 for j in range (len (seqName)):
     seqLen = len (seqPaths[seqName[j]])
 
@@ -463,11 +474,15 @@ for globalIdx in range (len (blockList[seqName[0]])):
                     gMutation[nodeLabel] = [str(idx) + ":I:" + blockList[seqName[0]][globalIdx]]
 
 print("Fitch on gap")
+
+
 '''
 # Re-generating blocks
 positions = list()
 gapLengths = list()
 
+print(seqName[0], blockList[seqName[0]])
+print (gapListGlobal)
 pos = 0
 for i in gapListGlobal:
     positions.append (pos)
@@ -561,9 +576,13 @@ for eachNode in tree.traverse_preorder():
                 regenBlockList.append(eachElem)
         if (regenBlockList != seqPaths[nodeLabel]):
             mismatch.append(nodeLabel)
-            print (nodeLabel, regenBlockList, seqPaths[nodeLabel])
+            if (nodeLabel == "ON655904.1"):
+                print (nodeLabel, regenBlockList, seqPaths[nodeLabel])
 
 print (len (mismatch))
+
+# exit(1)
+
 
 ### For a node
 nodeToCheck = "ON650453.1"
@@ -617,7 +636,7 @@ for node in tree.traverse_preorder():
 
 counterGlobal = 0
 
-if SUBS == True:
+if SUBS == True & DEL == True:
     for i in range (len (blockList [seqName[0]])):
         counterLocal = 0
         # elem - just to check if it's a list or not 
@@ -631,8 +650,7 @@ if SUBS == True:
                 blockInfo = getBlockInfo (element, blockData)
                 consSeq   = getBlockSeq (blockInfo)
                 blockSubs = getBlockSubs (blockInfo)
-
-
+                blockDel = getBlockDel (blockInfo)
 
                 # print (blockSubs)
                 blockOcc = dict()
@@ -640,15 +658,18 @@ if SUBS == True:
                     if blockListIdx [z][i][y] != "-":
                         blockOcc [z] = blockListIdx [z][i][y]
                 
-                # print (blockOcc)
-
+                # print (len(blockOcc))
+                # break
                 coorList = set()
+                coorDelList = set()
                 for z in blockOcc:
                     coorList.update (blockSubs[z][blockOcc [z]][0])
+                    coorDelList.update (blockDel[z][blockOcc [z]])
                 
                 # print (coorList, len(consSeq))
                 for coor in coorList:
                     ## Apply fitch for each coordinate
+                    coorDelPresent = False
                     currentChar = dict()
                     for node in tree.traverse_postorder():
                         nodeLabel = node.get_label()
@@ -656,14 +677,19 @@ if SUBS == True:
                             rootLabel = nodeLabel
                         
                         if (node.is_leaf()):
+
                             if nodeLabel not in blockOcc:
                                 currentChar[nodeLabel] = [consSeq[coor - 1]]
                             else:
                                 idxList  = blockSubs [nodeLabel][blockOcc[nodeLabel]][0]
                                 charList = blockSubs [nodeLabel][blockOcc[nodeLabel]][1]
+                                idxDelList  = blockDel [nodeLabel][blockOcc[nodeLabel]]
                                 if coor in idxList:
                                     charIdx = idxList.index(coor)
                                     currentChar[nodeLabel] = [charList[charIdx]]
+                                elif coor in idxDelList:
+                                    currentChar[nodeLabel] = ["-"]
+                                    coorDelPresent = True
                                 else:
                                     # print (coor, len(consSeq))
                                     currentChar[nodeLabel] = [consSeq[coor - 1]]
@@ -687,130 +713,50 @@ if SUBS == True:
                                 currentChar[nodeLabel] = [consSeq[coor - 1]]
                             else:
                                 currentChar[nodeLabel] = [currentChar[nodeLabel][0]]
-                                if nodeLabel not in gSubs:
-                                    gSubs[nodeLabel] = [str (counterGlobal) + ":" + str (counterLocal) + ":S:" + str(coor) + ":" + currentChar[nodeLabel][0]]
+                                if currentChar[nodeLabel][0] == "-":
+                                    if nodeLabel not in gSubs:
+                                        gSubs[nodeLabel] = [str (counterGlobal) + ":" + str (counterLocal) + ":D:" + str(coor)]                                
+                                    else:
+                                        gSubs[nodeLabel].append (str (counterGlobal) + ":" + str (counterLocal) + ":D:" + str(coor))
+                                    
                                 else:
-                                    gSubs[nodeLabel].append(str (counterGlobal) + ":" + str (counterLocal) + ":S:" + str(coor) + ":" + currentChar[nodeLabel][0])
+                                    if nodeLabel not in gSubs:
+                                        gSubs[nodeLabel] = [str (counterGlobal) + ":" + str (counterLocal) + ":S:" + str(coor) + ":" + currentChar[nodeLabel][0]]
+                                    else:
+                                        gSubs[nodeLabel].append(str (counterGlobal) + ":" + str (counterLocal) + ":S:" + str(coor) + ":" + currentChar[nodeLabel][0])
 
                         else:
-                            if currentChar[node.get_parent().get_label()][0] in currentChar[nodeLabel]:
-                                currentChar[nodeLabel] = [currentChar[node.get_parent().get_label()][0]]
+                            parentChar = currentChar[node.get_parent().get_label()][0]
+                            if parentChar in currentChar[nodeLabel]:
+                                currentChar[nodeLabel] = [parentChar]
                             else:
                                 currentChar[nodeLabel] = [currentChar[nodeLabel][0]]
-                                if nodeLabel not in gSubs:
-                                    gSubs[nodeLabel] = [str (counterGlobal) + ":" + str (counterLocal) + ":S:" + str(coor) + ":" + currentChar[nodeLabel][0]]
+                                ## Insertion
+                                if parentChar == "-":
+                                    if nodeLabel not in gSubs:
+                                        gSubs[nodeLabel] = [str (counterGlobal) + ":" + str (counterLocal) + ":I:" + str(coor) + ":" + currentChar[nodeLabel][0]]                                
+                                    else:
+                                        gSubs[nodeLabel].append (str (counterGlobal) + ":" + str (counterLocal) + ":I:" + str(coor) + ":" + currentChar[nodeLabel][0])
+
                                 else:
-                                    gSubs[nodeLabel].append (str (counterGlobal) + ":" + str (counterLocal) + ":S:" + str(coor) + ":" + currentChar[nodeLabel][0])
-                counterLocal += 1
+                                    ## Deletion
+                                    if currentChar[nodeLabel][0] == "-":
+                                        if nodeLabel not in gSubs:
+                                            gSubs[nodeLabel] = [str (counterGlobal) + ":" + str (counterLocal) + ":D:" + str(coor)]                                
+                                        else:
+                                            gSubs[nodeLabel].append (str (counterGlobal) + ":" + str (counterLocal) + ":D:" + str(coor))
+                                    
+                                    ## Substitution
+                                    else:
+                                        if nodeLabel not in gSubs:
+                                            gSubs[nodeLabel] = [str (counterGlobal) + ":" + str (counterLocal) + ":S:" + str(coor) + ":" + currentChar[nodeLabel][0]]                                
+                                        else:
+                                            gSubs[nodeLabel].append (str (counterGlobal) + ":" + str (counterLocal) + ":S:" + str(coor) + ":" + currentChar[nodeLabel][0])
 
-        else:
-            # print ("It's not a list", i)
+                    if coorDelPresent:
+                        coorDelList.remove(coor)
 
-            blockInfo = getBlockInfo (elem, blockData)
-            consSeq   = getBlockSeq (blockInfo)
-            blockSubs = getBlockSubs (blockInfo)
-            
-            blockOcc = dict()
-            for z in blockList:
-                blockOcc [z] = blockListIdx [z][i]
-
-            coorList = set()
-            for z in blockOcc:
-                coorList.update (blockSubs[z][blockOcc [z]][0])
-
-            for coor in coorList:
-                ## Apply fitch for each coordinate
-                currentChar = dict()
-                for node in tree.traverse_postorder():
-                    nodeLabel = node.get_label()
-                    if (node.is_root()):
-                        rootLabel = nodeLabel
-                    
-                    if (node.is_leaf()):
-                        idxList = blockSubs [nodeLabel][blockOcc[nodeLabel]][0]
-                        charList = blockSubs [nodeLabel][blockOcc[nodeLabel]][1]
-                        if coor in idxList:
-                            charIdx = idxList.index(coor)
-                            currentChar[nodeLabel] = [charList[charIdx]]
-                        else:
-                            currentChar[nodeLabel] = [consSeq[coor - 1]]
-                        # print (nodeLabel, blockList [nodeLabel][gIdx][i])
-
-                    else:
-                        childrenList = node.child_nodes()
-                        X = set(currentChar[childrenList[0].get_label()])
-                        Y = set(currentChar[childrenList[1].get_label()])
-                        if (list (X & Y) == []):
-                            currentChar[nodeLabel] = list (X | Y)
-                        else:
-                            currentChar[nodeLabel] = list (X & Y)
-
-                # print (currentChar)
-                for node in tree.traverse_preorder():
-                    nodeLabel = node.get_label()
-                    
-                    if node.is_root():
-                        if consSeq[coor - 1] in currentChar[nodeLabel]:
-                            currentChar[nodeLabel] = [consSeq[coor - 1]]
-                        else:
-                            currentChar[nodeLabel] = [currentChar[nodeLabel][0]]
-                            if nodeLabel not in gSubs:
-                                gSubs[nodeLabel] = [str(counterGlobal) + ":-1:S:" + str(coor) + ":" + currentChar[nodeLabel][0]]
-                            else:
-                                gSubs[nodeLabel].append(str(counterGlobal) + ":-1:S:" + str(coor) + ":" + currentChar[nodeLabel][0])
-
-                    else:
-                        if currentChar[node.get_parent().get_label()][0] in currentChar[nodeLabel]:
-                            currentChar[nodeLabel] = [currentChar[node.get_parent().get_label()][0]]
-                        else:
-                            currentChar[nodeLabel] = [currentChar[nodeLabel][0]]
-                            if nodeLabel not in gSubs:
-                                gSubs[nodeLabel] = [str(counterGlobal) + ":-1:S:" + str(coor) + ":" + currentChar[nodeLabel][0]]
-                            else:
-                                gSubs[nodeLabel].append(str(counterGlobal) + ":-1:S:" + str(coor) + ":" + currentChar[nodeLabel][0])
-
-            counterGlobal += 1        
-
-        # if (i == 4):
-        #     print (gSubs)
-        #     break
-
-print("Fitch on substitution")
-counterGlobal = 0
-
-if DEL == True:
-    for i in range (len (blockList [seqName[0]])):
-        counterLocal = 0
-        # elem - just to check if it's a list or not 
-        elem = blockList[seqName [0]][i]
-
-        
-        if type(elem) == list:
-            # print ("It's a list", i)
-            for y in range (len (elem)):
-                element = gapListGlobal[int(i/2)][y]
-                # print (element)
-                blockInfo = getBlockInfo (element, blockData)
-                consSeq   = getBlockSeq (blockInfo)
-                blockDel = getBlockDel (blockInfo)
-
-                # print (blockSubs)
-                blockOcc = dict()
-                for z in blockList:
-                    if blockListIdx [z][i][y] != "-":
-                        blockOcc [z] = blockListIdx [z][i][y]
-                
-                # print (blockOcc)
-
-                coorList = set()
-                for z in blockOcc:
-                    coorList.update (blockDel[z][blockOcc [z]])
-                
-                if (element == checkBlock):
-                    print ("coorList:" , coorList)
-
-                # print (coorList, len(consSeq))
-                for coor in coorList:
+                for coor in coorDelList:
                     ## Apply fitch for each coordinate
                     currentChar = dict()
                     for node in tree.traverse_postorder():
@@ -879,6 +825,7 @@ if DEL == True:
 
             blockInfo = getBlockInfo (elem, blockData)
             consSeq   = getBlockSeq (blockInfo)
+            blockSubs = getBlockSubs (blockInfo)
             blockDel = getBlockDel (blockInfo)
             
             blockOcc = dict()
@@ -886,10 +833,96 @@ if DEL == True:
                 blockOcc [z] = blockListIdx [z][i]
 
             coorList = set()
+            coorDelList = set()
             for z in blockOcc:
-                coorList.update (blockDel[z][blockOcc [z]])
+                coorList.update (blockSubs[z][blockOcc [z]][0])
+                coorDelList.update (blockDel[z][blockOcc [z]])
 
             for coor in coorList:
+                ## Apply fitch for each coordinate
+                coorDelPresent = False
+                currentChar = dict()
+                
+                for node in tree.traverse_postorder():
+                    nodeLabel = node.get_label()
+                    if (node.is_root()):
+                        rootLabel = nodeLabel
+                    
+                    if (node.is_leaf()):
+                        idxList = blockSubs [nodeLabel][blockOcc[nodeLabel]][0]
+                        charList = blockSubs [nodeLabel][blockOcc[nodeLabel]][1]
+                        idxDelList  = blockDel [nodeLabel][blockOcc[nodeLabel]]
+                        if coor in idxList:
+                            charIdx = idxList.index(coor)
+                            currentChar[nodeLabel] = [charList[charIdx]]
+                        elif coor in idxDelList:
+                            currentChar[nodeLabel] = ["-"]
+                            coorDelPresent = True
+                        else:
+                            currentChar[nodeLabel] = [consSeq[coor - 1]]
+                        # print (nodeLabel, blockList [nodeLabel][gIdx][i])
+
+                    else:
+                        childrenList = node.child_nodes()
+                        X = set(currentChar[childrenList[0].get_label()])
+                        Y = set(currentChar[childrenList[1].get_label()])
+                        if (list (X & Y) == []):
+                            currentChar[nodeLabel] = list (X | Y)
+                        else:
+                            currentChar[nodeLabel] = list (X & Y)
+
+                # print (currentChar)
+                for node in tree.traverse_preorder():
+                    nodeLabel = node.get_label()
+                    
+                    if node.is_root():
+                        if consSeq[coor - 1] in currentChar[nodeLabel]:
+                            currentChar[nodeLabel] = [consSeq[coor - 1]]
+                        else:
+                            currentChar[nodeLabel] = [currentChar[nodeLabel][0]]
+                            if currentChar[nodeLabel][0] == "-":
+                                if nodeLabel not in gSubs:
+                                    gSubs[nodeLabel] = [str (counterGlobal) + ":-1:D:" + str(coor)]                                
+                                else:
+                                    gSubs[nodeLabel].append (str (counterGlobal) + ":-1:D:" + str(coor))
+                                
+                            else:
+                                if nodeLabel not in gSubs:
+                                    gSubs[nodeLabel] = [str (counterGlobal) + ":-1:S:" + str(coor) + ":" + currentChar[nodeLabel][0]]
+                                else:
+                                    gSubs[nodeLabel].append(str (counterGlobal) + ":-1:S:" + str(coor) + ":" + currentChar[nodeLabel][0])
+
+                    else:
+                        parentChar = currentChar[node.get_parent().get_label()][0]
+                        if parentChar in currentChar[nodeLabel]:
+                            currentChar[nodeLabel] = [parentChar]
+                        else:
+                            currentChar[nodeLabel] = [currentChar[nodeLabel][0]]
+                            ## Insertion
+                            if parentChar == "-":
+                                if nodeLabel not in gSubs:
+                                    gSubs[nodeLabel] = [str (counterGlobal) + ":-1:I:" + str(coor) + ":" + currentChar[nodeLabel][0]]                                
+                                else:
+                                    gSubs[nodeLabel].append (str (counterGlobal) + ":-1:I:" + str(coor) + ":" + currentChar[nodeLabel][0])
+
+                            else:
+                                ## Deletion
+                                if currentChar[nodeLabel][0] == "-":
+                                    if nodeLabel not in gSubs:
+                                        gSubs[nodeLabel] = [str (counterGlobal) + ":-1:D:" + str(coor)]                                
+                                    else:
+                                        gSubs[nodeLabel].append (str (counterGlobal) + ":-1:D:" + str(coor))
+                                
+                                ## Substitution
+                                else:
+                                    if nodeLabel not in gSubs:
+                                        gSubs[nodeLabel] = [str (counterGlobal) + ":-1:S:" + str(coor) + ":" + currentChar[nodeLabel][0]]                                
+                                    else:
+                                        gSubs[nodeLabel].append (str (counterGlobal) + ":-1:S:" + str(coor) + ":" + currentChar[nodeLabel][0])
+                if coorDelPresent:
+                    coorDelList.remove(coor)
+            
+            for coor in coorDelList:
                 ## Apply fitch for each coordinate
                 currentChar = dict()
                 for node in tree.traverse_postorder():
@@ -948,15 +981,13 @@ if DEL == True:
                                 else:
                                     gDel[nodeLabel].append(str(counterGlobal) + ":-1:D:" + str(coor))
             
+            
             counterGlobal += 1        
 
 
-    # if (i == 5):
-    #     print (gDel)
-    #     break
-
-print("Fitch on deletion")
+print("Fitch on substitution and Deletion")
 counterGlobal = 0
+
 
 if INS == True:
     for i in range (len (blockList [seqName[0]])):
@@ -1256,8 +1287,8 @@ for i in range (len(listBlocks)):
                     consSeq = consSeq[:int(eachSubs[3])] + eachSubs[4] + consSeq[int(eachSubs[3])+1:]
 
         print (gDel)
-'''
 
+'''
 
 import mutation_annotation_pb2
 from copy import deepcopy
@@ -1323,20 +1354,25 @@ for i in range (len (blockList [seqName[0]])):
     elem = blockList[seqName [0]][i]
 
     if type(elem) == list:
-        # print ("It's a list", i)
         for y in range (len (elem)):
             element = gapListGlobal[int(i/2)][y]
-            # print (element)
             blockInfo = getBlockInfo (element, blockData)
             consSeq   = getBlockSeq (blockInfo)
 
             newBlock = MAT.blocks.add()
             blockId  = blockIDConv(int(counterLocal), int(counterGlobal))
-            # print (int(counterLocal), int(counterGlobal), blockId)
             newBlock.blockId = int(blockId, 2)
             newBlock.blockGapExist = True
             newBlock.consensusSeq.extend(seq2int(consSeq))
-
+            # Check Open
+            list_ = seq2int(consSeq)
+            for num in list_:
+                num = bin(num)[2:]
+                num = "0" * (32 - len(num)) + num
+                for zz in range (8):
+                    if (num[4 * zz: 4 * (zz + 1)] == "1010"):
+                        print ("found:", list_)
+            # Check Close
             counterLocal += 1
 
     else:
@@ -1351,11 +1387,99 @@ for i in range (len (blockList [seqName[0]])):
         newBlock.blockGapExist = False
         newBlock.consensusSeq.extend(seq2int(consSeq))
 
-        counterGlobal += 1        
+        list_ = seq2int(consSeq)
+        # Check Open
+        list_ = seq2int(consSeq)
+        for num in list_:
+            num = bin(num)[2:]
+            num = "0" * (32 - len(num)) + num
+            for zz in range (8):
+                if (num[4 * zz: 4 * (zz + 1)] == "1010"):
+                    print ("found:", list_)
+            # Check Close
+
+        counterGlobal += 1
+
+# blockMap = dict()
+# for i in range (len (blockList [seqName[0]])):
+#     counterLocal = 0
+#     # elem - just to check if it's a list or not 
+#     elem = blockList[seqName [0]][i]
+
+#     if type(elem) == list:
+#         # print ("It's a list", i)
+#         for y in range (len (elem)):
+#             element = gapListGlobal[int(i/2)][y]
+#             if element not in blockMap:
+#                 blockMap[element] = [[],[]]
+
+#             blockId  = blockIDConv(int(counterLocal), int(counterGlobal))
+#             blockMap[element][0].append (blockId)
+#             blockMap[element][1].append (True)
+#             counterLocal += 1
+
+#     else:
+#         # print ("It's not a list", i)
+#         if elem not in blockMap:
+#             blockMap[elem] = [[],[]]
+#         blockId  = blockIDConv(int(counterLocal), int(counterGlobal))
+#         blockMap[elem][0].append(blockId)
+#         blockMap[elem][1].append(False)
+#         counterGlobal += 1 
+# # print(blockMap)
+# for elem in blockMap:
+#     blockInfo = getBlockInfo (elem, blockData)
+#     consSeq   = getBlockSeq (blockInfo)
+
+#     newBlock = MAT.blocks.add()
+#     newBlock.consensusSeq.extend(seq2int(consSeq))
+#     for i in range (len (blockMap[elem][0])):
+#         newBlockElem = newBlock.blocks.add()
+#         newBlockElem.blockId = int(blockMap[elem][0][i], 2)
+#         newBlockElem.blockGapExist = blockMap[elem][1][i]
+
+
+# for i in range (len (blockList [seqName[0]])):
+#     counterLocal = 0
+#     # elem - just to check if it's a list or not 
+#     elem = blockList[seqName [0]][i]
+
+#     if type(elem) == list:
+#         # print ("It's a list", i)
+#         for y in range (len (elem)):
+#             element = gapListGlobal[int(i/2)][y]
+#             # print (element)
+#             blockInfo = getBlockInfo (element, blockData)
+#             consSeq   = getBlockSeq (blockInfo)
+
+#             newBlock = MAT.blocks.add()
+#             blockId  = blockIDConv(int(counterLocal), int(counterGlobal))
+#             # print (int(counterLocal), int(counterGlobal), blockId)
+#             newBlock.blockId = int(blockId, 2)
+#             newBlock.blockGapExist = True
+#             newBlock.consensusSeq.extend(seq2int(consSeq))
+
+#             counterLocal += 1
+
+#     else:
+#         # print ("It's not a list", i)
+
+#         blockInfo = getBlockInfo (elem, blockData)
+#         consSeq   = getBlockSeq (blockInfo)
+        
+#         newBlock = MAT.blocks.add()
+#         blockId  = blockIDConv(int(counterLocal), int(counterGlobal))
+#         newBlock.blockId = int(blockId, 2)
+#         newBlock.blockGapExist = False
+#         newBlock.consensusSeq.extend(seq2int(consSeq))
+
+#         counterGlobal += 1        
 
 # print("MAT: blocks generated")
 
-subsDict = {}
+SsubsDict = {}
+SinsDict = {}
+SdelDict = {}
 delDict = {}
 insDict = {}
 IsubsDict = {}
@@ -1366,7 +1490,9 @@ IinsDict = {}
 for node in tree.traverse_preorder():
     eachNode = node.get_label()
     # print (eachNode)
-    subsDict[eachNode] = {}
+    SsubsDict[eachNode] = {}
+    SinsDict[eachNode] = {}
+    SdelDict[eachNode] = {}
     delDict[eachNode] = {}
     insDict[eachNode] = {}
     IsubsDict[eachNode] = {}
@@ -1405,16 +1531,33 @@ for node in tree.traverse_preorder():
     if eachNode in gSubs:
         for eachSubs in gSubs[eachNode]:
             subsInfo = eachSubs.split(":")
-            # print (eachNode, subsInfo)
-            if subsInfo[0] not in subsDict[eachNode]:
-                subsDict[eachNode][subsInfo[0]] = {}
-            
-            if subsInfo[1] not in subsDict[eachNode][subsInfo[0]]:
-                subsDict[eachNode][subsInfo[0]][subsInfo[1]] = [[],[]]
-            
-            subsDict[eachNode][subsInfo[0]][subsInfo[1]][0].append(int(subsInfo[3]))
-            subsDict[eachNode][subsInfo[0]][subsInfo[1]][1].append(subsInfo[4])
-        # print ("substitution dict generated")
+
+            if (subsInfo[2] == "S"):
+                if subsInfo[0] not in SsubsDict[eachNode]:
+                    SsubsDict[eachNode][subsInfo[0]] = {}
+                
+                if subsInfo[1] not in SsubsDict[eachNode][subsInfo[0]]:
+                    SsubsDict[eachNode][subsInfo[0]][subsInfo[1]] = [[],[]]
+                SsubsDict[eachNode][subsInfo[0]][subsInfo[1]][0].append(int(subsInfo[3]))
+                SsubsDict[eachNode][subsInfo[0]][subsInfo[1]][1].append(subsInfo[4])
+
+            elif (subsInfo[2] == "D"):
+                if subsInfo[0] not in SdelDict[eachNode]:
+                    SdelDict[eachNode][subsInfo[0]] = {}
+                
+                if subsInfo[1] not in SdelDict[eachNode][subsInfo[0]]:
+                    SdelDict[eachNode][subsInfo[0]][subsInfo[1]] = []
+                
+                SdelDict[eachNode][subsInfo[0]][subsInfo[1]].append(int(subsInfo[3]))
+
+            else:
+                if subsInfo[0] not in SinsDict[eachNode]:
+                    SinsDict[eachNode][subsInfo[0]] = {}
+                
+                if subsInfo[1] not in SinsDict[eachNode][subsInfo[0]]:
+                    SinsDict[eachNode][subsInfo[0]][subsInfo[1]] = [[],[]]
+                SinsDict[eachNode][subsInfo[0]][subsInfo[1]][0].append(int(subsInfo[3]))
+                SinsDict[eachNode][subsInfo[0]][subsInfo[1]][1].append(subsInfo[4])
     
     if eachNode in gDel:
         for eachDel in gDel[eachNode]:
@@ -1488,11 +1631,11 @@ for node in tree.traverse_preorder():
         # print ("Insertion dict generated")
 
     
-    ## Substitutions 
-    for eachPos in subsDict[eachNode]:
-        for eachGapPos in subsDict[eachNode][eachPos]:
+    ## Substitutions -> Substitutions, Insertions and Deletions 
+    for eachPos in SsubsDict[eachNode]:
+        for eachGapPos in SsubsDict[eachNode][eachPos]:
             
-            loc = deepcopy(subsDict[eachNode][eachPos][eachGapPos][0])
+            loc = deepcopy(SsubsDict[eachNode][eachPos][eachGapPos][0])
             loc.sort()
             # print (loc)
             i = 0
@@ -1501,8 +1644,8 @@ for node in tree.traverse_preorder():
                 currPos = loc[i]
                 currIdx = loc[i]
                 length = 1
-                idxUnsort = subsDict[eachNode][eachPos][eachGapPos][0].index(currIdx)
-                charList = [subsDict[eachNode][eachPos][eachGapPos][1][idxUnsort]]
+                idxUnsort = SsubsDict[eachNode][eachPos][eachGapPos][0].index(currIdx)
+                charList = [SsubsDict[eachNode][eachPos][eachGapPos][1][idxUnsort]]
                 
                 while True:
                     if (i+1) == len(loc):
@@ -1513,8 +1656,8 @@ for node in tree.traverse_preorder():
                         currIdx = loc[i+1]
                         length += 1
                         i += 1
-                        idxUnsort = subsDict[eachNode][eachPos][eachGapPos][0].index(currIdx)
-                        charList.append(subsDict[eachNode][eachPos][eachGapPos][1][idxUnsort])
+                        idxUnsort = SsubsDict[eachNode][eachPos][eachGapPos][0].index(currIdx)
+                        charList.append(SsubsDict[eachNode][eachPos][eachGapPos][1][idxUnsort])
                         if (length >= 6):
                             break
                     else:
@@ -1534,10 +1677,109 @@ for node in tree.traverse_preorder():
                 # print (lenMut, nucBin)
                 nodeMut.mutInfo = int( nucBin + lenMut  + "0000" ,2)
 
-                if (nodeMut.nucPosition == 6857):
-                    print (eachNode, "Mutation Found")
-                i += 1
+                if (nodeMut.mutInfo == 2576):
+                    print ("Here:", charList, nucBin, lenMut, "0000")
 
+                i += 1
+                # if (nodeMut.nucPosition == 2):
+                #     print (eachNode, nodeMut.nucPosition, nodeMut.nucGapExist, nodeMut.blockId, int(eachGapPos), int(eachPos), nodeMut.mutInfo, nucBin, lenMut, "0000")
+
+    for eachPos in SdelDict[eachNode]:
+        for eachGapPos in SdelDict[eachNode][eachPos]:
+            
+            loc = deepcopy(SdelDict[eachNode][eachPos][eachGapPos])
+            # print (loc)
+            loc.sort()
+            # print (loc)
+            i = 0
+            while i < len(loc):
+                nodeMut = node.nucMutation.add()
+                currPos = loc[i]
+                currIdx = loc[i]
+                length = 1
+                
+                while True:
+                    if (i+1) == len(loc):
+                        # print (currPos, length)
+                        break
+                
+                    if currIdx == (loc[i+1] - 1):
+                        currIdx = loc[i+1]
+                        length += 1
+                        i += 1
+                        if (length >= 6):
+                            # print (currPos, length)
+                            break
+                    else:
+                        # print (currPos, length)
+                        break
+                
+                nodeMut.nucPosition = currPos - 1
+                nodeMut.nucGapExist = False
+                blockId  = blockIDConv(int(eachGapPos), int(eachPos))
+                nodeMut.blockId = int(blockId, 2)
+                if (eachGapPos == "-1"):
+                    nodeMut.blockGapExist = False
+                else:
+                    nodeMut.blockGapExist = True
+                lenBin = bin(length)[2:]
+                lenMut = "0" * (4 - len (lenBin)) + lenBin 
+                nucBin = "0" * 24
+                # print (lenMut, nucBin)
+                nodeMut.mutInfo = int( nucBin + lenMut + "0001" ,2)
+                if (nodeMut.mutInfo == 2576):
+                    print ("Here:", nucBin, lenMut, "0001")
+                i += 1
+                # print (eachNode, nodeMut.nucPosition, nodeMut.nucGapExist, nodeMut.blockId, int(eachGapPos), int(eachPos), nodeMut.mutInfo, nucBin, lenMut, "0000")
+
+    for eachPos in SinsDict[eachNode]:
+        for eachGapPos in SinsDict[eachNode][eachPos]:
+            
+            loc = deepcopy(SinsDict[eachNode][eachPos][eachGapPos][0])
+            loc.sort()
+            # print (loc)
+            i = 0
+            while i < len(loc):
+                nodeMut = node.nucMutation.add()
+                currPos = loc[i]
+                currIdx = loc[i]
+                length = 1
+                idxUnsort = SinsDict[eachNode][eachPos][eachGapPos][0].index(currIdx)
+                charList = [SinsDict[eachNode][eachPos][eachGapPos][1][idxUnsort]]
+                
+                while True:
+                    if (i+1) == len(loc):
+                        # print (currPos, length, charList)
+                        break
+                
+                    if currIdx == (loc[i+1] - 1):
+                        currIdx = loc[i+1]
+                        length += 1
+                        i += 1
+                        idxUnsort = SinsDict[eachNode][eachPos][eachGapPos][0].index(currIdx)
+                        charList.append(SinsDict[eachNode][eachPos][eachGapPos][1][idxUnsort])
+                        if (length >= 6):
+                            break
+                    else:
+                        # print (currPos, length, charList)
+                        break
+                nodeMut.nucPosition = currPos - 1
+                nodeMut.nucGapExist = False
+                blockId  = blockIDConv(int(eachGapPos), int(eachPos))
+                nodeMut.blockId = int(blockId, 2)
+                if (eachGapPos == "-1"):
+                    nodeMut.blockGapExist = False
+                else:
+                    nodeMut.blockGapExist = True
+                lenBin = bin(length)[2:]
+                lenMut = "0" * (4 - len (lenBin)) + lenBin 
+                nucBin = nucBinConv (charList)
+                # print ("Insertion")
+                nodeMut.mutInfo = int( nucBin + lenMut  + "0010" ,2)
+                if (nodeMut.mutInfo == 2576):
+                    print ("Here:", nucBin, lenMut, "0010")
+                i += 1
+    
     ## Deletions -> Insertions and Deletions 
     for eachPos in delDict[eachNode]:
         for eachGapPos in delDict[eachNode][eachPos]:
@@ -1581,7 +1823,8 @@ for node in tree.traverse_preorder():
                 nucBin = "0" * 24
                 # print (lenMut, nucBin)
                 nodeMut.mutInfo = int( nucBin + lenMut + "0001" ,2)
-
+                if (nodeMut.mutInfo == 2576):
+                    print ("Here:", nucBin, lenMut, "0001")
                 i += 1
 
     for eachPos in insDict[eachNode]:
@@ -1628,7 +1871,8 @@ for node in tree.traverse_preorder():
                 nucBin = nucBinConv (charList)
                 # print ("Insertion")
                 nodeMut.mutInfo = int( nucBin + lenMut  + "0010" ,2)
-
+                if (nodeMut.mutInfo == 2576):
+                    print ("Here:", nucBin, lenMut, "0010")
                 i += 1
 
     ## Insertions -> Insertions, Deletions, and Substitution
@@ -1678,7 +1922,8 @@ for node in tree.traverse_preorder():
                     nucBin = nucBinConv (charList)
                     # print ("Insertion")
                     nodeMut.mutInfo = int( nucBin + lenMut  + "0010" ,2)
-
+                    if (nodeMut.mutInfo == 2576):
+                        print ("Here:", nucBin, lenMut, "0010")
                     i += 1
 
     for eachPos in IdelDict[eachNode]:
@@ -1725,7 +1970,8 @@ for node in tree.traverse_preorder():
                     nucBin = "0" * 24
                     # print (lenMut, nucBin)
                     nodeMut.mutInfo = int( nucBin + lenMut + "0001" ,2)
-
+                    if (nodeMut.mutInfo == 2576):
+                        print ("Here:", nucBin, lenMut, "0001")
                     i += 1
 
     for eachPos in IsubsDict [eachNode]:
@@ -1774,7 +2020,8 @@ for node in tree.traverse_preorder():
                     nucBin = nucBinConv (charList)
                     # print (lenMut, nucBin)
                     nodeMut.mutInfo = int( nucBin + lenMut  + "0000" ,2)
-
+                    if (nodeMut.mutInfo == 2576):
+                        print ("Here:", charList, nucBin, lenMut, "0000")
                     i += 1
 
     for counterGlobal in gGaps:
@@ -1795,25 +2042,26 @@ for node in tree.traverse_preorder():
             newGap.nucPosition.extend(nucPos)
             newGap.nucGapLength.extend(nucGapLen)
 
-for node in tree.traverse_preorder():
-    if (node.get_label() == checkId):
-        nodeQuery = node
 
-typeCheck = delDict
-while nodeQuery.is_root() == False:
-    nodeLabel = nodeQuery.get_label()
-    if nodeLabel in typeCheck:
-        if "0" in typeCheck[nodeLabel]:
-            if "4" in typeCheck[nodeLabel]["0"]:   
-                print ("Subs:", nodeLabel, typeCheck[nodeLabel]["0"]["4"])
-    nodeQuery = nodeQuery.get_parent() 
+# for node in tree.traverse_preorder():
+#     if (node.get_label() == checkId):
+#         nodeQuery = node
 
-nodeLabel = nodeQuery.get_label()
-print (nodeLabel)
-if nodeLabel in typeCheck:
-    if "0" in typeCheck[nodeLabel]:
-        if "4" in typeCheck[nodeLabel]["0"]:   
-            print ("Subs:", nodeLabel, typeCheck[nodeLabel]["0"]["4"])
+# typeCheck = insDict
+# while nodeQuery.is_root() == False:
+#     nodeLabel = nodeQuery.get_label()
+#     if nodeLabel in typeCheck:
+#         if "0" in typeCheck[nodeLabel]:
+#             if "4" in typeCheck[nodeLabel]["0"]:   
+#                 print ("Subs:", nodeLabel, typeCheck[nodeLabel]["0"]["4"])
+#     nodeQuery = nodeQuery.get_parent() 
+
+# nodeLabel = nodeQuery.get_label()
+# print (nodeLabel)
+# if nodeLabel in typeCheck:
+#     if "0" in typeCheck[nodeLabel]:
+#         if "4" in typeCheck[nodeLabel]["0"]:   
+#             print ("Subs:", nodeLabel, typeCheck[nodeLabel]["0"]["4"])
 
 
 
@@ -1821,6 +2069,6 @@ if nodeLabel in typeCheck:
 # print (delDict[checkId]["0"])
 # print (IinsDict[checkId]["0"])
 # print (IdelDict[checkId]["0"])
-# f = open(sys.argv[1], "wb")
-# f.write(MAT.SerializeToString())
-# f.close()
+f = open(sys.argv[1], "wb")
+f.write(MAT.SerializeToString())
+f.close()

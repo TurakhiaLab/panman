@@ -50,12 +50,56 @@ def getBlockSubs (blockInfo):
         blockSubsData [elem [0]['name']][elem [0]['number']].append (charList)
     return blockSubsData
 
+def getBlockDel (blockInfo):
+    blockDel = blockInfo ['delete']
+    blockDelData = dict()
+    for elem in blockDel:    
+        if elem [0]['name'] not in blockDelData:   
+            blockDelData [elem [0]['name']] = dict()
+        blockDelData [elem [0]['name']][elem [0]['number']] = []
+
+        coorList = []
+        for mut in elem[1]:
+            if mut != []:
+                coorList += list(range(mut[0],mut[0] + mut[1]))
+        blockDelData [elem [0]['name']][elem [0]['number']] += coorList
+    return blockDelData
+
+def getBlockIns (blockInfo):
+    blockIns = blockInfo ['insert']
+
+    blockInsData = dict()
+
+    for elem in blockIns:
+        if elem [0]['name'] not in blockInsData:   
+            blockInsData [elem [0]['name']] = dict()
+        blockInsData [elem [0]['name']][elem [0]['number']] = []
+
+        coorList = []
+        charList = []
+        for mut in elem[1]:
+            if mut != []:
+                for z in range (len (mut [1])):
+                    coorList    += [[mut[0][0], mut[0][1] + z]]
+                    charList    += [mut[1][z]]
+        
+        blockInsData [elem [0]['name']][elem [0]['number']] += [coorList, charList]
+    return blockInsData
+
+def getBlockGap (blockInfo):
+    return blockInfo ['gaps']
+
 '''
-f = open("/home/AD.UCSD.EDU/swalia/data/ecoli/pangraph/ecoli_10.json","r")
+f = open("/home/AD.UCSD.EDU/swalia/data/ecoli/pangraph/ecoli_100.json","r")
 data = json.load(f)
 f.close()
-
 blocks = getBlocks (data)
-blockInfo = getBlockInfo ("QDKTNRNHWP", blocks)
-print (getBlockSubs (blockInfo))
+getPath = getPaths (data)
+for i in getPath:
+    print (getPath[i])
+    break
+# print (blocks[0])
+# blockInfo = getBlockInfo ("CIVAORDURT", blocks)
+# print (blockInfo)
+# print (getBlockGap (blockInfo))
 '''
