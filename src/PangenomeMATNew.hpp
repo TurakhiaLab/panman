@@ -18,6 +18,8 @@ namespace PangenomeMATNew {
     void printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
         const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, size_t lineSize, bool aligned, std::ofstream& fout);
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
+    std::string stripGaps(std::string sequenceString);
+    std::string getDate();
 
     enum NucMutationType {
         NS = 0,
@@ -86,7 +88,7 @@ namespace PangenomeMATNew {
             if(mutation.blockgapexist()){
                 secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
             } else {
-                secondaryBlockId = -1;                
+                secondaryBlockId = -1;
             }
 
             if(mutation.nucgapexist()){
@@ -198,6 +200,7 @@ namespace PangenomeMATNew {
             void writeToFile(std::ofstream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference);
+            void printVCFParallel(std::string reference, std::ofstream& fout);
 
             Node *root;
             std::vector< Block > blocks;
