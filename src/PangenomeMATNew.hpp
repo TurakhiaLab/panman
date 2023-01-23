@@ -20,6 +20,7 @@ namespace PangenomeMATNew {
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
     std::string stripGaps(std::string sequenceString);
     std::string getDate();
+    std::string stripString(std::string s);
 
     enum NucMutationType {
         NS = 0,
@@ -201,6 +202,9 @@ namespace PangenomeMATNew {
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference);
             void printVCFParallel(std::string reference, std::ofstream& fout);
+            std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
+            bool verifyVCFFile(std::ifstream& fin);
+            void vcfToFASTA(std::ifstream& fin, std::ofstream& fout);
 
             Node *root;
             std::vector< Block > blocks;

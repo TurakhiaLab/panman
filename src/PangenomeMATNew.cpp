@@ -69,6 +69,8 @@ void PangenomeMATNew::stringSplit (std::string const& s, char delim, std::vector
 
 PangenomeMATNew::Node* PangenomeMATNew::Tree::createTreeFromNewickString(std::string newickString) {
 
+    newickString = PangenomeMATNew::stripString(newickString);
+
     PangenomeMATNew::Node* newTreeRoot;
 
     std::vector<std::string> leaves;
@@ -832,8 +834,8 @@ void PangenomeMATNew::Tree::printFASTA(std::ofstream& fout, bool aligned, int pa
 
     // Assigning block gaps
     for(size_t i = 0; i < blockGaps.blockPosition.size(); i++){
-        sequence[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i] + 1);
-        blockExists[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i] + 1, false);
+        sequence[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i]);
+        blockExists[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
     }
 
     int32_t maxBlockId = 0;
@@ -894,7 +896,7 @@ void PangenomeMATNew::Tree::printFASTA(std::ofstream& fout, bool aligned, int pa
         }
     }
 
-    printFASTAHelper(root, sequence, blockExists, fout, aligned);   
+    printFASTAHelper(root, sequence, blockExists, fout, aligned);
 
 }
 
@@ -1577,6 +1579,7 @@ void PangenomeMATNew::Tree::writeToFile(std::ofstream& fout, PangenomeMATNew::No
 }
 
 std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference){
+
     Node* referenceNode = nullptr;
     
     for(auto u: allNodes){
@@ -1605,8 +1608,8 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
 
     // Assigning block gaps
     for(size_t i = 0; i < blockGaps.blockPosition.size(); i++){
-        sequence[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i] + 1);
-        blockExists[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i] + 1, false);
+        sequence[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i]);
+        blockExists[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
     }
 
     int32_t maxBlockId = 0;
@@ -1628,6 +1631,7 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
                     break;
                 }
                 const char nucleotide = PangenomeMATNew::getNucleotideFromCode(nucCode);
+
                 if(secondaryBlockId != -1){
                     sequence[primaryBlockId].second[secondaryBlockId].push_back({nucleotide, {}});
                 } else {
@@ -1721,12 +1725,12 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
                     if(secondaryBlockId != -1){
                         if(nucGapPosition != -1){
                             for(int j = 0; j < len; j++){
-                                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++){
-                                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
                             }
 
@@ -1734,12 +1738,12 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
                     } else {
                         if(nucGapPosition != -1){
                             for(int j = 0; j < len; j++){
-                                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++){
-                                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 sequence[primaryBlockId].first[nucPosition+j].first = newVal;
                             }
                         }
@@ -1749,12 +1753,12 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
                     if(secondaryBlockId != -1){
                         if(nucGapPosition != -1){
                             for(int j = 0; j < len; j++){
-                                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++){
-                                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
                             }
 
@@ -1762,12 +1766,12 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
                     } else {
                         if(nucGapPosition != -1){
                             for(int j = 0; j < len; j++){
-                                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++){
-                                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 sequence[primaryBlockId].first[nucPosition+j].first = newVal;
                             }
                         }
@@ -1800,7 +1804,7 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
             } 
             else {
                 if(type == PangenomeMATNew::NucMutationType::NSNPS){
-                    newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
+                    newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> 20) & 0xF);
                     if(secondaryBlockId != -1){
                         if(nucGapPosition != -1){
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newVal;
@@ -1816,7 +1820,7 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
                     }
                 }
                 else if(type == PangenomeMATNew::NucMutationType::NSNPI){
-                    newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
+                    newVal = PangenomeMATNew::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> 20) & 0xF);
                     if(secondaryBlockId != -1){
                         if(nucGapPosition != -1){
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newVal;
@@ -1857,6 +1861,7 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
                 for(size_t k = 0; k < sequence[i].second[j].size(); k++){
                     for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++){
                         if(sequence[i].second[j][k].second[w] == 'x'){
+                            // This shouldn't be possible but I'm still keeping it since it doesn't hurt
                             sequenceString+='-';
                         } else {
                             sequenceString += sequence[i].second[j][k].second[w];
@@ -1881,6 +1886,7 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
             for(size_t j = 0; j < sequence[i].first.size(); j++){
                 for(size_t k = 0; k < sequence[i].first[j].second.size(); k++){
                     if(sequence[i].first[j].second[k] == 'x'){
+                        // This shouldn't be possible but I'm still keeping it since it doesn't hurt
                         sequenceString += '-';
                     } else {
                         sequenceString += sequence[i].first[j].second[k];
@@ -1906,17 +1912,17 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
 
 }
 
-// std::string stripString(std::string s){
-//     while(s.length() && s[s.length() - 1] == ' '){
-//         s.pop_back();
-//     }
-//     for(size_t i = 0; i < s.length(); i++){
-//         if(s[i] != ' '){
-//             return s.substr(i);
-//         }
-//     }
-//     return s;
-// }
+std::string PangenomeMATNew::stripString(std::string s){
+    while(s.length() && s[s.length() - 1] == ' '){
+        s.pop_back();
+    }
+    for(size_t i = 0; i < s.length(); i++){
+        if(s[i] != ' '){
+            return s.substr(i);
+        }
+    }
+    return s;
+}
 
 std::string PangenomeMATNew::stripGaps(std::string sequenceString){
     std::string result;
@@ -1928,163 +1934,208 @@ std::string PangenomeMATNew::stripGaps(std::string sequenceString){
     return result;
 }
 
-// std::string PangenomeMAT::Tree::getSequenceFromVCF(std::string sequenceId, std::ifstream& fin){
-//     std::string line;
+bool PangenomeMATNew::Tree::verifyVCFFile(std::ifstream& fin){
 
-//     // get reference line
-//     for(int i = 0; i < 4; i++){
-//         std::getline(fin, line);
-//     }
+    for(auto u: allNodes){
+        if(u.second->children.size() == 0){
+            fin.clear();
+            fin.seekg(0);
+            if(getSequenceFromVCF(u.first, fin) != stripGaps(getStringFromReference(u.first))){
+                return false;
+            }
+        }
+    }
 
-//     if(line.substr(0,12) != "##reference="){
-//         std::cout << "Incorrect line format: " << line << std::endl;
-//         return "";
-//     }
+    return true;
 
-//     std::string referenceSequenceId = line.substr(12);
+}
 
-//     std::string referenceSequence = stripGaps(getStringFromReference(referenceSequenceId));
+void PangenomeMATNew::Tree::vcfToFASTA(std::ifstream& fin, std::ofstream& fout){
+    for(auto u: allNodes){
+        if(u.second->children.size() == 0){
+            fin.clear();
+            fin.seekg(0);
+            std::string sequenceString = getSequenceFromVCF(u.first, fin);
+            fout << '>' << u.first << '\n';
+            for(size_t i = 0; i < sequenceString.size(); i+=70){
+                fout << sequenceString.substr(i,std::min(70, (int)sequenceString.length() - (int)i)) << '\n';
+            }
+        }
+    }
+}
 
-//     // column headers
-//     std::getline(fin, line);
+std::string PangenomeMATNew::Tree::getSequenceFromVCF(std::string sequenceId, std::ifstream& fin){
+    std::string line;
 
-//     std::vector< std::string > columnWords;
-//     std::string word;
+    // get reference line
+    for(int i = 0; i < 4; i++){
+        std::getline(fin, line);
+    }
 
-//     for(size_t i = 0; i < line.size(); i++){
-//         if(line[i] != ' '){
-//             word += line[i];
-//         } else {
-//             if(word.length()){
-//                 columnWords.push_back(word);
-//                 word = "";
-//             }
-//         }
-//     }
-//     if(word.length()){
-//         columnWords.push_back(word);
-//     }
+    if(line.substr(0,12) != "##reference="){
+        std::cout << "Incorrect line format: " << line << std::endl;
+        return "";
+    }
 
-//     int sequenceIndex = -1;
+    std::string referenceSequenceId = line.substr(12);
 
-//     for(size_t i = 9; i < columnWords.size(); i++){
-//         if(columnWords[i] == sequenceId){
-//             sequenceIndex = i;
-//             break;
-//         }
-//     }
+    std::string referenceSequence = stripGaps(getStringFromReference(referenceSequenceId));
 
-//     if(sequenceIndex == -1){
-//         std::cout << "sequence not found!" << std::endl;
-//         return "";
-//     }
+    if(sequenceId == referenceSequenceId){
+        return referenceSequence;
+    }
 
-//     std::vector< std::pair< char, std::vector< char > > > alteredSequence;
-//     for(auto u: referenceSequence){
-//         alteredSequence.push_back({u, {}});
-//     }
+    // column headers
+    std::getline(fin, line);
 
-//     while(getline(fin, line)){
-//         std::vector< std::string > words;
-//         std::string word;
+    std::vector< std::string > columnWords;
+    std::string word;
 
-//         for(size_t i = 0; i < line.size(); i++){
-//             if(line[i] != ' '){
-//                 word += line[i];
-//             } else {
-//                 if(word.length()){
-//                     words.push_back(word);
-//                     word = "";
-//                 }
-//             }
-//         }
-//         if(word.length()){
-//             words.push_back(word);
-//             word="";
-//         }
+    for(size_t i = 0; i < line.size(); i++){
+        if(line[i] != ' ' && line[i]!='\t'){
+            word += line[i];
+        } else {
+            if(word.length()){
+                columnWords.push_back(word);
+                word = "";
+            }
+        }
+    }
+    if(word.length()){
+        columnWords.push_back(word);
+    }
 
-//         int choice = std::stoll(words[sequenceIndex]);
-//         if(choice == 0){
-//             continue;
-//         }
+    int sequenceIndex = -1;
 
-//         choice--;
+    // std::cout << columnWords[9] << " " << (sequenceId == "ON650467.1") << sequenceId << " " << sequenceId.length() << std::endl;
 
-//         int position = std::stoll(words[1]);
+    for(size_t i = 9; i < columnWords.size(); i++){
+        if(columnWords[i] == sequenceId){
+            sequenceIndex = i;
+            break;
+        }
+    }
 
-//         // if(position >= alteredSequence.size()){
-//         //     std::cout << "position too high " << position << " " << alteredSequence.size() << std::endl;
-//         // }
+    if(sequenceIndex == -1){
+        std::cout << "sequence not found! "<< sequenceId << std::endl;
+        return "";
+    }
 
-//         std::string ref = words[3];
-//         std::string altStrings = words[4];
+    // To account for insertions
+    std::vector< std::pair< char, std::vector< char > > > alteredSequence;
+    for(auto u: referenceSequence){
+        alteredSequence.push_back({u, {}});
+    }
 
-//         std::string currentAlt;
-//         std::vector< std::string > altChoices;
+    while(getline(fin, line)){
+        std::vector< std::string > words;
+        std::string word;
 
-//         for(auto u: altStrings){
-//             if(u != ','){
-//                 currentAlt += u;
-//             } else {
-//                 if(currentAlt.length()){
-//                     altChoices.push_back(currentAlt);
-//                     currentAlt = "";
-//                 }
-//             }
-//         }
+        for(size_t i = 0; i < line.size(); i++){
+            if(line[i] != ' '){
+                word += line[i];
+            } else {
+                if(word.length()){
+                    words.push_back(word);
+                    word = "";
+                }
+            }
+        }
+        if(word.length()){
+            words.push_back(word);
+            word="";
+        }
 
-//         if(currentAlt.length()){
-//             altChoices.push_back(currentAlt);
-//             currentAlt = "";
-//         }
+        int choice = std::stoll(words[sequenceIndex]);
+        if(choice == 0){
+            continue;
+        }
 
-//         // if(choice >= altChoices.size()){
-//         //     std::cout << altChoices.size() << " " << choice << " " << altStrings << " " << position << std::endl;
-//         // }
+        choice--;
 
-//         std::string alt = altChoices[choice];
+        int position = std::stoll(words[1]);
 
-//         if(ref != "."){
-//             int len = ref.length();
-//             for(int i = position; i < position + len; i++){
-//                 // if(i >= alteredSequence.size()){
-//                 //     std::cout << "index exceeding!!!" << std::endl;
-//                 // }
-//                 alteredSequence[i].first = '-';
-//             }
-//         }
+        // if(position >= alteredSequence.size()){
+        //     std::cout << "position too high " << position << " " << alteredSequence.size() << std::endl;
+        // }
 
-//         if(alt != "."){
-//             if(alt.length() && alteredSequence[position].second.size()){
-//                 std::cout << "alternate sequence already exists!" << std::endl;
-//             }
-//             for(size_t i = 0; i < alt.length(); i++){
-//                 alteredSequence[position].second.push_back(alt[i]);
-//             }
-//         }
+        std::string ref = words[3];
+        std::string altStrings = words[4];
 
-//     }
+        std::string currentAlt;
+        std::vector< std::string > altChoices;
 
-//     std::string finalSequence;
-//     for(size_t i = 0; i < alteredSequence.size(); i++){
-//         for(size_t j = 0; j < alteredSequence[i].second.size();j++){
-//             if(alteredSequence[i].second[j] != '-'){
-//                 finalSequence += alteredSequence[i].second[j];
-//             }
-//         }
-//         if(alteredSequence[i].first != '-'){
-//             finalSequence += alteredSequence[i].first;
-//         }
+        for(auto u: altStrings){
+            if(u != ','){
+                currentAlt += u;
+            } else {
+                if(currentAlt.length()){
+                    altChoices.push_back(currentAlt);
+                    currentAlt = "";
+                }
+            }
+        }
 
-//     }
+        if(currentAlt.length()){
+            altChoices.push_back(currentAlt);
+            currentAlt = "";
+        }
 
-//     std::string alteredSequenceOriginal = stripGaps(getStringFromReference(sequenceId));
+        // if(choice >= altChoices.size()){
+        //     std::cout << altChoices.size() << " " << choice << " " << altStrings << " " << position << std::endl;
+        // }
 
-//     std::cout << (alteredSequenceOriginal.length() == finalSequence.length()) << (alteredSequenceOriginal == finalSequence) << std::endl;
+        std::string alt = altChoices[choice];
 
-//     return finalSequence;
+        if(ref != "."){
+            int len = ref.length();
+            for(int i = position; i < position + len; i++){
+                // if(i >= alteredSequence.size()){
+                //     std::cout << "index exceeding!!!" << std::endl;
+                // }
+                alteredSequence[i].first = '-';
+            }
+        }
 
-// }
+        if(alt != "."){
+            if(alt.length() && alteredSequence[position].second.size()){
+                std::cout << "alternate sequence already exists!" << std::endl;
+            }
+            for(size_t i = 0; i < alt.length(); i++){
+                alteredSequence[position].second.push_back(alt[i]);
+            }
+        }
+
+    }
+
+    std::string finalSequence;
+    for(size_t i = 0; i < alteredSequence.size(); i++){
+        for(size_t j = 0; j < alteredSequence[i].second.size();j++){
+            if(alteredSequence[i].second[j] != '-'){
+                finalSequence += alteredSequence[i].second[j];
+            }
+        }
+        if(alteredSequence[i].first != '-'){
+            finalSequence += alteredSequence[i].first;
+        }
+
+    }
+
+    std::string alteredSequenceOriginal = stripGaps(getStringFromReference(sequenceId));
+
+    // std::cout << (alteredSequenceOriginal.length() == finalSequence.length()) << (alteredSequenceOriginal == finalSequence) << " " << sequenceId << std::endl;
+
+    // if(alteredSequenceOriginal != finalSequence){
+    //     for(int i = 0; i < alteredSequenceOriginal.length(); i++){
+    //         if(alteredSequenceOriginal[i] != finalSequence[i]){
+    //             std::cout << i << " " << alteredSequenceOriginal[i] << " " << finalSequence[i] << std::endl;;
+    //         }
+    //     }
+    // }
+
+    return finalSequence;
+
+}
 
 // void PangenomeMAT::Tree::printVCF(std::string reference, std::ofstream& fout){
 
@@ -2291,6 +2342,11 @@ void PangenomeMATNew::Tree::printVCFParallel(std::string reference, std::ofstrea
                         currentAltString = currentRefString;
                     } else {
                         // Create VCF record at position i
+                        if(currentRefString == ""){
+                            // I prefer if reference sequence is never blank
+                            currentRefString += referenceSequence[i];
+                            currentAltString += altSequence[i];
+                        }
 
                         vcfMapMutex.lock();
                         vcfMap[diffStart][currentRefString][currentAltString].push_back(n.first);
@@ -2346,6 +2402,7 @@ void PangenomeMATNew::Tree::printVCFParallel(std::string reference, std::ofstrea
     for(auto u: vcfMap){
         for(auto v: u.second){
             if(v.first == ""){
+                std::cout << "Warning: Reference sequence has a blank at position " << u.first << " in VCF file.\n";
                 fout << std::left << std::setw(20) << ". " << std::setw(20) << u.first << " " << std::setw(20) << recordID++ << " " << std::setw(20) << ". ";
             } else {
                 fout << std::left << std::setw(20) << ". " << std::setw(20) << u.first << " " << std::setw(20) << recordID++ << " " << std::setw(20) << v.first << " ";
