@@ -317,7 +317,7 @@ void updatedParser(int argc, char* argv[]){
                         fin.close();
                     }
 
-                    // std::cout << "Verifying VCF File" << std::endl;
+                    std::cout << "Verifying VCF File" << std::endl;
 
                     // std::ifstream fin("./vcf/" + fileName + ".vc");
 
@@ -330,8 +330,73 @@ void updatedParser(int argc, char* argv[]){
                     // fin.close();
                 }
 
+            } else if(strcmp(splitCommandArray[0], "write") == 0){
+                // If command was write
+                po::variables_map writeVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(writeDesc).positional(writePositionArgumentDesc).run(), writeVm);
+
+                if(writeVm.count("help")){
+                    std::cout << writeDesc;
+                } else {
+                    po::notify(writeVm);
+                    std::string fileName = writeVm["output-file"].as< std::string >();
+                    std::filesystem::create_directory("./pmat");
+                    std::ofstream fout("./pmat/" + fileName + ".pmat");
+
+                    auto writeStart = std::chrono::high_resolution_clock::now();
+                    
+                    T->writeToFile(fout);
+
+                    auto writeEnd = std::chrono::high_resolution_clock::now();
+                    
+                    std::chrono::nanoseconds writeTime = writeEnd - writeStart;
+
+                    std::cout << "\nTree Write execution time: " << writeTime.count() << " nanoseconds\n";
+
+                    fout.close();
+                }
+            } else if(strcmp(splitCommandArray[0], "annotate") == 0){
+                // If command was annotate
+                po::variables_map annotateVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(annotateDesc).positional(annotatePositionArgumentDesc).run(), annotateVm);
+
+                if(annotateVm.count("help")){
+                    std::cout << annotateDesc;
+                } else {
+                    po::notify(annotateVm);
+                    std::string fileName = annotateVm["input-file"].as< std::string >();
+                    std::ifstream fin(fileName);
+
+                    auto annotateStart = std::chrono::high_resolution_clock::now();
+
+                    T->annotate(fin);
+
+                    auto annotateEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds annotateTime = annotateEnd - annotateStart;
+
+                    std::cout << "Annotate time: " << annotateTime.count() << " nanoseconds\n";
+                }
+
+            } else if(strcmp(splitCommandArray[0], "search") == 0){
+                po::variables_map searchVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(searchDesc).positional(searchPositionArgumentDesc).run(), searchVm);
+
+                std::vector< std::string > annotationVector = searchVm["keywords"].as< std::vector< std::string > >();
+
+                for(auto word: annotationVector){
+                    stripString(word);
+                    std::cout << word << ": ";
+                    auto result = T->searchByAnnotation(word);
+                    for(auto r: result){
+                        std::cout << r << ";";
+                    }
+                    std::cout << std::endl;
+                }
+
             } else if(strcmp(splitCommandArray[0], "newick") == 0){
                 std::cout << T->getNewickString(T->root) << std::endl;
+            } else if(strcmp(splitCommandArray[0], "exit") == 0){
+                return;
             }
         } catch (std::exception& e){
             std::cout << e.what() << std::endl;
