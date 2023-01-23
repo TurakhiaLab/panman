@@ -163,7 +163,6 @@ namespace PangenomeMATNew {
         std::vector< NucMut > nucMutation;
         std::vector< BlockMut > blockMutation;
 
-        // To be incorporated in the future
         std::vector< std::string > annotations;
     };
 
@@ -174,6 +173,7 @@ namespace PangenomeMATNew {
             size_t m_maxDepth{ 0 };
             float m_meanDepth{ 0 };
 
+            std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
             std::unordered_map<std::string, Node*> allNodes;
 
             Node* createTreeFromNewickString(std::string newick);
@@ -205,7 +205,9 @@ namespace PangenomeMATNew {
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
             bool verifyVCFFile(std::ifstream& fin);
             void vcfToFASTA(std::ifstream& fin, std::ofstream& fout);
-
+            void annotate(std::ifstream& fin);
+            std::vector< std::string > searchByAnnotation(std::string annotation);
+            
             Node *root;
             std::vector< Block > blocks;
             std::vector< GapList > gaps;

@@ -199,6 +199,11 @@ void PangenomeMATNew::Tree::assignMutationsToNodes(Node* root, size_t& currentIn
         storedBlockMutation.push_back(tempBlockMut);
     }
 
+    for(int i = 0; i < nodes[currentIndex].annotations_size(); i++){
+        root->annotations.push_back(nodes[currentIndex].annotations(i));
+        annotationsToNodes[nodes[currentIndex].annotations(i)].push_back(root->identifier);
+    }
+
     root->nucMutation = storedNucMutation;
     root->blockMutation = storedBlockMutation;
 
@@ -259,6 +264,28 @@ PangenomeMATNew::Tree::Tree(std::ifstream& fin){
         blockGaps.blockPosition.push_back(mainTree.blockgaps().blockposition(i));
         blockGaps.blockGapLength.push_back(mainTree.blockgaps().blockgaplength(i));
     }
+
+    // DEBUG
+    // PangenomeMATNew::Node* mainNode = allNodes["ON650488.1"];
+    // while(mainNode != nullptr){
+    //     std::cout << (mainNode->identifier) << std::endl;
+    //     for(auto mutation: mainNode->nucMutation){
+    //         if(mutation.primaryBlockId == 0 && mutation.secondaryBlockId == 0){
+    //             if(mutation.nucPosition == 25){
+    //                 if((mutation.mutInfo & 0xF) == PangenomeMATNew::NucMutationType::ND){
+    //                     std::cout << "D " << 25 << " " << mutation.nucGapPosition << " " << (mutation.mutInfo >> 4) << std::endl;
+    //                 }
+    //                 if((mutation.mutInfo & 0xF) == PangenomeMATNew::NucMutationType::NI){
+    //                     std::cout << "I 25 " << mutation.nucGapPosition << " " << (mutation.mutInfo >> 4) << std::endl;
+    //                 }
+    //                 if((mutation.mutInfo & 0xF) == PangenomeMATNew::NucMutationType::NS){
+    //                     std::cout << "S " << mutation.nucGapPosition << " " << (mutation.mutInfo >> 4) << std::endl;
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     mainNode = mainNode->parent;
+    // }
 
 }
 
@@ -735,6 +762,16 @@ void printFASTAHelper(PangenomeMATNew::Node* root,\
         fout << '>' << root->identifier << std::endl;
         // std::cout << root->identifier << std::endl;
 
+        // if(root->identifier == "ON650488.1"){
+        //     for(int i = 0; i < sequence[0].second[0].size(); i++){
+        //         for(int j = 0; j < sequence[0].second[0][i].second.size(); j++){
+        //             if(sequence[0].second[0][i].second[j] != '-'){
+        //                 std::cout << i << " " << j << std::endl;
+        //             }
+        //         }
+        //     }
+        // }
+
         // if(root->identifier == "ON651176.1"){
         //     bool found = false;
         //     for(int i = 0; i < sequence.size(); i++){
@@ -851,18 +888,20 @@ void PangenomeMATNew::Tree::printFASTA(std::ofstream& fout, bool aligned, int pa
             bool endFlag = false;
             for(size_t k = 0; k < 8; k++){
                 const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
-                
+
                 if(nucCode == 0){
                     endFlag = true;
                     break;
                 }
                 const char nucleotide = PangenomeMATNew::getNucleotideFromCode(nucCode);
+                
                 if(secondaryBlockId != -1){
                     sequence[primaryBlockId].second[secondaryBlockId].push_back({nucleotide, {}});
                 } else {
                     sequence[primaryBlockId].first.push_back({nucleotide, {}});
                 }
             }
+
             if(endFlag){
                 break;
             }
@@ -2342,11 +2381,11 @@ void PangenomeMATNew::Tree::printVCFParallel(std::string reference, std::ofstrea
                         currentAltString = currentRefString;
                     } else {
                         // Create VCF record at position i
-                        if(currentRefString == ""){
-                            // I prefer if reference sequence is never blank
-                            currentRefString += referenceSequence[i];
-                            currentAltString += altSequence[i];
-                        }
+                        // if(currentRefString == ""){
+                        //     // I prefer if reference sequence is never blank
+                        //     currentRefString += referenceSequence[i];
+                        //     currentAltString += altSequence[i];
+                        // }
 
                         vcfMapMutex.lock();
                         vcfMap[diffStart][currentRefString][currentAltString].push_back(n.first);
@@ -2355,7 +2394,7 @@ void PangenomeMATNew::Tree::printVCFParallel(std::string reference, std::ofstrea
                         // Reset
                         diffStart = currentCoordinate;
                         currentRefString = "";
-                        currentRefString += referenceSequence[i];
+                        // currentRefString += referenceSequence[i];
                         currentAltString = currentRefString;
                     }
                 }
@@ -2436,69 +2475,70 @@ void PangenomeMATNew::Tree::printVCFParallel(std::string reference, std::ofstrea
     }
 }
 
-// std::vector< std::string > PangenomeMAT::Tree::searchByAnnotation(std::string annotation){
-//     if(annotationsToNodes.find(annotation) != annotationsToNodes.end()){
-//         return annotationsToNodes[annotation];
-//     }
-//     return {};
-// }
+std::vector< std::string > PangenomeMATNew::Tree::searchByAnnotation(std::string annotation){
+    if(annotationsToNodes.find(annotation) != annotationsToNodes.end()){
+        return annotationsToNodes[annotation];
+    }
+    return {};
+}
 
-// void PangenomeMAT::Tree::annotate(std::ifstream& fin){
-//     std::string line;
-//     while(getline(fin, line)){
-//         std::string word;
-//         std::string nodeId;
+void PangenomeMATNew::Tree::annotate(std::ifstream& fin){
+    std::string line;
+    while(getline(fin, line)){
+        std::string word;
+        std::string nodeId;
 
-//         // Extract node ID
-//         size_t i = 0;
-//         for(;i < line.length() && line[i]!=','; i++){
-//             word+=line[i];
-//         }
+        // Extract node ID
+        size_t i = 0;
+        for(;i < line.length() && line[i]!=','; i++){
+            word+=line[i];
+        }
 
-//         word = stripString(word);
+        word = stripString(word);
 
-//         if(word.length()){
-//             nodeId = word;
-//             word = "";
-//         } else {
-//             std::cout << "File in incorrect format. Line: " << line << std::endl;
-//             return;
-//         }
+        if(word.length()){
+            nodeId = word;
+            word = "";
+        } else {
+            std::cout << "File in incorrect format. Line: " << line << std::endl;
+            return;
+        }
 
-//         if(i >= line.length()){
-//             // comma not found
-//             std::cout << "File in incorrect format. Line: " << line << std::endl;
-//             return;
-//         }
+        if(i >= line.length()){
+            // comma not found
+            std::cout << "File in incorrect format. Line: " << line << std::endl;
+            return;
+        }
 
-//         if(allNodes.find(nodeId) == allNodes.end()){
-//             std::cout << "Node ID not found. Line: " << line << std::endl;
-//         }
+        if(allNodes.find(nodeId) == allNodes.end()){
+            std::cout << "Node ID not found. Line: " << line << std::endl;
+            return;
+        }
 
-//         Node* nodeToAnnotate = allNodes[nodeId];
+        Node* nodeToAnnotate = allNodes[nodeId];
 
-//         // Extract annotations
-//         for(;i < line.length(); i++){
-//             if(line[i] != ','){
-//                 word += line[i];
-//             } else {
-//                 word = stripString(word);
-//                 if(word.length()){
-//                     std::string annotation = word;
-//                     nodeToAnnotate->annotations.push_back(annotation);
-//                     annotationsToNodes[annotation].push_back(nodeId);
-//                     word = "";
-//                 }
-//             }
-//         }
+        // Extract annotations
+        for(;i < line.length(); i++){
+            if(line[i] != ','){
+                word += line[i];
+            } else {
+                word = stripString(word);
+                if(word.length()){
+                    std::string annotation = word;
+                    nodeToAnnotate->annotations.push_back(annotation);
+                    annotationsToNodes[annotation].push_back(nodeId);
+                    word = "";
+                }
+            }
+        }
 
-//         word = stripString(word);
-//         if(word.length()){
-//             std::string annotation = word;
-//             nodeToAnnotate->annotations.push_back(annotation);
-//             annotationsToNodes[annotation].push_back(nodeId);
-//             word = "";
-//         }
+        word = stripString(word);
+        if(word.length()){
+            std::string annotation = word;
+            nodeToAnnotate->annotations.push_back(annotation);
+            annotationsToNodes[annotation].push_back(nodeId);
+            word = "";
+        }
 
-//     }
-// }
+    }
+}
