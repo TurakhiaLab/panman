@@ -317,7 +317,7 @@ void updatedParser(int argc, char* argv[]){
                         fin.close();
                     }
 
-                    std::cout << "Verifying VCF File" << std::endl;
+                    // std::cout << "Verifying VCF File" << std::endl;
 
                     // std::ifstream fin("./vcf/" + fileName + ".vc");
 

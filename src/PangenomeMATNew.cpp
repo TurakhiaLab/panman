@@ -1485,10 +1485,21 @@ PangenomeMATNew::Node* subtreeExtractParallelHelper(PangenomeMATNew::Node* node,
 
 PangenomeMATNew::Node* PangenomeMATNew::Tree::subtreeExtractParallel(std::vector< std::string > nodeIds){
     tbb::concurrent_vector< PangenomeMATNew::Node* > requiredNodes;
-    
+
+    std::atomic<bool> idDoesntExist = false;
+
     tbb::parallel_for_each(nodeIds.begin(), nodeIds.end(), [&]( std::string& id ) {
-        requiredNodes.push_back(allNodes[id]);
+        if(allNodes.find(id) != allNodes.end()){
+            requiredNodes.push_back(allNodes[id]);
+        } else {
+            idDoesntExist = true;
+        }
     });
+
+    if(idDoesntExist){
+        std::cout << "Error: Some of the specified node identifiers don't exist!!!" << std::endl;
+        return nullptr;
+    }
 
     tbb::concurrent_unordered_map< PangenomeMATNew::Node*, size_t > ticks;
 
@@ -1629,7 +1640,7 @@ std::string PangenomeMATNew::Tree::getStringFromReference(std::string reference)
     }
 
     if(referenceNode == nullptr){
-        return "No such leaf node found.";
+        return "Error: Reference sequence with matching name not found!";
     }
 
     std::vector< PangenomeMATNew::Node* > path;
@@ -2003,6 +2014,256 @@ void PangenomeMATNew::Tree::vcfToFASTA(std::ifstream& fin, std::ofstream& fout){
     }
 }
 
+AuxilaryMAT::Tree* PangenomeMATNew::Tree::convertToAuxMat(){
+    AuxilaryMAT::Tree* auxTree;
+
+    std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence(blocks.size() + 1);
+    std::vector< std::pair< bool, std::vector< bool > > > blockExists(blocks.size() + 1, {false, {}});
+
+    // Assigning block gaps
+    for(size_t i = 0; i < blockGaps.blockPosition.size(); i++){
+        sequence[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i]);
+        blockExists[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
+    }
+
+    // Creating blocks
+    int32_t maxBlockId = 0;
+
+    for(size_t i = 0; i < blocks.size(); i++){
+        
+        int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
+        int32_t secondaryBlockId = ((int32_t)blocks[i].secondaryBlockId);
+
+        maxBlockId = std::max(maxBlockId, primaryBlockId);
+
+        for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++){
+            bool endFlag = false;
+            for(size_t k = 0; k < 8; k++){
+                const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+
+                if(nucCode == 0){
+                    endFlag = true;
+                    break;
+                }
+                const char nucleotide = PangenomeMATNew::getNucleotideFromCode(nucCode);
+                
+                if(secondaryBlockId != -1){
+                    sequence[primaryBlockId].second[secondaryBlockId].push_back({nucleotide, {}});
+                } else {
+                    sequence[primaryBlockId].first.push_back({nucleotide, {}});
+                }
+            }
+
+            if(endFlag){
+                break;
+            }
+        }
+
+        // End character to incorporate for gaps at the end
+        if(secondaryBlockId != -1){
+            sequence[primaryBlockId].second[secondaryBlockId].push_back({'x', {}});
+        } else {
+            sequence[primaryBlockId].first.push_back({'x', {}});
+        }
+    }
+
+    sequence.resize(maxBlockId + 1);
+    blockExists.resize(maxBlockId + 1);
+
+    // Assigning nucleotide gaps
+    for(size_t i = 0; i < gaps.size(); i++){
+        int32_t primaryBId = (gaps[i].primaryBlockId);
+        int32_t secondaryBId = (gaps[i].secondaryBlockId);
+
+        for(size_t j = 0; j < gaps[i].nucPosition.size(); j++){
+            int len = gaps[i].nucGapLength[j];
+            int pos = gaps[i].nucPosition[j];
+
+            if(secondaryBId != -1){
+                sequence[primaryBId].second[secondaryBId][pos].second.resize(len, '-');
+            } else {
+                sequence[primaryBId].first[pos].second.resize(len, '-');
+            }
+        }
+    }
+
+    std::string currentSequence;
+
+    // Creating reference sequence
+    for(auto mutation: root->blockMutation){
+        int32_t primaryBlockId = mutation.primaryBlockId;
+        int32_t secondaryBlockId = mutation.secondaryBlockId;
+        bool type = (mutation.blockMutInfo);
+
+        if(type == 1){
+            if(secondaryBlockId != -1){
+                blockExists[primaryBlockId].second[secondaryBlockId] = true;
+            } else {
+                blockExists[primaryBlockId].first = true;
+            }
+        } else {
+            if(secondaryBlockId != -1){
+                blockExists[primaryBlockId].second[secondaryBlockId] = false;
+            } else {
+                blockExists[primaryBlockId].first = false;
+            }
+        }
+    }
+
+    // Nuc mutations of reference sequence
+    for(size_t i = 0; i < root->nucMutation.size(); i++){
+        int32_t primaryBlockId = root->nucMutation[i].primaryBlockId;
+        int32_t secondaryBlockId = root->nucMutation[i].secondaryBlockId;
+
+        int32_t nucPosition = root->nucMutation[i].nucPosition;
+        int32_t nucGapPosition = root->nucMutation[i].nucGapPosition;
+        uint32_t type = (root->nucMutation[i].mutInfo & 0x7);
+        char newVal = '-';
+
+        if(type < 3){
+            // Either S, I or D
+
+            int len = ((root->nucMutation[i].mutInfo) >> 4);
+
+            if(type == PangenomeMATNew::NucMutationType::NS){
+                if(secondaryBlockId != -1){
+                    if(nucGapPosition != -1){
+                        for(int j = 0; j < len; j++){
+                            newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
+                        }
+                    } else {
+                        for(int j = 0; j < len; j++){
+                            newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
+                        }
+
+                    }
+                } else {
+                    if(nucGapPosition != -1){
+                        for(int j = 0; j < len; j++){
+                            newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
+                        }
+                    } else {
+                        for(int j = 0; j < len; j++){
+                            newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            sequence[primaryBlockId].first[nucPosition+j].first = newVal;
+                        }
+                    }
+                }
+            }
+            else if(type == PangenomeMATNew::NucMutationType::NI){
+                if(secondaryBlockId != -1){
+                    if(nucGapPosition != -1){
+                        for(int j = 0; j < len; j++){
+                            newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
+                        }
+                    } else {
+                        for(int j = 0; j < len; j++){
+                            newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
+                        }
+
+                    }
+                } else {
+                    if(nucGapPosition != -1){
+                        for(int j = 0; j < len; j++){
+                            newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
+                        }
+                    } else {
+                        for(int j = 0; j < len; j++){
+                            newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            sequence[primaryBlockId].first[nucPosition+j].first = newVal;
+                        }
+                    }
+                }
+            }
+            else if(type == PangenomeMATNew::NucMutationType::ND){
+                if(secondaryBlockId != -1){
+                    if(nucGapPosition != -1){
+                        for(int j = 0; j < len; j++){
+                            sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = '-';
+                        }
+                    } else {
+                        for(int j = 0; j < len; j++){
+                            sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = '-';
+                        }
+
+                    }
+                } else {
+                    if(nucGapPosition != -1){
+                        for(int j = 0; j < len; j++){
+                            sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = '-';
+                        }
+                    } else {
+                        for(int j = 0; j < len; j++){
+                            sequence[primaryBlockId].first[nucPosition+j].first = '-';
+                        }
+                    }
+                }
+            }
+        } 
+        else {
+            if(type == PangenomeMATNew::NucMutationType::NSNPS){
+                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
+                if(secondaryBlockId != -1){
+                    if(nucGapPosition != -1){
+                        sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newVal;
+                    } else {
+                        sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first = newVal;
+                    }
+                } else {
+                    if(nucGapPosition != -1){
+                        sequence[primaryBlockId].first[nucPosition].second[nucGapPosition] = newVal;
+                    } else {
+                        sequence[primaryBlockId].first[nucPosition].first = newVal;
+                    }
+                }
+            }
+            else if(type == PangenomeMATNew::NucMutationType::NSNPI){
+                newVal = PangenomeMATNew::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
+                if(secondaryBlockId != -1){
+                    if(nucGapPosition != -1){
+                        sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newVal;
+                    } else {
+                        sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first = newVal;
+                    }
+                } else {
+                    if(nucGapPosition != -1){
+                        sequence[primaryBlockId].first[nucPosition].second[nucGapPosition] = newVal;
+                    } else {
+                        sequence[primaryBlockId].first[nucPosition].first = newVal;
+                    }
+                }
+            }
+            else if(type == PangenomeMATNew::NucMutationType::NSNPD){
+                if(secondaryBlockId != -1){
+                    if(nucGapPosition != -1){
+                        sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = '-';
+                    } else {
+                        sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first = '-';
+                    }
+                } else {
+                    if(nucGapPosition != -1){
+                        sequence[primaryBlockId].first[nucPosition].second[nucGapPosition] = '-';
+                    } else {
+                        sequence[primaryBlockId].first[nucPosition].first = '-';
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+    return nullptr;
+
+}
+
 std::string PangenomeMATNew::Tree::getSequenceFromVCF(std::string sequenceId, std::ifstream& fin){
     std::string line;
 
@@ -2065,6 +2326,7 @@ std::string PangenomeMATNew::Tree::getSequenceFromVCF(std::string sequenceId, st
     for(auto u: referenceSequence){
         alteredSequence.push_back({u, {}});
     }
+    alteredSequence.push_back({'-', {}});
 
     while(getline(fin, line)){
         std::vector< std::string > words;
@@ -2138,7 +2400,8 @@ std::string PangenomeMATNew::Tree::getSequenceFromVCF(std::string sequenceId, st
 
         if(alt != "."){
             if(alt.length() && alteredSequence[position].second.size()){
-                std::cout << "alternate sequence already exists!" << std::endl;
+                std::cout << "Error: alternate sequence already exists at position " << position <<"!" << std::endl;
+                std::cout << sequenceId << " " << referenceSequenceId << std::endl;
             }
             for(size_t i = 0; i < alt.length(); i++){
                 alteredSequence[position].second.push_back(alt[i]);
@@ -2322,7 +2585,7 @@ void PangenomeMATNew::Tree::printVCFParallel(std::string reference, std::ofstrea
 
     std::string referenceSequence = getStringFromReference(reference);
 
-    if(referenceSequence == "No such leaf node found."){
+    if(referenceSequence == "Error: Reference sequence with matching name not found!"){
         std::cerr << referenceSequence << std::endl;
         return;
     }
@@ -2386,16 +2649,27 @@ void PangenomeMATNew::Tree::printVCFParallel(std::string reference, std::ofstrea
                         //     currentRefString += referenceSequence[i];
                         //     currentAltString += altSequence[i];
                         // }
+                        if(currentRefString == ""){
+                            currentRefString += referenceSequence[i];
+                            currentAltString += altSequence[i];
+                            diffStart = currentCoordinate;
+                            vcfMapMutex.lock();
+                            vcfMap[diffStart][currentRefString][currentAltString].push_back(n.first);
+                            vcfMapMutex.unlock();
+                            diffStart = currentCoordinate+1;
+                            currentRefString = "";
+                            currentAltString = "";
+                        } else {
+                            vcfMapMutex.lock();
+                            vcfMap[diffStart][currentRefString][currentAltString].push_back(n.first);
+                            vcfMapMutex.unlock();
 
-                        vcfMapMutex.lock();
-                        vcfMap[diffStart][currentRefString][currentAltString].push_back(n.first);
-                        vcfMapMutex.unlock();
-
-                        // Reset
-                        diffStart = currentCoordinate;
-                        currentRefString = "";
-                        // currentRefString += referenceSequence[i];
-                        currentAltString = currentRefString;
+                            // Reset
+                            diffStart = currentCoordinate;
+                            currentRefString = "";
+                            currentRefString += referenceSequence[i];
+                            currentAltString = currentRefString;
+                        }
                     }
                 }
 
@@ -2441,7 +2715,7 @@ void PangenomeMATNew::Tree::printVCFParallel(std::string reference, std::ofstrea
     for(auto u: vcfMap){
         for(auto v: u.second){
             if(v.first == ""){
-                std::cout << "Warning: Reference sequence has a blank at position " << u.first << " in VCF file.\n";
+                // std::cout << "Warning: Reference sequence has a blank at position " << u.first << " in VCF file.\n";
                 fout << std::left << std::setw(20) << ". " << std::setw(20) << u.first << " " << std::setw(20) << recordID++ << " " << std::setw(20) << ". ";
             } else {
                 fout << std::left << std::setw(20) << ". " << std::setw(20) << u.first << " " << std::setw(20) << recordID++ << " " << std::setw(20) << v.first << " ";

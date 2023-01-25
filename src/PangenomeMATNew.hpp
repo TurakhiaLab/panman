@@ -8,6 +8,7 @@
 #include <queue>
 #include <atomic>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
+#include "AuxilaryMAT.hpp"
 
 #define PMAT_VERSION "1.0-beta"
 #define VCF_VERSION "4.2"
@@ -185,6 +186,7 @@ namespace PangenomeMATNew {
             bool debugSimilarity(const std::vector< NucMut > array1, const std::vector< NucMut > array2);
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
             void getNodesPreorder(PangenomeMATNew::Node* root, MATNew::tree& treeToWrite);
+            // AuxilaryMAT::Node* convertToAuxMatHelper();
 
             std::vector< Node* > allLeaves;
 
@@ -207,12 +209,13 @@ namespace PangenomeMATNew {
             void vcfToFASTA(std::ifstream& fin, std::ofstream& fout);
             void annotate(std::ifstream& fin);
             std::vector< std::string > searchByAnnotation(std::string annotation);
-            
+            AuxilaryMAT::Tree* convertToAuxMat();
+
+
             Node *root;
             std::vector< Block > blocks;
             std::vector< GapList > gaps;
             BlockGapList blockGaps;
-
 
     };
 
