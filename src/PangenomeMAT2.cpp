@@ -2497,8 +2497,6 @@ std::string PangenomeMAT2::Tree::getSequenceFromVCF(std::string sequenceId, std:
 
     int sequenceIndex = -1;
 
-    // std::cout << columnWords[9] << " " << (sequenceId == "ON650467.1") << sequenceId << " " << sequenceId.length() << std::endl;
-
     for(size_t i = 9; i < columnWords.size(); i++){
         if(columnWords[i] == sequenceId){
             sequenceIndex = i;
@@ -2579,7 +2577,7 @@ std::string PangenomeMAT2::Tree::getSequenceFromVCF(std::string sequenceId, std:
 
         if(alt != "."){
             if(alt.length() && alteredSequence[position].second.size()){
-                std::cout << "Error: alternate sequence already exists at position " << position <<"!" << std::endl;
+                std::cout << "VCF Error: alternate sequence already exists at position " << position <<"!" << std::endl;
                 std::cout << sequenceId << " " << referenceSequenceId << std::endl;
             }
             for(size_t i = 0; i < alt.length(); i++){
