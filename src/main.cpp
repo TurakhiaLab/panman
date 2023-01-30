@@ -8,7 +8,7 @@
 #include <fstream>
 
 #ifdef MAT_V2
-#include "PangenomeMAT2.hpp"
+#include "PangenomeMATV2.hpp"
 #else
 #include "PangenomeMAT.hpp"
 #endif
