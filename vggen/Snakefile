@@ -64,3 +64,33 @@ rule vg:
         '''
 	./vg/vg convert -p {input[1]} -v > {output}
         '''
+
+rule pangraph:
+    output:
+        "output/{dataset}_{seqcount}.json"
+
+    input:
+        "output/{dataset}_{seqcount}.fa"
+
+    shell:
+        '''
+        wget https://github.com/neherlab/pangraph/archive/refs/tags/0.6.2.zip
+        unzip 0.6.2.zip
+        cd pangraph-0.6.2/
+        export jc="$PWD/pangraph/bin/julia" make pangraph && make install
+        cd ../
+        ./pangraph-0.6.2/pangraph/bin/pangraph build {input[0]} > {output}
+        '''
+
+rule mat:
+    output:
+        "output/{dataset}_{seqcount}.mat"
+
+    input:
+        "output/{dataset}_{seqcount}.json"
+        "output/{dataset}_{seqcount}.nwk"
+    
+    shell:
+        '''
+        python3 mat_gen.py {input[0]} {input[1]} {output}
+        '''
