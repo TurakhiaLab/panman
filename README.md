@@ -18,7 +18,7 @@ cd build
 ```
 
 ## MAT Summary (Example)
-
+Prints tree summary to console
 ```
 > summary
 Total Nodes in Tree: 187
@@ -36,35 +36,47 @@ Summary creation time: 57906170
 ```
 
 ## MAT Writer
-Writes MAT to protobuf format in the `build/pmat` directory
+Writes MAT in protobuf format in the `build/pmat` directory. All new annotations are saved.
 ```
-> write <filename>
+> write <output_filename>
 ```
 
 ## Newick
-Prints newick string of tree
+Prints newick string of tree to console
 ```
 > newick
 ```
 
-## Subtree Extract (Protobuf)
-Extracts consolidated version of subtree containing given nodes and writes it to `build/pmat` directory in protobuf format. Supports reading identifier list from file.
+## Subtree Extract
+Extracts consolidated version of subtree containing given nodes and either writes it to `build/pmat` directory in protobuf format or to `build/newick` in newick format. Supports reading identifier list from file.
 ```
-> subtree --input=<input_file_name> <filename>
-> subtree <filename> <node identifier 1> <node identifier 2> <node identifier 3> ...
-```
-
-## Subtree Extract (Newick)
-Extracts consolidated version of subtree containing given nodes and writes its newick string to `build/pmat` directory. Supports reading identifier list from file.
-```
-> subtree-newick --input=<input_file_name> <filename>
-> subtree-newick <filename> <node identifier 1> <node identifier 2> <node identifier 3> ...
+> subtree [--newick] <output_filename> --input-file=<input_file_name>
+> subtree [--newick] <output_filename> --node-ids<node identifier 1> <node identifier 2> <node identifier 3> ...
 ```
 
-## FASTA Writer (In development)
-Extracts sequences from the tree and writes them in FASTA format in the `build/fasta` directory. Currently doesn't incorporate non-SNP indels.
+## FASTA Writer
+Extracts sequences from the tree and writes them in FASTA format in the `build/fasta` directory.
 ```
-> fasta [--aligned] <filename>
+> fasta [--aligned] [--parallel] <output_filename>
+```
+
+## VCF Extract
+Creates VCF file containing all sequences in the tree with a given reference sequence.
+```
+> vcf <output_filename> --reference=<reference_sequence_ID>
+```
+
+## Annotate
+Applies annotations to nodes according to given file. The file should be a comma separated text file with the first column representing the node IDs and the other columns being the annotations to be applied to those node IDs.
+
+```
+annotate <input_filename>
+```
+
+## Search
+Prints all nodes with provided annotations to console
+```
+search <keyword_1> <keyword_2> ...
 ```
 
 
