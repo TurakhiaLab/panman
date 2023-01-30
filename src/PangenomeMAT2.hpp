@@ -13,7 +13,7 @@
 #define PMAT_VERSION "1.0-beta"
 #define VCF_VERSION "4.2"
 
-namespace PangenomeMATNew {
+namespace PangenomeMAT2 {
 
     char getNucleotideFromCode(int code);
     void printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
@@ -60,14 +60,14 @@ namespace PangenomeMATNew {
             mutInfo = ((end - start) << 4);
             // type
             switch(std::get<4>(mutationArray[start])){
-                case PangenomeMATNew::NucMutationType::NSNPS:
-                    mutInfo += PangenomeMATNew::NucMutationType::NS;
+                case PangenomeMAT2::NucMutationType::NSNPS:
+                    mutInfo += PangenomeMAT2::NucMutationType::NS;
                     break;
-                case PangenomeMATNew::NucMutationType::NSNPI:
-                    mutInfo += PangenomeMATNew::NucMutationType::NI;
+                case PangenomeMAT2::NucMutationType::NSNPI:
+                    mutInfo += PangenomeMAT2::NucMutationType::NI;
                     break;
-                case PangenomeMATNew::NucMutationType::NSNPD:
-                    mutInfo += PangenomeMATNew::NucMutationType::ND;
+                case PangenomeMAT2::NucMutationType::NSNPD:
+                    mutInfo += PangenomeMAT2::NucMutationType::ND;
                     break;
             }
 
@@ -185,8 +185,8 @@ namespace PangenomeMATNew {
             void mergeNodes(Node* par, Node* chi);
             bool debugSimilarity(const std::vector< NucMut > array1, const std::vector< NucMut > array2);
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
-            void getNodesPreorder(PangenomeMATNew::Node* root, MATNew::tree& treeToWrite);
-            AuxilaryMAT::Node* convertToAuxMatHelper(PangenomeMATNew::Node* currentNode, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
+            void getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tree& treeToWrite);
+            AuxilaryMAT::Node* convertToAuxMatHelper(PangenomeMAT2::Node* currentNode, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
                 std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > >& coordinates,\
                 std::vector< std::pair< bool, std::vector< bool > > >& blockExists
             );
@@ -201,11 +201,12 @@ namespace PangenomeMATNew {
             Tree(std::ifstream& fin);
             void printSummary();
             void printBfs(Node* node = nullptr);
-            void printFASTA(std::ofstream& fout, bool aligned = false, int parallelism = 0);
+            void printFASTA(std::ofstream& fout, bool aligned = false);
+            void printFASTAParallel(std::ofstream& fout, bool aligned = false);
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
             void writeToFile(std::ofstream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
-            std::string getStringFromReference(std::string reference);
+            std::string getStringFromReference(std::string reference, bool aligned = true);
             void printVCFParallel(std::string reference, std::ofstream& fout);
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
             bool verifyVCFFile(std::ifstream& fin);
@@ -221,54 +222,6 @@ namespace PangenomeMATNew {
             BlockGapList blockGaps;
 
     };
-
-    // class Tree {
-    // private:
-    //     size_t m_currInternalNode{ 0 };
-    //     size_t m_numLeaves{ 0 };
-    //     size_t m_maxDepth{ 0 };
-    //     float m_meanDepth{ 0 };
-
-    //     Node* createTreeFromNewickString(std::string newick);
-    //     void assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MAT::node >& nodes);
-    //     int getTotalParsimony(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
-    //     int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
-
-    //     std::unordered_map<std::string, Node*> allNodes;
-    //     std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
-
-    //     std::vector< Node* > allLeaves; // Probably temporary for testing
-
-    //     std::string newInternalNodeId() {
-    //         return "node_" + std::to_string(++m_currInternalNode);
-    //     }
-
-    // public:
-    //     Tree(std::ifstream& fin);
-    //     void printSummary();
-    //     void printFASTA(std::ofstream& fout, bool aligned = false, int parallelism = 0);
-    //     std::string getStringFromReference(std::string reference);
-    //     void printVCF(std::string reference, std::ofstream& fout);
-    //     void printVCFParallel(std::string reference, std::ofstream& fout);
-        
-    //     std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
-
-    //     Node* subtreeExtract(std::vector< std::string > nodeIds);
-    //     Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
-
-    //     void annotate(std::ifstream& fin);
-    //     std::vector< std::string > searchByAnnotation(std::string annotation);
-
-        // std::string getNewickString(Node* node); // Make private later. Public for testing purposes
-
-    //     void writeToFile(std::ofstream& fout, Node* node = nullptr);
-    //     void printBfs(Node* node = nullptr); // Temporary function. To be removed later;
-    //     void sampleWriteToFile(std::ofstream& fout); // Temporary function. To be removed later;
-
-    //     Node* root;
-    //     GapList gaps;
-    //     std::vector< Block > blocks;
-    // };
 
 };
 
