@@ -9,7 +9,7 @@ namespace AuxilaryMAT {
 
     struct Substitution {
         uint32_t position;
-        char newNuc;
+        char nuc;
     };
 
     struct Node {
@@ -19,13 +19,13 @@ namespace AuxilaryMAT {
     };
 
     struct Tree {
-        std::string consensusSeq;
+        uint32_t consensusSeqLength;
         Node* root;
 
         void printFASTA(std::ofstream& fout);
 
         private:
-        void printFASTAHelper(Node* currentNode, std::ofstream& fout);
+        void printFASTAHelper(Node* currentNode, std::string& sequence, std::ofstream& fout, size_t lineLength=70);
 
     };
 

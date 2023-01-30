@@ -186,7 +186,10 @@ namespace PangenomeMATNew {
             bool debugSimilarity(const std::vector< NucMut > array1, const std::vector< NucMut > array2);
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
             void getNodesPreorder(PangenomeMATNew::Node* root, MATNew::tree& treeToWrite);
-            // AuxilaryMAT::Node* convertToAuxMatHelper();
+            AuxilaryMAT::Node* convertToAuxMatHelper(PangenomeMATNew::Node* currentNode, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
+                std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > >& coordinates,\
+                std::vector< std::pair< bool, std::vector< bool > > >& blockExists
+            );
 
             std::vector< Node* > allLeaves;
 
