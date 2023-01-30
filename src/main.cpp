@@ -100,7 +100,7 @@ void setupOptionDescriptions(){
     // MAT Annotate option descriptions
     annotateDesc.add_options()
         ("help", "produce help message")
-        ("input-file", po::value< std::string >(), "Name of the file containing annotation info")
+        ("input-file", po::value< std::string >()->required(), "Name of the file containing annotation info")
     ;
 
     // Adding input file as positional argument
