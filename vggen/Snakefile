@@ -92,5 +92,5 @@ rule mat:
     
     shell:
         '''
-        python3 mat_gen.py {input[0]} {input[1]} {output}
+        python3 src/mat_gen.py {input[0]} {input[1]} {output}
         '''
