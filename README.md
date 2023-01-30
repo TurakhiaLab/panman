@@ -66,5 +66,18 @@ Creates VCF file containing all sequences in the tree with a given reference seq
 > vcf <output_filename> --reference=<reference_sequence_ID>
 ```
 
+## Annotate
+Applies annotations to nodes according to given file. The file should be a comma separated text file with the first column representing the node IDs and the other columns being the annotations to be applied to those node IDs.
+
+```
+annotate <input_filename>
+```
+
+## Search
+Prints all nodes with provided annotations to console
+```
+search <keyword_1> <keyword_2> ...
+```
+
 
    [Usher]: <https://github.com/yatisht/usher>
