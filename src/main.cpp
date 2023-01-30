@@ -80,7 +80,7 @@ void setupOptionDescriptions(){
         ("newick", po::value< bool >()->default_value(false), "just print newick string")
         ("input-file", po::value< std::string >(), "Input file name if reading node IDs from file")
         ("output-file", po::value< std::string >()->required(), "Output file name")
-        ("node-ids", po::value< std::vector< std::string > >()->multitoken(), "Node IDs to extract")
+        ("node-ids", po::value< std::vector< std::string > >()->multitoken()->required(), "Node IDs to extract")
     ;
 
     // Adding output file as positional argument
