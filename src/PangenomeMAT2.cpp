@@ -2747,18 +2747,20 @@ void PangenomeMAT2::Tree::printVCFParallel(std::string reference, std::ofstream&
     fout << "##fileDate=" << PangenomeMAT2::getDate() << '\n';
     fout << "##source=PanMATv" << PMAT_VERSION << '\n';
     fout << "##reference=" << reference << '\n';
-    fout << std::left << std::setw(20) << "#CHROM " << std::setw(20) << "POS " << std::setw(20) << "ID " << std::setw(20) << "REF " << std::setw(20) << "ALT " << std::setw(20) << "QUAL " << std::setw(20) << "FILTER " << std::setw(20) << "INFO " << std::setw(20) << "FORMAT ";
+    fout << "#CHROM\t" << "POS\t" << "ID\t" << "REF\t" << "ALT\t" << "QUAL\t" << "FILTER\t" << "INFO\t" << "FORMAT\t";
+    
+    // fout << std::left << std::setw(20) << "#CHROM " << std::setw(20) << "POS " << std::setw(20) << "ID " << std::setw(20) << "REF " << std::setw(20) << "ALT " << std::setw(20) << "QUAL " << std::setw(20) << "FILTER " << std::setw(20) << "INFO " << std::setw(20) << "FORMAT ";
     for(auto u: sequenceIds){
-        fout << std::left << std::setw(20) << u.first + " ";
+        fout << u.first + "\t";
     }
     fout << '\n';
 
     for(auto u: vcfMap){
         for(auto v: u.second){
             if(v.first == ""){
-                fout << std::left << std::setw(20) << ". " << std::setw(20) << u.first << " " << std::setw(20) << recordID++ << " " << std::setw(20) << ". ";
+                fout << ".\t" << u.first << "\t" << recordID++ << "\t" << ".\t";
             } else {
-                fout << std::left << std::setw(20) << ". " << std::setw(20) << u.first << " " << std::setw(20) << recordID++ << " " << std::setw(20) << v.first << " ";
+                fout << ".\t" << u.first << "\t" << recordID++ << "\t" << v.first << "\t";
             }
             
             std::map< std::string, size_t > tempSequenceIds = sequenceIds;
@@ -2777,10 +2779,10 @@ void PangenomeMAT2::Tree::printVCFParallel(std::string reference, std::ofstream&
 
             altStrings.pop_back();
 
-            fout << std::left << std::setw(20) << altStrings << " " << std::setw(20) << ". " << std::setw(20) << ". " << std::setw(20) << ". " << std::setw(20) << ". ";
+            fout << altStrings << "\t.\t.\t.\t.\t";
 
             for(auto w: tempSequenceIds){
-                fout << std::left << std::setw(20) << w.second << " ";
+                fout << w.second << "\t";
             }
 
             fout << '\n';
