@@ -11,7 +11,7 @@
 #include <iomanip>
 #include <mutex>
 
-#include "PangenomeMAT2.hpp"
+#include "PangenomeMATV2.hpp"
 
 std::string PangenomeMAT2::getDate(){
     std::time_t t = std::time(0);   // get time now
