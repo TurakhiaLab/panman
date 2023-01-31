@@ -7,3 +7,4 @@
 | sars (1k)    | 2.8 MB | 688 KB |  101 KB   |  47 KB    |
 | sars (4k)    | 28 MB  | 49 MB  |  461 KB   |  164 KB   |
 | sars (16k)   | 251 MB | 383 MB |  3.4 MB   |  592 KB   |
+| HIV (5k)     | 59 MB  | 37 MB  |  13 MB   |     |
