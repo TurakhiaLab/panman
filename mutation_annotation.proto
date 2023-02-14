@@ -7,23 +7,21 @@ message nucMut
     int32 nucPosition = 1; 
     int32 nucGapPosition = 2;  
     bool  nucGapExist = 3;
-    int64 blockId = 4;
-    bool  blockGapExist = 5;
-    uint32 mutInfo = 6; 
+    uint32 mutInfo = 4; 
 }
 
-message blockMut
+message mutation
 {
     int64 blockId = 1;
     bool  blockGapExist = 2;
     bool  blockMutInfo = 3;
+    repeated nucMut nucMutation = 4;
 }
 
 message node 
 {
-    repeated nucMut   nucMutation = 1;
-    repeated blockMut blockMutation = 2;
-    repeated string   annotations = 3;
+    repeated mutation mutations = 1;
+    repeated string   annotations = 2;
 }
 
 
