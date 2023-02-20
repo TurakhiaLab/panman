@@ -37,7 +37,7 @@ if(DEFINED Protobuf_PATH)
 	protobuf_generate(
 		LANGUAGE cpp
 		TARGET panmat-utils 
-		PROTOS mutation_annotation_test_proto3_optional.proto mutation_annotation_test_proto3_optional_new.proto)
+		PROTOS mutation_annotation_test_proto3_optional.proto mutation_annotation_test_proto3_optional_new.proto vg.proto)
 
 	# protobuf_generate(
 	# 	LANGUAGE cpp
@@ -48,7 +48,7 @@ if(DEFINED Protobuf_PATH)
 else()
 	protobuf_generate_cpp(
 		PROTO_SRCS PROTO_HDRS
-		mutation_annotation_test_proto3_optional.proto mutation_annotation_test_proto3_optional_new.proto)
+		mutation_annotation_test_proto3_optional.proto mutation_annotation_test_proto3_optional_new.proto vg.proto)
 	
 	# protobuf_generate_cpp(
 	# 	PROTO_SRCS PROTO_HDRS

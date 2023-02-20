@@ -8,6 +8,7 @@
 #include <queue>
 #include <atomic>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
+#include "vg.pb.h"
 #include "AuxilaryMAT.hpp"
 
 #define PMAT_VERSION "1.0-beta"
@@ -213,6 +214,10 @@ namespace PangenomeMAT2 {
             void vcfToFASTA(std::ifstream& fin, std::ofstream& fout);
             void annotate(std::ifstream& fin);
             std::vector< std::string > searchByAnnotation(std::string annotation);
+            void convertToVG(std::ofstream& fout);
+            void convertToGFA(std::ofstream& fout);
+            void printFASTAFromVG(std::ifstream& fin, std::ofstream& fout);
+            void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
             AuxilaryMAT::Tree* convertToAuxMat();
 
 
