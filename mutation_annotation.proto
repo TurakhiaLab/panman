@@ -16,8 +16,7 @@ message mutation
     bool  blockGapExist = 2;
     bool  blockMutExist = 3;
     bool  blockMutInfo = 4;
-    bool  nucMutExist = 5;
-    repeated nucMut nucMutation = 6;
+    repeated nucMut nucMutation = 5;
 }
 
 message node 
