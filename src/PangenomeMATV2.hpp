@@ -81,15 +81,15 @@ namespace PangenomeMAT2 {
             }
         }
 
-        NucMut(MATNew::nucMut mutation){
+        NucMut(MATNew::nucMut mutation, int64_t blockId, bool blockGapExist){
             nucPosition = mutation.nucposition();
-            primaryBlockId = (mutation.blockid() >> 32);
+            primaryBlockId = (blockId >> 32);
             mutInfo = (mutation.mutinfo() & 0xFF);
             nucs = (mutation.mutinfo() >> 8);
             nucs = ((nucs) << (24 - (mutInfo >> 4)*4));
 
-            if(mutation.blockgapexist()){
-                secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
+            if(blockGapExist){
+                secondaryBlockId = (blockId & 0xFFFFFFFF);
             } else {
                 secondaryBlockId = -1;
             }
@@ -111,7 +111,7 @@ namespace PangenomeMAT2 {
 
     struct BlockMut {
 
-        void loadFromProtobuf(MATNew::blockMut mutation){
+        void loadFromProtobuf(MATNew::mutation mutation){
             primaryBlockId = (mutation.blockid() >> 32);
             if(mutation.blockgapexist()){
                 secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);

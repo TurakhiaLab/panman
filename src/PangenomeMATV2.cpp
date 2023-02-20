@@ -188,15 +188,21 @@ PangenomeMAT2::Node* PangenomeMAT2::Tree::createTreeFromNewickString(std::string
 void PangenomeMAT2::Tree::assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MATNew::node >& nodes){
     std::vector< PangenomeMAT2::NucMut > storedNucMutation;
 
-    for(int i = 0; i < nodes[currentIndex].nucmutation_size(); i++){
-        storedNucMutation.push_back( PangenomeMAT2::NucMut(nodes[currentIndex].nucmutation(i)) );
+    for(int i = 0; i < nodes[currentIndex].mutations_size(); i++){
+        if(nodes[currentIndex].mutations(i).mutationtype() == false){
+            for(auto nucMut: nodes[currentIndex].mutations(i).nucmutation()){
+                storedNucMutation.push_back( PangenomeMAT2::NucMut(nucMut, nodes[currentIndex].mutations(i).blockid(), nodes[currentIndex].mutations(i).blockgapexist()) );
+            }
+        }
     }
 
     std::vector< PangenomeMAT2::BlockMut > storedBlockMutation;
-    for(int i = 0; i < nodes[currentIndex].blockmutation_size(); i++){
+    for(int i = 0; i < nodes[currentIndex].mutations_size(); i++){
         PangenomeMAT2::BlockMut tempBlockMut;
-        tempBlockMut.loadFromProtobuf(nodes[currentIndex].blockmutation(i));
-        storedBlockMutation.push_back(tempBlockMut);
+        if(nodes[currentIndex].mutations(i).mutationtype()){
+            tempBlockMut.loadFromProtobuf(nodes[currentIndex].mutations(i));
+            storedBlockMutation.push_back(tempBlockMut);
+        }
     }
 
     for(int i = 0; i < nodes[currentIndex].annotations_size(); i++){
@@ -1449,6 +1455,7 @@ PangenomeMAT2::Node* PangenomeMAT2::Tree::subtreeExtractParallel(std::vector< st
 void PangenomeMAT2::Tree::getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tree& treeToWrite){
     
     MATNew::node n;
+    std::map< std::pair< int32_t, int32_t >, std::vector< MATNew::nucMut > > blockToNucMutations;
 
     for(size_t i = 0; i < root->nucMutation.size(); i++){
         const PangenomeMAT2::NucMut& mutation = root->nucMutation[i];
@@ -1461,23 +1468,37 @@ void PangenomeMAT2::Tree::getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tr
         } else {
             nm.set_nucgapexist(false);
         }
-        if(mutation.secondaryBlockId != -1){
-            nm.set_blockid(((int64_t)mutation.primaryBlockId << 32) + mutation.secondaryBlockId);
-            nm.set_blockgapexist(true);
-        } else {
-            nm.set_blockid(((int64_t)mutation.primaryBlockId << 32));
-            nm.set_blockgapexist(false);
-        }
-        nm.set_mutinfo((((mutation.nucs) >> (24 - (mutation.mutInfo >> 4)*4)) << 8) + mutation.mutInfo);
 
-        n.add_nucmutation();
-        *n.mutable_nucmutation(i) = nm;
+        nm.set_mutinfo((((mutation.nucs) >> (24 - (mutation.mutInfo >> 4)*4)) << 8) + mutation.mutInfo);
+        blockToNucMutations[std::make_pair(mutation.primaryBlockId, mutation.secondaryBlockId)].push_back(nm);
+    }
+
+    for(auto u: blockToNucMutations){
+        MATNew::mutation mutation;
+        mutation.set_mutationtype(false);
+        int32_t primaryBlockId = u.first.first;
+        int32_t secondaryBlockId = u.first.second;
+        if(secondaryBlockId != -1){
+            mutation.set_blockid(((int64_t)primaryBlockId << 32) + secondaryBlockId);
+            mutation.set_blockgapexist(true);
+        } else {
+            mutation.set_blockid(((int64_t)primaryBlockId << 32));
+            mutation.set_blockgapexist(false);
+        }
+        for(auto v: u.second){
+            mutation.add_nucmutation();
+            *mutation.mutable_nucmutation(mutation.nucmutation_size() - 1) = v;
+        }
+        n.add_mutations();
+        *n.mutable_mutations(n.mutations_size() - 1) = mutation;
     }
 
     for(size_t i = 0; i < root->blockMutation.size(); i++){
         const PangenomeMAT2::BlockMut& mutation = root->blockMutation[i];
 
-        MATNew::blockMut bm;
+        MATNew::mutation bm;
+        bm.set_mutationtype(true);
+
         if(mutation.secondaryBlockId != -1){
             bm.set_blockid(((int64_t)mutation.primaryBlockId << 32) + mutation.secondaryBlockId);
             bm.set_blockgapexist(true);
@@ -1487,8 +1508,8 @@ void PangenomeMAT2::Tree::getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tr
         }
         bm.set_blockmutinfo(mutation.blockMutInfo);
 
-        n.add_blockmutation();
-        *n.mutable_blockmutation(i) = bm;
+        n.add_mutations();
+        *n.mutable_mutations(i) = bm;
     }
 
     for(size_t i = 0; i < root->annotations.size(); i++){
