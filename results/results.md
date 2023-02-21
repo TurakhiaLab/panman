@@ -8,3 +8,4 @@
 | sars (4k)    | 28 MB  | 49 MB  |  461 KB   |  164 KB   |
 | sars (16k)   | 251 MB | 383 MB |  3.4 MB   |  592 KB   |
 | HIV (5k)     | 59 MB  | 37 MB  |  13 MB    |  7 MB     |
+| RSV (4k)     | 9.6 MB | 6.6 MB |  12 MB    |  1.1 MB	 |
