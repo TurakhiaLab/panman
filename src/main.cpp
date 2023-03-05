@@ -4,6 +4,7 @@
 #include <chrono>
 #include <filesystem>
 #include <boost/program_options.hpp>
+#include <json/json.h>
 
 #include <fstream>
 // #include <vg>
@@ -56,7 +57,10 @@ void setupOptionDescriptions(){
     // Global option descriptions
     globalDesc.add_options()
         ("help", "produce help message")
-        ("input-file,I", po::value< std::string >(), "pmat file path")
+        ("input-file,I", po::value< std::string >(), "PanMAT input file path")
+        ("gfa-in", po::value< std::string >(), "create PanMAT from GFA file")
+        ("pangraph-in", po::value< std::string >(), "create PanMAT from Pangraph file")
+        ("newick-in", po::value< std::string >(), "Input file path for file containing newick string")
     ;
 
     // Adding input file as positional argument
@@ -191,6 +195,61 @@ void updatedParser(int argc, char* argv[]){
         std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
 
         inputStream.close();
+    } else if(globalVm.count("gfa-in")){
+        std::string fileName = globalVm["gfa-in"].as< std::string >();
+        if(!globalVm.count("newick-in")){
+            printError("File containing newick string not provided!");
+            return;
+        }
+        std::string newickFileName = globalVm["newick-in"].as< std::string >();
+
+        std::cout << "Creating PanMAT from GFA" << std::endl;
+
+        std::ifstream inputStream(fileName);
+        std::ifstream newickInputStream(newickFileName);
+
+        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+
+        T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::GFA);
+
+        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
+        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+
+        newickInputStream.close();
+        inputStream.close();
+
+    } else if(globalVm.count("pangraph-in")){
+        std::string fileName = globalVm["pangraph-in"].as< std::string >();
+        if(!globalVm.count("newick-in")){
+            printError("File containing newick string not provided!");
+            return;
+        }
+        std::string newickFileName = globalVm["newick-in"].as< std::string >();
+
+        std::cout << "Creating PanMAT from Pangraph" << std::endl;
+
+        std::ifstream inputStream(fileName);
+        std::ifstream newickInputStream(newickFileName);
+
+        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+
+        Json::Value pangraph;
+        inputStream >> pangraph;
+        Json::Value paths = pangraph["paths"];
+        for(size_t i = 0; i < paths.size(); i++){
+            Json::Value path = paths[(int)i];
+            std::cout << path["name"].asString() << std::endl;
+        }
+        // T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::GFA);
+
+        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
+        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+
+        newickInputStream.close();
+        inputStream.close();
+
     } else {
         printError("Incorrect Format");
         // std::cout << "\033[1;31m" << "Error: " << "\033[0m" << "Incorrect Format\n";

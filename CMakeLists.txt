@@ -21,8 +21,11 @@ FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
+include("/home/AD.UCSD.EDU/hmotwani/vcpkg/scripts/buildsystems/vcpkg.cmake")
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
 find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
+find_package(jsoncpp CONFIG REQUIRED)
+# target_link_libraries(main PRIVATE JsonCpp::JsonCpp)
 
 #find_package(ZLIB)
 
@@ -63,5 +66,5 @@ else()
 endif()
 
 TARGET_COMPILE_OPTIONS(panmat-utils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
-TARGET_LINK_LIBRARIES(panmat-utils PRIVATE stdc++  ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ZLIB::ZLIB) # OpenMP::OpenMP_CXX)
+TARGET_LINK_LIBRARIES(panmat-utils PRIVATE stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ZLIB::ZLIB) # OpenMP::OpenMP_CXX)
 target_include_directories(panmat-utils PUBLIC "${PROJECT_BINARY_DIR}")

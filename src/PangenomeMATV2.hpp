@@ -11,18 +11,24 @@
 #include "vg.pb.h"
 #include "AuxilaryMAT.hpp"
 
-#define PMAT_VERSION "1.0-beta"
+#define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
 
 namespace PangenomeMAT2 {
 
     char getNucleotideFromCode(int code);
+    char getCodeFromNucleotide(char nuc);
     void printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
         const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, size_t lineSize, bool aligned, std::ofstream& fout);
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
     std::string stripGaps(std::string sequenceString);
     std::string getDate();
     std::string stripString(std::string s);
+
+    enum FILE_TYPE {
+        PANMAT = 0,
+        GFA = 1
+    };
 
     enum NucMutationType {
         NS = 0,
@@ -121,6 +127,15 @@ namespace PangenomeMAT2 {
             blockMutInfo = mutation.blockmutinfo();
         }
 
+        BlockMut(size_t blockId, bool type){
+            primaryBlockId = blockId;
+            secondaryBlockId = -1;
+            blockMutInfo = type;
+        }
+        BlockMut(){
+            
+        }
+
         int32_t primaryBlockId;
         int32_t secondaryBlockId;
         bool  blockMutInfo;
@@ -128,6 +143,7 @@ namespace PangenomeMAT2 {
 
     struct Block {
         Block(MATNew::block b);
+        Block(size_t blockId, std::string seq);
 
         int32_t primaryBlockId;
         int32_t secondaryBlockId;
@@ -168,6 +184,37 @@ namespace PangenomeMAT2 {
         std::vector< std::string > annotations;
     };
 
+    class Pangraph{
+    public:
+        std::unordered_map< std::string, std::vector< std::string > > paths;
+    };
+
+    class GFAGraph {
+    private:
+        bool checkForCyclesHelper(size_t nodeId, std::vector< int >& color);
+        void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited);
+    public:
+        size_t numNodes;
+        // Graph adjacency list
+        std::vector< std::vector< size_t > > adj;
+
+        // Names of the sequences
+        std::vector< std::string > pathIds;
+
+        // The sequences themselves where each node has an integer ID
+        std::vector< std::vector< size_t > > intSequences;
+
+        // Raw sequence corresponding to each node
+        std::vector< std::string > intNodeToSequence;
+
+        GFAGraph(const std::vector< std::string >& pathNames, const std::vector< std::vector< std::string > >& sequences, std::map< std::string, std::string >& nodes);
+
+        bool pathExists(size_t nId1, size_t nId2, std::vector< bool >& visited);
+        bool checkForCycles();
+        std::vector< size_t > getTopologicalSort();
+        std::vector< std::vector< int64_t > > getAlignedSequences(const std::vector< size_t >& topoArray);
+    };
+
     class Tree {
         private:
             size_t m_currInternalNode{ 0 };
@@ -199,7 +246,12 @@ namespace PangenomeMAT2 {
             }
 
         public:
-            Tree(std::ifstream& fin);
+            Tree(std::ifstream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
+            Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
+            int blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
+            void blockFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState);
+            void blockFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, bool >& mutations, int parentState);
+
             void printSummary();
             void printBfs(Node* node = nullptr);
             void printFASTA(std::ofstream& fout, bool aligned = false);
@@ -218,6 +270,7 @@ namespace PangenomeMAT2 {
             void convertToGFA(std::ofstream& fout);
             void printFASTAFromVG(std::ifstream& fin, std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
+
             AuxilaryMAT::Tree* convertToAuxMat();
 
 
