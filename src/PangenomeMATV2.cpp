@@ -676,6 +676,10 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
             nodeMutexes[u.first].unlock();
         });
     } else if(ftype == PangenomeMAT2::FILE_TYPE::MSA){
+        std::string newickString;
+        secondFin >> newickString;
+        root = createTreeFromNewickString(newickString);
+
         std::map< std::string, std::string > sequenceIdsToSequences;
         std::string line;
         std::string currentSequence, currentSequenceId;
@@ -736,7 +740,9 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
             }
             u.second = sequenceString;
         }
+        // std::cout << consensusSeq.length() << std::endl;
         blocks.emplace_back(0, consensusSeq);
+        root->blockMutation.emplace_back(0, true);
 
         tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
         std::unordered_map< std::string, std::mutex > nodeMutexes;
@@ -963,17 +969,17 @@ void PangenomeMAT2::printSequenceLines(const std::vector< std::pair< std::vector
                             line = "";
                         }
                     }
-                    if(sequence[i].second[j][k].first != 'x'){
-                        if(sequence[i].second[j][k].first != '-'){
-                            line += sequence[i].second[j][k].first;
-                        } else if(aligned){
-                            line += '-';
-                        }
-                        if(line.length() == lineSize){
-                            fout << line << '\n';
-                            line = "";
-                        }
+
+                    if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x'){
+                        line += sequence[i].second[j][k].first;
+                    } else if(aligned){
+                        line += '-';
                     }
+                    if(line.length() == lineSize){
+                        fout << line << '\n';
+                        line = "";
+                    }
+
                 }
             } else if(aligned) {
                 for(size_t k = 0; k < sequence[i].second[j].size(); k++){
@@ -984,13 +990,13 @@ void PangenomeMAT2::printSequenceLines(const std::vector< std::pair< std::vector
                             line = "";
                         }
                     }
-                    if(sequence[i].second[j][k].first != 'x'){
-                        line += '-';
-                        if(line.length() == lineSize){
-                            fout << line << '\n';
-                            line = "";
-                        }
+
+                    line += '-';
+                    if(line.length() == lineSize){
+                        fout << line << '\n';
+                        line = "";
                     }
+
                 }
             }
         }
@@ -1008,16 +1014,30 @@ void PangenomeMAT2::printSequenceLines(const std::vector< std::pair< std::vector
                         line = "";
                     }
                 }
-                if(sequence[i].first[j].first != 'x'){
-                    if(sequence[i].first[j].first != '-'){
-                        line += sequence[i].first[j].first;
-                    } else if(aligned){
-                        line += '-';
-                    }
+
+                if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
+                    line += sequence[i].first[j].first;
+                } else if(aligned){
+                    line += '-';
+                }
+                if(line.length() == lineSize){
+                    fout << line << '\n';
+                    line = "";
+                }
+            }
+        } else if(aligned) {
+            for(size_t j = 0; j < sequence[i].first.size(); j++){
+                for(size_t k = 0; k < sequence[i].first[j].second.size(); k++){
+                    line+='-';
                     if(line.length() == lineSize){
                         fout << line << '\n';
                         line = "";
                     }
+                }
+                line+='-';
+                if(line.length() == lineSize){
+                    fout << line << '\n';
+                    line = "";
                 }
             }
         }
@@ -3680,19 +3700,27 @@ void PangenomeMAT2::Tree::convertToGFA(std::ofstream& fout){
         paths[p.first] = newPath;
     }
 
+    // convert node IDs to consecutive node IDs after path compression
+    int currentID = 0;
+    std::map< size_t, size_t > oldToNew;
+    for(auto u: finalNodes){
+        oldToNew[u.first] = currentID;
+        currentID++;
+    }
+
     fout << "H\tVN:Z:1.1\n";
     for(auto u: finalNodes){
-        fout << "S\t" << u.first << "\t" << u.second << "\n";
+        fout << "S\t" << oldToNew[u.first] << "\t" << u.second << "\n";
     }
 
     for(auto u: edges){
-        fout << "L\t" << u.first << "\t+\t" << u.second << "\t+\t0M\n";
+        fout << "L\t" << oldToNew[u.first] << "\t+\t" << oldToNew[u.second] << "\t+\t0M\n";
     }
 
     for(auto u: paths){
         fout << "P\t" << u.first << "\t";
         for(size_t i = 0; i < u.second.size(); i++){
-            fout << u.second[i] << "+";
+            fout << oldToNew[u.second[i]] << "+";
             if(i != u.second.size() - 1){
                 fout << ",";
             }
