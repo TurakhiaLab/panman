@@ -234,14 +234,14 @@ void updatedParser(int argc, char* argv[]){
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        Json::Value pangraph;
-        inputStream >> pangraph;
-        Json::Value paths = pangraph["paths"];
-        for(size_t i = 0; i < paths.size(); i++){
-            Json::Value path = paths[(int)i];
-            std::cout << path["name"].asString() << std::endl;
-        }
-        // T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::GFA);
+        // Json::Value pangraph;
+        // inputStream >> pangraph;
+        // Json::Value paths = pangraph["paths"];
+        // for(size_t i = 0; i < paths.size(); i++){
+        //     Json::Value path = paths[(int)i];
+        //     std::cout << path["name"].asString() << std::endl;
+        // }
+        T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::PANGRAPH);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;

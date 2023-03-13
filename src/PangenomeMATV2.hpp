@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <queue>
 #include <atomic>
+#include <tbb/concurrent_unordered_map.h>
+#include <json/json.h>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
 #include "vg.pb.h"
 #include "AuxilaryMAT.hpp"
@@ -27,7 +29,8 @@ namespace PangenomeMAT2 {
 
     enum FILE_TYPE {
         PANMAT = 0,
-        GFA = 1
+        GFA = 1,
+        PANGRAPH=2
     };
 
     enum NucMutationType {
@@ -74,6 +77,15 @@ namespace PangenomeMAT2 {
                     mutInfo += PangenomeMAT2::NucMutationType::NI;
                     break;
                 case PangenomeMAT2::NucMutationType::NSNPD:
+                    mutInfo += PangenomeMAT2::NucMutationType::ND;
+                    break;
+                case PangenomeMAT2::NucMutationType::NS:
+                    mutInfo += PangenomeMAT2::NucMutationType::NS;
+                    break;
+                case PangenomeMAT2::NucMutationType::NI:
+                    mutInfo += PangenomeMAT2::NucMutationType::NI;
+                    break;
+                case PangenomeMAT2::NucMutationType::ND:
                     mutInfo += PangenomeMAT2::NucMutationType::ND;
                     break;
             }
@@ -185,8 +197,33 @@ namespace PangenomeMAT2 {
     };
 
     class Pangraph{
+    private:
+        bool checkForCyclesHelper(size_t nodeId, std::vector< int >& color);
+        void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited);
     public:
+        // Graph adjacency list
+        size_t numNodes;
+        std::vector< std::vector< size_t > > adj;
+        std::unordered_map< std::string, std::vector< size_t > > intSequences;
+
         std::unordered_map< std::string, std::vector< std::string > > paths;
+        std::unordered_map< std::string, std::string > stringIdToConsensusSeq;
+        std::unordered_map< std::string, std::vector< std::pair< size_t, size_t > > > stringIdToGaps;
+        std::unordered_map< size_t, std::string > intIdToStringId;
+        
+        // substitutions
+        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t , std::vector< std::pair< size_t, std::string > > > > > substitutions;
+        // insertions
+        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t , std::vector< std::tuple< size_t, size_t, std::string > > > > > insertions;
+        // deletions
+        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t , std::vector< std::pair< size_t, size_t > > > > > deletions;
+
+        Pangraph(Json::Value& pangraphData);
+        bool pathExists(size_t nId1, size_t nId2, std::vector< bool >& visited);
+        std::vector< size_t > getTopologicalSort();
+        std::unordered_map< std::string,std::vector< int > > getAlignedSequences(const std::vector< size_t >& topoArray);
+
+        bool checkForCycles();
     };
 
     class GFAGraph {
@@ -248,6 +285,11 @@ namespace PangenomeMAT2 {
         public:
             Tree(std::ifstream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
             Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
+
+            int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
+            void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState);
+            void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > >& mutations, int parentState);
+
             int blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
             void blockFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState);
             void blockFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, bool >& mutations, int parentState);

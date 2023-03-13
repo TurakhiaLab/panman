@@ -259,6 +259,91 @@ std::string generateRandomNewickString(std::vector< std::string > sequenceIds){
     return sequenceIds[0];
 }
 
+int PangenomeMAT2::Tree::nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states){
+    if(node->children.size() == 0){
+        if(states.find(node->identifier) == states.end()){
+            return states[node->identifier] = 0;
+        }
+        return states[node->identifier];
+    }
+    std::vector< int > childStates;
+    for(auto child: node->children){
+        childStates.push_back(nucFitchForwardPass(child, states));
+    }
+    int orStates = 0, andStates = childStates[0];
+    for(auto u: childStates){
+        orStates |= u;
+        andStates &= u;
+    }
+    if(andStates){
+        return states[node->identifier] = andStates;
+    }
+    return states[node->identifier] = orStates;
+}
+
+void PangenomeMAT2::Tree::nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState){
+    if(states[node->identifier] == 0){
+        return;
+    }
+    if(parentState & states[node->identifier]){
+        states[node->identifier] = parentState;
+    } else {
+        int currentState = 1;
+        while(!(states[node->identifier] & currentState)){
+            currentState <<= 1;
+        }
+        states[node->identifier] = currentState;
+    }
+    // if(states[node->identifier] != 1 && states[node->identifier] != 2 &&  states[node->identifier] != 4 &&  states[node->identifier] != 16 &&  states[node->identifier] != 256 &&  states[node->identifier] != (1 << 15)){
+    //     std::cout << states[node->identifier] << std::endl;
+    // }
+
+    for(auto child: node->children){
+        nucFitchBackwardPass(child, states, states[node->identifier]);
+    }
+}
+
+void PangenomeMAT2::Tree::nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > >& mutations, int parentState){
+    if(states[node->identifier] == 0){
+        return;
+    }
+    if(parentState != states[node->identifier]){
+        if(parentState == 1){
+            // insertion
+            int code = 0, currentState = states[node->identifier];
+            while(currentState > 0){
+                currentState >>= 1;
+                code++;
+            }
+            code--;
+            // if(code != 1 && code != 2 && code != 4 && code != 8 && code != 15){
+            //     std::cout << code << std::endl;
+            // }
+            char nuc = getNucleotideFromCode(code);
+            mutations[node->identifier] = std::make_pair(NucMutationType::NI, nuc);
+        } else if(states[node->identifier] == 1){
+            // deletion
+            mutations[node->identifier] = std::make_pair(NucMutationType::ND, '-');
+        } else {
+            // substitution
+            int code = 0, currentState = states[node->identifier];
+            while(currentState > 0){
+                currentState >>= 1;
+                code++;
+            }
+            code--;
+            // if(code != 1 && code != 2 && code != 4 && code != 8 && code != 15){
+            //     std::cout << code << std::endl;
+            // }
+            char nuc = getNucleotideFromCode(code);
+            mutations[node->identifier] = std::make_pair(NucMutationType::NS, nuc);
+        }
+    }
+    for(auto child: node->children){
+        nucFitchAssignMutations(child, states, mutations, states[node->identifier]);
+    }
+}
+
 int PangenomeMAT2::Tree::blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states){
     if(node->children.size() == 0){
         if(states.find(node->identifier) == states.end()){
@@ -282,7 +367,6 @@ int PangenomeMAT2::Tree::blockFitchForwardPass(Node* node, std::unordered_map< s
         return states[node->identifier] = 1;
     }
     return states[node->identifier] = 2;
-
 }
 
 void PangenomeMAT2::Tree::blockFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState){
@@ -334,48 +418,13 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
         
         GFAGraph g(sequenceIds, stringSequences, nodes);
         std::cout << "Graph without cycles created" << std::endl;
-        // std::ofstream fout("temp3.gfa");
-        // std::cout << "Created temporary file" << std::endl;
-
-        // for(size_t i = 0; i < g.intNodeToSequence.size(); i++){
-        //     fout << "S\t" << i << "\t" << g.intNodeToSequence[i] << '\n';
-        // }
-
-        // for(size_t i = 0; i < g.intSequences.size(); i++){
-        //     fout << "P\t" << g.pathIds[i] << "\t";
-        //     for(size_t j = 0; j < g.intSequences[i].size(); j++){
-        //         fout << g.intSequences[i][j] << "+";
-        //         if(j != g.intSequences[i].size()-1){
-        //             fout << ",";
-        //         }
-        //     }
-        //     fout << "\t*\n";
-        // }
-        // for(size_t i = 0; i < g.pathIds.size(); i++){
-        //     fout << "P\t" << g.pathIds[i] << "\t";
-        //     for(size_t j = 0; j < g.intSequences[i].size(); j++){
-        //         fout << g.intSequences[i][j] << "+";
-        //         if(j != g.intSequences[i].size() - 1){
-        //             fout << ",";
-        //         }
-        //     }
-        //     fout << "\t*\n";
-        // }
-
-        // fout.close();
-
+        
 
         std::vector< size_t > topoArray = g.getTopologicalSort();
         std::vector< std::vector< int64_t > > alignedSequences = g.getAlignedSequences(topoArray);
-        // std::string newickString = generateRandomNewickString(g.pathIds);
         std::string newickString;
         secondFin >> newickString;
-        // std::cout << newickString << std::endl;
-
-        // std::cout << "Random newick string generated" << std::endl;
-
         root = createTreeFromNewickString(newickString);
-        // std::cout << "Tree from newick string generated" << std::endl;
 
         std::unordered_map< std::string, std::vector< int64_t > > pathIdToSequence;
         for(size_t i = 0; i < g.pathIds.size(); i++){
@@ -388,7 +437,6 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
             blocks.emplace_back(i, g.intNodeToSequence[topoArray[i]]);
         }
 
-        // std::cout << "Blocks generated" << std::endl;
         tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, bool > > globalMutations;
 
 
@@ -404,25 +452,10 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
             blockFitchAssignMutations(root, states, mutations, 0);
             globalMutations[i] = mutations;
         });
-        // for(size_t i = 0; i < topoArray.size(); i++){
-        //     // std::cout << i << std::endl;
-        //     std::unordered_map< std::string, int > states;
-        //     std::unordered_map< std::string, bool > mutations;
-        //     for(const auto& u: pathIdToSequence){
-        //         states[u.first] = (u.second[i] != -1);
-        //     }
-        //     blockFitchForwardPass(root, states);
-        //     blockFitchBackwardPass(root, states, 1);
-        //     blockFitchAssignMutations(root, states, mutations, 0);
-        //     globalMutations[i] = mutations;
-        // }
 
-        // std::cout << "All fitch executions complete" << std::endl;
-        // tbb::concurrent_unordered_map< std::string, std::mutex > nodeMutexes;
         std::unordered_map< std::string, std::mutex > nodeMutexes;
 
         for(auto u: allNodes){
-            // std::mutex nodeMutex;
             nodeMutexes[u.first];
         }
 
@@ -436,16 +469,211 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
                 }
             }
         });
-        // for(auto& pos: globalMutations){
-        //     auto& mutations = pos.second;
-        //     for(const auto& node: allNodes){
-        //         if(mutations.find(node.first) != mutations.end()){
-        //             nodeMutexes[node.first].lock();
-        //             node.second->blockMutation.emplace_back(pos.first, mutations[node.first]);
-        //             nodeMutexes[node.first].unlock();
-        //         }
-        //     }
+    } else if(ftype == PangenomeMAT2::FILE_TYPE::PANGRAPH){
+        std::string newickString;
+        secondFin >> newickString;
+        Json::Value pangraphData;
+        fin >> pangraphData;
+        PangenomeMAT2::Pangraph pg(pangraphData);
+
+        std::vector< size_t > topoArray = pg.getTopologicalSort();
+        std::unordered_map< std::string, std::vector< int > > alignedSequences = pg.getAlignedSequences(topoArray);
+        // for(int i = 0; i < alignedSequences["ON647447.1"].size(); i++){
+        //     std::cout << alignedSequences["ON647447.1"][i] << " ";
         // }
+        // std::cout << std::endl;
+        
+        root = createTreeFromNewickString(newickString);
+
+        for(size_t i = 0; i < topoArray.size(); i++){
+            // if(i == 4){
+            //     std::cout << pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]] << std::endl;
+            // }
+            blocks.emplace_back(i, pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]]);
+        }
+
+        for(size_t i = 0; i < topoArray.size(); i++){
+            GapList g;
+            g.primaryBlockId = i;
+            g.secondaryBlockId = -1;
+            for(size_t j = 0; j < pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]].size(); j++){
+                g.nucPosition.push_back(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].first);
+                g.nucGapLength.push_back(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].second);
+            }
+            gaps.push_back(g);
+        }
+
+        tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, bool > > globalBlockMutations;
+
+
+        tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i){
+            // std::cout << i << std::endl;
+            std::unordered_map< std::string, int > states;
+            std::unordered_map< std::string, bool > mutations;
+            for(const auto& u: alignedSequences){
+                states[u.first] = (u.second[i] != -1);
+            }
+            
+            blockFitchForwardPass(root, states);
+            blockFitchBackwardPass(root, states, 1);
+            blockFitchAssignMutations(root, states, mutations, 0);
+            globalBlockMutations[i] = mutations;
+
+        });
+
+
+        std::unordered_map< std::string, std::mutex > nodeMutexes;
+
+        for(auto u: allNodes){
+            nodeMutexes[u.first];
+        }
+
+        tbb::parallel_for_each(globalBlockMutations, [&](auto& pos){
+            auto& mutations = pos.second;
+            for(const auto& node: allNodes){
+                if(mutations.find(node.first) != mutations.end()){
+                    nodeMutexes[node.first].lock();
+                    node.second->blockMutation.emplace_back(pos.first, mutations[node.first]);
+                    nodeMutexes[node.first].unlock();
+                }
+            }
+        });
+
+        std::unordered_map< std::string, std::vector< size_t > > blockCounts;
+        for(auto u: alignedSequences){
+            blockCounts[u.first].resize(u.second.size(), 0);
+        }
+
+        tbb::parallel_for_each(alignedSequences, [&](const auto& u){
+            std::unordered_map< std::string, size_t > currentCount;
+            for(size_t i = 0; i < u.second.size(); i++){
+                if(u.second[i] != -1){
+                    blockCounts[u.first][i] = currentCount[pg.intIdToStringId[u.second[i]]] + 1;
+                    currentCount[pg.intIdToStringId[u.second[i]]]++;
+                }
+            }
+        });
+
+        // tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, bool > > globalBlockMutations;
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > gapMutations;
+
+        tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i){
+            std::string consensusSeq = pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]];
+            std::vector< std::pair< char, std::vector< char > > > sequence(consensusSeq.size()+1, {'-', {}});
+            for(size_t j = 0; j < consensusSeq.length(); j++){
+                sequence[j].first = consensusSeq[j];
+            }
+            for(size_t j = 0; j < pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]].size(); j++){
+                sequence[pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].first].second.resize(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].second, '-');
+            }
+            tbb::concurrent_unordered_map< std::string, std::vector< std::pair< char, std::vector< char > > > > individualSequences;
+
+            tbb::parallel_for_each(alignedSequences, [&](const auto& u){
+                if(u.second[i] == -1){
+                    return;
+                }
+                std::vector< std::pair< char, std::vector< char > > > currentSequence = sequence;
+
+                for(const auto& v: pg.substitutions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]){
+                    currentSequence[v.first-1].first = v.second[0];
+                }
+                for(const auto& v: pg.insertions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]){
+                    for(size_t j = 0; j < std::get<2>(v).length(); j++){
+                        currentSequence[std::get<0>(v)].second[std::get<1>(v)+j] = std::get<2>(v)[j];
+                    }
+                }
+                for(const auto& v: pg.deletions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]){
+                    for(size_t j = v.first; j < v.first + v.second; j++){
+                        currentSequence[j-1].first = '-';
+                    }
+                }
+                individualSequences[u.first] = currentSequence;
+            });
+            tbb::parallel_for((size_t) 0, sequence.size(), [&](size_t j){
+                tbb::parallel_for((size_t)0, sequence[j].second.size(), [&](size_t k){
+                    std::unordered_map< std::string, int > states;
+                    std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > > mutations;
+                    for(const auto& u: individualSequences){
+                        if(u.second[j].second[k] != '-'){
+                            states[u.first] = (1 << getCodeFromNucleotide(u.second[j].second[k]));
+                            // if(states[u.first] != 2 && states[u.first] != 4 && states[u.first] != 16 && states[u.first] != 256){
+                            //     std::cout << "Found something! " << states[u.first] << " " << (int)u.second[j].second[k] << std::endl;
+                            // }
+                        } else {
+                            states[u.first] = 1;
+                        }
+                    }
+                    nucFitchForwardPass(root, states);
+                    nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].second[k])));
+                    nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].second[k])));
+                    for(auto mutation: mutations){
+                        nodeMutexes[mutation.first].lock();
+                        gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                        // allNodes[mutation.first]->nucMutation.emplace_back( std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)) );
+                        nodeMutexes[mutation.first].unlock();
+                    }
+                });
+                std::unordered_map< std::string, int > states;
+                std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > > mutations;
+                for(const auto& u: individualSequences){
+                    if(u.second[j].first != '-'){
+                        states[u.first] = (1 << getCodeFromNucleotide(u.second[j].first));
+                        // if(states[u.first] != 2 && states[u.first] != 4 && states[u.first] != 16 && states[u.first] != 256){
+                        //         std::cout << "Found something! " << states[u.first] << " " << (int)u.second[j].first << std::endl;
+                        //     }
+                    } else {
+                        states[u.first] = 1;
+                    }
+                }
+                nucFitchForwardPass(root, states);
+                nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].first)));
+                nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].first)));
+                for(auto mutation: mutations){
+                    nodeMutexes[mutation.first].lock();
+                    nonGapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                    // allNodes[mutation.first]->nucMutation.emplace_back( std::make_tuple((int)i, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)) );
+                    nodeMutexes[mutation.first].unlock();
+                }
+            });
+        });
+
+        tbb::parallel_for_each(nonGapMutations, [&](auto& u){
+            nodeMutexes[u.first].lock();
+            std::sort(u.second.begin(), u.second.end());
+            nodeMutexes[u.first].unlock();
+            size_t currentStart = 0;
+            for(size_t i = 1; i < u.second.size(); i++){
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])){
+                    nodeMutexes[u.first].lock();
+                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
+                    nodeMutexes[u.first].unlock();
+                    currentStart = i;
+                    continue;
+                }
+            }
+            nodeMutexes[u.first].lock();
+            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+            nodeMutexes[u.first].unlock();
+        });
+        tbb::parallel_for_each(gapMutations, [&](auto& u){
+            nodeMutexes[u.first].lock();
+            std::sort(u.second.begin(), u.second.end());
+            nodeMutexes[u.first].unlock();
+            size_t currentStart = 0;
+            for(size_t i = 1; i < u.second.size(); i++){
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1]) || std::get<3>(u.second[i]) != std::get<3>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])){
+                    nodeMutexes[u.first].lock();
+                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
+                    nodeMutexes[u.first].unlock();
+                    currentStart = i;
+                    continue;
+                }
+            }
+            nodeMutexes[u.first].lock();
+            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+            nodeMutexes[u.first].unlock();
+        });
     }
 }
 
@@ -523,6 +751,8 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
 
         std::vector< size_t > topoArray = g.getTopologicalSort();
         std::vector< std::vector< int64_t > > alignedSequences = g.getAlignedSequences(topoArray);
+
+
 
         // std::ofstream fout("temp2.gfa");
         // std::cout << "Created temporary file" << std::endl;
@@ -1187,9 +1417,13 @@ void PangenomeMAT2::Tree::printFASTA(std::ofstream& fout, bool aligned){
     int32_t maxBlockId = 0;
 
     for(size_t i = 0; i < blocks.size(); i++){
-        
+
         int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
         int32_t secondaryBlockId = ((int32_t)blocks[i].secondaryBlockId);
+
+        // if(primaryBlockId == 4){
+        //     std::cout << i << " " << blocks[i].consensusSeq.size() << std::endl;
+        // }
 
         maxBlockId = std::max(maxBlockId, primaryBlockId);
 
@@ -1197,6 +1431,9 @@ void PangenomeMAT2::Tree::printFASTA(std::ofstream& fout, bool aligned){
             bool endFlag = false;
             for(size_t k = 0; k < 8; k++){
                 const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+                // if(primaryBlockId == 4){
+                //     std::cout << nucCode << std::endl;
+                // }
 
                 if(nucCode == 0){
                     endFlag = true;
@@ -1235,7 +1472,12 @@ void PangenomeMAT2::Tree::printFASTA(std::ofstream& fout, bool aligned){
         for(size_t j = 0; j < gaps[i].nucPosition.size(); j++){
             int len = gaps[i].nucGapLength[j];
             int pos = gaps[i].nucPosition[j];
-
+            // if(primaryBId > sequence.size()){
+            //     std::cout << "Exceeded 1 " << primaryBId << " " << sequence.size() << std::endl;
+            // }
+            // if(pos >= sequence[primaryBId].first.size()){
+            //     std::cout << "Exceeded 2 " << pos << " " << sequence[primaryBId].first.size() << " " << primaryBId << std::endl;
+            // }
             if(secondaryBId != -1){
                 sequence[primaryBId].second[secondaryBId][pos].second.resize(len, '-');
             } else {
@@ -4216,6 +4458,244 @@ void PangenomeMAT2::GFAGraph::topologicalSortHelper(size_t nodeId, std::vector< 
 }
 
 std::vector< size_t > PangenomeMAT2::GFAGraph::getTopologicalSort(){
+    std::vector< size_t > topoArray;
+    std::vector< bool > visited(numNodes, false);
+
+    for(size_t i = 0; i < numNodes; i++){
+        if(!visited[i]){
+            topologicalSortHelper(i, topoArray, visited);
+        }
+    }
+    std::reverse(topoArray.begin(), topoArray.end());
+
+    return topoArray;
+}
+
+PangenomeMAT2::Pangraph::Pangraph(Json::Value& pangraphData){
+    // load paths
+    for(size_t i = 0; i < pangraphData["paths"].size(); i++){
+        Json::Value path = pangraphData["paths"][(int)i];
+        for(size_t j = 0; j < path["blocks"].size(); j++){
+            paths[path["name"].asString()].push_back(path["blocks"][(int)j]["id"].asString());
+        }
+    }
+
+    // load blocks
+    for(size_t i = 0; i < pangraphData["blocks"].size(); i++){
+        std::string blockId = pangraphData["blocks"][(int)i]["id"].asString();
+        std::string sequence = pangraphData["blocks"][(int)i]["sequence"].asString();
+        std::transform(sequence.begin(), sequence.end(),sequence.begin(), ::toupper);
+        stringIdToConsensusSeq[blockId] = sequence;
+        // stringIdToGaps[blockId].push_back(std::make_pair);
+        std::vector< std::string > gapMemberNames = pangraphData["blocks"][(int)i]["gaps"].getMemberNames();
+        for(auto member: gapMemberNames){
+            stringIdToGaps[blockId].push_back( std::make_pair( std::stoi(member), pangraphData["blocks"][(int)i]["gaps"][member].asInt() ) );
+        }
+        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["mutate"].size(); j++){
+            std::string seqName = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["name"].asString();
+            size_t number = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["number"].asInt();
+            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["mutate"][(int)j][1].size(); k++){
+                std::string mutationString = pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString();
+                std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
+                substitutions[blockId][seqName][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt(), mutationString) );
+                // std::cout << pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt() << " " << pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString() << std::endl;
+            }
+        }
+        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["insert"].size(); j++){
+            std::string seqName = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["name"].asString();
+            size_t number = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["number"].asInt();
+            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["insert"][(int)j][1].size(); k++){
+                std::string mutationString = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][1].asString();
+                std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
+                insertions[blockId][seqName][number].push_back( std::make_tuple( pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt(), pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt(), mutationString ) );
+                // std::cout << pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt() << " " << pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString() << std::endl;
+            }
+        }
+        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["delete"].size(); j++){
+            std::string seqName = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["name"].asString();
+            size_t number = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["number"].asInt();
+            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["delete"][(int)j][1].size(); k++){
+                deletions[blockId][seqName][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][0].asInt(), pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][1].asInt() ) );
+                // std::cout << pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt() << " " << pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString() << std::endl;
+            }
+        }
+        
+    }
+
+    // Auto increment ID to assign to nodes
+    numNodes = 0;
+
+    // Old string Node ID to new integer Node ID
+    std::unordered_map< std::string, size_t > stringToNodeId;
+
+    for(const auto& p: paths){
+        for(const auto& block: p.second){
+            if(stringToNodeId.find(block) == stringToNodeId.end()){
+                stringToNodeId[block] = numNodes;
+                intIdToStringId[numNodes] = block;
+                numNodes++;
+            }
+        }
+    }
+
+    adj.resize(numNodes);
+    std::set< std::pair< size_t, size_t > > edges;
+
+    for(const auto& p: paths){
+        for(size_t i = 1; i < p.second.size(); i++){
+            size_t nId1 = stringToNodeId[p.second[i-1]];
+            size_t nId2 = stringToNodeId[p.second[i]];
+            if(edges.find( std::make_pair(nId1, nId2) ) == edges.end()){
+                edges.insert(std::make_pair(nId1, nId2));
+                adj[nId1].push_back(nId2);
+            }
+        }
+    }
+
+    for(const auto& p: paths){
+        for(size_t i = 0; i < p.second.size(); i++){
+            intSequences[p.first].push_back(stringToNodeId[p.second[i]]);
+        }
+    }
+
+    if(!checkForCycles()){
+        return;
+    }
+
+    std::cout << "Cycles found in Pangraph. Removing them..." << std::endl;
+
+    // Remove cycles
+    // std::unordered_map< size_t, size_t > newToOld;
+    // for(size_t i = 0; i < numNodes; i++){
+    //     newToOld[i] = i;
+    // }
+    adj.clear();
+    adj.resize(numNodes);
+
+    for(auto& sequence: intSequences){
+        if(sequence.second.size() == 0){
+            continue;
+        }
+        size_t currentNode = sequence.second[0];
+        for(size_t i = 1; i < sequence.second.size(); i++){
+            size_t nextNode = sequence.second[i];
+            bool neighbourFound = false;
+            for(auto neighbour: adj[currentNode]){
+                if(intIdToStringId[neighbour] == intIdToStringId[nextNode]){
+                    neighbourFound = true;
+                    nextNode = neighbour;
+                    sequence.second[i] = neighbour;
+                    break;
+                }
+            }
+            if(neighbourFound){
+                currentNode = nextNode;
+                continue;
+            }
+            std::vector< bool > visited(numNodes, false);
+            if(!pathExists(nextNode, currentNode,visited)){
+                adj[currentNode].push_back(nextNode);
+                currentNode = nextNode;
+            } else {
+                adj[currentNode].push_back(numNodes);
+                adj.push_back({});
+                // newToOld[numNodes] = newToOld[nextNode];
+                intIdToStringId[numNodes] = intIdToStringId[nextNode];
+                sequence.second[i] = numNodes;
+                currentNode = nextNode;
+                numNodes++;
+            }
+
+        }
+    }
+
+    // for(auto sequence: intSequences){
+
+    // }
+
+    if(!checkForCycles()){
+        std::cout << "Cycles Removed!" << std::endl;
+        return;
+    } else {
+        std::cout << "Error: Cycle removal failed!" << std::endl;
+        return;
+    }
+
+}
+
+bool PangenomeMAT2::Pangraph::pathExists(size_t nId1, size_t nId2, std::vector< bool >& visited){
+    if(nId1 == nId2){
+        return true;
+    }
+    visited[nId1] = true;
+
+    for(auto u: adj[nId1]){
+        if(!visited[u] && pathExists(u, nId2, visited)){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool PangenomeMAT2::Pangraph::checkForCyclesHelper(size_t nodeId, std::vector< int >& color){
+    color[nodeId] = 1;
+    for(auto u: adj[nodeId]){
+        if(color[u] == 1){
+            return true;
+        }
+        if(color[u] == 0){
+            if(checkForCyclesHelper(u, color)){
+                return true;
+            }
+        }
+    }
+    color[nodeId] = 2;
+    return false;
+}
+
+bool PangenomeMAT2::Pangraph::checkForCycles(){
+    std::vector< int > color(numNodes, 0);
+    for(size_t i = 0; i < numNodes; i++){
+        if(color[i] == 0){
+            if(checkForCyclesHelper(i, color)){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+std::unordered_map< std::string, std::vector< int > > PangenomeMAT2::Pangraph::getAlignedSequences(const std::vector< size_t >& topoArray){
+    std::unordered_map< std::string, std::vector< int > > alignedSequences;
+    for(auto p: intSequences){
+        size_t p1 = 0, p2 = 0;
+        while(p1 < topoArray.size() && p2 < p.second.size()){
+            if(topoArray[p1] == p.second[p2]){
+                alignedSequences[p.first].push_back(topoArray[p1]);
+                p2++;
+            } else {
+                alignedSequences[p.first].push_back(-1);
+            }
+            p1++;
+        }
+        while(alignedSequences[p.first].size() < topoArray.size()){
+            alignedSequences[p.first].push_back(-1);
+        }
+    }
+    return alignedSequences;
+}
+
+void PangenomeMAT2::Pangraph::topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited){
+    visited[nodeId] = true;
+    for(auto u: adj[nodeId]){
+        if(!visited[u]){
+            topologicalSortHelper(u, topoArray, visited);
+        }
+    }
+    topoArray.push_back(nodeId);
+}
+
+std::vector< size_t > PangenomeMAT2::Pangraph::getTopologicalSort(){
     std::vector< size_t > topoArray;
     std::vector< bool > visited(numNodes, false);
 
