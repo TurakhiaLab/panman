@@ -38,7 +38,7 @@ PangenomeMAT2::Node::Node(std::string id, Node* par, float len){
     par->children.push_back(this);
 }
 
-PangenomeMAT2::Block::Block(MATNew::block b){
+PangenomeMAT2::Block::Block(MATNew::block b, const std::vector< uint32_t >& blockConsensusSeq){
     primaryBlockId = (b.blockid() >> 32);
     if(b.blockgapexist()){
         secondaryBlockId = (b.blockid() & 0xFFFFFFFF);
@@ -47,9 +47,10 @@ PangenomeMAT2::Block::Block(MATNew::block b){
     }
     
     chromosomeName = b.chromosomename();
-    for(int i = 0; i < b.consensusseq_size(); i++){
-        consensusSeq.push_back(b.consensusseq(i));
-    }
+    consensusSeq = blockConsensusSeq;
+    // for(int i = 0; i < b.consensusseq_size(); i++){
+    //     consensusSeq.push_back(b.consensusseq(i));
+    // }
 }
 
 PangenomeMAT2::Block::Block(size_t blockId, std::string seq){
@@ -674,6 +675,116 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
             allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
             nodeMutexes[u.first].unlock();
         });
+    } else if(ftype == PangenomeMAT2::FILE_TYPE::MSA){
+        std::map< std::string, std::string > sequenceIdsToSequences;
+        std::string line;
+        std::string currentSequence, currentSequenceId;
+        size_t lineLength = 0;
+        std::string consensusSeq;
+        while(getline(fin,line,'\n')){
+            if(line.length() == 0){
+                continue;
+            }
+            if(line[0] == '>'){
+                if(currentSequence.length()){
+                    if(lineLength == 0){
+                        lineLength = currentSequence.length();
+                    } else if(lineLength != currentSequence.length()){
+                        std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                        exit(-1);
+                    }
+                    sequenceIdsToSequences[currentSequenceId] = currentSequence;
+                }
+                std::vector< std::string > splitLine;
+                stringSplit(line,' ',splitLine);
+                currentSequenceId = splitLine[0].substr(1);
+                currentSequence = "";
+            } else {
+                currentSequence += line;
+            }
+        }
+        if(currentSequence.length()){
+            if(lineLength != 0 && lineLength != currentSequence.length()){
+                std::cerr << "Error: sequence lengths don't match!" << std::endl;
+                exit(-1);
+            } else {
+                lineLength = currentSequence.length();
+            }
+            sequenceIdsToSequences[currentSequenceId] = currentSequence;
+        }
+        std::set< size_t > emptyPositions;
+
+        for(size_t i = 0; i < lineLength; i++){
+            bool nonGapFound = false;
+            for(auto u: sequenceIdsToSequences){
+                if(u.second[i] != '-'){
+                    consensusSeq += u.second[i];
+                    nonGapFound = true;
+                    break;
+                }
+            }
+            if(!nonGapFound){
+                emptyPositions.insert(i);
+            }
+        }
+        for(auto& u: sequenceIdsToSequences){
+            std::string sequenceString;
+            for(size_t i = 0; i < u.second.length(); i++){
+                if(emptyPositions.find(i) == emptyPositions.end()){
+                    sequenceString += u.second[i];
+                }
+            }
+            u.second = sequenceString;
+        }
+        blocks.emplace_back(0, consensusSeq);
+
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
+        std::unordered_map< std::string, std::mutex > nodeMutexes;
+
+        for(auto u: allNodes){
+            nodeMutexes[u.first];
+        }
+
+        tbb::parallel_for((size_t)0, consensusSeq.length(), [&](size_t i){
+            std::unordered_map< std::string, int > states;
+            std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > > mutations;
+            for(const auto& u: sequenceIdsToSequences){
+                if(u.second[i] != '-'){
+                    states[u.first] = (1 << getCodeFromNucleotide(u.second[i]));
+                } else {
+                    states[u.first] = 1;
+                }
+            }
+            nucFitchForwardPass(root, states);
+            nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSeq[i])));
+            nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[i])));
+            for(auto mutation: mutations){
+                nodeMutexes[mutation.first].lock();
+                nonGapMutations[mutation.first].push_back(std::make_tuple(0, -1, i, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                // allNodes[mutation.first]->nucMutation.emplace_back( std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)) );
+                nodeMutexes[mutation.first].unlock();
+            }
+        });
+
+        tbb::parallel_for_each(nonGapMutations, [&](auto& u){
+            nodeMutexes[u.first].lock();
+            std::sort(u.second.begin(), u.second.end());
+            nodeMutexes[u.first].unlock();
+            size_t currentStart = 0;
+            for(size_t i = 1; i < u.second.size(); i++){
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])){
+                    nodeMutexes[u.first].lock();
+                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
+                    nodeMutexes[u.first].unlock();
+                    currentStart = i;
+                    continue;
+                }
+            }
+            nodeMutexes[u.first].lock();
+            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+            nodeMutexes[u.first].unlock();
+        });
+        
     }
 }
 
@@ -690,6 +801,18 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
         root = createTreeFromNewickString(mainTree.newick());
         invertTree(root);
 
+        std::map< int64_t, std::vector< uint32_t > > blockIdToConsensusSeq;
+
+        for(int i = 0; i < mainTree.consensusseqmap_size(); i++){
+            std::vector< uint32_t > seq;
+            for(int j = 0; j < mainTree.consensusseqmap(i).consensusseq_size(); j++){
+                seq.push_back(mainTree.consensusseqmap(i).consensusseq(j));
+            }
+            for(int j = 0; j < mainTree.consensusseqmap(i).blockid_size(); j++){
+                blockIdToConsensusSeq[mainTree.consensusseqmap(i).blockid(j)] = seq;
+            }
+        }
+
         std::vector< MATNew::node > storedNodes;
         for(int i = 0; i < mainTree.nodes_size(); i++){
             storedNodes.push_back(mainTree.nodes(i));
@@ -701,7 +824,7 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
 
         // Block sequence
         for(int i = 0; i < mainTree.blocks_size(); i++){
-            blocks.emplace_back(mainTree.blocks(i));
+            blocks.emplace_back(mainTree.blocks(i), blockIdToConsensusSeq[mainTree.blocks(i).blockid()]);
         }
 
         // Gap List
@@ -721,125 +844,7 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
             blockGaps.blockPosition.push_back(mainTree.blockgaps().blockposition(i));
             blockGaps.blockGapLength.push_back(mainTree.blockgaps().blockgaplength(i));
         }
-    } else if(ftype == PangenomeMAT2::FILE_TYPE::GFA){
-        std::map< std::string, std::string > nodes;
-        std::map< std::string, std::vector< std::string > > paths;
-        // std::map< std::string, std::vector< size_t > > newPaths;
-        std::string line;
-        while(getline(fin, line, '\n')){
-            std::vector< std::string > separatedLine;
-            stringSplit(line, '\t', separatedLine);
-            if(separatedLine[0] == "S"){
-                nodes[separatedLine[1]] = separatedLine[2];
-            } else if(separatedLine[0] == "P"){
-                std::vector< std::string > v;
-                stringSplit(separatedLine[2], ',', v);
-                for(size_t i = 0; i < v.size(); i++){
-                    v[i].pop_back();
-                }
-                paths[separatedLine[1]] = v;
-            }
-        }
-        std::vector< std::vector< std::string > > stringSequences;
-        std::vector< std::string > sequenceIds;
-        for(auto p: paths){
-            sequenceIds.push_back(p.first);
-            stringSequences.push_back(p.second);
-        }
-        
-        GFAGraph g(sequenceIds, stringSequences, nodes);
-
-        std::vector< size_t > topoArray = g.getTopologicalSort();
-        std::vector< std::vector< int64_t > > alignedSequences = g.getAlignedSequences(topoArray);
-
-
-
-        // std::ofstream fout("temp2.gfa");
-        // std::cout << "Created temporary file" << std::endl;
-
-        // for(size_t i = 0; i < g.intNodeToSequence.size(); i++){
-        //     fout << "S\t" << i << "\t" << g.intNodeToSequence[i] << '\n';
-        // }
-
-        // for(size_t i = 0; i < g.intSequences.size(); i++){
-        //     fout << "P\t" << g.pathIds[i] << "\t";
-        //     for(size_t j = 0; j < g.intSequences[i].size(); j++){
-        //         fout << g.intSequences[i][j] << "+";
-        //         if(j != g.intSequences[i].size()-1){
-        //             fout << ",";
-        //         }
-        //     }
-        //     fout << "\t*\n";
-        // }
-        // for(auto p: newPaths){
-        //     fout << "P\t" << p.first << "\t";
-        //     for(size_t i = 0; i < p.second.size(); i++){
-        //         fout << p.second[i] << "+";
-        //         if(i != p.second.size() - 1){
-        //             fout << ",";
-        //         }
-        //     }
-        //     fout << "\t*\n";
-        // }
-
-        // fout.close();
-
-        // size_t ctr = 0;
-        // for(auto p: paths){
-        //     newPaths[p.first] = g.intSequences[ctr];
-        //     ctr++;
-        // }
     }
-
-    // // DEBUG
-    // std::ofstream fout("temp.gfa");
-    // std::map< std::string, std::string > nodes;
-    // std::map< std::string, std::vector< std::string > > paths;
-    // std::map< std::string, std::vector< size_t > > newPaths;
-    // std::string line;
-    // while(getline(fin, line, '\n')){
-    //     std::vector< std::string > separatedLine;
-    //     stringSplit(line, '\t', separatedLine);
-    //     if(separatedLine[0] == "S"){
-    //         nodes[separatedLine[1]] = separatedLine[2];
-    //     } else if(separatedLine[0] == "P"){
-    //         std::vector< std::string > v;
-    //         stringSplit(separatedLine[2], ',', v);
-    //         for(size_t i = 0; i < v.size(); i++){
-    //             v[i].pop_back();
-    //         }
-    //         paths[separatedLine[1]] = v;
-    //     }
-    // }
-
-    // std::vector< std::vector< std::string > > temp;
-    // for(auto p: paths){
-    //     temp.push_back(p.second);
-    // }
-    
-    // GFAGraph g(temp);
-
-    // size_t ctr = 0;
-    // for(auto p: paths){
-    //     newPaths[p.first] = g.intSequences[ctr];
-    //     ctr++;
-    // }
-
-    // for(size_t i = 0; i < g.nodeIdToString.size(); i++){
-    //     fout << "S\t" << i << "\t" << nodes[g.nodeIdToString[i]] << '\n';
-    // }
-    // for(auto p: newPaths){
-    //     fout << "P\t" << p.first << "\t";
-    //     for(size_t i = 0; i < p.second.size(); i++){
-    //         fout << p.second[i] << "+";
-    //         if(i != p.second.size() - 1){
-    //             fout << ",";
-    //         }
-    //     }
-    //     fout << "\t*\n";
-    // }
-    // fout.close();
-
 }
 
 int getTotalParsimonyParallelHelper(PangenomeMAT2::Node* root, PangenomeMAT2::NucMutationType nucMutType, PangenomeMAT2::BlockMutationType blockMutType){
@@ -2143,21 +2148,39 @@ void PangenomeMAT2::Tree::writeToFile(std::ofstream& fout, PangenomeMAT2::Node* 
 
     treeToWrite.set_newick(newick);
 
+    std::map< std::vector< uint32_t >, std::vector< int64_t > > consensusSeqToBlockIds;
+
     for(auto block: blocks){
         MATNew::block b;
+        int64_t blockId;
         if(block.secondaryBlockId != -1){
-            b.set_blockid(((int64_t)block.primaryBlockId << 32) + block.secondaryBlockId);
+            blockId = ((int64_t)block.primaryBlockId << 32) + block.secondaryBlockId;
+            b.set_blockid(blockId);
             b.set_blockgapexist(true);
         } else {
-            b.set_blockid(((int64_t)block.primaryBlockId << 32));
+            blockId = ((int64_t)block.primaryBlockId << 32);
+            b.set_blockid(blockId);
             b.set_blockgapexist(false);
         }
         b.set_chromosomename(block.chromosomeName);
-        for(auto n: block.consensusSeq){
-            b.add_consensusseq(n);
-        }
+        consensusSeqToBlockIds[block.consensusSeq].push_back(blockId);
+        // for(auto n: block.consensusSeq){
+        //     b.add_consensusseq(n);
+        // }
         treeToWrite.add_blocks();
         *treeToWrite.mutable_blocks( treeToWrite.blocks_size() - 1 ) = b;
+    }
+
+    for(auto u: consensusSeqToBlockIds){
+        MATNew::consensusSeqToBlockIds c;
+        for(auto v: u.first){
+            c.add_consensusseq(v);
+        }
+        for(auto v: u.second){
+            c.add_blockid(v);
+        }
+        treeToWrite.add_consensusseqmap();
+        *treeToWrite.mutable_consensusseqmap( treeToWrite.consensusseqmap_size() - 1 ) = c;
     }
 
     for(size_t i = 0; i < gaps.size(); i++){

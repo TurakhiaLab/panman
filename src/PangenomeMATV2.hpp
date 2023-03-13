@@ -30,7 +30,8 @@ namespace PangenomeMAT2 {
     enum FILE_TYPE {
         PANMAT = 0,
         GFA = 1,
-        PANGRAPH=2
+        PANGRAPH=2,
+        MSA = 3
     };
 
     enum NucMutationType {
@@ -154,7 +155,7 @@ namespace PangenomeMAT2 {
     };
 
     struct Block {
-        Block(MATNew::block b);
+        Block(MATNew::block b, const std::vector< uint32_t >& blockConsensusSeq);
         Block(size_t blockId, std::string seq);
 
         int32_t primaryBlockId;

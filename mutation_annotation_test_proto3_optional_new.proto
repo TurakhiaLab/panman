@@ -25,13 +25,17 @@ message node
     repeated string   annotations = 2;
 }
 
+message consensusSeqToBlockIds
+{
+    repeated int64   blockId = 1;
+    repeated uint32  consensusSeq = 2;
+}
 
 message block
 {
     int64            blockId = 1;
     bool             blockGapExist = 2;
-    repeated uint32  consensusSeq = 3;
-    string           chromosomeName = 4;
+    string           chromosomeName = 3;
 }
 
 message gapList
@@ -53,6 +57,7 @@ message tree
     string           newick = 1;
     repeated node    nodes = 2;
     repeated block   blocks = 3;
-    repeated gapList gaps = 4;
-    blockGapList     blockGaps = 5;
+    repeated consensusSeqToBlockIds consensusSeqMap = 4;
+    repeated gapList gaps = 5;
+    blockGapList     blockGaps = 6;
 }
