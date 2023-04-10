@@ -66,5 +66,9 @@ else()
 endif()
 
 TARGET_COMPILE_OPTIONS(panmat-utils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
-TARGET_LINK_LIBRARIES(panmat-utils PRIVATE stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ZLIB::ZLIB) # OpenMP::OpenMP_CXX)
+
+add_subdirectory(spoa EXCLUDE_FROM_ALL)
+
+# find_package(spoa)
+TARGET_LINK_LIBRARIES(panmat-utils PRIVATE spoa::spoa stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ZLIB::ZLIB) # OpenMP::OpenMP_CXX)
 target_include_directories(panmat-utils PUBLIC "${PROJECT_BINARY_DIR}")

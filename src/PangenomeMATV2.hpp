@@ -12,6 +12,7 @@
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
 #include "vg.pb.h"
 #include "AuxilaryMAT.hpp"
+#include "spoa/spoa.hpp"
 
 #define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
@@ -31,7 +32,9 @@ namespace PangenomeMAT2 {
         PANMAT = 0,
         GFA = 1,
         PANGRAPH=2,
-        MSA = 3
+        MSA = 3,
+        MSA_OPTIMIZE = 4,
+        FASTA = 5
     };
 
     enum NucMutationType {

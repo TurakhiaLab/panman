@@ -15,6 +15,8 @@
 #include "PangenomeMAT.hpp"
 #endif
 
+#include "spoa/spoa.hpp"
+
 namespace po = boost::program_options;
 
 void stripString(std::string& s){
@@ -61,6 +63,8 @@ void setupOptionDescriptions(){
         ("gfa-in", po::value< std::string >(), "create PanMAT from GFA file")
         ("pangraph-in", po::value< std::string >(), "create PanMAT from Pangraph file")
         ("msa-in", po::value< std::string >(), "create PanMAT from MSA file")
+        ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
+        ("fasta-in", po::value< std::string >(), "create PanMAT from FASTA file")
         ("newick-in", po::value< std::string >(), "Input file path for file containing newick string")
     ;
 
@@ -250,6 +254,11 @@ void updatedParser(int argc, char* argv[]){
             printError("File containing newick string not provided!");
             return;
         }
+        bool optimize = false;
+        if(globalVm.count("optimize")){
+            optimize = true;
+        }
+
         std::string newickFileName = globalVm["newick-in"].as< std::string >();
 
         std::cout << "Creating PanMAT from MSA" << std::endl;
@@ -259,7 +268,11 @@ void updatedParser(int argc, char* argv[]){
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::MSA);
+        if(!optimize){
+            T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::MSA);
+        } else {
+            T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::MSA_OPTIMIZE);
+        }
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -268,6 +281,30 @@ void updatedParser(int argc, char* argv[]){
         newickInputStream.close();
         inputStream.close();
 
+    } else if(globalVm.count("fasta-in")){
+        std::string fileName = globalVm["fasta-in"].as< std::string >();
+        if(!globalVm.count("newick-in")){
+            printError("File containing newick string not provided!");
+            return;
+        }
+
+        std::string newickFileName = globalVm["newick-in"].as< std::string >();
+
+        std::cout << "Creating PanMAT from FASTA" << std::endl;
+
+        std::ifstream inputStream(fileName);
+        std::ifstream newickInputStream(newickFileName);
+
+        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+
+        T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::FASTA);
+
+        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
+        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+
+        newickInputStream.close();
+        inputStream.close();
     } else {
         printError("Incorrect Format");
         // std::cout << "\033[1;31m" << "Error: " << "\033[0m" << "Incorrect Format\n";
@@ -887,8 +924,68 @@ void updatedParser(int argc, char* argv[]){
 
 }
 
+void debuggingBlock(){
+    std::ifstream fin("fasta/rsvFasta.fasta");
+    std::unordered_map< std::string, std::string > sequences;
+    std::string line;
+    std::string sequenceName;
+    std::string sequence;
+    while(getline(fin, line, '\n')){
+        if(line[0] == '>'){
+            if(sequence.length()){
+                sequences[sequenceName] = sequence;
+            }
+            sequenceName = line.substr(1);
+            sequence = "";
+        } else {
+            sequence += line;
+        }
+    }
+    if(sequence.length()){
+        sequences[sequenceName] = sequence;
+    }
+    std::cout << "Sequences Ready " << sequences.size() << std::endl;
+    fin.close();
+
+    std::vector< std::string > stringSequences;
+    for(auto u: sequences){
+        stringSequences.push_back(u.second.substr(0,100));
+        // if(stringSequences.size() == 10){
+        //     break;
+        // }
+    }
+
+    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 5, -3, -10, -5);
+
+    spoa::Graph graph{};
+
+    for (const auto& it : stringSequences) {
+        auto alignment = alignment_engine->Align(it, graph);
+        graph.AddAlignment(alignment, it);
+    }
+
+    auto consensus = graph.GenerateConsensus();
+
+    std::cerr << ">Consensus LN:i:" << consensus.size() << std::endl << consensus << std::endl;
+
+    auto msa = graph.GenerateMultipleSequenceAlignment();
+
+    // std::cout << msa.size() << std::endl;
+
+    // std::cout << msa[0] << std::endl;
+    // for (const auto& it : msa) {
+    //     std::cerr << it << std::endl;
+    // }
+
+}
+
+// #define DEBUGGING
+
 int main(int argc, char* argv[]){
 
+#ifdef DEBUGGING
+    debuggingBlock();
+#endif
     updatedParser(argc, argv);
 
 }

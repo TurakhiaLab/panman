@@ -791,6 +791,293 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
             nodeMutexes[u.first].unlock();
         });
         
+    } else if(ftype == PangenomeMAT2::FILE_TYPE::MSA_OPTIMIZE){
+        // std::string newickString;
+        // secondFin >> newickString;
+        // root = createTreeFromNewickString(newickString);
+
+        // std::map< std::string, std::string > sequenceIdsToSequences;
+        // std::string line;
+        // std::string currentSequence, currentSequenceId;
+        // size_t lineLength = 0;
+        // std::string consensusSeq;
+        // while(getline(fin,line,'\n')){
+        //     if(line.length() == 0){
+        //         continue;
+        //     }
+        //     if(line[0] == '>'){
+        //         if(currentSequence.length()){
+        //             if(lineLength == 0){
+        //                 lineLength = currentSequence.length();
+        //             } else if(lineLength != currentSequence.length()){
+        //                 std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+        //                 exit(-1);
+        //             }
+        //             sequenceIdsToSequences[currentSequenceId] = currentSequence;
+        //         }
+        //         std::vector< std::string > splitLine;
+        //         stringSplit(line,' ',splitLine);
+        //         currentSequenceId = splitLine[0].substr(1);
+        //         currentSequence = "";
+        //     } else {
+        //         currentSequence += line;
+        //     }
+        // }
+        // if(currentSequence.length()){
+        //     if(lineLength != 0 && lineLength != currentSequence.length()){
+        //         std::cerr << "Error: sequence lengths don't match!" << std::endl;
+        //         exit(-1);
+        //     } else {
+        //         lineLength = currentSequence.length();
+        //     }
+        //     sequenceIdsToSequences[currentSequenceId] = currentSequence;
+        // }
+        // std::set< size_t > emptyPositions;
+
+        // for(size_t i = 0; i < lineLength; i++){
+        //     bool nonGapFound = false;
+        //     for(auto u: sequenceIdsToSequences){
+        //         if(u.second[i] != '-'){
+        //             consensusSeq += u.second[i];
+        //             nonGapFound = true;
+        //             break;
+        //         }
+        //     }
+        //     if(!nonGapFound){
+        //         emptyPositions.insert(i);
+        //     }
+        // }
+        // for(auto& u: sequenceIdsToSequences){
+        //     std::string sequenceString;
+        //     for(size_t i = 0; i < u.second.length(); i++){
+        //         if(emptyPositions.find(i) == emptyPositions.end()){
+        //             sequenceString += u.second[i];
+        //         }
+        //     }
+        //     u.second = sequenceString;
+        // }
+    } else if(ftype == PangenomeMAT2::FILE_TYPE::FASTA){
+        std::string newickString;
+        secondFin >> newickString;
+        root = createTreeFromNewickString(newickString);
+
+        std::map< std::string, std::string > sequenceIdsToSequences;
+        std::string line;
+        std::string currentSequence, currentSequenceId;
+
+        std::string consensusSeq;
+        while(getline(fin,line,'\n')){
+            if(line.length() == 0){
+                continue;
+            }
+            if(line[0] == '>'){
+                if(currentSequence.length()){
+                    sequenceIdsToSequences[currentSequenceId] = currentSequence;
+                }
+                std::vector< std::string > splitLine;
+                stringSplit(line,' ',splitLine);
+                currentSequenceId = splitLine[0].substr(1);
+                currentSequence = "";
+            } else {
+                currentSequence += line;
+            }
+        }
+        if(currentSequence.length()){
+            sequenceIdsToSequences[currentSequenceId] = currentSequence;
+        }
+        std::map< std::string, std::vector< std::string > > sequenceIdsToBlockSequences;
+        size_t maxBlockId = 0;
+
+        int BLOCKSIZE = 1000;
+
+        for(auto u: sequenceIdsToSequences){
+            for(size_t i = 0; i < u.second.size(); i+=BLOCKSIZE){
+                sequenceIdsToBlockSequences[u.first].push_back(u.second.substr(i,BLOCKSIZE));
+                maxBlockId = std::max(maxBlockId, i/BLOCKSIZE);
+            }
+        }
+
+        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t, std::string > > sequenceIdsToBlockMSA;
+        tbb::concurrent_unordered_map< size_t, size_t > blockSizes;
+
+        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t, bool > > blockExists;
+
+        // std::cout << "Reached here" << std::endl;
+        // std::cout << sequenceIdsToBlockSequences.size() << std::endl;
+
+        tbb::parallel_for((size_t)0,maxBlockId+1,[&](size_t i){
+            std::vector< std::string > stringSequences;
+            // int emptyCtr = 0;
+            for(auto u: sequenceIdsToBlockSequences){
+                if(i < u.second.size()){
+                    stringSequences.push_back(u.second[i]);
+                    blockExists[u.first][i] = true;
+                } else {
+                    blockExists[u.first][i] = false;
+                }
+            }
+            auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 5, -3, -10, -5);
+
+            // if(stringSequences.size() != sequenceIdsToBlockSequences.size()){
+            //     std::cout << "Grave error!!" << std::endl;
+            // }
+
+            spoa::Graph graph{};
+
+            for (const auto& it : stringSequences) {
+                auto alignment = alignment_engine->Align(it, graph);
+                graph.AddAlignment(alignment, it);
+            }
+
+            auto consensus = graph.GenerateConsensus();
+            auto msa = graph.GenerateMultipleSequenceAlignment();
+            // if(msa.size() != stringSequences.size()){
+            //     std::cout << "Grave error!!!!!! " << msa.size() <<" " << stringSequences.size() << " " << emptyCtr << " "<< msa.size()+emptyCtr << std::endl;
+            // }
+
+            int ctr = 0;
+            blockSizes[i] = msa[0].size();
+            // std::cout << i << " " << blockSizes[i] << std::endl;
+
+            for(auto u: sequenceIdsToBlockSequences){
+                if(i < u.second.size()){
+                    sequenceIdsToBlockMSA[u.first][i] = msa[ctr];
+                    ctr++;
+                }
+            }
+        });
+
+        // std::cout << "Reached here!" << std::endl;
+
+        tbb::concurrent_unordered_map< size_t, std::string > consensusSequences;
+
+        for(size_t i = 0; i <= maxBlockId; i++){
+            std::string consensusSeq;
+            std::set< size_t > emptyPositions;
+            for(size_t j = 0; j < blockSizes[i]; j++){
+                bool nonGapFound = false;
+                for(auto& u: sequenceIdsToBlockMSA){
+                    if(blockExists[u.first][i] && u.second[i][j] != '-'){
+                        consensusSeq += u.second[i][j];
+                        nonGapFound = true;
+                        break;
+                    }
+                }
+                if(!nonGapFound){
+                    emptyPositions.insert(j);
+                }
+            }
+            // if(emptyPositions.size()){
+            //     std::cout << "Empty positions found!!!" << std::endl;
+            // }
+            consensusSequences[i] = consensusSeq;
+            for(auto& u: sequenceIdsToBlockMSA){
+                if(!blockExists[u.first][i]){
+                    continue;
+                }
+                std::string currentSequence;
+                for(size_t j = 0; j < blockSizes[i]; j++){
+                    if(emptyPositions.find(j) == emptyPositions.end()){
+                        currentSequence+=u.second[i][j];
+                    }
+                }
+                u.second[i] = currentSequence;
+            }
+        }
+        
+        for(auto u: consensusSequences){
+            blocks.emplace_back(u.first, u.second);
+            // root->blockMutation.emplace_back(u.first, true);
+        }
+
+        tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, bool > > globalBlockMutations;
+
+        tbb::parallel_for((size_t)0, maxBlockId+1, [&](size_t i){
+            // std::cout << i << std::endl;
+            std::unordered_map< std::string, int > states;
+            std::unordered_map< std::string, bool > mutations;
+            for(auto& u: blockExists){
+                states[u.first] = u.second[i];
+            }
+            
+            blockFitchForwardPass(root, states);
+            blockFitchBackwardPass(root, states, 1);
+            blockFitchAssignMutations(root, states, mutations, 0);
+            globalBlockMutations[i] = mutations;
+
+        });
+
+        std::unordered_map< std::string, std::mutex > nodeMutexes;
+
+        for(auto u: allNodes){
+            nodeMutexes[u.first];
+        }
+
+        tbb::parallel_for_each(globalBlockMutations, [&](auto& pos){
+            auto& mutations = pos.second;
+            for(const auto& node: allNodes){
+                if(mutations.find(node.first) != mutations.end()){
+                    nodeMutexes[node.first].lock();
+                    node.second->blockMutation.emplace_back(pos.first, mutations[node.first]);
+                    nodeMutexes[node.first].unlock();
+                }
+            }
+        });
+
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
+        // std::unordered_map< std::string, std::mutex > nodeMutexes;
+
+        // for(auto u: allNodes){
+        //     nodeMutexes[u.first];
+        // }
+
+
+        tbb::parallel_for((size_t)0, maxBlockId+1, [&](size_t i){
+            size_t blockSize = consensusSequences[i].size();
+            tbb::parallel_for((size_t)0, blockSize, [&](size_t j){
+                std::unordered_map< std::string, int > states;
+                std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > > mutations;
+                for(auto& u: sequenceIdsToBlockMSA){
+                    if(blockExists[u.first][i]){
+                        if(u.second[i][j] != '-'){
+                            states[u.first] = (1 << getCodeFromNucleotide(u.second[i][j]));
+                        } else {
+                            states[u.first] = 1;
+                        }
+                    }
+                }
+                nucFitchForwardPass(root, states);
+                nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSequences[i][j])));
+                nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSequences[i][j])));
+                for(auto mutation: mutations){
+                    nodeMutexes[mutation.first].lock();
+                    nonGapMutations[mutation.first].push_back(std::make_tuple(i, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                    // allNodes[mutation.first]->nucMutation.emplace_back( std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)) );
+                    nodeMutexes[mutation.first].unlock();
+                }
+            });
+        });
+
+        tbb::parallel_for_each(nonGapMutations, [&](auto& u){
+            nodeMutexes[u.first].lock();
+            std::sort(u.second.begin(), u.second.end());
+            nodeMutexes[u.first].unlock();
+            size_t currentStart = 0;
+            for(size_t i = 1; i < u.second.size(); i++){
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])){
+                    nodeMutexes[u.first].lock();
+                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
+                    nodeMutexes[u.first].unlock();
+                    currentStart = i;
+                    continue;
+                }
+            }
+            nodeMutexes[u.first].lock();
+            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+            nodeMutexes[u.first].unlock();
+        });
+        
+
     }
 }
 
@@ -3668,6 +3955,16 @@ void PangenomeMAT2::Tree::convertToGFA(std::ofstream& fout){
                     break;
                 }
             }
+            if(G[dest].size() != GT[dest].size()){
+                break;
+            }
+            for(size_t j = 0; j < GT[dest].size(); j++){
+                if(G[dest][j].first != GT[dest][j].first){
+                    check = false;
+                    break;
+                }
+            }
+
             if(!check){
                 break;
             }
