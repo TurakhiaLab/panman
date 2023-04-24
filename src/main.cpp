@@ -54,6 +54,11 @@ po::options_description generateGFADesc("Generate GFA Command Line Arguments");
 po::positional_options_description generateGFAArgumentDesc;
 po::options_description GFAToFASTADesc("GFA to Fasta writer Command Line Arguments");
 po::positional_options_description GFAToFASTAArgumentDesc;
+po::options_description groupWriteDesc("Group MAT Writer Command Line Arguments");
+po::positional_options_description groupWritePositionArgumentDesc;
+
+po::options_description groupFastaDesc("Tree Group FASTA writer Command Line Arguments");
+po::positional_options_description groupFastaPositionArgumentDesc;
 
 void setupOptionDescriptions(){
     // Global option descriptions
@@ -66,6 +71,8 @@ void setupOptionDescriptions(){
         ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
         ("fasta-in", po::value< std::string >(), "create PanMAT from FASTA file")
         ("newick-in", po::value< std::string >(), "Input file path for file containing newick string")
+        ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
+        ("tree-group-file", po::value< std::string >(), "Input file name for PanMAT Group")
     ;
 
     // Adding input file as positional argument
@@ -166,6 +173,24 @@ void setupOptionDescriptions(){
     GFAToFASTAArgumentDesc.add("output-file", -1);
 
 
+    // Tree Group FASTA option descriptions
+    groupFastaDesc.add_options()
+        ("help", "produce help message")
+        ("output-file", po::value< std::string >()->required(), "Output file name")
+    ;
+
+    // Adding output file as positional argument
+    groupFastaPositionArgumentDesc.add("output-file", -1);
+
+    // Group MAT Writer option descriptions
+    groupWriteDesc.add_options()
+        ("help", "produce help message")
+        ("output-file", po::value< std::string >()->required(), "Output file name")
+    ;
+
+    // Adding output file as positional argument
+    groupWritePositionArgumentDesc.add("output-file", -1);
+
 }
 
 void printError(std::string e){
@@ -182,7 +207,9 @@ void updatedParser(int argc, char* argv[]){
 
 #ifdef MAT_V2
 
-    PangenomeMAT2::Tree *T;
+    PangenomeMAT2::Tree *T = nullptr;
+    PangenomeMAT2::TreeGroup *TG = nullptr;
+
     if(globalVm.count("help")){
         std::cout << globalDesc;
         return;
@@ -200,6 +227,20 @@ void updatedParser(int argc, char* argv[]){
         std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
 
         inputStream.close();
+    } else if(globalVm.count("tree-group-file")){
+        std::string fileName = globalVm["tree-group-file"].as< std::string >();
+        std::ifstream inputStream(fileName);
+
+        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+
+        TG = new PangenomeMAT2::TreeGroup(inputStream);
+
+        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
+
+        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+
+        inputStream.close();  
     } else if(globalVm.count("gfa-in")){
         std::string fileName = globalVm["gfa-in"].as< std::string >();
         if(!globalVm.count("newick-in")){
@@ -305,6 +346,17 @@ void updatedParser(int argc, char* argv[]){
 
         newickInputStream.close();
         inputStream.close();
+    } else if(globalVm.count("tree-group")){
+        std::vector< std::string > fileNames;
+
+        fileNames = globalVm["tree-group"].as< std::vector< std::string > >();
+        std::vector< std::ifstream > files;
+        for(auto u: fileNames){
+            files.emplace_back(u);
+        }
+
+        TG = new PangenomeMAT2::TreeGroup(files);
+
     } else {
         printError("Incorrect Format");
         // std::cout << "\033[1;31m" << "Error: " << "\033[0m" << "Incorrect Format\n";
@@ -548,7 +600,7 @@ void updatedParser(int argc, char* argv[]){
                 po::variables_map generateGFAVM;
                 po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(generateGFADesc).positional(generateGFAArgumentDesc).run(), generateGFAVM);
                 if(generateGFAVM.count("help")){
-                    std::cout << annotateDesc;
+                    std::cout << generateGFADesc;
                 } else {
                     po::notify(generateGFAVM);
                     std::string fileName = generateGFAVM["output-file"].as< std::string >();
@@ -573,7 +625,7 @@ void updatedParser(int argc, char* argv[]){
                 po::variables_map generateVGVM;
                 po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(generateVGDesc).positional(generateVGArgumentDesc).run(), generateVGVM);
                 if(generateVGVM.count("help")){
-                    std::cout << annotateDesc;
+                    std::cout << generateVGDesc;
                 } else {
                     po::notify(generateVGVM);
                     std::string fileName = generateVGVM["output-file"].as< std::string >();
@@ -599,7 +651,7 @@ void updatedParser(int argc, char* argv[]){
                 po::variables_map VGToFASTAVM;
                 po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(VGToFASTADesc).positional(VGToFASTAArgumentDesc).run(), VGToFASTAVM);
                 if(VGToFASTAVM.count("help")){
-                    std::cout << annotateDesc;
+                    std::cout << VGToFASTADesc;
                 } else {
                     po::notify(VGToFASTAVM);
                     std::string inputFileName = VGToFASTAVM["input-file"].as< std::string >();
@@ -628,7 +680,7 @@ void updatedParser(int argc, char* argv[]){
                 po::variables_map GFAToFASTAVM;
                 po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(GFAToFASTADesc).positional(GFAToFASTAArgumentDesc).run(), GFAToFASTAVM);
                 if(GFAToFASTAVM.count("help")){
-                    std::cout << annotateDesc;
+                    std::cout << GFAToFASTADesc;
                 } else {
                     po::notify(GFAToFASTAVM);
                     std::string inputFileName = GFAToFASTAVM["input-file"].as< std::string >();
@@ -650,6 +702,54 @@ void updatedParser(int argc, char* argv[]){
                     fin.close();
                     fout.close();
                 }
+            } else if(strcmp(splitCommandArray[0], "groupFasta") == 0){
+                // If FASTA for tree group is required
+
+                po::variables_map groupFastaVM;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(groupFastaDesc).positional(groupFastaPositionArgumentDesc).run(), groupFastaVM);
+                if(groupFastaVM.count("help")){
+                    std::cout << groupFastaDesc;
+                }
+                std::filesystem::create_directory("./fasta");
+
+                std::string outputFileName = groupFastaVM["output-file"].as< std::string >();
+                std::ofstream fout("./fasta/" + outputFileName + ".fasta");
+
+                auto groupFastaStart = std::chrono::high_resolution_clock::now();
+
+                TG->printFASTA(fout);
+
+                auto groupFastaEnd = std::chrono::high_resolution_clock::now();
+                std::chrono::nanoseconds groupFASTATime = groupFastaEnd - groupFastaStart;
+
+                std::cout << "Group FASTA write time: " << groupFASTATime.count() << " nanoseconds\n";
+
+                fout.close();
+
+            } else if(strcmp(splitCommandArray[0], "groupWrite") == 0){
+                // If FASTA for tree group is required
+
+                po::variables_map groupWriteVM;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(groupWriteDesc).positional(groupWritePositionArgumentDesc).run(), groupWriteVM);
+                if(groupWriteVM.count("help")){
+                    std::cout << groupWriteDesc;
+                }
+                std::filesystem::create_directory("./pmat");
+
+                std::string outputFileName = groupWriteVM["output-file"].as< std::string >();
+                std::ofstream fout("./pmat/" + outputFileName + ".pmatg");
+
+                auto groupWriteStart = std::chrono::high_resolution_clock::now();
+
+                TG->writeToFile(fout);
+
+                auto groupWriteEnd = std::chrono::high_resolution_clock::now();
+                std::chrono::nanoseconds groupWriteTime = groupWriteEnd - groupWriteStart;
+
+                std::cout << "Group PanMAT write time: " << groupWriteTime.count() << " nanoseconds\n";
+
+                fout.close();
+
             } else if(strcmp(splitCommandArray[0], "exit") == 0){
                 return;
             }

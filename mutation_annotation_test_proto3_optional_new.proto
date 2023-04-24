@@ -61,3 +61,8 @@ message tree
     repeated gapList gaps = 5;
     blockGapList     blockGaps = 6;
 }
+
+message treeGroup
+{
+    repeated tree   trees = 1;
+}

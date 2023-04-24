@@ -274,7 +274,7 @@ namespace PangenomeMAT2 {
             void mergeNodes(Node* par, Node* chi);
             bool debugSimilarity(const std::vector< NucMut > array1, const std::vector< NucMut > array2);
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
-            void getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tree& treeToWrite);
+            
             AuxilaryMAT::Node* convertToAuxMatHelper(PangenomeMAT2::Node* currentNode, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
                 std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > >& coordinates,\
                 std::vector< std::pair< bool, std::vector< bool > > >& blockExists
@@ -287,8 +287,11 @@ namespace PangenomeMAT2 {
             }
 
         public:
+            Tree(const MATNew::tree& mainTree);
             Tree(std::ifstream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
             Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
+
+            void protoMATToTree(const MATNew::tree& mainTree);
 
             int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
             void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState);
@@ -316,6 +319,7 @@ namespace PangenomeMAT2 {
             void convertToGFA(std::ofstream& fout);
             void printFASTAFromVG(std::ifstream& fin, std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
+            void getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tree& treeToWrite);
 
             AuxilaryMAT::Tree* convertToAuxMat();
 
@@ -325,6 +329,17 @@ namespace PangenomeMAT2 {
             std::vector< GapList > gaps;
             BlockGapList blockGaps;
 
+    };
+
+    class TreeGroup {
+    public:
+        std::vector< Tree > trees;
+        
+        TreeGroup(std::ifstream& fin);
+        TreeGroup(std::vector< std::ifstream >& treeFiles);
+        
+        void printFASTA(std::ofstream& fout);
+        void writeToFile(std::ofstream& fout);
     };
 
 };

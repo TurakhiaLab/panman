@@ -7,6 +7,7 @@
 #include <tbb/parallel_for_each.h>
 #include <tbb/concurrent_vector.h>
 #include <tbb/concurrent_unordered_map.h>
+#include <tbb/concurrent_unordered_set.h>
 #include <ctime>
 #include <iomanip>
 #include <mutex>
@@ -1081,6 +1082,60 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYP
     }
 }
 
+void PangenomeMAT2::Tree::protoMATToTree(const MATNew::tree& mainTree){
+    // Create tree
+    root = createTreeFromNewickString(mainTree.newick());
+    invertTree(root);
+
+    std::map< int64_t, std::vector< uint32_t > > blockIdToConsensusSeq;
+
+    for(int i = 0; i < mainTree.consensusseqmap_size(); i++){
+        std::vector< uint32_t > seq;
+        for(int j = 0; j < mainTree.consensusseqmap(i).consensusseq_size(); j++){
+            seq.push_back(mainTree.consensusseqmap(i).consensusseq(j));
+        }
+        for(int j = 0; j < mainTree.consensusseqmap(i).blockid_size(); j++){
+            blockIdToConsensusSeq[mainTree.consensusseqmap(i).blockid(j)] = seq;
+        }
+    }
+
+    std::vector< MATNew::node > storedNodes;
+    for(int i = 0; i < mainTree.nodes_size(); i++){
+        storedNodes.push_back(mainTree.nodes(i));
+    }
+
+    size_t initialIndex = 0;
+
+    assignMutationsToNodes(root, initialIndex, storedNodes);
+
+    // Block sequence
+    for(int i = 0; i < mainTree.blocks_size(); i++){
+        blocks.emplace_back(mainTree.blocks(i), blockIdToConsensusSeq[mainTree.blocks(i).blockid()]);
+    }
+
+    // Gap List
+    for(int i = 0; i < mainTree.gaps_size(); i++){
+        PangenomeMAT2::GapList tempGaps;
+        tempGaps.primaryBlockId = (mainTree.gaps(i).blockid() >> 32);
+        tempGaps.secondaryBlockId = (mainTree.gaps(i).blockgapexist() ? (mainTree.gaps(i).blockid() & 0xFFFF): -1);
+        for(int j = 0; j < mainTree.gaps(i).nucposition_size(); j++){
+            tempGaps.nucPosition.push_back(mainTree.gaps(i).nucposition(j));
+            tempGaps.nucGapLength.push_back(mainTree.gaps(i).nucgaplength(j));
+        }
+        gaps.push_back(tempGaps);
+    }
+
+    // Block gap list
+    for(int i = 0; i < mainTree.blockgaps().blockposition_size(); i++){
+        blockGaps.blockPosition.push_back(mainTree.blockgaps().blockposition(i));
+        blockGaps.blockGapLength.push_back(mainTree.blockgaps().blockgaplength(i));
+    }
+}
+
+PangenomeMAT2::Tree::Tree(const MATNew::tree& mainTree){
+    protoMATToTree(mainTree);
+}
+
 PangenomeMAT2::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
 
     if(ftype == PangenomeMAT2::FILE_TYPE::PANMAT){
@@ -1090,53 +1145,7 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
             throw std::invalid_argument("Could not read tree from input file.");
         }
 
-        // Create tree
-        root = createTreeFromNewickString(mainTree.newick());
-        invertTree(root);
-
-        std::map< int64_t, std::vector< uint32_t > > blockIdToConsensusSeq;
-
-        for(int i = 0; i < mainTree.consensusseqmap_size(); i++){
-            std::vector< uint32_t > seq;
-            for(int j = 0; j < mainTree.consensusseqmap(i).consensusseq_size(); j++){
-                seq.push_back(mainTree.consensusseqmap(i).consensusseq(j));
-            }
-            for(int j = 0; j < mainTree.consensusseqmap(i).blockid_size(); j++){
-                blockIdToConsensusSeq[mainTree.consensusseqmap(i).blockid(j)] = seq;
-            }
-        }
-
-        std::vector< MATNew::node > storedNodes;
-        for(int i = 0; i < mainTree.nodes_size(); i++){
-            storedNodes.push_back(mainTree.nodes(i));
-        }
-
-        size_t initialIndex = 0;
-
-        assignMutationsToNodes(root, initialIndex, storedNodes);
-
-        // Block sequence
-        for(int i = 0; i < mainTree.blocks_size(); i++){
-            blocks.emplace_back(mainTree.blocks(i), blockIdToConsensusSeq[mainTree.blocks(i).blockid()]);
-        }
-
-        // Gap List
-        for(int i = 0; i < mainTree.gaps_size(); i++){
-            PangenomeMAT2::GapList tempGaps;
-            tempGaps.primaryBlockId = (mainTree.gaps(i).blockid() >> 32);
-            tempGaps.secondaryBlockId = (mainTree.gaps(i).blockgapexist() ? (mainTree.gaps(i).blockid() & 0xFFFF): -1);
-            for(int j = 0; j < mainTree.gaps(i).nucposition_size(); j++){
-                tempGaps.nucPosition.push_back(mainTree.gaps(i).nucposition(j));
-                tempGaps.nucGapLength.push_back(mainTree.gaps(i).nucgaplength(j));
-            }
-            gaps.push_back(tempGaps);
-        }
-
-        // Block gap list
-        for(int i = 0; i < mainTree.blockgaps().blockposition_size(); i++){
-            blockGaps.blockPosition.push_back(mainTree.blockgaps().blockposition(i));
-            blockGaps.blockGapLength.push_back(mainTree.blockgaps().blockgaplength(i));
-        }
+        protoMATToTree(mainTree);
     }
 }
 
@@ -2508,7 +2517,7 @@ void PangenomeMAT2::Tree::writeToFile(std::ofstream& fout, PangenomeMAT2::Node* 
     }
 
     if (!treeToWrite.SerializeToOstream(&fout)) {
-		std::cerr << "Failed to write output file." << std::endl;
+		std::cerr << "Failed to write to output file." << std::endl;
     }
 
 }
@@ -3844,28 +3853,158 @@ void PangenomeMAT2::Tree::annotate(std::ifstream& fin){
 
 void PangenomeMAT2::Tree::convertToGFA(std::ofstream& fout){
 
-    size_t autoIncrId = 0;
-    // std::map< std::tuple< int32_t, int32_t, int32_t, int32_t, std::string >, uint64_t > sequenceNodes;
-    std::map< std::pair< size_t, std::string >, size_t > allSequenceNodes;
-    std::map< std::string, std::vector< size_t > > paths;
-
+    // First we check if there are any nucleotide mutations. If there are no nuc mutations, we can simply construct a GFA of blocks.
+    bool nucMutationFlag = false;
     for(auto u: allNodes){
-        if(u.second->children.size() != 0){
-            continue;
+        if(u.second->nucMutation.size() != 0){
+            nucMutationFlag = true;
+        }
+    }
+
+    if(!nucMutationFlag){
+        // get nodes
+        std::map<std::pair<int32_t, int32_t>, std::string> nodes;
+        for(auto block: blocks){
+            int64_t primaryBlockId = block.primaryBlockId;
+            int64_t secondaryBlockId = block.secondaryBlockId;
+            std::string sequenceString;
+            for(auto u: block.consensusSeq){
+                for(size_t k = 0; k < 8; k++){
+                    const int nucCode = (((u) >> (4*(7 - k))) & 15);
+                    if(nucCode == 0){
+                        break;
+                    }
+                    const char nucleotide = PangenomeMAT2::getNucleotideFromCode(nucCode);
+                    sequenceString += nucleotide;
+                }
+            }
+            nodes[std::make_pair(primaryBlockId, secondaryBlockId)] = sequenceString;
         }
 
-        std::string alignedSequence = getStringFromReference(u.first, true);
 
-        std::string currentSequence;
-        size_t currentStart = 0;
-        std::vector< size_t > sequenceNodeIds;
+        // block presense map
+        std::vector< std::pair< bool, std::vector< bool > > > blockExistsGlobal(blocks.size() + 1, {false, {}});
+        // Assigning block gaps
+        for(size_t i = 0; i < blockGaps.blockPosition.size(); i++){
+            blockExistsGlobal[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
+        }
+        
+        tbb::concurrent_unordered_set< std::pair< std::pair<int32_t, int32_t>, std::pair<int32_t, int32_t> > > edges;
+        tbb::concurrent_unordered_map< std::string, std::vector< std::pair<int32_t, int32_t> > > paths;
 
-        for(size_t i = 0; i < alignedSequence.length(); i++){
-            if(currentSequence.length() == 0){
-                currentStart = i;
+        // get all paths
+        tbb::parallel_for_each(allNodes, [&](auto u){
+            if(u.second->children.size()){
+                return;
             }
-            currentSequence += alignedSequence[i];
-            if(currentSequence.length() == 32){
+
+            auto blockExists = blockExistsGlobal;
+
+            std::vector< PangenomeMAT2::Node* > path;
+
+            Node* it = u.second;
+            while(it != root){
+                path.push_back(it);
+                it = it->parent;
+            }
+            path.push_back(root);
+            std::reverse(path.begin(), path.end());
+            for(auto node: path){
+                for(auto mutation: node->blockMutation){
+                    int primaryBlockId = mutation.primaryBlockId;
+                    int secondaryBlockId = mutation.secondaryBlockId;
+                    int type = (mutation.blockMutInfo);
+                    
+                    if(type == PangenomeMAT2::BlockMutationType::BI){
+                        if(secondaryBlockId != -1){
+                            blockExists[primaryBlockId].second[secondaryBlockId] = true;
+                        } else {
+                            blockExists[primaryBlockId].first = true;
+                        }
+                    } else {
+                        if(secondaryBlockId != -1){
+                            blockExists[primaryBlockId].second[secondaryBlockId] = false;
+                        } else {
+                            blockExists[primaryBlockId].first = false;
+                        }
+                    }
+                }
+            }
+            std::vector< std::pair< int32_t, int32_t > > currentPath;
+            for(size_t i = 0; i < blockExists.size(); i++){
+                if(blockExists[i].first){
+                    currentPath.push_back(std::make_pair(i, -1));
+                }
+                for(size_t j = 0; j < blockExists[i].second.size(); j++){
+                    if(blockExists[i].second[j]){
+                        currentPath.push_back(std::make_pair(i, j));
+                    }
+                }
+            }
+            paths[u.second->identifier] = currentPath;
+            for(size_t i = 1; i < currentPath.size(); i++){
+                edges.insert(std::make_pair(currentPath[i-1], currentPath[i]));
+            }
+        });
+        std::map< std::pair< int32_t, int32_t >, uint64_t > nodeIds;
+        uint64_t ctr = 0;
+        for(auto u: nodes){
+            nodeIds[u.first] = ctr;
+            ctr++;
+        }
+        for(auto u: nodes){
+            fout << "S\t" << nodeIds[u.first] << "\t" << u.second << "\n";
+        }
+        for(auto u: edges){
+            fout << "L\t" << nodeIds[u.first] << "\t+\t" << nodeIds[u.second] << "\t+\t0M\n";
+        }
+        for(auto u: paths){
+            fout << "P\t" << u.first << "\t";
+            for(size_t i = 0; i < u.second.size(); i++){
+                fout << nodeIds[u.second[i]] << "+";
+                if(i != u.second.size() - 1){
+                    fout << ",";
+                }
+            }
+            fout << "\t*\n";
+        }
+    } else {
+        size_t autoIncrId = 0;
+        // std::map< std::tuple< int32_t, int32_t, int32_t, int32_t, std::string >, uint64_t > sequenceNodes;
+        std::map< std::pair< size_t, std::string >, size_t > allSequenceNodes;
+        std::map< std::string, std::vector< size_t > > paths;
+
+        for(auto u: allNodes){
+            if(u.second->children.size() != 0){
+                continue;
+            }
+
+            std::string alignedSequence = getStringFromReference(u.first, true);
+
+            std::string currentSequence;
+            size_t currentStart = 0;
+            std::vector< size_t > sequenceNodeIds;
+
+            for(size_t i = 0; i < alignedSequence.length(); i++){
+                if(currentSequence.length() == 0){
+                    currentStart = i;
+                }
+                currentSequence += alignedSequence[i];
+                if(currentSequence.length() == 32){
+                    currentSequence = stripGaps(currentSequence);
+                    if(currentSequence.length()){
+                        if(allSequenceNodes.find(std::make_pair(currentStart, currentSequence)) == allSequenceNodes.end()){
+                            allSequenceNodes[std::make_pair(currentStart, currentSequence)] = autoIncrId;
+                            sequenceNodeIds.push_back(autoIncrId);
+                            autoIncrId++;
+                        } else {
+                            sequenceNodeIds.push_back(allSequenceNodes[std::make_pair(currentStart, currentSequence)]);
+                        }
+                    }
+                    currentSequence = "";
+                }
+            }
+            if(currentSequence.length()){
                 currentSequence = stripGaps(currentSequence);
                 if(currentSequence.length()){
                     if(allSequenceNodes.find(std::make_pair(currentStart, currentSequence)) == allSequenceNodes.end()){
@@ -3878,151 +4017,138 @@ void PangenomeMAT2::Tree::convertToGFA(std::ofstream& fout){
                 }
                 currentSequence = "";
             }
+            paths[u.first] = sequenceNodeIds;
         }
-        if(currentSequence.length()){
-            currentSequence = stripGaps(currentSequence);
-            if(currentSequence.length()){
-                if(allSequenceNodes.find(std::make_pair(currentStart, currentSequence)) == allSequenceNodes.end()){
-                    allSequenceNodes[std::make_pair(currentStart, currentSequence)] = autoIncrId;
-                    sequenceNodeIds.push_back(autoIncrId);
-                    autoIncrId++;
-                } else {
-                    sequenceNodeIds.push_back(allSequenceNodes[std::make_pair(currentStart, currentSequence)]);
-                }
+        
+        std::map< size_t, std::string > finalNodes;
+        for(auto u: allSequenceNodes){
+            finalNodes[u.second] = u.first.second;
+        }
+
+
+        // Graph and its transpose
+        std::vector< std::pair< std::string, size_t > > G[autoIncrId];
+        std::vector< std::pair< std::string, size_t > > GT[autoIncrId];
+
+        for(auto u: paths){
+            for(size_t i = 1; i < u.second.size(); i++){
+                G[u.second[i-1]].push_back(std::make_pair(u.first, u.second[i]));
+                GT[u.second[i]].push_back(std::make_pair(u.first, u.second[i-1]));
             }
-            currentSequence = "";
-        }
-        paths[u.first] = sequenceNodeIds;
-    }
-    
-    std::map< size_t, std::string > finalNodes;
-    for(auto u: allSequenceNodes){
-        finalNodes[u.second] = u.first.second;
-    }
-
-
-    // Graph and its transpose
-    std::vector< std::pair< std::string, size_t > > G[autoIncrId];
-    std::vector< std::pair< std::string, size_t > > GT[autoIncrId];
-
-    for(auto u: paths){
-        for(size_t i = 1; i < u.second.size(); i++){
-            G[u.second[i-1]].push_back(std::make_pair(u.first, u.second[i]));
-            GT[u.second[i]].push_back(std::make_pair(u.first, u.second[i-1]));
-        }
-    }
-
-    for(size_t i = 0; i < autoIncrId; i++){
-        // Sort so we can compare the sequence IDs of incoming and outgoing edges for equality
-        sort(G[i].begin(), G[i].end());
-        sort(GT[i].begin(), GT[i].end());
-    }
-
-    for(size_t i = 0; i < autoIncrId; i++){
-        if(finalNodes.find(i) == finalNodes.end()){
-            continue;
         }
 
-        while(true){
-            // check if a node's edges only go to one next next node and there is an outgoing edge for every incoming edge
-            if(G[i].size() != GT[i].size() || G[i].size() == 0){
-                break;
+        for(size_t i = 0; i < autoIncrId; i++){
+            // Sort so we can compare the sequence IDs of incoming and outgoing edges for equality
+            sort(G[i].begin(), G[i].end());
+            sort(GT[i].begin(), GT[i].end());
+        }
+
+        for(size_t i = 0; i < autoIncrId; i++){
+            if(finalNodes.find(i) == finalNodes.end()){
+                continue;
             }
-            bool check = true;
 
-            for(size_t j = 0; j < G[i].size(); j++){
-                if(G[i][j].first != GT[i][j].first){
-                    check = false;
-                    break;
-                } else if(j > 0 && G[i][j].second != G[i][j-1].second){
-                    check = false;
+            while(true){
+                // check if a node's edges only go to one next next node and there is an outgoing edge for every incoming edge
+                if(G[i].size() != GT[i].size() || G[i].size() == 0){
                     break;
                 }
-            }
+                bool check = true;
 
-            if(!check){
-                break;
-            }
+                for(size_t j = 0; j < G[i].size(); j++){
+                    if(G[i][j].first != GT[i][j].first){
+                        check = false;
+                        break;
+                    } else if(j > 0 && G[i][j].second != G[i][j-1].second){
+                        check = false;
+                        break;
+                    }
+                }
 
-            size_t dest = G[i][0].second;
-            if(G[i].size() != GT[dest].size()){
-                break;
-            }
-
-            for(size_t j = 0; j < G[i].size(); j++){
-                if(G[i][j].first != GT[dest][j].first && GT[dest][j].second != i){
-                    check = false;
+                if(!check){
                     break;
                 }
-            }
-            if(G[dest].size() != GT[dest].size()){
-                break;
-            }
-            for(size_t j = 0; j < GT[dest].size(); j++){
-                if(G[dest][j].first != GT[dest][j].first){
-                    check = false;
+
+                size_t dest = G[i][0].second;
+                if(G[i].size() != GT[dest].size()){
                     break;
                 }
-            }
 
-            if(!check){
-                break;
-            }
-            // combine i and dest
-            finalNodes[i] += finalNodes[dest];
-            finalNodes.erase(dest);
-            G[i].clear();
-            G[i] = G[dest];
-        }
-    }
+                for(size_t j = 0; j < G[i].size(); j++){
+                    if(G[i][j].first != GT[dest][j].first && GT[dest][j].second != i){
+                        check = false;
+                        break;
+                    }
+                }
+                if(G[dest].size() != GT[dest].size()){
+                    break;
+                }
+                for(size_t j = 0; j < GT[dest].size(); j++){
+                    if(G[dest][j].first != GT[dest][j].first){
+                        check = false;
+                        break;
+                    }
+                }
 
-    std::set< std::pair< size_t, size_t > > edges;
-    
-    for(size_t i = 0; i < autoIncrId; i++){
-        if(finalNodes.find(i) == finalNodes.end()){
-            continue;
-        }
-        for(auto edge: G[i]){
-            edges.insert(std::make_pair(i, edge.second));
-        }
-    }
-
-    for(auto p: paths){
-        std::vector< size_t > newPath;
-        for(auto n: p.second){
-            if(finalNodes.find(n) != finalNodes.end()){
-                newPath.push_back(n);
+                if(!check){
+                    break;
+                }
+                // combine i and dest
+                finalNodes[i] += finalNodes[dest];
+                finalNodes.erase(dest);
+                G[i].clear();
+                G[i] = G[dest];
             }
         }
-        paths[p.first] = newPath;
-    }
 
-    // convert node IDs to consecutive node IDs after path compression
-    int currentID = 0;
-    std::map< size_t, size_t > oldToNew;
-    for(auto u: finalNodes){
-        oldToNew[u.first] = currentID;
-        currentID++;
-    }
-
-    fout << "H\tVN:Z:1.1\n";
-    for(auto u: finalNodes){
-        fout << "S\t" << oldToNew[u.first] << "\t" << u.second << "\n";
-    }
-
-    for(auto u: edges){
-        fout << "L\t" << oldToNew[u.first] << "\t+\t" << oldToNew[u.second] << "\t+\t0M\n";
-    }
-
-    for(auto u: paths){
-        fout << "P\t" << u.first << "\t";
-        for(size_t i = 0; i < u.second.size(); i++){
-            fout << oldToNew[u.second[i]] << "+";
-            if(i != u.second.size() - 1){
-                fout << ",";
+        std::set< std::pair< size_t, size_t > > edges;
+        
+        for(size_t i = 0; i < autoIncrId; i++){
+            if(finalNodes.find(i) == finalNodes.end()){
+                continue;
+            }
+            for(auto edge: G[i]){
+                edges.insert(std::make_pair(i, edge.second));
             }
         }
-        fout << "\t*\n";
+
+        for(auto p: paths){
+            std::vector< size_t > newPath;
+            for(auto n: p.second){
+                if(finalNodes.find(n) != finalNodes.end()){
+                    newPath.push_back(n);
+                }
+            }
+            paths[p.first] = newPath;
+        }
+
+        // convert node IDs to consecutive node IDs after path compression
+        int currentID = 0;
+        std::map< size_t, size_t > oldToNew;
+        for(auto u: finalNodes){
+            oldToNew[u.first] = currentID;
+            currentID++;
+        }
+
+        fout << "H\tVN:Z:1.1\n";
+        for(auto u: finalNodes){
+            fout << "S\t" << oldToNew[u.first] << "\t" << u.second << "\n";
+        }
+
+        for(auto u: edges){
+            fout << "L\t" << oldToNew[u.first] << "\t+\t" << oldToNew[u.second] << "\t+\t0M\n";
+        }
+
+        for(auto u: paths){
+            fout << "P\t" << u.first << "\t";
+            for(size_t i = 0; i < u.second.size(); i++){
+                fout << oldToNew[u.second[i]] << "+";
+                if(i != u.second.size() - 1){
+                    fout << ",";
+                }
+            }
+            fout << "\t*\n";
+        }
     }
 }
 
@@ -4665,6 +4791,9 @@ PangenomeMAT2::GFAGraph::GFAGraph(const std::vector< std::string >& pathNames, c
         newToOld[i] = i;
     }
 
+    adj.clear();
+    adj.resize(numNodes);
+
     for(auto& sequence: intSequences){
         if(sequence.size() == 0){
             continue;
@@ -4682,26 +4811,32 @@ PangenomeMAT2::GFAGraph::GFAGraph(const std::vector< std::string >& pathNames, c
                 }
             }
 
-            if(!neighbourFound){
-                adj[currentNode].push_back(nextNode);
+            if(neighbourFound){
+                currentNode = nextNode;
+                continue;
             }
+
+            // if(!neighbourFound){
+            //     adj[currentNode].push_back(nextNode);
+            // }
 
             std::vector< bool > visited(numNodes, false);
             if(!pathExists(nextNode, currentNode, visited)){
+                adj[currentNode].push_back(nextNode);
                 currentNode = nextNode;
             } else {
-                size_t j = 0;
-                for(; j < adj[currentNode].size(); j++){
-                    if(adj[currentNode][j] == nextNode){
-                        break;
-                    }
-                }
-                if(j < adj[currentNode].size()){
-                    adj[currentNode].erase(adj[currentNode].begin() + j);
-                } else {
-                    std::cerr << "Unexpectedly didn't find nextNode in currentNode's adjacency list!" << std::endl;
-                    exit(-1);
-                }
+                // size_t j = 0;
+                // for(; j < adj[currentNode].size(); j++){
+                //     if(adj[currentNode][j] == nextNode){
+                //         break;
+                //     }
+                // }
+                // if(j < adj[currentNode].size()){
+                //     adj[currentNode].erase(adj[currentNode].begin() + j);
+                // } else {
+                //     std::cerr << "Unexpectedly didn't find nextNode in currentNode's adjacency list!" << std::endl;
+                //     exit(-1);
+                // }
                 adj[currentNode].push_back(numNodes);
                 adj.push_back({});
                 newToOld[numNodes] = newToOld[nextNode];
@@ -5055,4 +5190,97 @@ std::vector< size_t > PangenomeMAT2::Pangraph::getTopologicalSort(){
     std::reverse(topoArray.begin(), topoArray.end());
 
     return topoArray;
+}
+
+PangenomeMAT2::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles){
+    for(size_t i = 0; i < treeFiles.size(); i++){
+        trees.emplace_back(treeFiles[i]);
+    }
+}
+
+PangenomeMAT2::TreeGroup::TreeGroup(std::ifstream& fin){
+    MATNew::treeGroup TG;
+    if(!TG.ParseFromIstream(&fin)){
+        throw std::invalid_argument("Could not read tree group from input file.");
+    }
+    
+    for(int i = 0; i < TG.trees_size(); i++){
+        trees.emplace_back(TG.trees(i));
+    }
+}
+
+void PangenomeMAT2::TreeGroup::printFASTA(std::ofstream& fout){
+    for(auto& tree: trees){
+        tree.printFASTA(fout);
+    }
+}
+
+void PangenomeMAT2::TreeGroup::writeToFile(std::ofstream& fout){
+    MATNew::treeGroup treeGroupToWrite;
+
+    for(auto& tree: trees){
+        MATNew::tree treeToWrite;
+        Node* node = tree.root;
+        tree.getNodesPreorder(node, treeToWrite);
+        std::string newick = tree.getNewickString(node);
+
+        treeToWrite.set_newick(newick);
+        std::map< std::vector< uint32_t >, std::vector< int64_t > > consensusSeqToBlockIds;
+        
+        for(auto block: tree.blocks){
+            MATNew::block b;
+            int64_t blockId;
+            if(block.secondaryBlockId != -1){
+                blockId = ((int64_t)block.primaryBlockId << 32) + block.secondaryBlockId;
+                b.set_blockid(blockId);
+                b.set_blockgapexist(true);
+            } else {
+                blockId = ((int64_t)block.primaryBlockId << 32);
+                b.set_blockid(blockId);
+                b.set_blockgapexist(false);
+            }
+            b.set_chromosomename(block.chromosomeName);
+            consensusSeqToBlockIds[block.consensusSeq].push_back(blockId);
+            // for(auto n: block.consensusSeq){
+            //     b.add_consensusseq(n);
+            // }
+            treeToWrite.add_blocks();
+            *treeToWrite.mutable_blocks( treeToWrite.blocks_size() - 1 ) = b;
+        }
+
+        for(auto u: consensusSeqToBlockIds){
+            MATNew::consensusSeqToBlockIds c;
+            for(auto v: u.first){
+                c.add_consensusseq(v);
+            }
+            for(auto v: u.second){
+                c.add_blockid(v);
+            }
+            treeToWrite.add_consensusseqmap();
+            *treeToWrite.mutable_consensusseqmap( treeToWrite.consensusseqmap_size() - 1 ) = c;
+        }
+        for(size_t i = 0; i < tree.gaps.size(); i++){
+            MATNew::gapList gl;
+            for(size_t j = 0; j < tree.gaps[i].nucPosition.size(); j++){
+                gl.add_nucposition(tree.gaps[i].nucPosition[j]);
+                gl.add_nucgaplength(tree.gaps[i].nucGapLength[j]);
+            }
+            if(tree.gaps[i].secondaryBlockId != -1){
+                gl.set_blockid(((int64_t)tree.gaps[i].primaryBlockId << 32) + tree.gaps[i].secondaryBlockId);
+                gl.set_blockgapexist(true);
+            } else {
+                gl.set_blockid(((int64_t)tree.gaps[i].primaryBlockId << 32));
+                gl.set_blockgapexist(false);
+            }
+            treeToWrite.add_gaps();
+            *treeToWrite.mutable_gaps( treeToWrite.gaps_size() - 1 ) = gl;
+        }
+
+        treeGroupToWrite.add_trees();
+        *treeGroupToWrite.mutable_trees( treeGroupToWrite.trees_size() - 1 ) = treeToWrite;
+    }
+
+    if(!treeGroupToWrite.SerializeToOstream(&fout)){
+        std::cerr << "Failed to write to output file." << std::endl;
+    }
 }
