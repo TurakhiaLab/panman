@@ -17,6 +17,9 @@
 #define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
 
+typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
+typedef  std::vector< std::pair< bool, std::vector< bool > > > blockExists_t;
+
 namespace PangenomeMAT2 {
 
     char getNucleotideFromCode(int code);
@@ -143,9 +146,9 @@ namespace PangenomeMAT2 {
             blockMutInfo = mutation.blockmutinfo();
         }
 
-        BlockMut(size_t blockId, bool type){
+        BlockMut(size_t blockId, bool type, int secondaryBlockId = -1){
             primaryBlockId = blockId;
-            secondaryBlockId = -1;
+            secondaryBlockId = secondaryBlockId;
             blockMutInfo = type;
         }
         BlockMut(){
@@ -294,11 +297,12 @@ namespace PangenomeMAT2 {
             void protoMATToTree(const MATNew::tree& mainTree);
 
             int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
-            void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState);
+            void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState, int defaultState = (1<<28));
             void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > >& mutations, int parentState);
 
             int blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
-            void blockFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState);
+            // The defaultValue parameter is used in rerooting.
+            void blockFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState,  int defaultValue = 2);
             void blockFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, bool >& mutations, int parentState);
 
             void printSummary();
@@ -309,6 +313,9 @@ namespace PangenomeMAT2 {
             void writeToFile(std::ofstream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true);
+            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, std::string reference);
+            std::tuple< int, int, int, int > globalCoordinateToBlockCoordinate(int64_t globalCoordinate, const sequence_t& sequence, const blockExists_t& blockExists);
+
             void printVCFParallel(std::string reference, std::ofstream& fout);
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
             bool verifyVCFFile(std::ifstream& fin);
@@ -320,6 +327,7 @@ namespace PangenomeMAT2 {
             void printFASTAFromVG(std::ifstream& fin, std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
             void getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tree& treeToWrite);
+            void reroot(std::string sequenceName);
 
             AuxilaryMAT::Tree* convertToAuxMat();
 
@@ -331,12 +339,142 @@ namespace PangenomeMAT2 {
 
     };
 
+    struct ComplexMutation{
+        char mutationType;
+        size_t treeIndex1, treeIndex2, treeIndex3;
+        std::string sequenceId1, sequenceId2;
+        
+        // coordinates of start in parent 1
+        int32_t primaryBlockIdStart1;
+        int32_t secondaryBlockIdStart1;
+        int32_t nucPositionStart1;
+        int32_t nucGapPositionStart1;
+
+        // coordinates of end in parent 1
+        int32_t primaryBlockIdEnd1;
+        int32_t secondaryBlockIdEnd1;
+        int32_t nucPositionEnd1;
+        int32_t nucGapPositionEnd1;
+
+        // coordinates of start in parent 2
+        int32_t primaryBlockIdStart2;
+        int32_t secondaryBlockIdStart2;
+        int32_t nucPositionStart2;
+        int32_t nucGapPositionStart2;
+
+        // coordinates of end in parent 2
+        int32_t primaryBlockIdEnd2;
+        int32_t secondaryBlockIdEnd2;
+        int32_t nucPositionEnd2;
+        int32_t nucGapPositionEnd2;
+
+        ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1, std::string sId2, std::tuple< int,int,int,int > t1, std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3, std::tuple< int,int,int,int > t4){
+            mutationType = mutType;
+            treeIndex1 = tIndex1;
+            treeIndex2 = tIndex2;
+            treeIndex3 = tIndex3;
+
+            sequenceId1 = sId1;
+            sequenceId2 = sId1;
+
+            primaryBlockIdStart1 = std::get<0>(t1);
+            secondaryBlockIdStart1 = std::get<1>(t1);
+            nucPositionStart1 = std::get<2>(t1);
+            nucGapPositionStart1 = std::get<3>(t1);
+
+            primaryBlockIdEnd1 = std::get<0>(t2);
+            secondaryBlockIdEnd1 = std::get<1>(t2);
+            nucPositionEnd1 = std::get<2>(t2);
+            nucGapPositionEnd1 = std::get<3>(t2);
+
+            primaryBlockIdStart2 = std::get<0>(t3);
+            secondaryBlockIdStart2 = std::get<1>(t3);
+            nucPositionStart2 = std::get<2>(t3);
+            nucGapPositionStart2 = std::get<3>(t3);
+
+            primaryBlockIdEnd2 = std::get<0>(t4);
+            secondaryBlockIdEnd2 = std::get<1>(t4);
+            nucPositionEnd2 = std::get<2>(t4);
+            nucGapPositionEnd2 = std::get<3>(t4);
+        }
+
+        MATNew::complexMutation toProtobuf(){
+            MATNew::complexMutation cm;
+            cm.set_mutationtype(mutationType == 'H');
+            cm.set_treeindex1(treeIndex1);
+            cm.set_treeindex2(treeIndex2);
+            cm.set_treeindex3(treeIndex3);
+            cm.set_sequenceid1(sequenceId1);
+            cm.set_sequenceid2(sequenceId2);
+
+            if(secondaryBlockIdStart1 != -1){
+                cm.set_blockgapexiststart1(true);
+                cm.set_blockidstart1(((int64_t)primaryBlockIdStart1 << 32)+secondaryBlockIdStart1);
+            } else {
+                cm.set_blockgapexiststart1(false);
+                cm.set_blockidstart1(((int64_t)primaryBlockIdStart1 << 32));
+            }
+            cm.set_nucpositionstart1(nucPositionStart1);
+
+            if(nucGapPositionStart1 != -1){
+                cm.set_nucgapexiststart1(true);
+                cm.set_nucgappositionstart1(nucGapPositionStart1);
+            }
+
+            if(secondaryBlockIdStart2 != -1){
+                cm.set_blockgapexiststart2(true);
+                cm.set_blockidstart2(((int64_t)primaryBlockIdStart2 << 32)+secondaryBlockIdStart2);
+            } else {
+                cm.set_blockgapexiststart2(false);
+                cm.set_blockidstart2(((int64_t)primaryBlockIdStart2 << 32));
+            }
+            cm.set_nucpositionstart2(nucPositionStart1);
+
+            if(nucGapPositionStart2 != -1){
+                cm.set_nucgapexiststart2(true);
+                cm.set_nucgappositionstart2(nucGapPositionStart2);
+            }
+
+            if(secondaryBlockIdEnd1 != -1){
+                cm.set_blockgapexistend1(true);
+                cm.set_blockidend1(((int64_t)primaryBlockIdEnd1 << 32)+secondaryBlockIdEnd1);
+            } else {
+                cm.set_blockgapexistend1(false);
+                cm.set_blockidend1(((int64_t)primaryBlockIdEnd1 << 32));
+            }
+            cm.set_nucpositionend1(nucPositionEnd1);
+
+            if(nucGapPositionEnd1 != -1){
+                cm.set_nucgapexistend1(true);
+                cm.set_nucgappositionend1(nucGapPositionEnd1);
+            }
+
+            if(secondaryBlockIdEnd2 != -1){
+                cm.set_blockgapexistend2(true);
+                cm.set_blockidend2(((int64_t)primaryBlockIdEnd1 << 32)+secondaryBlockIdEnd2);
+            } else {
+                cm.set_blockgapexistend2(false);
+                cm.set_blockidend2(((int64_t)primaryBlockIdEnd2 << 32));
+            }
+            cm.set_nucpositionend2(nucPositionEnd1);
+
+            if(nucGapPositionEnd2 != -1){
+                cm.set_nucgapexistend2(true);
+                cm.set_nucgappositionend2(nucGapPositionEnd2);
+            }
+
+            return cm;
+        }
+
+    };
+
     class TreeGroup {
     public:
         std::vector< Tree > trees;
+        std::vector< ComplexMutation > complexMutations;
         
         TreeGroup(std::ifstream& fin);
-        TreeGroup(std::vector< std::ifstream >& treeFiles);
+        TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile);
         
         void printFASTA(std::ofstream& fout);
         void writeToFile(std::ofstream& fout);

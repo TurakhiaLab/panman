@@ -72,7 +72,8 @@ void setupOptionDescriptions(){
         ("fasta-in", po::value< std::string >(), "create PanMAT from FASTA file")
         ("newick-in", po::value< std::string >(), "Input file path for file containing newick string")
         ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
-        ("tree-group-file", po::value< std::string >(), "Input file name for PanMAT Group")
+        ("mutation-file", po::value< std::string >(), "File path of complex mutation file for tree group")
+        ("tree-group-file", po::value< std::string >(), "Input file path for PanMAT Group")
     ;
 
     // Adding input file as positional argument
@@ -349,13 +350,34 @@ void updatedParser(int argc, char* argv[]){
     } else if(globalVm.count("tree-group")){
         std::vector< std::string > fileNames;
 
+        std::string mutationFileName;
+        if(!globalVm.count("mutation-file")){
+            printError("File containing complex mutations not provided!");
+            return;
+        }
+
         fileNames = globalVm["tree-group"].as< std::vector< std::string > >();
+        mutationFileName = globalVm["mutation-file"].as< std::string >();
+        
+        std::ifstream mutationFile(mutationFileName);
+
         std::vector< std::ifstream > files;
         for(auto u: fileNames){
             files.emplace_back(u);
         }
 
-        TG = new PangenomeMAT2::TreeGroup(files);
+        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+
+        TG = new PangenomeMAT2::TreeGroup(files, mutationFile);
+
+        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
+        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+
+        mutationFile.close();
+        for(auto& u: files){
+            u.close();
+        }
 
     } else {
         printError("Incorrect Format");

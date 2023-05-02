@@ -62,7 +62,41 @@ message tree
     blockGapList     blockGaps = 6;
 }
 
+message complexMutation {
+    bool            mutationType = 1;
+    int32           treeIndex1 = 2;
+    int32           treeIndex2 = 3;
+    int32           treeIndex3 = 4;
+    string          sequenceId1 = 5;
+    string          sequenceId2 = 6;
+
+    int64           blockIdStart1 = 7;
+    bool            blockGapExistStart1 = 8;
+    int32           nucPositionStart1 = 9;
+    int32           nucGapPositionStart1 = 10;
+    bool            nucGapExistStart1 = 11;
+
+    int64           blockIdEnd1 = 12;
+    bool            blockGapExistEnd1 = 13;
+    int32           nucPositionEnd1 = 14;
+    int32           nucGapPositionEnd1 = 15;
+    bool            nucGapExistEnd1 = 16;
+
+    int64           blockIdStart2 = 17;
+    bool            blockGapExistStart2 = 18;
+    int32           nucPositionStart2 = 19;
+    int32           nucGapPositionStart2 = 20;
+    bool            nucGapExistStart2 = 21;
+
+    int64           blockIdEnd2 = 22;
+    bool            blockGapExistEnd2 = 23;
+    int32           nucPositionEnd2 = 24;
+    int32           nucGapPositionEnd2 = 25;
+    bool            nucGapExistEnd2 = 26;
+}
+
 message treeGroup
 {
     repeated tree   trees = 1;
+    repeated complexMutation complexMutations = 2;
 }
