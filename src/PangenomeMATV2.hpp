@@ -11,7 +11,6 @@
 #include <json/json.h>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
 #include "vg.pb.h"
-#include "AuxilaryMAT.hpp"
 #include "spoa/spoa.hpp"
 
 #define PMAT_VERSION "2.0-beta"
@@ -280,11 +279,6 @@ namespace PangenomeMAT2 {
             Node* transformHelper(Node* node);
             void adjustLevels(Node* node);
 
-            AuxilaryMAT::Node* convertToAuxMatHelper(PangenomeMAT2::Node* currentNode, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-                std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > >& coordinates,\
-                std::vector< std::pair< bool, std::vector< bool > > >& blockExists
-            );
-
             std::vector< Node* > allLeaves;
 
             std::string newInternalNodeId() {
@@ -333,9 +327,6 @@ namespace PangenomeMAT2 {
             // Transforms tree such that given node becomes child of new root
             void transform(Node* node);
             void reroot(std::string sequenceName);
-
-            AuxilaryMAT::Tree* convertToAuxMat();
-
 
             Node *root;
             std::vector< Block > blocks;
