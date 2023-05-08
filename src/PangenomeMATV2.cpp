@@ -1150,14 +1150,14 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
 
         protoMATToTree(mainTree);
 
-        // Rerooting debug
-        for(auto u: allNodes){
-            if(u.second->children.size() == 0){
-                std::cout << "Rerooting to " << u.first << std::endl;
-                reroot(u.first);
-                return;
-            }
-        }
+        // // Rerooting debug
+        // for(auto u: allNodes){
+        //     if(u.second->children.size() == 0){
+        //         std::cout << "Rerooting to " << u.first << std::endl;
+        //         reroot(u.first);
+        //         return;
+        //     }
+        // }
     }
 }
 
@@ -5057,6 +5057,94 @@ std::tuple< int, int, int, int > PangenomeMAT2::Tree::globalCoordinateToBlockCoo
     return std::make_tuple(-1,-1,-1,-1);
 }
 
+void PangenomeMAT2::Tree::adjustLevels(Node* node){
+    if(node->parent == nullptr){
+        node->level = 1;
+    } else {
+        node->level = node->parent->level + 1;
+    }
+    for(auto u: node->children){
+        adjustLevels(u);
+    }
+}
+
+PangenomeMAT2::Node* PangenomeMAT2::Tree::transformHelper(Node* node){
+    if(node == root){
+        if(node->children.size() > 1){
+            node->branchLength = 0;
+            return node;
+        } else {
+            node = node->children[0];
+            node->branchLength = 0;
+            delete root;
+            allNodes.erase(root->identifier);
+            return node;
+        }
+    }
+    Node* par = node->parent;
+
+    // erase node from parent's children
+    for(size_t i = 0; i < par->children.size(); i++){
+        if(par->children[i]->identifier == node->identifier){
+            par->children.erase((par->children).begin()+i);
+            break;
+        }
+    }
+
+    node->parent = nullptr;
+    size_t oldBranchLen = node->branchLength;
+    node->branchLength = 0;
+
+    // make transformed parent a new child of the node
+    Node* newChild = transformHelper(par);
+    node->children.push_back(newChild);
+    newChild->parent = node;
+    newChild->branchLength = oldBranchLen;
+
+    return node;
+}
+
+void PangenomeMAT2::Tree::transform(Node* node){
+    Node* par = node->parent;
+    if(par == nullptr){
+        // already root
+        return;
+    }
+    if(par == root){
+        // Parent already root. The root will contain the same sequence as the node
+        node->branchLength = 0;
+        return;
+    }
+
+    // remove node from parent's children
+    for(size_t i = 0; i < par->children.size(); i++){
+        if(par->children[i]->identifier == node->identifier){
+            par->children.erase((par->children).begin()+i);
+            break;
+        }
+    }
+    node->parent = nullptr;
+
+    size_t oldBranchLen = node->branchLength;
+
+    Node* newRoot = new Node(newInternalNodeId(), 0);
+    newRoot->children.push_back(node);
+    node->parent = newRoot;
+    node->level = 2;
+    node->branchLength = 0;
+    
+    // transform node's parent into node's sibling
+    Node* newSibling = transformHelper(par);
+    newRoot->children.push_back(newSibling);
+    newSibling->parent = newRoot;
+    newSibling->branchLength = oldBranchLen;
+
+    root = newRoot;
+    allNodes[root->identifier] = root;
+    adjustLevels(root);
+
+}
+
 void PangenomeMAT2::Tree::reroot(std::string sequenceName){
     if(allNodes.find(sequenceName) == allNodes.end()){
         std::cerr << "Sequence with name " << sequenceName << " not found!" << std::endl;
@@ -5083,6 +5171,12 @@ void PangenomeMAT2::Tree::reroot(std::string sequenceName){
             nodeIdToBlockExists[u.first] = tempBlockExists;
         }
     }
+
+
+    // Transform tree topology
+    transform(newRoot);
+
+    std::cout << "Transformation complete!" << std::endl;
 
     // clear previous block mutations
     for(auto u: allNodes){
@@ -5130,6 +5224,8 @@ void PangenomeMAT2::Tree::reroot(std::string sequenceName){
             nodeMutexes[u.first].unlock();
         }
     });
+
+    std::cout << "Block Mutations Ready!" << std::endl;
 
     // clear previous nuc mutations
     for(auto u: allNodes){
@@ -5276,26 +5372,26 @@ void PangenomeMAT2::Tree::reroot(std::string sequenceName){
                 // gap nuc
                 std::unordered_map< std::string, int > states;
                 std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > > mutations;
-                for(auto u: nodeIdToSequence){
+                for(const auto& u: nodeIdToSequence){
                     if(u.second[i].first[k].second[w] != '-' && u.second[i].first[k].second[w] != 'x'){
                         states[u.first] = (1 << getCodeFromNucleotide(u.second[i].first[k].second[w]));
                     }  else {
                         states[u.first] = 1;
                     }
                 }
-                char nucleotideCode = 1;
+                int nucleotideCode = 1;
                 if(sequence[i].first[k].second[w] != '-' && sequence[i].first[k].second[w] != 'x'){
                     nucleotideCode = (1 << getCodeFromNucleotide(sequence[i].first[k].second[w]));
                 }
 
+                // nucFitchForwardPass(root, states);
+                // nucFitchBackwardPass(root, states, 1);
+                // nucFitchAssignMutations(root, states, mutations, 1);
 
                 nucFitchForwardPass(root, states);
-                nucFitchBackwardPass(root, states, 1);
+                nucFitchBackwardPass(root, states, nucleotideCode, nucleotideCode);
                 nucFitchAssignMutations(root, states, mutations, 1);
-
-                // nucFitchForwardPass(root, states);
-                // nucFitchBackwardPass(root, states, nucleotideCode, nucleotideCode);
-                // nucFitchAssignMutations(root, states, mutations, 1);
+                
                 for(auto mutation: mutations){
                     nodeMutexes[mutation.first].lock();
                     gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, k, w, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
@@ -5306,25 +5402,25 @@ void PangenomeMAT2::Tree::reroot(std::string sequenceName){
             std::unordered_map< std::string, int > states;
             std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > > mutations;
 
-            for(auto u: nodeIdToSequence){
+            for(const auto& u: nodeIdToSequence){
                 if(u.second[i].first[k].first != '-' && u.second[i].first[k].first != 'x'){
                     states[u.first] = (1 << getCodeFromNucleotide(u.second[i].first[k].first));
                 }  else {
                     states[u.first] = 1;
                 }
             }
-            char nucleotideCode = 1;
+            int nucleotideCode = 1;
             if(sequence[i].first[k].first != '-' && sequence[i].first[k].first != 'x'){
                 nucleotideCode = (1 << getCodeFromNucleotide(sequence[i].first[k].first));
             }
             
-            nucFitchForwardPass(root, states);
-            nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSeq[k])));
-            nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[k])));
-
             // nucFitchForwardPass(root, states);
-            // nucFitchBackwardPass(root, states, nucleotideCode, nucleotideCode);
+            // nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSeq[k])));
             // nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[k])));
+
+            nucFitchForwardPass(root, states);
+            nucFitchBackwardPass(root, states, nucleotideCode, nucleotideCode);
+            nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[k])));
 
             for(auto mutation: mutations){
                 nodeMutexes[mutation.first].lock();

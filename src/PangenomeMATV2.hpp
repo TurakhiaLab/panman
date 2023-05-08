@@ -146,9 +146,9 @@ namespace PangenomeMAT2 {
             blockMutInfo = mutation.blockmutinfo();
         }
 
-        BlockMut(size_t blockId, bool type, int secondaryBlockId = -1){
+        BlockMut(size_t blockId, bool type, int secondaryBId = -1){
             primaryBlockId = blockId;
-            secondaryBlockId = secondaryBlockId;
+            secondaryBlockId = secondaryBId;
             blockMutInfo = type;
         }
         BlockMut(){
@@ -277,7 +277,9 @@ namespace PangenomeMAT2 {
             void mergeNodes(Node* par, Node* chi);
             bool debugSimilarity(const std::vector< NucMut > array1, const std::vector< NucMut > array2);
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
-            
+            Node* transformHelper(Node* node);
+            void adjustLevels(Node* node);
+
             AuxilaryMAT::Node* convertToAuxMatHelper(PangenomeMAT2::Node* currentNode, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
                 std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > >& coordinates,\
                 std::vector< std::pair< bool, std::vector< bool > > >& blockExists
@@ -327,6 +329,9 @@ namespace PangenomeMAT2 {
             void printFASTAFromVG(std::ifstream& fin, std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
             void getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tree& treeToWrite);
+            
+            // Transforms tree such that given node becomes child of new root
+            void transform(Node* node);
             void reroot(std::string sequenceName);
 
             AuxilaryMAT::Tree* convertToAuxMat();
