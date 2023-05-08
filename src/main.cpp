@@ -60,7 +60,6 @@ void setupOptionDescriptions(){
         ("pangraph-in", po::value< std::string >(), "create PanMAT from Pangraph file")
         ("msa-in", po::value< std::string >(), "create PanMAT from MSA file")
         ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
-        ("fasta-in", po::value< std::string >(), "create PanMAT from FASTA file")
         ("newick-in", po::value< std::string >(), "Input file path for file containing newick string")
         ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
         ("mutation-file", po::value< std::string >(), "File path of complex mutation file for tree group")
@@ -174,14 +173,16 @@ void printError(std::string e){
 
 void updatedParser(int argc, char* argv[]){
 
+    // Setup boost::program_options
     setupOptionDescriptions();
 
+    // Initial command line arguments consisting of input file types
     po::variables_map globalVm;
     po::store(po::command_line_parser(argc, argv).options(globalDesc).positional(globalPositionArgumentDesc).run(), globalVm);
     po::notify(globalVm);
 
-    PangenomeMAT2::Tree *T = nullptr;
-    PangenomeMAT2::TreeGroup *TG = nullptr;
+    PangenomeMAT::Tree *T = nullptr;
+    PangenomeMAT::TreeGroup *TG = nullptr;
 
     if(globalVm.count("help")){
         std::cout << globalDesc;
@@ -192,7 +193,7 @@ void updatedParser(int argc, char* argv[]){
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new PangenomeMAT2::Tree(inputStream);
+        T = new PangenomeMAT::Tree(inputStream);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -206,7 +207,7 @@ void updatedParser(int argc, char* argv[]){
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        TG = new PangenomeMAT2::TreeGroup(inputStream);
+        TG = new PangenomeMAT::TreeGroup(inputStream);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -229,7 +230,7 @@ void updatedParser(int argc, char* argv[]){
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::GFA);
+        T = new PangenomeMAT::Tree(inputStream, newickInputStream, PangenomeMAT::FILE_TYPE::GFA);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -253,7 +254,7 @@ void updatedParser(int argc, char* argv[]){
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::PANGRAPH);
+        T = new PangenomeMAT::Tree(inputStream, newickInputStream, PangenomeMAT::FILE_TYPE::PANGRAPH);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -283,9 +284,9 @@ void updatedParser(int argc, char* argv[]){
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
         if(!optimize){
-            T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::MSA);
+            T = new PangenomeMAT::Tree(inputStream, newickInputStream, PangenomeMAT::FILE_TYPE::MSA);
         } else {
-            T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::MSA_OPTIMIZE);
+            T = new PangenomeMAT::Tree(inputStream, newickInputStream, PangenomeMAT::FILE_TYPE::MSA_OPTIMIZE);
         }
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
@@ -295,30 +296,6 @@ void updatedParser(int argc, char* argv[]){
         newickInputStream.close();
         inputStream.close();
 
-    } else if(globalVm.count("fasta-in")){
-        std::string fileName = globalVm["fasta-in"].as< std::string >();
-        if(!globalVm.count("newick-in")){
-            printError("File containing newick string not provided!");
-            return;
-        }
-
-        std::string newickFileName = globalVm["newick-in"].as< std::string >();
-
-        std::cout << "Creating PanMAT from FASTA" << std::endl;
-
-        std::ifstream inputStream(fileName);
-        std::ifstream newickInputStream(newickFileName);
-
-        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
-
-        T = new PangenomeMAT2::Tree(inputStream, newickInputStream, PangenomeMAT2::FILE_TYPE::FASTA);
-
-        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
-        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
-
-        newickInputStream.close();
-        inputStream.close();
     } else if(globalVm.count("tree-group")){
         std::vector< std::string > fileNames;
 
@@ -340,7 +317,7 @@ void updatedParser(int argc, char* argv[]){
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        TG = new PangenomeMAT2::TreeGroup(files, mutationFile);
+        TG = new PangenomeMAT::TreeGroup(files, mutationFile);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -367,7 +344,7 @@ void updatedParser(int argc, char* argv[]){
         std::getline (std::cin, command);
         stripString(command);
         std::vector< std::string > splitCommand;
-        PangenomeMAT2::stringSplit(command, ' ', splitCommand);
+        PangenomeMAT::stringSplit(command, ' ', splitCommand);
 
         splitCommandArray = new char*[splitCommand.size()];
         for(size_t i = 0; i < splitCommand.size(); i++){
@@ -483,45 +460,6 @@ void updatedParser(int argc, char* argv[]){
                         fout.close();
                     }
 
-                }
-
-            } else if(strcmp(splitCommandArray[0], "vcf") == 0){
-                // If command was vcf
-                po::variables_map vcfVm;
-                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(vcfDesc).positional(vcfPositionArgumentDesc).run(), vcfVm);
-
-                if(vcfVm.count("help")){
-                    std::cout << vcfDesc;
-                } else {
-                    po::notify(vcfVm);
-
-                    std::string reference = vcfVm["reference"].as< std::string >();
-                    std::string fileName = vcfVm["output-file"].as< std::string >();
-
-                    std::filesystem::create_directory("./vcf");
-                    std::ofstream fout("./vcf/" + fileName + ".vc");
-
-                    auto vcfStart = std::chrono::high_resolution_clock::now();
-
-                    T->printVCFParallel(reference, fout);
-
-                    auto vcfEnd = std::chrono::high_resolution_clock::now();
-                    std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
-
-                    std::cout << "\nVCF execution time: " << vcfTime.count() << " nanoseconds\n";
-
-                    fout.close();
-
-                    if(vcfVm.count("fasta-file")){
-                        std::cout << "Generating FASTA File" << std::endl;
-                        std::ifstream fin("./vcf/" + fileName + ".vc");
-                        std::string fastaFileName = vcfVm["fasta-file"].as< std::string >();
-                        std::filesystem::create_directory("./fasta");
-                        fout.open("./fasta/" + fastaFileName + ".fasta");
-                        T->vcfToFASTA(fin, fout);
-                        fout.close();
-                        fin.close();
-                    }
                 }
 
             } else if(strcmp(splitCommandArray[0], "write") == 0){

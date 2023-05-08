@@ -18,7 +18,7 @@
 typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
 typedef  std::vector< std::pair< bool, std::vector< bool > > > blockExists_t;
 
-namespace PangenomeMAT2 {
+namespace PangenomeMAT {
 
     char getNucleotideFromCode(int code);
     char getCodeFromNucleotide(char nuc);
@@ -75,23 +75,23 @@ namespace PangenomeMAT2 {
             mutInfo = ((end - start) << 4);
             // type
             switch(std::get<4>(mutationArray[start])){
-                case PangenomeMAT2::NucMutationType::NSNPS:
-                    mutInfo += PangenomeMAT2::NucMutationType::NS;
+                case PangenomeMAT::NucMutationType::NSNPS:
+                    mutInfo += PangenomeMAT::NucMutationType::NS;
                     break;
-                case PangenomeMAT2::NucMutationType::NSNPI:
-                    mutInfo += PangenomeMAT2::NucMutationType::NI;
+                case PangenomeMAT::NucMutationType::NSNPI:
+                    mutInfo += PangenomeMAT::NucMutationType::NI;
                     break;
-                case PangenomeMAT2::NucMutationType::NSNPD:
-                    mutInfo += PangenomeMAT2::NucMutationType::ND;
+                case PangenomeMAT::NucMutationType::NSNPD:
+                    mutInfo += PangenomeMAT::NucMutationType::ND;
                     break;
-                case PangenomeMAT2::NucMutationType::NS:
-                    mutInfo += PangenomeMAT2::NucMutationType::NS;
+                case PangenomeMAT::NucMutationType::NS:
+                    mutInfo += PangenomeMAT::NucMutationType::NS;
                     break;
-                case PangenomeMAT2::NucMutationType::NI:
-                    mutInfo += PangenomeMAT2::NucMutationType::NI;
+                case PangenomeMAT::NucMutationType::NI:
+                    mutInfo += PangenomeMAT::NucMutationType::NI;
                     break;
-                case PangenomeMAT2::NucMutationType::ND:
-                    mutInfo += PangenomeMAT2::NucMutationType::ND;
+                case PangenomeMAT::NucMutationType::ND:
+                    mutInfo += PangenomeMAT::NucMutationType::ND;
                     break;
             }
 
@@ -293,7 +293,7 @@ namespace PangenomeMAT2 {
 
             int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
             void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState, int defaultState = (1<<28));
-            void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT2::NucMutationType, char > >& mutations, int parentState);
+            void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > >& mutations, int parentState);
 
             int blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
             // The defaultValue parameter is used in rerooting.
@@ -311,7 +311,6 @@ namespace PangenomeMAT2 {
             void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, std::string reference);
             std::tuple< int, int, int, int > globalCoordinateToBlockCoordinate(int64_t globalCoordinate, const sequence_t& sequence, const blockExists_t& blockExists);
 
-            void printVCFParallel(std::string reference, std::ofstream& fout);
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
             bool verifyVCFFile(std::ifstream& fin);
             void vcfToFASTA(std::ifstream& fin, std::ofstream& fout);
@@ -319,7 +318,7 @@ namespace PangenomeMAT2 {
             std::vector< std::string > searchByAnnotation(std::string annotation);
             void convertToGFA(std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
-            void getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tree& treeToWrite);
+            void getNodesPreorder(PangenomeMAT::Node* root, MATNew::tree& treeToWrite);
             
             // Transforms tree such that given node becomes child of new root
             void transform(Node* node);
