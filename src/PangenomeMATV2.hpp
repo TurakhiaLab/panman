@@ -10,7 +10,6 @@
 #include <tbb/concurrent_unordered_map.h>
 #include <json/json.h>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
-#include "vg.pb.h"
 #include "spoa/spoa.hpp"
 
 #define PMAT_VERSION "2.0-beta"
@@ -318,9 +317,7 @@ namespace PangenomeMAT2 {
             void vcfToFASTA(std::ifstream& fin, std::ofstream& fout);
             void annotate(std::ifstream& fin);
             std::vector< std::string > searchByAnnotation(std::string annotation);
-            void convertToVG(std::ofstream& fout);
             void convertToGFA(std::ofstream& fout);
-            void printFASTAFromVG(std::ifstream& fin, std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
             void getNodesPreorder(PangenomeMAT2::Node* root, MATNew::tree& treeToWrite);
             

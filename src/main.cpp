@@ -41,10 +41,6 @@ po::options_description annotateDesc("MAT Annotate Command Line Arguments");
 po::positional_options_description annotatePositionArgumentDesc;
 po::options_description searchDesc("Search by annotation Command Line Arguments");
 po::positional_options_description searchPositionArgumentDesc;
-po::options_description generateVGDesc("Generate VG Command Line Arguments");
-po::positional_options_description generateVGArgumentDesc;
-po::options_description VGToFASTADesc("VG to Fasta writer Command Line Arguments");
-po::positional_options_description VGToFASTAArgumentDesc;
 po::options_description generateGFADesc("Generate GFA Command Line Arguments");
 po::positional_options_description generateGFAArgumentDesc;
 po::options_description GFAToFASTADesc("GFA to Fasta writer Command Line Arguments");
@@ -134,23 +130,6 @@ void setupOptionDescriptions(){
 
     searchPositionArgumentDesc.add("keywords", -1);
     
-    // Generate VG option descriptions
-    generateVGDesc.add_options()
-        ("help", "produce help message")
-        ("output-file", po::value< std::string >()->required(), "Output file name")
-    ;
-
-    generateVGArgumentDesc.add("output-file", -1);
-
-    // VG to FASTA option descriptions
-    VGToFASTADesc.add_options()
-        ("help", "produce help message")
-        ("output-file", po::value< std::string >()->required(), "Output file name")
-        ("input-file", po::value< std::string >()->required(), "Input file name")
-    ;
-
-    VGToFASTAArgumentDesc.add("output-file", -1);
-
     // Generate GFA option descriptions
     generateGFADesc.add_options()
         ("help", "produce help message")
@@ -630,62 +609,6 @@ void updatedParser(int argc, char* argv[]){
                     std::chrono::nanoseconds generateVGTime = generateVGEnd - generateVGStart;
 
                     std::cout << "GFA generation time: " << generateVGTime.count() << " nanoseconds\n";
-                    fout.close();
-                }
-            } else if(strcmp(splitCommandArray[0], "vg") == 0){
-                std::cout << "VG functionality disabled in current release" << std::endl;
-                continue;
-
-                // If command was vg
-                po::variables_map generateVGVM;
-                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(generateVGDesc).positional(generateVGArgumentDesc).run(), generateVGVM);
-                if(generateVGVM.count("help")){
-                    std::cout << generateVGDesc;
-                } else {
-                    po::notify(generateVGVM);
-                    std::string fileName = generateVGVM["output-file"].as< std::string >();
-                    std::filesystem::create_directory("./vg");
-                    std::ofstream fout("./vg/"+fileName+".vg");
-
-                    auto generateVGStart = std::chrono::high_resolution_clock::now();
-
-                    T->convertToVG(fout);
-
-                    auto generateVGEnd = std::chrono::high_resolution_clock::now();
-                    std::chrono::nanoseconds generateVGTime = generateVGEnd - generateVGStart;
-
-                    std::cout << "VG generation time: " << generateVGTime.count() << " nanoseconds\n";
-                    fout.close();
-                }
-            } else if(strcmp(splitCommandArray[0], "vg-fasta") == 0){
-                std::cout << "VG functionality disabled in current release" << std::endl;
-                continue;
-
-                // If command was vg-fasta
-
-                po::variables_map VGToFASTAVM;
-                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(VGToFASTADesc).positional(VGToFASTAArgumentDesc).run(), VGToFASTAVM);
-                if(VGToFASTAVM.count("help")){
-                    std::cout << VGToFASTADesc;
-                } else {
-                    po::notify(VGToFASTAVM);
-                    std::string inputFileName = VGToFASTAVM["input-file"].as< std::string >();
-                    std::string outputFileName = VGToFASTAVM["output-file"].as< std::string >();
-                    std::filesystem::create_directory("./fasta");
-
-                    std::ifstream fin(inputFileName);
-                    std::ofstream fout("./fasta/"+outputFileName+".fasta");
-
-                    auto generateVGStart = std::chrono::high_resolution_clock::now();
-
-                    T->printFASTAFromVG(fin, fout);
-
-                    auto generateVGEnd = std::chrono::high_resolution_clock::now();
-                    std::chrono::nanoseconds generateVGTime = generateVGEnd - generateVGStart;
-
-                    std::cout << "FASTA generation time: " << generateVGTime.count() << " nanoseconds\n";
-
-                    fin.close();
                     fout.close();
                 }
             } else if(strcmp(splitCommandArray[0], "gfa-fasta") == 0){
