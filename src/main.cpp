@@ -403,6 +403,45 @@ void updatedParser(int argc, char* argv[]){
                     fout.close();
 
                 }
+            } else if(strcmp(splitCommandArray[0], "vcf") == 0){
+                // If command was vcf
+                po::variables_map vcfVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(vcfDesc).positional(vcfPositionArgumentDesc).run(), vcfVm);
+
+                if(vcfVm.count("help")){
+                    std::cout << vcfDesc;
+                } else {
+                    po::notify(vcfVm);
+
+                    std::string reference = vcfVm["reference"].as< std::string >();
+                    std::string fileName = vcfVm["output-file"].as< std::string >();
+
+                    std::filesystem::create_directory("./vcf");
+                    std::ofstream fout("./vcf/" + fileName + ".vc");
+
+                    auto vcfStart = std::chrono::high_resolution_clock::now();
+
+                    T->printVCFParallel(reference, fout);
+
+                    auto vcfEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
+
+                    std::cout << "\nVCF execution time: " << vcfTime.count() << " nanoseconds\n";
+
+                    fout.close();
+
+                    if(vcfVm.count("fasta-file")){
+                        std::cout << "Generating FASTA File" << std::endl;
+                        std::ifstream fin("./vcf/" + fileName + ".vc");
+                        std::string fastaFileName = vcfVm["fasta-file"].as< std::string >();
+                        std::filesystem::create_directory("./fasta");
+                        fout.open("./fasta/" + fastaFileName + ".fasta");
+                        T->vcfToFASTA(fin, fout);
+                        fout.close();
+                        fin.close();
+                    }
+                }
+
             } else if(strcmp(splitCommandArray[0], "subtree") == 0){
                 // If command was subtree
                 po::variables_map subtreeVm;

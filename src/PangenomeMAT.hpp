@@ -304,6 +304,8 @@ namespace PangenomeMAT {
             void printBfs(Node* node = nullptr);
             void printFASTA(std::ofstream& fout, bool aligned = false);
             void printFASTAParallel(std::ofstream& fout, bool aligned = false);
+            void printVCFParallel(std::string reference, std::ofstream& fout);
+
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
             void writeToFile(std::ofstream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
