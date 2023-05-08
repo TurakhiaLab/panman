@@ -8,7 +8,7 @@
 
 #include <fstream>
 
-#include "PangenomeMATV2.hpp"
+#include "PangenomeMAT.hpp"
 
 #include "spoa/spoa.hpp"
 
