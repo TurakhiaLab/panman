@@ -698,68 +698,8 @@ void updatedParser(int argc, char* argv[]){
 
 }
 
-void debuggingBlock(){
-    std::ifstream fin("fasta/rsvFasta.fasta");
-    std::unordered_map< std::string, std::string > sequences;
-    std::string line;
-    std::string sequenceName;
-    std::string sequence;
-    while(getline(fin, line, '\n')){
-        if(line[0] == '>'){
-            if(sequence.length()){
-                sequences[sequenceName] = sequence;
-            }
-            sequenceName = line.substr(1);
-            sequence = "";
-        } else {
-            sequence += line;
-        }
-    }
-    if(sequence.length()){
-        sequences[sequenceName] = sequence;
-    }
-    std::cout << "Sequences Ready " << sequences.size() << std::endl;
-    fin.close();
-
-    std::vector< std::string > stringSequences;
-    for(auto u: sequences){
-        stringSequences.push_back(u.second.substr(0,100));
-        // if(stringSequences.size() == 10){
-        //     break;
-        // }
-    }
-
-    auto alignment_engine = spoa::AlignmentEngine::Create(spoa::AlignmentType::kNW, 5, -3, -10, -5);
-
-    spoa::Graph graph{};
-
-    for (const auto& it : stringSequences) {
-        auto alignment = alignment_engine->Align(it, graph);
-        graph.AddAlignment(alignment, it);
-    }
-
-    auto consensus = graph.GenerateConsensus();
-
-    std::cerr << ">Consensus LN:i:" << consensus.size() << std::endl << consensus << std::endl;
-
-    auto msa = graph.GenerateMultipleSequenceAlignment();
-
-    // std::cout << msa.size() << std::endl;
-
-    // std::cout << msa[0] << std::endl;
-    // for (const auto& it : msa) {
-    //     std::cerr << it << std::endl;
-    // }
-
-}
-
-// #define DEBUGGING
-
 int main(int argc, char* argv[]){
 
-#ifdef DEBUGGING
-    debuggingBlock();
-#endif
     updatedParser(argc, argv);
 
 }
