@@ -6,9 +6,14 @@
 #include <fstream>
 #include <unordered_map>
 #include <queue>
+#include <algorithm>
+#include <iterator>
+#include <algorithm>
 #include <atomic>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
 #include "AuxilaryMAT.hpp"
+#include "syncmer.hpp"
+#include <math.h>
 
 #define PMAT_VERSION "1.0-beta"
 #define VCF_VERSION "4.2"
@@ -196,6 +201,8 @@ namespace PangenomeMAT2 {
             std::string newInternalNodeId() {
                 return "node_" + std::to_string(++m_currInternalNode);
             }
+            //void processNode(std::string referenceSequence, std::string altSequence, std::string nid, std::string parentId, std::ofstream& fout);
+
 
         public:
             Tree(std::ifstream& fin);
@@ -214,7 +221,10 @@ namespace PangenomeMAT2 {
             void annotate(std::ifstream& fin);
             std::vector< std::string > searchByAnnotation(std::string annotation);
             AuxilaryMAT::Tree* convertToAuxMat();
-
+            void indexSyncmers(std::ofstream& fout);
+            void placeSample(std::string fastqPath, seedIndex &index);
+            void placeDFS(Node *currNode, std::set<kmer_t> currNodeSyncmers, std::set<kmer_t> &querySyncmers, seedIndex &index, dynamicJaccard dj, std::unordered_map<std::string, float> &scores);
+            void loadIndex(std::ifstream &indexFile, seedIndex &index);
 
             Node *root;
             std::vector< Block > blocks;
