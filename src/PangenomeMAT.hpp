@@ -35,7 +35,7 @@ namespace PangenomeMAT {
         PANGRAPH=2,
         MSA = 3,
         MSA_OPTIMIZE = 4,
-        FASTA = 5
+        // FASTA = 5
     };
 
     enum NucMutationType {
@@ -266,6 +266,7 @@ namespace PangenomeMAT {
 
             std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
             std::unordered_map<std::string, Node*> allNodes;
+            std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > > globalCoordinates;
 
             Node* createTreeFromNewickString(std::string newick);
             void assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MATNew::node >& nodes);
@@ -277,6 +278,8 @@ namespace PangenomeMAT {
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
             Node* transformHelper(Node* node);
             void adjustLevels(Node* node);
+            void setupGlobalCoordinates();
+            size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
 
             std::vector< Node* > allLeaves;
 
