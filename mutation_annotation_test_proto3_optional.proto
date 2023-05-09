@@ -5,9 +5,10 @@ package MAT;
 message nuc_mut
 {
     uint32 position = 1; 
-    optional uint32 gap_position = 2;  
-    uint32 condensed = 3; 
-    uint64 nucs = 4;
+    uint32 gap_position = 2;  
+    bool gap_exist = 3;
+    uint32 condensed = 4; 
+    uint64 nucs = 5;
 }
 
 message block_mut

@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 
 project(panmat-utils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
 if(DEFINED Protobuf_PATH) 
@@ -16,6 +16,9 @@ if(Protobuf_FOUND)
 	message(STATUS "Using Protocol Buffers ${Protobuf_VERSION}")
 endif()
 include_directories(${Protobuf_INCLUDE_DIRS})
+
+FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
 
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
@@ -34,13 +37,22 @@ if(DEFINED Protobuf_PATH)
 	protobuf_generate(
 		LANGUAGE cpp
 		TARGET panmat-utils 
-		PROTOS mutation_annotation_test_proto3_optional.proto)
+		PROTOS mutation_annotation_test_proto3_optional.proto mutation_annotation_test_proto3_optional_new.proto)
+
+	# protobuf_generate(
+	# 	LANGUAGE cpp
+	# 	TARGET panmat-utils 
+	# 	PROTOS mutation_annotation_test_proto3_optional_new.proto)
 
 
 else()
 	protobuf_generate_cpp(
 		PROTO_SRCS PROTO_HDRS
-		mutation_annotation_test_proto3_optional.proto)
+		mutation_annotation_test_proto3_optional.proto mutation_annotation_test_proto3_optional_new.proto)
+	
+	# protobuf_generate_cpp(
+	# 	PROTO_SRCS PROTO_HDRS
+	# 	mutation_annotation_test_proto3_optional_new.proto)
 
 	add_executable(panmat-utils
 		${PANMAT_SRCS}
@@ -51,5 +63,5 @@ else()
 endif()
 
 TARGET_COMPILE_OPTIONS(panmat-utils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
-TARGET_LINK_LIBRARIES(panmat-utils PRIVATE stdc++  ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ZLIB::ZLIB) # OpenMP::OpenMP_CXX)
+TARGET_LINK_LIBRARIES(panmat-utils PRIVATE stdc++  ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ZLIB::ZLIB) # OpenMP::OpenMP_CXX)
 target_include_directories(panmat-utils PUBLIC "${PROJECT_BINARY_DIR}")

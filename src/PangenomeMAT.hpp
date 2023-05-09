@@ -6,8 +6,11 @@
 #include <fstream>
 #include <unordered_map>
 #include <queue>
+#include <atomic>
 #include "mutation_annotation_test_proto3_optional.pb.h"
 
+#define PMAT_VERSION "1.0-beta"
+#define VCF_VERSION "4.2"
 
 namespace PangenomeMAT {
 
@@ -15,9 +18,9 @@ namespace PangenomeMAT {
         NS = 0,
         ND = 1,
         NI = 2,
-        NSNS = 3,
-        NSNI = 4,
-        NSND = 5,
+        NSNPS = 3,
+        NSNPI = 4,
+        NSNPD = 5,
     };
 
     enum BlockMutationType {
@@ -42,13 +45,13 @@ namespace PangenomeMAT {
             condensed = ((std::get<0>(mutationArray[start])) << 8) + ((end - start) << 3);
             // type
             switch(std::get<3>(mutationArray[start])){
-                case PangenomeMAT::NucMutationType::NSNS:
+                case PangenomeMAT::NucMutationType::NSNPS:
                     condensed += PangenomeMAT::NucMutationType::NS;
                     break;
-                case PangenomeMAT::NucMutationType::NSNI:
+                case PangenomeMAT::NucMutationType::NSNPI:
                     condensed += PangenomeMAT::NucMutationType::NI;
                     break;
-                case PangenomeMAT::NucMutationType::NSND:
+                case PangenomeMAT::NucMutationType::NSNPD:
                     condensed += PangenomeMAT::NucMutationType::ND;
                     break;
             }
@@ -65,7 +68,7 @@ namespace PangenomeMAT {
         NucMut(MAT::nuc_mut mutation){
             position = mutation.position();
 
-            if(mutation.has_gap_position()){
+            if(mutation.gap_exist()){
                 gapPosition = mutation.gap_position();
                 // std::cout << '0';
             } else {
@@ -123,8 +126,6 @@ namespace PangenomeMAT {
 
         std::vector< NucMut > nucMutation;
         BlockMut blockMutation;
-
-        // To be incorporated in the future
         std::vector< std::string > annotations;
     };
 
@@ -141,6 +142,9 @@ namespace PangenomeMAT {
         int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
 
         std::unordered_map<std::string, Node*> allNodes;
+        std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
+
+        std::vector< Node* > allLeaves; // Probably temporary for testing
 
         std::string newInternalNodeId() {
             return "node_" + std::to_string(++m_currInternalNode);
@@ -149,9 +153,18 @@ namespace PangenomeMAT {
     public:
         Tree(std::ifstream& fin);
         void printSummary();
-        void printFASTA(std::ofstream& fout, bool aligned = false);
+        void printFASTA(std::ofstream& fout, bool aligned = false, int parallelism = 0);
+        std::string getStringFromReference(std::string reference);
+        void printVCF(std::string reference, std::ofstream& fout);
+        void printVCFParallel(std::string reference, std::ofstream& fout);
+        
+        std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
+
         Node* subtreeExtract(std::vector< std::string > nodeIds);
         Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
+
+        void annotate(std::ifstream& fin);
+        std::vector< std::string > searchByAnnotation(std::string annotation);
 
         std::string getNewickString(Node* node); // Make private later. Public for testing purposes
 
