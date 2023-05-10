@@ -904,6 +904,8 @@ void PangenomeMAT::Tree::protoMATToTree(const MATNew::tree& mainTree){
         blockGaps.blockPosition.push_back(mainTree.blockgaps().blockposition(i));
         blockGaps.blockGapLength.push_back(mainTree.blockgaps().blockgaplength(i));
     }
+
+    setupGlobalCoordinates();
 }
 
 PangenomeMAT::Tree::Tree(const MATNew::tree& mainTree){
@@ -3737,6 +3739,56 @@ void PangenomeMAT::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fo
     }
 }
 
+int32_t PangenomeMAT::Tree::getUnalignedGlobalCoordinate(int32_t primaryBlockId, int32_t secondaryBlockId, int32_t pos, int32_t gapPos, const sequence_t& sequence, const blockExists_t& blockExists){
+    int ctr = 0;
+    for(size_t i = 0; i < blockExists.size(); i++){
+        for(size_t j = 0; j < blockExists[i].second.size(); j++){
+            if(!blockExists[i].second[j]){
+                continue;
+            } else {
+                for(size_t k = 0; k < sequence[i].second[j].size(); k++){
+                    for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++){
+                        if(sequence[i].second[j][k].second[w] != '-' && sequence[i].second[j][k].second[w] != 'x'){
+                            // useful character found
+                            if(i == primaryBlockId && j == secondaryBlockId && k == pos && w == gapPos){
+                                return ctr;
+                            }
+                            ctr++;
+                        }
+                    }
+                    if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x'){
+                        // useful character found
+                        if(i == primaryBlockId && j == secondaryBlockId && k == pos && gapPos == -1){
+                            return ctr;
+                        }
+                        ctr++;
+                    }
+                }
+            }
+        }
+        if(!blockExists[i].first){
+            continue;
+        }
+        for(size_t k = 0; k < sequence[i].first.size(); k++){
+            for(size_t w = 0; w < sequence[i].first[k].second.size(); w++){
+                if(sequence[i].first[k].second[w] != '-' && sequence[i].first[k].second[w] != 'x'){
+                    if(i == primaryBlockId && secondaryBlockId == -1 && k == pos && gapPos == w){
+                        return ctr;
+                    }
+                    ctr++;
+                }
+            }
+            if(sequence[i].first[k].first != '-' && sequence[i].first[k].first != 'x'){
+                if(i == primaryBlockId && secondaryBlockId == -1 && k == pos && gapPos == -1){
+                    return ctr;
+                }
+                ctr++;
+            }
+        }
+    }
+    return -1;
+}
+
 std::tuple< int, int, int, int > PangenomeMAT::Tree::globalCoordinateToBlockCoordinate(int64_t globalCoordinate, const sequence_t& sequence, const blockExists_t& blockExists){
     int ctr = 0;
     for(size_t i = 0; i < blockExists.size(); i++){
@@ -4648,7 +4700,7 @@ PangenomeMAT::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std:
     for(size_t i = 0; i < treeFiles.size(); i++){
         trees.emplace_back(treeFiles[i]);
     }
-    // mutation file format: mutation type (H or R), tree_1 index, sequence_1 name, tree_2 index sequence_2 name, start_point_1, end_point_1, start_point_2, end_point_2, tree_3 index (child tree)
+    // mutation file format: mutation type (H or R), tree_1 index, sequence_1 name, tree_2 index, sequence_2 name, start_point_1, end_point_1, start_point_2, end_point_2, tree_3 index (child tree), sequence_3 (child sequence) name
     std::string line;
     while(getline(mutationFile, line, '\n')){
         std::vector< std::string > tokens;
@@ -4663,16 +4715,18 @@ PangenomeMAT::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std:
         size_t startPoint2 = std::stoll(tokens[7]);
         size_t endPoint2 = std::stoll(tokens[8]);
         size_t treeIndex3 = std::stoll(tokens[9]);
+        std::string sequenceId3 = tokens[10];
 
         sequence_t sequence1, sequence2;
         blockExists_t blockExists1, blockExists2;
         trees[treeIndex1].getSequenceFromReference(sequence1, blockExists1, sequenceId1);
         trees[treeIndex2].getSequenceFromReference(sequence2, blockExists2, sequenceId2);
+        trees[treeIndex3].reroot(sequenceId3);
 
         std::tuple< int,int,int,int > t_start1 = trees[treeIndex1].globalCoordinateToBlockCoordinate(startPoint1, sequence1, blockExists1);
         std::tuple< int,int,int,int > t_end1 = trees[treeIndex1].globalCoordinateToBlockCoordinate(endPoint1, sequence1, blockExists1);
-        std::tuple< int,int,int,int > t_start2 = trees[treeIndex1].globalCoordinateToBlockCoordinate(startPoint2, sequence2, blockExists2);
-        std::tuple< int,int,int,int > t_end2 = trees[treeIndex1].globalCoordinateToBlockCoordinate(endPoint2, sequence2, blockExists2);
+        std::tuple< int,int,int,int > t_start2 = trees[treeIndex2].globalCoordinateToBlockCoordinate(startPoint2, sequence2, blockExists2);
+        std::tuple< int,int,int,int > t_end2 = trees[treeIndex2].globalCoordinateToBlockCoordinate(endPoint2, sequence2, blockExists2);
 
         complexMutations.emplace_back(mutationType, treeIndex1, treeIndex2, treeIndex3, sequenceId1, sequenceId2, t_start1, t_end1, t_start2, t_end2);
 
@@ -4687,6 +4741,9 @@ PangenomeMAT::TreeGroup::TreeGroup(std::ifstream& fin){
     
     for(int i = 0; i < TG.trees_size(); i++){
         trees.emplace_back(TG.trees(i));
+    }
+    for(int i = 0; i < TG.complexmutations_size(); i++){
+        complexMutations.emplace_back(TG.complexmutations(i));
     }
 }
 
@@ -4765,5 +4822,16 @@ void PangenomeMAT::TreeGroup::writeToFile(std::ofstream& fout){
 
     if(!treeGroupToWrite.SerializeToOstream(&fout)){
         std::cerr << "Failed to write to output file." << std::endl;
+    }
+}
+
+void PangenomeMAT::TreeGroup::printComplexMutations(){
+    for(const auto& u: complexMutations){
+        sequence_t s1, s2;
+        blockExists_t b1, b2;
+        trees[u.treeIndex1].getSequenceFromReference(s1, b1, u.sequenceId1);
+        trees[u.treeIndex2].getSequenceFromReference(s2, b2, u.sequenceId2);
+
+        std::cout << u.mutationType << " " << u.treeIndex1 << " " << u.sequenceId1 << " " << u.treeIndex2 << " " << u.sequenceId2 << " " << trees[u.treeIndex1].getUnalignedGlobalCoordinate(u.primaryBlockIdStart1, u.secondaryBlockIdStart1, u.nucPositionStart1, u.nucGapPositionStart1, s1, b1) << " " << trees[u.treeIndex1].getUnalignedGlobalCoordinate(u.primaryBlockIdEnd1, u.secondaryBlockIdEnd1, u.nucPositionEnd1, u.nucGapPositionEnd1, s1, b1) << " " << trees[u.treeIndex2].getUnalignedGlobalCoordinate(u.primaryBlockIdStart2, u.secondaryBlockIdStart2, u.nucPositionStart2, u.nucGapPositionStart2, s2, b2) << " " << trees[u.treeIndex2].getUnalignedGlobalCoordinate(u.primaryBlockIdEnd2, u.secondaryBlockIdEnd2, u.nucPositionEnd2, u.nucGapPositionEnd2, s2, b2) << " " << u.treeIndex3 << "\n";
     }
 }

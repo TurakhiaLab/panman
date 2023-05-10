@@ -63,7 +63,7 @@ void setupOptionDescriptions(){
         ("newick-in", po::value< std::string >(), "Input file path for file containing newick string")
         ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
         ("mutation-file", po::value< std::string >(), "File path of complex mutation file for tree group")
-        ("tree-group-file", po::value< std::string >(), "Input file path for PanMAT Group")
+        ("panman-in", po::value< std::string >(), "Input file path for PanMAT Group")
     ;
 
     // Adding input file as positional argument
@@ -201,8 +201,8 @@ void updatedParser(int argc, char* argv[]){
         std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
 
         inputStream.close();
-    } else if(globalVm.count("tree-group-file")){
-        std::string fileName = globalVm["tree-group-file"].as< std::string >();
+    } else if(globalVm.count("panman-in")){
+        std::string fileName = globalVm["panman-in"].as< std::string >();
         std::ifstream inputStream(fileName);
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
@@ -649,10 +649,10 @@ void updatedParser(int argc, char* argv[]){
                 if(groupWriteVM.count("help")){
                     std::cout << groupWriteDesc;
                 }
-                std::filesystem::create_directory("./pmat");
+                std::filesystem::create_directory("./pman");
 
                 std::string outputFileName = groupWriteVM["output-file"].as< std::string >();
-                std::ofstream fout("./pmat/" + outputFileName + ".pmatg");
+                std::ofstream fout("./pman/" + outputFileName + ".pman");
 
                 auto groupWriteStart = std::chrono::high_resolution_clock::now();
 
@@ -664,6 +664,11 @@ void updatedParser(int argc, char* argv[]){
                 std::cout << "Group PanMAT write time: " << groupWriteTime.count() << " nanoseconds\n";
 
                 fout.close();
+
+            } else if(strcmp(splitCommandArray[0], "cplx-mutations") == 0){
+                // Print Complex Mutations
+                std::cout << "Complex Mutations:" << std::endl;
+                TG->printComplexMutations();
 
             } else if(strcmp(splitCommandArray[0], "exit") == 0){
                 return;

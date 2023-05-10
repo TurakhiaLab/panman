@@ -279,7 +279,6 @@ namespace PangenomeMAT {
             Node* transformHelper(Node* node);
             void adjustLevels(Node* node);
             void setupGlobalCoordinates();
-            size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
 
             std::vector< Node* > allLeaves;
 
@@ -314,6 +313,10 @@ namespace PangenomeMAT {
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true);
             void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, std::string reference);
+            
+
+            // get unaligned global coordinate
+            int32_t getUnalignedGlobalCoordinate(int32_t primaryBlockId, int32_t secondaryBlockId, int32_t pos, int32_t gapPos, const sequence_t& sequence, const blockExists_t& blockExists);
             std::tuple< int, int, int, int > globalCoordinateToBlockCoordinate(int64_t globalCoordinate, const sequence_t& sequence, const blockExists_t& blockExists);
 
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
@@ -324,7 +327,8 @@ namespace PangenomeMAT {
             void convertToGFA(std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
             void getNodesPreorder(PangenomeMAT::Node* root, MATNew::tree& treeToWrite);
-            
+            size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
+
             // Transforms tree such that given node becomes child of new root
             void transform(Node* node);
             void reroot(std::string sequenceName);
@@ -372,7 +376,7 @@ namespace PangenomeMAT {
             treeIndex3 = tIndex3;
 
             sequenceId1 = sId1;
-            sequenceId2 = sId1;
+            sequenceId2 = sId2;
 
             primaryBlockIdStart1 = std::get<0>(t1);
             secondaryBlockIdStart1 = std::get<1>(t1);
@@ -393,6 +397,35 @@ namespace PangenomeMAT {
             secondaryBlockIdEnd2 = std::get<1>(t4);
             nucPositionEnd2 = std::get<2>(t4);
             nucGapPositionEnd2 = std::get<3>(t4);
+        }
+
+        ComplexMutation(MATNew::complexMutation cm){
+            mutationType = (cm.mutationtype()? 'H': 'R');
+            treeIndex1 = cm.treeindex1();
+            treeIndex2 = cm.treeindex2();
+            treeIndex3 = cm.treeindex3();
+            sequenceId1 = cm.sequenceid1();
+            sequenceId2 = cm.sequenceid2();
+
+            primaryBlockIdStart1 = (cm.blockidstart1() >> 32);
+            secondaryBlockIdStart1 = (cm.blockgapexiststart1()? (cm.blockidstart1()&(0xFFFFFFFF)): -1);
+            nucPositionStart1 = cm.nucpositionstart1();
+            nucGapPositionStart1 = (cm.nucgapexiststart1()? (cm.nucgappositionstart1()) : -1);
+
+            primaryBlockIdStart2 = (cm.blockidstart2() >> 32);
+            secondaryBlockIdStart2 = (cm.blockgapexiststart2()? (cm.blockidstart2()&(0xFFFFFFFF)): -1);
+            nucPositionStart2 = cm.nucpositionstart2();
+            nucGapPositionStart2 = (cm.nucgapexiststart2()? (cm.nucgappositionstart2()) : -1);
+
+            primaryBlockIdEnd1 = (cm.blockidend1() >> 32);
+            secondaryBlockIdEnd1 = (cm.blockgapexistend1()? (cm.blockidend1()&(0xFFFFFFFF)): -1);
+            nucPositionEnd1 = cm.nucpositionend1();
+            nucGapPositionEnd1 = (cm.nucgapexistend1()? (cm.nucgappositionend1()) : -1);
+
+            primaryBlockIdEnd2 = (cm.blockidend2() >> 32);
+            secondaryBlockIdEnd2 = (cm.blockgapexistend2()? (cm.blockidend2()&(0xFFFFFFFF)): -1);
+            nucPositionEnd2 = cm.nucpositionend2();
+            nucGapPositionEnd2 = (cm.nucgapexistend2()? (cm.nucgappositionend2()) : -1);
         }
 
         MATNew::complexMutation toProtobuf(){
@@ -425,7 +458,7 @@ namespace PangenomeMAT {
                 cm.set_blockgapexiststart2(false);
                 cm.set_blockidstart2(((int64_t)primaryBlockIdStart2 << 32));
             }
-            cm.set_nucpositionstart2(nucPositionStart1);
+            cm.set_nucpositionstart2(nucPositionStart2);
 
             if(nucGapPositionStart2 != -1){
                 cm.set_nucgapexiststart2(true);
@@ -448,12 +481,12 @@ namespace PangenomeMAT {
 
             if(secondaryBlockIdEnd2 != -1){
                 cm.set_blockgapexistend2(true);
-                cm.set_blockidend2(((int64_t)primaryBlockIdEnd1 << 32)+secondaryBlockIdEnd2);
+                cm.set_blockidend2(((int64_t)primaryBlockIdEnd2 << 32)+secondaryBlockIdEnd2);
             } else {
                 cm.set_blockgapexistend2(false);
                 cm.set_blockidend2(((int64_t)primaryBlockIdEnd2 << 32));
             }
-            cm.set_nucpositionend2(nucPositionEnd1);
+            cm.set_nucpositionend2(nucPositionEnd2);
 
             if(nucGapPositionEnd2 != -1){
                 cm.set_nucgapexistend2(true);
@@ -475,6 +508,7 @@ namespace PangenomeMAT {
         
         void printFASTA(std::ofstream& fout);
         void writeToFile(std::ofstream& fout);
+        void printComplexMutations();
     };
 
 };
