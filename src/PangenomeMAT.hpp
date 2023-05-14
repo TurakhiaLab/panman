@@ -17,13 +17,16 @@
 
 typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
 typedef  std::vector< std::pair< bool, std::vector< bool > > > blockExists_t;
+// Forward or reverse strand
+typedef  std::vector< std::pair< bool, std::vector< bool > > > blockStrand_t;
 
 namespace PangenomeMAT {
 
     char getNucleotideFromCode(int code);
     char getCodeFromNucleotide(char nuc);
+    char getComplementCharacter(char nuc);
     void printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-        const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, size_t lineSize, bool aligned, std::ofstream& fout);
+        const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout);
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
     std::string stripGaps(std::string sequenceString);
     std::string getDate();
@@ -142,20 +145,50 @@ namespace PangenomeMAT {
                 secondaryBlockId = -1;
             }
             blockMutInfo = mutation.blockmutinfo();
+            
+            strand = mutation.blockstrand();
         }
 
         BlockMut(size_t blockId, bool type, int secondaryBId = -1){
             primaryBlockId = blockId;
             secondaryBlockId = secondaryBId;
             blockMutInfo = type;
+
+            // Change
+            strand = true;
         }
+
+        BlockMut(size_t blockId, std::pair< BlockMutationType, int > type, int secondaryBId = -1){
+            primaryBlockId = blockId;
+            secondaryBlockId = secondaryBId;
+            if(type.first == BlockMutationType::BI){
+                blockMutInfo = true;
+            } else {
+                blockMutInfo = false;
+            }
+
+            if(type.second == 1){
+                strand = true;
+            } else {
+                // If type.second == 2 (reverse strand) or type.second == 0 (block deletion)
+                strand = false;
+            }
+        }
+
         BlockMut(){
             
         }
 
         int32_t primaryBlockId;
         int32_t secondaryBlockId;
+
+        // The following two variables are separate because the strand patch was added later
+
+        // If mutation is an insertion or deletion - Strand inversions are marked by insertions (for now)
         bool  blockMutInfo;
+        
+        // Strand of the 'inserted' block (block might not be inserted but might be simply inverted)
+        bool strand;
     };
 
     struct Block {
@@ -212,6 +245,10 @@ namespace PangenomeMAT {
         std::unordered_map< std::string, std::vector< size_t > > intSequences;
 
         std::unordered_map< std::string, std::vector< std::string > > paths;
+        
+        // Added as a patch to incorporate strands
+        std::unordered_map< std::string, std::vector< int > > strandPaths;
+
         std::unordered_map< std::string, std::string > stringIdToConsensusSeq;
         std::unordered_map< std::string, std::vector< std::pair< size_t, size_t > > > stringIdToGaps;
         std::unordered_map< size_t, std::string > intIdToStringId;
@@ -227,6 +264,9 @@ namespace PangenomeMAT {
         bool pathExists(size_t nId1, size_t nId2, std::vector< bool >& visited);
         std::vector< size_t > getTopologicalSort();
         std::unordered_map< std::string,std::vector< int > > getAlignedSequences(const std::vector< size_t >& topoArray);
+        
+        // Patch to incorporate strands
+        std::unordered_map< std::string,std::vector< int > > getAlignedStrandSequences(const std::vector< size_t >& topoArray);
 
         bool checkForCycles();
     };
@@ -296,6 +336,11 @@ namespace PangenomeMAT {
             int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
             void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState, int defaultState = (1<<28));
             void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > >& mutations, int parentState);
+
+            // To account for strand
+            int blockFitchForwardPassNew(Node* node, std::unordered_map< std::string, int >& states);
+            void blockFitchBackwardPassNew(Node* node, std::unordered_map< std::string, int >& states, int parentState,  int defaultValue = (1<<28));
+            void blockFitchAssignMutationsNew(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT::BlockMutationType, int > >& mutations, int parentState);
 
             int blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
             // The defaultValue parameter is used in rerooting.

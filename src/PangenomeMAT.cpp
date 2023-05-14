@@ -319,6 +319,127 @@ void PangenomeMAT::Tree::nucFitchAssignMutations(Node* node, std::unordered_map<
     }
 }
 
+int PangenomeMAT::Tree::blockFitchForwardPassNew(Node* node, std::unordered_map< std::string, int >& states){
+    if(node->children.size() == 0){
+        if(states.find(node->identifier) == states.end()){
+            return states[node->identifier] = 0;
+        }
+        return states[node->identifier];
+    }
+    std::vector< int > childStates;
+    for(auto child: node->children){
+        childStates.push_back(blockFitchForwardPassNew(child, states));
+    }
+    int orStates = 0, andStates = childStates[0];
+    for(auto u: childStates){
+        orStates |= u;
+        andStates &= u;
+    }
+    if(andStates){
+        return states[node->identifier] = andStates;
+    }
+    return states[node->identifier] = orStates;
+
+    // if(node->children.size() == 0){
+    //     if(states.find(node->identifier) == states.end()){
+    //         std::cerr << "FATAL: State for leaf Node ID not found!" << std::endl;
+    //         exit(-1);
+    //         return 0;
+    //     }
+    //     return states[node->identifier];
+    // }
+    // std::vector< bool > stateExists(3,false);
+    // for(auto child: node->children){
+    //     stateExists[blockFitchForwardPass(child, states)] = true;
+    // }
+    // if(stateExists[0] && stateExists[1]){
+    //     return states[node->identifier] = 2;
+    // }
+    // if(stateExists[0]){
+    //     return states[node->identifier] = 0;
+    // }
+    // if(stateExists[1]){
+    //     return states[node->identifier] = 1;
+    // }
+    // return states[node->identifier] = 2;
+}
+
+void PangenomeMAT::Tree::blockFitchBackwardPassNew(Node* node, std::unordered_map< std::string, int >& states, int parentState, int defaultValue){
+    if(node == root && defaultValue != (1 << 28)){
+        states[node->identifier] = defaultValue;
+    } else {
+        if(states[node->identifier] == 0){
+            return;
+        }
+        if(parentState & states[node->identifier]){
+            states[node->identifier] = parentState;
+        } else {
+            int currentState = 1;
+            while(!(states[node->identifier] & currentState)){
+                currentState <<= 1;
+            }
+            states[node->identifier] = currentState;
+        }
+    }
+
+    for(auto child: node->children){
+        blockFitchBackwardPassNew(child, states, states[node->identifier]);
+    }
+
+    // if(defaultValue != 2){
+    //     states[node->identifier] = defaultValue;
+    // } else if(states[node->identifier] == 2){
+    //     states[node->identifier] = parentState;
+    // }
+    // for(auto child: node->children){
+    //     blockFitchBackwardPass(child, states, states[node->identifier]);
+    // }
+}
+
+void PangenomeMAT::Tree::blockFitchAssignMutationsNew(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT::BlockMutationType, int > >& mutations, int parentState){
+    if(states[node->identifier] == 0){
+        return;
+    }
+    if(parentState != states[node->identifier]){
+        if(parentState == 1){
+            // insertion
+            int code = 0, currentState = states[node->identifier];
+            while(currentState > 0){
+                currentState >>= 1;
+                code++;
+            }
+            code--;
+
+            mutations[node->identifier] = std::make_pair(BlockMutationType::BI, code);
+        } else if(states[node->identifier] == 1){
+            // deletion
+            mutations[node->identifier] = std::make_pair(BlockMutationType::BD, 0);
+        } else {
+            // inversion
+            int code = 0, currentState = states[node->identifier];
+            while(currentState > 0){
+                currentState >>= 1;
+                code++;
+            }
+            code--;
+
+            mutations[node->identifier] = std::make_pair(BlockMutationType::BI, code);
+        }
+    }
+    for(auto child: node->children){
+        blockFitchAssignMutationsNew(child, states, mutations, states[node->identifier]);
+    }
+
+    // if(parentState == 0 && states[node->identifier] == 1){
+    //     mutations[node->identifier] = true;
+    // } else if(parentState == 1 && states[node->identifier] == 0){
+    //     mutations[node->identifier] = false;
+    // }
+    // for(auto child: node->children){
+    //     blockFitchAssignMutations(child, states, mutations, states[node->identifier]);
+    // }
+}
+
 int PangenomeMAT::Tree::blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states){
     if(node->children.size() == 0){
         if(states.find(node->identifier) == states.end()){
@@ -464,7 +585,6 @@ void PangenomeMAT::Tree::setupGlobalCoordinates(){
             ctr++;
         }
     }
-
 }
 
 PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype){
@@ -515,7 +635,6 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
 
         tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, bool > > globalMutations;
 
-
         tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i){
             std::unordered_map< std::string, int > states;
             std::unordered_map< std::string, bool > mutations;
@@ -554,8 +673,37 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
         PangenomeMAT::Pangraph pg(pangraphData);
 
         std::vector< size_t > topoArray = pg.getTopologicalSort();
+        // std::cout << "TOPO: " << topoArray.size() << std::endl;
+
+        for(int i = 0; i < topoArray.size(); i++){
+            if(topoArray[i] == 639){
+                std::cout << "639 POS: " << i << std::endl;
+            }
+        }
+
         std::unordered_map< std::string, std::vector< int > > alignedSequences = pg.getAlignedSequences(topoArray);
+        std::unordered_map< std::string, std::vector< int > > alignedStrandSequences = pg.getAlignedStrandSequences(topoArray);
         
+        int ctr = 0, ctr2 = 0;
+        for(auto u: alignedSequences["NZ_CP012560"]){
+            if(u != -1){
+                std::cout << ctr++ << " " << u << " " << topoArray[ctr2] << " " << topoArray[ctr2+1] << " " << pg.intSequences["NZ_CP012560"][ctr] << " " << ctr2 << std::endl;
+                // if(ctr == 50){
+                //     for(int i = ctr2+1; i < topoArray.size() ; i++){
+                //         if(topoArray[i] == 639){
+                //             std::cout << "FOUND!!! " << i << " " << topoArray[i] << std::endl;
+                //         }
+                //     }
+                //     std::cout << "NOT FOUND" << std::endl;
+                // }
+            }
+            ctr2++;
+        }
+
+        // for(auto u: alignedStrandSequences["KX894803.1"]){
+        //     if(u != -1)std::cout << u << std::endl;
+        // }
+
         root = createTreeFromNewickString(newickString);
 
         for(size_t i = 0; i < topoArray.size(); i++){
@@ -573,19 +721,27 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
             gaps.push_back(g);
         }
 
-        tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, bool > > globalBlockMutations;
+        tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, std::pair< BlockMutationType, int > > > globalBlockMutations;
 
 
         tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i){
             std::unordered_map< std::string, int > states;
-            std::unordered_map< std::string, bool > mutations;
+            std::unordered_map< std::string, std::pair< BlockMutationType, int > > mutations;
             for(const auto& u: alignedSequences){
-                states[u.first] = (u.second[i] != -1);
+                if(u.second[i] == -1){
+                    states[u.first] = 1;
+                } else if(alignedStrandSequences[u.first][i]){
+                    // forward strand
+                    states[u.first] = 2;
+                } else {
+                    // reverse strand
+                    states[u.first] = 4;
+                }
             }
             
-            blockFitchForwardPass(root, states);
-            blockFitchBackwardPass(root, states, 1);
-            blockFitchAssignMutations(root, states, mutations, 0);
+            blockFitchForwardPassNew(root, states);
+            blockFitchBackwardPassNew(root, states, 1);
+            blockFitchAssignMutationsNew(root, states, mutations, 0);
             globalBlockMutations[i] = mutations;
 
         });
@@ -910,6 +1066,7 @@ void PangenomeMAT::Tree::protoMATToTree(const MATNew::tree& mainTree){
 
 PangenomeMAT::Tree::Tree(const MATNew::tree& mainTree){
     protoMATToTree(mainTree);
+
 }
 
 PangenomeMAT::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
@@ -1057,18 +1214,30 @@ void PangenomeMAT::Tree::printBfs(Node* node){
 }
 
 void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-    const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, size_t lineSize, bool aligned, std::ofstream& fout){
+    const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout){
 
     std::string line;
+    int maxId = 0;
 
     for(size_t i = 0; i < blockExists.size(); i++){
         for(size_t j = 0; j < blockExists[i].second.size(); j++){
             if(blockExists[i].second[j]){
+                if(blockStrand[i].second[j]){
+                    for(size_t k = 0; k < sequence[i].second[j].size(); k++){
+                        for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++){
+                            if(sequence[i].second[j][k].second[w] != '-'){
+                                line += sequence[i].second[j][k].second[w];
+                            } else if(aligned){
+                                line += '-';
+                            }
+                            if(line.length() == lineSize){
+                                fout << line << '\n';
+                                line = "";
+                            }
+                        }
 
-                for(size_t k = 0; k < sequence[i].second[j].size(); k++){
-                    for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++){
-                        if(sequence[i].second[j][k].second[w] != '-'){
-                            line += sequence[i].second[j][k].second[w];
+                        if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x'){
+                            line += sequence[i].second[j][k].first;
                         } else if(aligned){
                             line += '-';
                         }
@@ -1076,18 +1245,34 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                             fout << line << '\n';
                             line = "";
                         }
-                    }
 
-                    if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x'){
-                        line += sequence[i].second[j][k].first;
-                    } else if(aligned){
-                        line += '-';
                     }
-                    if(line.length() == lineSize){
-                        fout << line << '\n';
-                        line = "";
-                    }
+                } else {
+                    for(size_t k = sequence[i].second[j].size()-1; k+1 > 0; k--){
 
+                        if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x'){
+                            line += getComplementCharacter(sequence[i].second[j][k].first);
+                        } else if(aligned){
+                            line += '-';
+                        }
+                        if(line.length() == lineSize){
+                            fout << line << '\n';
+                            line = "";
+                        }
+
+                        for(size_t w = sequence[i].second[j][k].second.size()-1; w+1 > 0; w--){
+                            if(sequence[i].second[j][k].second[w] != '-'){
+                                line += getComplementCharacter(sequence[i].second[j][k].second[w]);
+                            } else if(aligned){
+                                line += '-';
+                            }
+                            if(line.length() == lineSize){
+                                fout << line << '\n';
+                                line = "";
+                            }
+                        }
+
+                    }
                 }
             } else if(aligned) {
                 for(size_t k = 0; k < sequence[i].second[j].size(); k++){
@@ -1110,28 +1295,75 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
         }
 
         if(blockExists[i].first){
-            for(size_t j = 0; j < sequence[i].first.size(); j++){
-                for(size_t k = 0; k < sequence[i].first[j].second.size(); k++){
-                    if(sequence[i].first[j].second[k] != '-'){
-                        line += sequence[i].first[j].second[k];
+            if(i > maxId){
+                maxId = i;
+            }
+
+            if(blockStrand[i].first){
+                for(size_t j = 0; j < sequence[i].first.size(); j++){
+                    for(size_t k = 0; k < sequence[i].first[j].second.size(); k++){
+                        if(sequence[i].first[j].second[k] != '-'){
+                            line += sequence[i].first[j].second[k];
+                        } else if(aligned){
+                            line += '-';
+                        }
+                        if(line.length() == lineSize){
+                            // if(line == "ATTAGAATATAGAGGTGAAAGTCTATTATGCAGTTTAATATTTAGAAATGTATGGTTATATAATCAAATT"){
+                            //     std::cout << i << " " << j << " " << k << std::endl;
+                            //     exit(-1);
+                            // }
+                            fout << line << '\n';
+                            line = "";
+                        }
+                    }
+
+                    if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
+                        line += sequence[i].first[j].first;
                     } else if(aligned){
                         line += '-';
                     }
                     if(line.length() == lineSize){
+                        // if(line == "ATTAGAATATAGAGGTGAAAGTCTATTATGCAGTTTAATATTTAGAAATGTATGGTTATATAATCAAATT"){
+                        //     std::cout << i << " " << j << " " << -1 << std::endl;
+                        //     exit(-1);
+                        // }
                         fout << line << '\n';
                         line = "";
                     }
                 }
+            } else {
+                for(size_t j = sequence[i].first.size()-1; j+1 > 0; j--){
 
-                if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
-                    line += sequence[i].first[j].first;
-                } else if(aligned){
-                    line += '-';
-                }
-                if(line.length() == lineSize){
-                    fout << line << '\n';
-                    line = "";
-                }
+                    if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
+                        line += getComplementCharacter(sequence[i].first[j].first);
+                    } else if(aligned){
+                        line += '-';
+                    }
+                    if(line.length() == lineSize){
+                        // if(line == "ATTAGAATATAGAGGTGAAAGTCTATTATGCAGTTTAATATTTAGAAATGTATGGTTATATAATCAAATT"){
+                        //     std::cout << i << " " << j << " " << -1 << std::endl;
+                        //     exit(-1);
+                        // }
+                        fout << line << '\n';
+                        line = "";
+                    }
+
+                    for(size_t k = sequence[i].first[j].second.size()-1; k+1 > 0; k--){
+                        if(sequence[i].first[j].second[k] != '-'){
+                            line += getComplementCharacter(sequence[i].first[j].second[k]);
+                        } else if(aligned){
+                            line += '-';
+                        }
+                        if(line.length() == lineSize){
+                            // if(line == "ATTAGAATATAGAGGTGAAAGTCTATTATGCAGTTTAATATTTAGAAATGTATGGTTATATAATCAAATT"){
+                            //     std::cout << i << " " << j << " " << k << std::endl;
+                            //     exit(-1);
+                            // }
+                            fout << line << '\n';
+                            line = "";
+                        }
+                    }
+                }   
             }
         } else if(aligned) {
             for(size_t j = 0; j < sequence[i].first.size(); j++){
@@ -1152,6 +1384,8 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
 
     }
 
+
+    std::cout << maxId << std::endl;
 
     if(line.length()){
         fout << line << '\n';
@@ -1194,6 +1428,21 @@ char PangenomeMAT::getCodeFromNucleotide(char nuc){
             return 15;
         default:
             return 0;
+    }
+}
+
+char PangenomeMAT::getComplementCharacter(char nuc){
+    switch(nuc){
+        case 'A':
+            return 'T';
+        case 'C':
+            return 'G';
+        case 'G':
+            return 'C';
+        case 'T':
+            return 'A';
+        default:
+            return 'N';
     }
 }
 
@@ -1243,38 +1492,48 @@ int reverseNucs(int nucs){
 void printFASTAHelper(PangenomeMAT::Node* root,\
     std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
     std::vector< std::pair< bool, std::vector< bool > > >& blockExists,\
+    blockStrand_t& blockStrand,\
     std::ofstream& fout, bool aligned = false){
 
     // Apply mutations
-    // Block mutations - ignored for now since the block IDs don't seem right in the files
-
-    std::vector< std::tuple< int32_t, int32_t, bool, bool > > blockMutationInfo;
+    
+    // For reversing mutations - primary block id, secondary block id, old mutation, old strand, new mutation, new strand
+    std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > > blockMutationInfo;
 
     for(auto mutation: root->blockMutation){
         int32_t primaryBlockId = mutation.primaryBlockId;
         int32_t secondaryBlockId = mutation.secondaryBlockId;
-        bool type = (mutation.blockMutInfo);
+        bool type = mutation.blockMutInfo;
+        bool strand = mutation.strand;
 
         if(type == 1){
-            bool oldVal;
+            bool oldStrand;
+            bool oldMut;
             if(secondaryBlockId != -1){
-                oldVal = blockExists[primaryBlockId].second[secondaryBlockId];
+                oldStrand = blockStrand[primaryBlockId].second[secondaryBlockId];
+                oldMut = blockExists[primaryBlockId].second[secondaryBlockId];
                 blockExists[primaryBlockId].second[secondaryBlockId] = true;
+                blockStrand[primaryBlockId].second[secondaryBlockId] = strand;
             } else {
-                oldVal = blockExists[primaryBlockId].first;
+                oldStrand = blockStrand[primaryBlockId].first;
+                oldMut = blockExists[primaryBlockId].first;
                 blockExists[primaryBlockId].first = true;
+                blockStrand[primaryBlockId].first = strand;
             }
-            blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, mutation.secondaryBlockId, oldVal, true) );
+            blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, mutation.secondaryBlockId, oldMut, oldStrand, true, strand) );
         } else {
-            bool oldVal;
+            bool oldMut;
+            bool oldStrand;
             if(secondaryBlockId != -1){
-                oldVal = blockExists[primaryBlockId].second[secondaryBlockId];
+                oldStrand = blockStrand[primaryBlockId].second[secondaryBlockId];
+                oldMut = blockExists[primaryBlockId].second[secondaryBlockId];
                 blockExists[primaryBlockId].second[secondaryBlockId] = false;
             } else {
-                oldVal = blockExists[primaryBlockId].first;
+                oldStrand = blockStrand[primaryBlockId].first;
+                oldMut = blockExists[primaryBlockId].first;
                 blockExists[primaryBlockId].first = false;
             }
-            blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, mutation.secondaryBlockId, oldVal, false) );
+            blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, mutation.secondaryBlockId, oldMut, oldStrand, false, strand) );
         }
 
     }
@@ -1318,19 +1577,7 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
                 } else {
                     if(nucGapPosition != -1){
                         for(int j = 0; j < len; j++){
-                            // if(primaryBlockId >= sequence.size()){
-                            //     std::cout << "A " << root->identifier << " " << primaryBlockId << " " << sequence.size() << std::endl;
-                            // }
-                            // if(nucPosition >= sequence[primaryBlockId].first.size()){
-                            //     std::cout << "B " << root->identifier << " " << nucPosition << " " << sequence[primaryBlockId].first.size() << std::endl;
-                            // }
-                            // if(nucGapPosition+j >= sequence[primaryBlockId].first[nucPosition].second.size()){
-                            //     std::cout << "C " << primaryBlockId << " " << nucPosition << " " << i << " " << root->identifier << " " << nucGapPosition << " " << nucGapPosition+j << " " << sequence[primaryBlockId].first[nucPosition].second.size() << std::endl;
-                            // }
                             char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j];
-                            // if(nucGapPosition+j >= sequence[primaryBlockId].first[nucPosition].second.size()){
-                            //     std::cout << "C " << i << " " << root->identifier << " " << nucGapPosition << " " << nucGapPosition+j << " " << sequence[primaryBlockId].first[nucPosition].second.size() << std::endl;
-                            // }
                             newVal = PangenomeMAT::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));   
@@ -1497,14 +1744,27 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
     
     if(root->children.size() == 0){
         // Print sequence
+        std::cout << root->identifier << std::endl;
+
         fout << '>' << root->identifier << std::endl;
 
-        PangenomeMAT::printSequenceLines(sequence, blockExists, 70, aligned, fout);
+        // FXKWEUXUUI
+        if(root->identifier == "NZ_CP012560"){
+            int ctr = 0;
+            for(int i = 0; i < blockStrand.size(); i++){
+                if(blockExists[i].first){
+                    std::cout << i << " " << ctr << std::endl;
+                    ctr++;
+                }
+            }
+        }
+
+        PangenomeMAT::printSequenceLines(sequence, blockExists, blockStrand, 60, aligned, fout);
 
     } else {
         // DFS on children
         for(PangenomeMAT::Node* child: root->children){
-            printFASTAHelper(child, sequence, blockExists, fout, aligned);
+            printFASTAHelper(child, sequence, blockExists, blockStrand, fout, aligned);
         }
     }
 
@@ -1512,8 +1772,10 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         auto mutation = *it;
         if(std::get<1>(mutation) != -1){
             blockExists[std::get<0>(mutation)].second[std::get<1>(mutation)] = std::get<2>(mutation);
+            blockStrand[std::get<0>(mutation)].second[std::get<1>(mutation)] = std::get<3>(mutation);
         } else {
             blockExists[std::get<0>(mutation)].first = std::get<2>(mutation);
+            blockStrand[std::get<0>(mutation)].first = std::get<3>(mutation);
         }
     }
 
@@ -1540,11 +1802,13 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned){
     // List of blocks. Each block has a nucleotide list. Along with each nucleotide is a gap list.
     std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence(blocks.size() + 1);
     std::vector< std::pair< bool, std::vector< bool > > > blockExists(blocks.size() + 1, {false, {}});
+    blockStrand_t blockStrand(blocks.size() + 1, {false, {}});
 
     // Assigning block gaps
     for(size_t i = 0; i < blockGaps.blockPosition.size(); i++){
         sequence[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i]);
         blockExists[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
+        blockStrand[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
     }
 
     int32_t maxBlockId = 0;
@@ -1589,6 +1853,7 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned){
 
     sequence.resize(maxBlockId + 1);
     blockExists.resize(maxBlockId + 1);
+    blockStrand.resize(maxBlockId + 1);
 
     // Assigning nucleotide gaps
     for(size_t i = 0; i < gaps.size(); i++){
@@ -1606,7 +1871,7 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned){
         }
     }
 
-    printFASTAHelper(root, sequence, blockExists, fout, aligned);
+    printFASTAHelper(root, sequence, blockExists, blockStrand, fout, aligned);
 
 }
 
@@ -2365,6 +2630,7 @@ void PangenomeMAT::Tree::getNodesPreorder(PangenomeMAT::Node* root, MATNew::tree
     
     MATNew::node n;
     std::map< std::pair< int32_t, int32_t >, std::pair< std::vector< MATNew::nucMut >, int > > blockToMutations;
+    std::map< std::pair< int32_t, int32_t >, bool > blockToStrand;
 
     for(size_t i = 0; i < root->nucMutation.size(); i++){
         const PangenomeMAT::NucMut& mutation = root->nucMutation[i];
@@ -2386,12 +2652,19 @@ void PangenomeMAT::Tree::getNodesPreorder(PangenomeMAT::Node* root, MATNew::tree
     for(size_t i = 0; i < root->blockMutation.size(); i++){
         const PangenomeMAT::BlockMut& mutation = root->blockMutation[i];
         blockToMutations[std::make_pair(mutation.primaryBlockId, mutation.secondaryBlockId)].second = mutation.blockMutInfo;
+        blockToStrand[std::make_pair(mutation.primaryBlockId, mutation.secondaryBlockId)] = mutation.strand;
     }
 
     for(auto u: blockToMutations){
         MATNew::mutation mutation;
         mutation.set_blockmutexist((u.second.second != 2));
         mutation.set_blockmutinfo(u.second.second);
+        if(u.second.second != 2){
+            // block mutation exists
+            mutation.set_blockstrand(blockToStrand[u.first]);
+        } else {
+            mutation.set_blockstrand(true);
+        }
 
         int32_t primaryBlockId = u.first.first;
         int32_t secondaryBlockId = u.first.second;
@@ -3750,7 +4023,7 @@ int32_t PangenomeMAT::Tree::getUnalignedGlobalCoordinate(int32_t primaryBlockId,
                     for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++){
                         if(sequence[i].second[j][k].second[w] != '-' && sequence[i].second[j][k].second[w] != 'x'){
                             // useful character found
-                            if(i == primaryBlockId && j == secondaryBlockId && k == pos && w == gapPos){
+                            if((int)i == primaryBlockId && (int)j == secondaryBlockId && (int)k == pos && (int)w == gapPos){
                                 return ctr;
                             }
                             ctr++;
@@ -3758,7 +4031,7 @@ int32_t PangenomeMAT::Tree::getUnalignedGlobalCoordinate(int32_t primaryBlockId,
                     }
                     if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x'){
                         // useful character found
-                        if(i == primaryBlockId && j == secondaryBlockId && k == pos && gapPos == -1){
+                        if((int)i == primaryBlockId && (int)j == secondaryBlockId && (int)k == pos && gapPos == -1){
                             return ctr;
                         }
                         ctr++;
@@ -3772,14 +4045,14 @@ int32_t PangenomeMAT::Tree::getUnalignedGlobalCoordinate(int32_t primaryBlockId,
         for(size_t k = 0; k < sequence[i].first.size(); k++){
             for(size_t w = 0; w < sequence[i].first[k].second.size(); w++){
                 if(sequence[i].first[k].second[w] != '-' && sequence[i].first[k].second[w] != 'x'){
-                    if(i == primaryBlockId && secondaryBlockId == -1 && k == pos && gapPos == w){
+                    if((int)i == primaryBlockId && secondaryBlockId == -1 && (int)k == pos && (int)w == gapPos){
                         return ctr;
                     }
                     ctr++;
                 }
             }
             if(sequence[i].first[k].first != '-' && sequence[i].first[k].first != 'x'){
-                if(i == primaryBlockId && secondaryBlockId == -1 && k == pos && gapPos == -1){
+                if((int)i == primaryBlockId && secondaryBlockId == -1 && (int)k == pos && gapPos == -1){
                     return ctr;
                 }
                 ctr++;
@@ -4442,6 +4715,7 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
         Json::Value path = pangraphData["paths"][(int)i];
         for(size_t j = 0; j < path["blocks"].size(); j++){
             paths[path["name"].asString()].push_back(path["blocks"][(int)j]["id"].asString());
+            strandPaths[path["name"].asString()].push_back(path["blocks"][(int)j]["strand"].asBool());
         }
     }
 
@@ -4458,63 +4732,29 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
         for(size_t j = 0; j < pangraphData["blocks"][(int)i]["mutate"].size(); j++){
             std::string seqName = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["name"].asString();
             size_t number = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["number"].asInt();
-            bool strand = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["strand"].asBool();
 
             for(size_t k = 0; k < pangraphData["blocks"][(int)i]["mutate"][(int)j][1].size(); k++){
                 std::string mutationString = pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString();
                 std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
-
-                // if(blockId == "GFGIDZSSLK" && seqName == "KX894803.1"){
-                //     std::cout << "Subs: " << number << " " << pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt() << " " << mutationString << " " << strand << std::endl;
-                // }
-                int pos = pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt();
-                int len = mutationString.length();
-
-                if(strand){
-                    substitutions[blockId][seqName][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt(), mutationString) );
-                } else {
-                    substitutions[blockId][seqName][number].push_back( std::make_pair( sequence.length()-pos-len+2, mutationString) );
-                }
+                substitutions[blockId][seqName][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt(), mutationString) );
             }
         }
         for(size_t j = 0; j < pangraphData["blocks"][(int)i]["insert"].size(); j++){
             std::string seqName = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["name"].asString();
             size_t number = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["number"].asInt();
-            bool strand = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["strand"].asBool();
 
             for(size_t k = 0; k < pangraphData["blocks"][(int)i]["insert"][(int)j][1].size(); k++){
-                // if(blockId == "GFGIDZSSLK" && seqName == "KX894803.1"){
-                //     std::cout << "Insert: " << number << " " << pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt() << " " << strand << std::endl;
-                // }
                 std::string mutationString = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][1].asString();
                 std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
-                int pos = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt();
-                int len = mutationString.length();
-
-                if(strand){
-                    insertions[blockId][seqName][number].push_back( std::make_tuple( pos, pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt(), mutationString ) );
-                } else {
-                    insertions[blockId][seqName][number].push_back( std::make_tuple( sequence.length()-pos-len+2, pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt(), mutationString ) );
-                }
+                insertions[blockId][seqName][number].push_back( std::make_tuple( pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt(), pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt(), mutationString ) );
             }
         }
         for(size_t j = 0; j < pangraphData["blocks"][(int)i]["delete"].size(); j++){
             std::string seqName = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["name"].asString();
             size_t number = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["number"].asInt();
-            bool strand = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["strand"].asBool();
 
             for(size_t k = 0; k < pangraphData["blocks"][(int)i]["delete"][(int)j][1].size(); k++){
-                int pos = pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][0].asInt();
-                int len = pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][1].asInt();
-                
-                if(strand){
-                    deletions[blockId][seqName][number].push_back( std::make_pair( pos, len ) );
-                } else {
-                    deletions[blockId][seqName][number].push_back( std::make_pair( sequence.length()-pos-len+2, len ) );
-                    // if(pos-len+1<=0){
-                    //     std::cout << pos-len+1 << std::endl;
-                    // }
-                }
+                deletions[blockId][seqName][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][0].asInt(), pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][1].asInt() ) );
             }
         }
         
@@ -4571,7 +4811,9 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
         }
         size_t currentNode = sequence.second[0];
         for(size_t i = 1; i < sequence.second.size(); i++){
+
             size_t nextNode = sequence.second[i];
+
             bool neighbourFound = false;
             for(auto neighbour: adj[currentNode]){
                 if(intIdToStringId[neighbour] == intIdToStringId[nextNode]){
@@ -4585,20 +4827,33 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
                 currentNode = nextNode;
                 continue;
             }
+
             std::vector< bool > visited(numNodes, false);
             if(!pathExists(nextNode, currentNode,visited)){
                 adj[currentNode].push_back(nextNode);
                 currentNode = nextNode;
             } else {
+                
+
                 adj[currentNode].push_back(numNodes);
                 adj.push_back({});
                 intIdToStringId[numNodes] = intIdToStringId[nextNode];
                 sequence.second[i] = numNodes;
-                currentNode = nextNode;
+                currentNode = numNodes;
+
                 numNodes++;
             }
         }
     }
+
+    // for(auto sequence: intSequences){
+    //     std::vector< bool > visited(numNodes, false);
+    //     for(int i = 0; i < sequence.second.size(); i++){
+    //         if(!pathExists(sequence.second[i], sequence.second[i+1], visited) && sequence.second[i+1] == 639 && sequence.first == "NZ_CP012560"){
+    //             std::cout << "WHAT??? " << sequence.second[i] << std::endl;
+    //         }
+    //     }
+    // }
 
     if(!checkForCycles()){
         std::cout << "Cycles Removed!" << std::endl;
@@ -4652,6 +4907,26 @@ bool PangenomeMAT::Pangraph::checkForCycles(){
     return false;
 }
 
+std::unordered_map< std::string,std::vector< int > > PangenomeMAT::Pangraph::getAlignedStrandSequences(const std::vector< size_t >& topoArray){
+    std::unordered_map< std::string, std::vector< int > > alignedStrandSequences;
+    for(auto p: intSequences){
+        size_t p1 = 0, p2 = 0;
+        while(p1 < topoArray.size() && p2 < p.second.size()){
+            if(topoArray[p1] == p.second[p2]){
+                alignedStrandSequences[p.first].push_back(strandPaths[p.first][p2]);
+                p2++;
+            } else {
+                alignedStrandSequences[p.first].push_back(-1);
+            }
+            p1++;
+        }
+        while(alignedStrandSequences[p.first].size() < topoArray.size()){
+            alignedStrandSequences[p.first].push_back(-1);
+        }
+    }
+    return alignedStrandSequences;
+}
+
 std::unordered_map< std::string, std::vector< int > > PangenomeMAT::Pangraph::getAlignedSequences(const std::vector< size_t >& topoArray){
     std::unordered_map< std::string, std::vector< int > > alignedSequences;
     for(auto p: intSequences){
@@ -4680,6 +4955,7 @@ void PangenomeMAT::Pangraph::topologicalSortHelper(size_t nodeId, std::vector< s
         }
     }
     topoArray.push_back(nodeId);
+
 }
 
 std::vector< size_t > PangenomeMAT::Pangraph::getTopologicalSort(){
@@ -4692,6 +4968,12 @@ std::vector< size_t > PangenomeMAT::Pangraph::getTopologicalSort(){
         }
     }
     std::reverse(topoArray.begin(), topoArray.end());
+
+    // for(int i = 0; i < topoArray.size(); i++){
+    //     if(topoArray[i] == 639){
+    //         std::cout << "639 is HERE" << std::endl;
+    //     }
+    // }
 
     return topoArray;
 }
