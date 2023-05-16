@@ -181,6 +181,7 @@ namespace PangenomeMAT2 {
 
             std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
             std::unordered_map<std::string, Node*> allNodes;
+            std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > > globalCoordinates;
 
             Node* createTreeFromNewickString(std::string newick);
             void assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MATNew::node >& nodes);
@@ -195,6 +196,8 @@ namespace PangenomeMAT2 {
                 std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > >& coordinates,\
                 std::vector< std::pair< bool, std::vector< bool > > >& blockExists
             );
+            void setupGlobalCoordinates();
+            size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
 
             std::vector< Node* > allLeaves;
 

@@ -280,6 +280,9 @@ PangenomeMAT2::Tree::Tree(std::ifstream& fin){
         blockGaps.blockGapLength.push_back(mainTree.blockgaps().blockgaplength(i));
     }
 
+    // Setting up global coordinates for fast retrieval
+    setupGlobalCoordinates();
+
 }
 
 int getTotalParsimonyParallelHelper(PangenomeMAT2::Node* root, PangenomeMAT2::NucMutationType nucMutType, PangenomeMAT2::BlockMutationType blockMutType){
@@ -1995,6 +1998,106 @@ bool PangenomeMAT2::Tree::verifyVCFFile(std::ifstream& fin){
 
     return true;
 
+}
+
+void PangenomeMAT2::Tree::setupGlobalCoordinates(){
+    globalCoordinates.resize(blocks.size()+1);
+    
+    // Assigning block gaps
+    for(size_t i = 0; i < blockGaps.blockPosition.size(); i++){
+        globalCoordinates[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i]);
+    }
+
+    int32_t maxBlockId = 0;
+    for(size_t i = 0; i < blocks.size(); i++){
+        int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
+        int32_t secondaryBlockId = ((int32_t)blocks[i].secondaryBlockId);
+        maxBlockId = std::max(maxBlockId, primaryBlockId);
+
+        for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++){
+            bool endFlag = false;
+            for(size_t k = 0; k < 8; k++){
+                const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+
+                if(nucCode == 0){
+                    endFlag = true;
+                    break;
+                }
+                
+                if(secondaryBlockId != -1){
+                    globalCoordinates[primaryBlockId].second[secondaryBlockId].push_back({0, {}});
+                } else {
+                    globalCoordinates[primaryBlockId].first.push_back({0, {}});
+                }
+            }
+
+            if(endFlag){
+                break;
+            }
+        }
+
+        if(secondaryBlockId != -1){
+            globalCoordinates[primaryBlockId].second[secondaryBlockId].push_back({0, {}});
+        } else {
+            globalCoordinates[primaryBlockId].first.push_back({0, {}});
+        }
+    }
+
+    globalCoordinates.resize(maxBlockId + 1);
+
+    // Assigning nucleotide gaps
+    for(size_t i = 0; i < gaps.size(); i++){
+        int32_t primaryBId = (gaps[i].primaryBlockId);
+        int32_t secondaryBId = (gaps[i].secondaryBlockId);
+
+        for(size_t j = 0; j < gaps[i].nucPosition.size(); j++){
+            int len = gaps[i].nucGapLength[j];
+            int pos = gaps[i].nucPosition[j];
+
+            if(secondaryBId != -1){
+                globalCoordinates[primaryBId].second[secondaryBId][pos].second.resize(len, 0);
+            } else {
+                globalCoordinates[primaryBId].first[pos].second.resize(len, 0);
+            }
+        }
+    }
+
+    // Assigning coordinates
+    int ctr = 0;
+    for(size_t i = 0; i < globalCoordinates.size(); i++){
+        for(size_t j = 0; j < globalCoordinates[i].second.size(); j++){
+            for(size_t k = 0; k < globalCoordinates[i].second[j].size(); k++){
+                for(size_t w = 0; w < globalCoordinates[i].second[j][k].second.size(); w++){
+                    globalCoordinates[i].second[j][k].second[w] = ctr;
+                    ctr++;
+                }
+                globalCoordinates[i].second[j][k].first = ctr;
+                ctr++;
+            }
+        }
+        for(size_t j = 0; j < globalCoordinates[i].first.size(); j++){
+            for(size_t k = 0; k < globalCoordinates[i].first[j].second.size(); k++){
+                globalCoordinates[i].first[j].second[k] = ctr;
+                ctr++;
+            }
+            globalCoordinates[i].first[j].first = ctr;
+            ctr++;
+        }
+    }
+}
+
+size_t PangenomeMAT2::Tree::getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition){
+    if(secondaryBlockId == -1){
+        if(nucGapPosition == -1){
+            return globalCoordinates[primaryBlockId].first[nucPosition].first;
+        }
+        return globalCoordinates[primaryBlockId].first[nucPosition].second[nucGapPosition];
+    } else {
+        if(nucGapPosition == -1){
+            return globalCoordinates[primaryBlockId].second[secondaryBlockId][nucPosition].first;
+        }
+        return globalCoordinates[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
+    }
 }
 
 void PangenomeMAT2::Tree::vcfToFASTA(std::ifstream& fin, std::ofstream& fout){
