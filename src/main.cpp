@@ -687,8 +687,8 @@ void debuggingCode(){
     std::map< std::string, std::map< std::pair< std::string, int >, bool > > paths;
 
     // load blocks
-    int s = 0;
-    std::map< std::string, int > blockLens;
+    // int s = 0;
+    // std::map< std::string, int > blockLens;
 
     // for(size_t i = 0; i < pangraphData["blocks"].size(); i++){
     //     std::string blockId = pangraphData["blocks"][(int)i]["id"].asString();
