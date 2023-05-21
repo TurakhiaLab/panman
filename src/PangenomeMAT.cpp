@@ -675,30 +675,30 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
         std::vector< size_t > topoArray = pg.getTopologicalSort();
         // std::cout << "TOPO: " << topoArray.size() << std::endl;
 
-        for(int i = 0; i < topoArray.size(); i++){
-            if(topoArray[i] == 639){
-                std::cout << "639 POS: " << i << std::endl;
-            }
-        }
+        // for(int i = 0; i < topoArray.size(); i++){
+        //     if(topoArray[i] == 639){
+        //         std::cout << "639 POS: " << i << std::endl;
+        //     }
+        // }
 
         std::unordered_map< std::string, std::vector< int > > alignedSequences = pg.getAlignedSequences(topoArray);
         std::unordered_map< std::string, std::vector< int > > alignedStrandSequences = pg.getAlignedStrandSequences(topoArray);
         
-        int ctr = 0, ctr2 = 0;
-        for(auto u: alignedSequences["NZ_CP012560"]){
-            if(u != -1){
-                std::cout << ctr++ << " " << u << " " << topoArray[ctr2] << " " << topoArray[ctr2+1] << " " << pg.intSequences["NZ_CP012560"][ctr] << " " << ctr2 << std::endl;
-                // if(ctr == 50){
-                //     for(int i = ctr2+1; i < topoArray.size() ; i++){
-                //         if(topoArray[i] == 639){
-                //             std::cout << "FOUND!!! " << i << " " << topoArray[i] << std::endl;
-                //         }
-                //     }
-                //     std::cout << "NOT FOUND" << std::endl;
-                // }
-            }
-            ctr2++;
-        }
+        // int ctr = 0, ctr2 = 0;
+        // for(auto u: alignedSequences["NZ_CP012560"]){
+        //     if(u != -1){
+        //         std::cout << ctr++ << " " << u << " " << topoArray[ctr2] << " " << topoArray[ctr2+1] << " " << pg.intSequences["NZ_CP012560"][ctr] << " " << ctr2 << std::endl;
+        //         // if(ctr == 50){
+        //         //     for(int i = ctr2+1; i < topoArray.size() ; i++){
+        //         //         if(topoArray[i] == 639){
+        //         //             std::cout << "FOUND!!! " << i << " " << topoArray[i] << std::endl;
+        //         //         }
+        //         //     }
+        //         //     std::cout << "NOT FOUND" << std::endl;
+        //         // }
+        //     }
+        //     ctr2++;
+        // }
 
         // for(auto u: alignedStrandSequences["KX894803.1"]){
         //     if(u != -1)std::cout << u << std::endl;
@@ -1217,7 +1217,7 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
     const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout){
 
     std::string line;
-    int maxId = 0;
+    // int maxId = 0;
 
     for(size_t i = 0; i < blockExists.size(); i++){
         for(size_t j = 0; j < blockExists[i].second.size(); j++){
@@ -1295,9 +1295,9 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
         }
 
         if(blockExists[i].first){
-            if(i > maxId){
-                maxId = i;
-            }
+            // if(i > maxId){
+            //     maxId = i;
+            // }
 
             if(blockStrand[i].first){
                 for(size_t j = 0; j < sequence[i].first.size(); j++){
@@ -1385,7 +1385,7 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
     }
 
 
-    std::cout << maxId << std::endl;
+    // std::cout << maxId << std::endl;
 
     if(line.length()){
         fout << line << '\n';
@@ -1744,20 +1744,19 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
     
     if(root->children.size() == 0){
         // Print sequence
-        std::cout << root->identifier << std::endl;
 
         fout << '>' << root->identifier << std::endl;
 
-        // FXKWEUXUUI
-        if(root->identifier == "NZ_CP012560"){
-            int ctr = 0;
-            for(int i = 0; i < blockStrand.size(); i++){
-                if(blockExists[i].first){
-                    std::cout << i << " " << ctr << std::endl;
-                    ctr++;
-                }
-            }
-        }
+        // // FXKWEUXUUI
+        // if(root->identifier == "NZ_CP012560"){
+        //     int ctr = 0;
+        //     for(int i = 0; i < blockStrand.size(); i++){
+        //         if(blockExists[i].first){
+        //             std::cout << i << " " << ctr << std::endl;
+        //             ctr++;
+        //         }
+        //     }
+        // }
 
         PangenomeMAT::printSequenceLines(sequence, blockExists, blockStrand, 60, aligned, fout);
 
