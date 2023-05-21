@@ -146,7 +146,7 @@ namespace PangenomeMAT {
             }
             blockMutInfo = mutation.blockmutinfo();
             
-            strand = mutation.blockstrand();
+            inversion = mutation.blockinversion();
         }
 
         BlockMut(size_t blockId, bool type, int secondaryBId = -1){
@@ -155,23 +155,24 @@ namespace PangenomeMAT {
             blockMutInfo = type;
 
             // Change
-            strand = true;
+            inversion = false;
         }
 
-        BlockMut(size_t blockId, std::pair< BlockMutationType, int > type, int secondaryBId = -1){
+        BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1){
             primaryBlockId = blockId;
             secondaryBlockId = secondaryBId;
             if(type.first == BlockMutationType::BI){
                 blockMutInfo = true;
             } else {
+                // blockMutInfo is also set to false in the case of inversions. Generally it indicates deletions
                 blockMutInfo = false;
             }
 
             if(type.second == 1){
-                strand = true;
+                // If type.second == 1 (inversion)
+                inversion = true;
             } else {
-                // If type.second == 2 (reverse strand) or type.second == 0 (block deletion)
-                strand = false;
+                inversion = false;
             }
         }
 
@@ -184,11 +185,11 @@ namespace PangenomeMAT {
 
         // The following two variables are separate because the strand patch was added later
 
-        // If mutation is an insertion or deletion - Strand inversions are marked by insertions (for now)
+        // If mutation is an insertion or deletion - Strand inversions are marked by blockMutInfo=false, however, they are not deletions
         bool  blockMutInfo;
         
-        // Strand of the 'inserted' block (block might not be inserted but might be simply inverted)
-        bool strand;
+        // Whether the block is being inverted or not
+        bool inversion;
     };
 
     struct Block {
@@ -340,7 +341,7 @@ namespace PangenomeMAT {
             // To account for strand
             int blockFitchForwardPassNew(Node* node, std::unordered_map< std::string, int >& states);
             void blockFitchBackwardPassNew(Node* node, std::unordered_map< std::string, int >& states, int parentState,  int defaultValue = (1<<28));
-            void blockFitchAssignMutationsNew(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT::BlockMutationType, int > >& mutations, int parentState);
+            void blockFitchAssignMutationsNew(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT::BlockMutationType, bool > >& mutations, int parentState);
 
             int blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
             // The defaultValue parameter is used in rerooting.
