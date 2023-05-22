@@ -28,7 +28,7 @@ namespace PangenomeMAT {
     char getCodeFromNucleotide(char nuc);
     char getComplementCharacter(char nuc);
     void printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-        const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, bool debug = false);
+        const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset = 0, bool debug = false);
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
     std::string stripGaps(std::string sequenceString);
     std::string getDate();
@@ -254,6 +254,9 @@ namespace PangenomeMAT {
         // Added as a patch to incorporate strands
         std::unordered_map< std::string, std::vector< int > > strandPaths;
 
+        // Circular sequences
+        std::unordered_map< std::string, int > circularSequences;
+
         std::unordered_map< std::string, std::string > stringIdToConsensusSeq;
         std::unordered_map< std::string, std::vector< std::pair< size_t, size_t > > > stringIdToGaps;
         std::unordered_map< size_t, std::string > intIdToStringId;
@@ -302,12 +305,6 @@ namespace PangenomeMAT {
         std::vector< std::vector< int64_t > > getAlignedSequences(const std::vector< size_t >& topoArray);
     };
 
-    class CircularOffset {
-        public:
-            std::string sequenceId;
-            int32_t offset;
-    };
-
     class Tree {
         private:
             size_t m_currInternalNode{ 0 };
@@ -321,6 +318,12 @@ namespace PangenomeMAT {
             Node* createTreeFromNewickString(std::string newick);
             void assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MATNew::node >& nodes);
             int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
+            void printFASTAHelper(PangenomeMAT::Node* root,\
+std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
+std::vector< std::pair< bool, std::vector< bool > > >& blockExists,\
+blockStrand_t& blockStrand,\
+std::ofstream& fout, bool aligned = false);
+
             void invertTree(Node* root);
             void compressTreeParallel(Node* node, size_t level);
             void mergeNodes(Node* par, Node* chi);
@@ -392,7 +395,7 @@ namespace PangenomeMAT {
             std::vector< Block > blocks;
             std::vector< GapList > gaps;
             BlockGapList blockGaps;
-            std::vector< CircularOffset > circularSequences;
+            std::unordered_map< std::string, int > circularSequences;
 
     };
 

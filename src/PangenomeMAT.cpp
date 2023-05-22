@@ -553,6 +553,8 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
         Json::Value pangraphData;
         fin >> pangraphData;
         PangenomeMAT::Pangraph pg(pangraphData);
+        
+        circularSequences = pg.circularSequences;
 
         std::vector< size_t > topoArray = pg.getTopologicalSort();
 
@@ -907,10 +909,10 @@ void PangenomeMAT::Tree::protoMATToTree(const MATNew::tree& mainTree){
         gaps.push_back(tempGaps);
     }
 
-    // // Circular offsets
-    // for(int i = 0; i < mainTree.circularOffset.size(); i++){
-
-    // }
+    // Circular offsets
+    for(int i = 0; i < mainTree.circularsequences_size(); i++){
+        circularSequences[mainTree.circularsequences(i).sequenceid()] = mainTree.circularsequences(i).offset();
+    }
 
     // Block gap list
     for(int i = 0; i < mainTree.blockgaps().blockposition_size(); i++){
@@ -1112,9 +1114,9 @@ void PangenomeMAT::Tree::printBfs(Node* node){
 }
 
 void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-    const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, bool debug){
+    const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset, bool debug){
 
-    // String that stores current line
+    // String that stores the sequence to be printed
     std::string line;
 
     for(size_t i = 0; i < blockExists.size(); i++){
@@ -1133,11 +1135,6 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                             } else if(aligned){
                                 line += '-';
                             }
-                            // As soon as line is full, print it
-                            if(line.length() == lineSize){
-                                fout << line << '\n';
-                                line = "";
-                            }
                         }
                         // Main Nuc
                         if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x'){
@@ -1145,12 +1142,6 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                         } else if(aligned){
                             line += '-';
                         }
-                        // As soon as line is full, print it
-                        if(line.length() == lineSize){
-                            fout << line << '\n';
-                            line = "";
-                        }
-
                     }
                 } else {
                     // If reverse strand, iterate backwards
@@ -1161,20 +1152,12 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                         } else if(aligned){
                             line += '-';
                         }
-                        if(line.length() == lineSize){
-                            fout << line << '\n';
-                            line = "";
-                        }
                         // Gap nucs
                         for(size_t w = sequence[i].second[j][k].second.size()-1; w+1 > 0; w--){
                             if(sequence[i].second[j][k].second[w] != '-'){
                                 line += getComplementCharacter(sequence[i].second[j][k].second[w]);
                             } else if(aligned){
                                 line += '-';
-                            }
-                            if(line.length() == lineSize){
-                                fout << line << '\n';
-                                line = "";
                             }
                         }
 
@@ -1184,18 +1167,9 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                 for(size_t k = 0; k < sequence[i].second[j].size(); k++){
                     for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++){
                         line += '-';
-                        if(line.length() == lineSize){
-                            fout << line << '\n';
-                            line = "";
-                        }
                     }
 
                     line += '-';
-                    if(line.length() == lineSize){
-                        fout << line << '\n';
-                        line = "";
-                    }
-
                 }
             }
         }
@@ -1213,20 +1187,12 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                         } else if(aligned){
                             line += '-';
                         }
-                        if(line.length() == lineSize){
-                            fout << line << '\n';
-                            line = "";
-                        }
                     }
                     // Main nuc
                     if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
                         line += sequence[i].first[j].first;
                     } else if(aligned){
                         line += '-';
-                    }
-                    if(line.length() == lineSize){
-                        fout << line << '\n';
-                        line = "";
                     }
                 }
             } else {
@@ -1238,10 +1204,6 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                     } else if(aligned){
                         line += '-';
                     }
-                    if(line.length() == lineSize){
-                        fout << line << '\n';
-                        line = "";
-                    }
 
                     // Gap nucs
                     for(size_t k = sequence[i].first[j].second.size()-1; k+1 > 0; k--){
@@ -1249,10 +1211,6 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                             line += getComplementCharacter(sequence[i].first[j].second[k]);
                         } else if(aligned){
                             line += '-';
-                        }
-                        if(line.length() == lineSize){
-                            fout << line << '\n';
-                            line = "";
                         }
                     }
                 }   
@@ -1262,25 +1220,48 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
             for(size_t j = 0; j < sequence[i].first.size(); j++){
                 for(size_t k = 0; k < sequence[i].first[j].second.size(); k++){
                     line+='-';
-                    if(line.length() == lineSize){
-                        fout << line << '\n';
-                        line = "";
-                    }
                 }
                 line+='-';
-                if(line.length() == lineSize){
-                    fout << line << '\n';
-                    line = "";
-                }
             }
         }
 
     }
 
-    // Last line might not be full length
-    if(line.length()){
-        fout << line << '\n';
-        line = "";
+    size_t ctr = 0;
+
+    if(offset != 0){
+        for(size_t i = 0; i < line.length(); i++){
+            if(line[i] != '-'){
+                if(ctr == (size_t)offset){
+                    // mark starting point
+                    ctr = i;
+                    break;
+                }
+                ctr++;
+            }
+        }
+    }
+
+    std::string currentLine = "";
+    // From offset to end
+    for(size_t i = ctr; i < line.length(); i++){
+        currentLine += line[i];
+        if(currentLine.length() == lineSize){
+            fout << currentLine << '\n';
+            currentLine = "";
+        }
+    }
+    // From beginning to offset
+    for(size_t i = 0; i < ctr; i++){
+        currentLine += line[i];
+        if(currentLine.length() == lineSize){
+            fout << currentLine << '\n';
+            currentLine = "";
+        }
+    }
+    if(currentLine.length()){
+        fout << currentLine << '\n';
+        currentLine = "";
     }
 
 }
@@ -1394,11 +1375,11 @@ char PangenomeMAT::getNucleotideFromCode(int code){
 }
 
 // Depth first traversal FASTA writer
-void printFASTAHelper(PangenomeMAT::Node* root,\
+void PangenomeMAT::Tree::printFASTAHelper(PangenomeMAT::Node* root,\
     std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
     std::vector< std::pair< bool, std::vector< bool > > >& blockExists,\
     blockStrand_t& blockStrand,\
-    std::ofstream& fout, bool aligned = false){
+    std::ofstream& fout, bool aligned){
 
     // Apply mutations
     
@@ -1683,7 +1664,12 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         // Print sequence
 
         fout << '>' << root->identifier << std::endl;
-        PangenomeMAT::printSequenceLines(sequence, blockExists, blockStrand, 60, aligned, fout, true);
+        int offset = 0;
+        if(circularSequences.find(root->identifier) != circularSequences.end()){
+            offset = circularSequences[root->identifier];
+        }
+
+        PangenomeMAT::printSequenceLines(sequence, blockExists, blockStrand, 60, aligned, fout, offset);
 
     } else {
         // DFS on children
@@ -2653,6 +2639,7 @@ void PangenomeMAT::Tree::getNodesPreorder(PangenomeMAT::Node* root, MATNew::tree
     }
 }
 
+// Write PanMAT to file
 void PangenomeMAT::Tree::writeToFile(std::ofstream& fout, PangenomeMAT::Node* node){
     if(node == nullptr){
         node = root;
@@ -2712,6 +2699,14 @@ void PangenomeMAT::Tree::writeToFile(std::ofstream& fout, PangenomeMAT::Node* no
         }
         treeToWrite.add_gaps();
         *treeToWrite.mutable_gaps( treeToWrite.gaps_size() - 1 ) = gl;
+    }
+
+    for(auto u: circularSequences){
+        MATNew::circularOffset co;
+        co.set_sequenceid(u.first);
+        co.set_offset(u.second);
+        treeToWrite.add_circularsequences();
+        *treeToWrite.mutable_circularsequences(treeToWrite.circularsequences_size()-1) = co;
     }
 
     if (!treeToWrite.SerializeToOstream(&fout)) {
@@ -4771,6 +4766,9 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
         for(size_t j = 0; j < path["blocks"].size(); j++){
             paths[path["name"].asString()].push_back(path["blocks"][(int)j]["id"].asString());
             strandPaths[path["name"].asString()].push_back(path["blocks"][(int)j]["strand"].asBool());
+        }
+        if(path["circular"].asBool() == true){
+            circularSequences[path["name"].asString()] = -path["offset"].asInt();
         }
     }
 

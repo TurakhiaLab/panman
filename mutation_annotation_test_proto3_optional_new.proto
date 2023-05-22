@@ -54,6 +54,12 @@ message blockGapList
     repeated int32  blockGapLength = 2;
 }
 
+message circularOffset
+{
+    string          sequenceId = 1;
+    int32           offset = 2;
+}
+
 message tree 
 {
     string           newick = 1;
@@ -62,6 +68,7 @@ message tree
     repeated consensusSeqToBlockIds consensusSeqMap = 4;
     repeated gapList gaps = 5;
     blockGapList     blockGaps = 6;
+    repeated circularOffset circularSequences = 7;
 }
 
 message complexMutation {

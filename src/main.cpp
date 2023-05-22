@@ -195,11 +195,11 @@ void updatedParser(int argc, char* argv[]){
 
         T = new PangenomeMAT::Tree(inputStream);
 
-        std::ifstream tempIfstream("vcf/klebs_small_subtree_vcf.vc");
+        // std::ifstream tempIfstream("vcf/klebs_small_subtree_vcf.vc");
 
-        std::cout << "Verifying VCF File: " << T->verifyVCFFile(tempIfstream) << std::endl;
+        // std::cout << "Verifying VCF File: " << T->verifyVCFFile(tempIfstream) << std::endl;
 
-        tempIfstream.close();
+        // tempIfstream.close();
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -816,7 +816,7 @@ void debuggingCode(){
 int main(int argc, char* argv[]){
 
     // debuggingCode();
-    tbb::task_scheduler_init init(4);
+    tbb::task_scheduler_init init(32);
 
     updatedParser(argc, argv);
 
