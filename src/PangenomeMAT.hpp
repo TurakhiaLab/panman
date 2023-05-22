@@ -302,6 +302,12 @@ namespace PangenomeMAT {
         std::vector< std::vector< int64_t > > getAlignedSequences(const std::vector< size_t >& topoArray);
     };
 
+    class CircularOffset {
+        public:
+            std::string sequenceId;
+            int32_t offset;
+    };
+
     class Tree {
         private:
             size_t m_currInternalNode{ 0 };
@@ -361,7 +367,7 @@ namespace PangenomeMAT {
             void writeToFile(std::ofstream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true, bool incorporateInversions=true);
-            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, std::string reference);
+            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference);
             
 
             // get unaligned global coordinate
@@ -386,6 +392,7 @@ namespace PangenomeMAT {
             std::vector< Block > blocks;
             std::vector< GapList > gaps;
             BlockGapList blockGaps;
+            std::vector< CircularOffset > circularSequences;
 
     };
 
