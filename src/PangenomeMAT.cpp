@@ -1977,24 +1977,37 @@ void PangenomeMAT::Tree::mergeNodes(PangenomeMAT::Node* par, PangenomeMAT::Node*
     par->children = chi->children;
 
     // For block mutations, we cancel out irrelevant mutations
-    std::map< std::pair<int, int>, PangenomeMAT::BlockMutationType > bidMutations;
+    std::map< std::pair<int, int>, std::pair< PangenomeMAT::BlockMutationType, bool > > bidMutations;
 
     for(auto mutation: par->blockMutation){
         int primaryBlockId = mutation.primaryBlockId;
         int secondaryBlockId = mutation.secondaryBlockId;
-
         bool type = (mutation.blockMutInfo);
+        bool inversion = (mutation.inversion);
+
         if(type == PangenomeMAT::BlockMutationType::BI){
-            bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = PangenomeMAT::BlockMutationType::BI;
+            bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair( PangenomeMAT::BlockMutationType::BI, inversion );
         } else {
             if(bidMutations.find(std::make_pair(primaryBlockId, secondaryBlockId)) != bidMutations.end()){
-                if(bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] == PangenomeMAT::BlockMutationType::BI){
-                    // If it was insertion earlier, cancel out
-                    bidMutations.erase(std::make_pair(primaryBlockId, secondaryBlockId));
+                if(bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].first == PangenomeMAT::BlockMutationType::BI){
+                    // If it was insertion earlier
+                    if(inversion){
+                        // This means that the new mutation is an inversion. So, inverted the strand of the inserted block
+                        bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = !bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second;
+                    } else {
+                        // Actually a deletion. So insertion and deletion cancel out
+                        bidMutations.erase(std::make_pair(primaryBlockId, secondaryBlockId));
+                    }
+                } else {
+                    // If previous mutation was an inversion
+                    if(!inversion){
+                        // Actually a deletion. Remove inversion mutation and put deletion instead
+                        bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = false;
+                    }
+                    // deletion followed by inversion doesn't make sense
                 }
-                // Otherwise, it remains deletion
             } else {
-                bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = PangenomeMAT::BlockMutationType::BD;
+                bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair(PangenomeMAT::BlockMutationType::BD, inversion);
             }
         }
     }
@@ -2002,36 +2015,51 @@ void PangenomeMAT::Tree::mergeNodes(PangenomeMAT::Node* par, PangenomeMAT::Node*
     for(auto mutation: chi->blockMutation){
         int primaryBlockId = mutation.primaryBlockId;
         int secondaryBlockId = mutation.secondaryBlockId;
-
         int type = (mutation.blockMutInfo);
+        bool inversion = (mutation.inversion);
+
         if(type == PangenomeMAT::BlockMutationType::BI){
-            bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = PangenomeMAT::BlockMutationType::BI;
+            bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair(PangenomeMAT::BlockMutationType::BI, inversion);
         } else {
             if(bidMutations.find(std::make_pair(primaryBlockId, secondaryBlockId)) != bidMutations.end()){
-                if(bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] == PangenomeMAT::BlockMutationType::BI){
-                    // If it was insertion earlier, cancel out
-                    bidMutations.erase(std::make_pair(primaryBlockId, secondaryBlockId));
+                if(bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].first == PangenomeMAT::BlockMutationType::BI){
+                    // If it was insertion earlier
+                    if(inversion){
+                        // This means that the new mutation is an inversion. So, inverted the strand of the inserted block
+                        bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = !bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second;
+                    } else {
+                        // Actually a deletion. So insertion and deletion cancel out
+                        bidMutations.erase(std::make_pair(primaryBlockId, secondaryBlockId));
+                    }
+                } else {
+                    // If previous mutation was an inversion
+                    if(!inversion){
+                        // Actually a deletion. Remove inversion mutation and put deletion instead
+                        bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = false;
+                    }
+                    // deletion followed by inversion doesn't make sense
                 }
-                // Otherwise, it remains deletion
             } else {
-                bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = PangenomeMAT::BlockMutationType::BD;
+                bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair(PangenomeMAT::BlockMutationType::BD, inversion);
             }
         }
     }
 
     std::vector< PangenomeMAT::BlockMut > newBlockMutation;
     for(auto mutation: bidMutations){
-        if(mutation.second == PangenomeMAT::BlockMutationType::BI){
+        if(mutation.second.first == PangenomeMAT::BlockMutationType::BI){
             PangenomeMAT::BlockMut tempBlockMut;
             tempBlockMut.primaryBlockId = mutation.first.first;
             tempBlockMut.secondaryBlockId = mutation.first.second;
             tempBlockMut.blockMutInfo = PangenomeMAT::BlockMutationType::BI;
+            tempBlockMut.inversion = mutation.second.second;
             newBlockMutation.push_back( tempBlockMut );
         } else {
             PangenomeMAT::BlockMut tempBlockMut;
             tempBlockMut.primaryBlockId = mutation.first.first;
             tempBlockMut.secondaryBlockId = mutation.first.second;
             tempBlockMut.blockMutInfo = PangenomeMAT::BlockMutationType::BD;
+            tempBlockMut.inversion = mutation.second.second;
             newBlockMutation.push_back( tempBlockMut );
         }
     }
@@ -2486,6 +2514,7 @@ PangenomeMAT::Node* subtreeExtractParallelHelper(PangenomeMAT::Node* node, const
 
     newNode->children.resize(node->children.size(), nullptr);
 
+    // Extract children that have been ticked
     tbb::parallel_for(tbb::blocked_range(0, (int)node->children.size()), [&](tbb::blocked_range<int> r){
         for(int i = r.begin(); i < r.end(); i++){
             PangenomeMAT::Node* child = node->children[i];
@@ -2499,6 +2528,7 @@ PangenomeMAT::Node* subtreeExtractParallelHelper(PangenomeMAT::Node* node, const
         }
     });
 
+    // Bring all children to front of array
     size_t i = 0, j = 0;
     while(j < newNode->children.size()){
         if(newNode->children[j] != nullptr){
