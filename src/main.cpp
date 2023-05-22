@@ -810,6 +810,7 @@ void debuggingCode(){
 int main(int argc, char* argv[]){
 
     // debuggingCode();
+    tbb::task_scheduler_init init(1);
 
     updatedParser(argc, argv);
 

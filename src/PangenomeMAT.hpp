@@ -8,6 +8,8 @@
 #include <queue>
 #include <atomic>
 #include <tbb/concurrent_unordered_map.h>
+#include <tbb/task_scheduler_init.h>
+
 #include <json/json.h>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
 #include "spoa/spoa.hpp"
@@ -358,7 +360,7 @@ namespace PangenomeMAT {
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
             void writeToFile(std::ofstream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
-            std::string getStringFromReference(std::string reference, bool aligned = true);
+            std::string getStringFromReference(std::string reference, bool aligned = true, bool incorporateInversions=true);
             void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, std::string reference);
             
 
