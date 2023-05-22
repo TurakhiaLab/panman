@@ -26,7 +26,7 @@ namespace PangenomeMAT {
     char getCodeFromNucleotide(char nuc);
     char getComplementCharacter(char nuc);
     void printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-        const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout);
+        const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, bool debug = false);
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
     std::string stripGaps(std::string sequenceString);
     std::string getDate();
@@ -48,11 +48,13 @@ namespace PangenomeMAT {
         NSNPS = 3,
         NSNPI = 4,
         NSNPD = 5,
+        NNONE = 2000
     };
 
     enum BlockMutationType {
         BI = 1,
         BD = 0,
+        BIn = 2,
         NONE = 1000
     };
 
@@ -307,7 +309,6 @@ namespace PangenomeMAT {
 
             std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
             std::unordered_map<std::string, Node*> allNodes;
-            std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > > globalCoordinates;
 
             Node* createTreeFromNewickString(std::string newick);
             void assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MATNew::node >& nodes);

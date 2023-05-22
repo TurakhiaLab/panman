@@ -930,6 +930,36 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
         }
 
         protoMATToTree(mainTree);
+        // std::map< std::string, int > mp;
+
+        // for(size_t i = 0; i < blocks.size(); i++){
+        //     std::string sequence;
+        //     for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++){
+        //         bool endFlag = false;
+        //         for(size_t k = 0; k < 8; k++){
+        //             const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+
+        //             if(nucCode == 0){
+        //                 endFlag = true;
+        //                 break;
+        //             }
+        //             const char nucleotide = PangenomeMAT::getNucleotideFromCode(nucCode);
+        //             sequence += nucleotide;
+        //         }
+
+        //         if(endFlag){
+        //             break;
+        //         }
+        //     }
+        //     if(mp.find(sequence) == mp.end()){
+        //         mp[sequence] = i;
+        //         if(i == 248492){
+        //             std::cout << "First" << std::endl;
+        //         }
+        //     } else if(i == 248492){
+        //         std::cout << mp[sequence] << " "  << sequence.length() << std::endl;
+        //     }
+        // }
 
         // // debugging global coordinates
         // int s = getStringFromReference("ON653971.1", true).length();
@@ -971,23 +1001,35 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
 int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucMutationType nucMutType, PangenomeMAT::BlockMutationType blockMutType){
     int totalMutations = 0;
 
-    totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-        for(int i = r.begin(); i != r.end(); i++){
-            
-            if(((root->nucMutation[i].mutInfo) & 0x7) == nucMutType){
-                if(nucMutType == PangenomeMAT::NucMutationType::NS){
-                    init += ((root->nucMutation[i].mutInfo) >> 4); // Length of contiguous mutation in case of substitution
-                } else {
+    if(nucMutType != PangenomeMAT::NucMutationType::NNONE){
+        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+            for(int i = r.begin(); i != r.end(); i++){
+                if(((root->nucMutation[i].mutInfo) & 0x7) == nucMutType){
+                    if(nucMutType == PangenomeMAT::NucMutationType::NS){
+                        init += ((root->nucMutation[i].mutInfo) >> 4); // Length of contiguous mutation in case of substitution
+                    } else {
+                        init++;
+                    }
+                }
+            }
+            return init;
+        }, [&](int x, int y){
+            return x + y;
+        });
+    }
+    
+    if(blockMutType == PangenomeMAT::BlockMutationType::BIn){
+        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+            for(int i = r.begin(); i != r.end(); i++){
+                if(root->blockMutation[i].inversion == true){
                     init++;
                 }
             }
-        }
-        return init;
-    }, [&](int x, int y){
-        return x + y;
-    });
-
-    if(blockMutType != PangenomeMAT::BlockMutationType::NONE){
+            return init;
+        }, [&](int x, int y){
+            return x + y;
+        });
+    } else if(blockMutType != PangenomeMAT::BlockMutationType::NONE){
         totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
             for(int i = r.begin(); i != r.end(); i++){
                 if(root->blockMutation[i].blockMutInfo == blockMutType){
@@ -1027,6 +1069,7 @@ void PangenomeMAT::Tree::printSummary(){
     std::cout << "Total Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NS) << std::endl;
     std::cout << "Total Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NI, PangenomeMAT::BlockMutationType::BI) << std::endl;
     std::cout << "Total Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::ND, PangenomeMAT::BlockMutationType::BD) << std::endl;
+    std::cout << "Total Inversions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NNONE, PangenomeMAT::BlockMutationType::BIn) << std::endl;
     std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPS) << std::endl;
     std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPI) << std::endl;
     std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
@@ -1064,10 +1107,11 @@ void PangenomeMAT::Tree::printBfs(Node* node){
 }
 
 void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-    const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout){
+    const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, bool debug){
 
     std::string line;
     // int maxId = 0;
+    int ctr = 0;
 
     for(size_t i = 0; i < blockExists.size(); i++){
         for(size_t j = 0; j < blockExists[i].second.size(); j++){
@@ -1076,6 +1120,7 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                     for(size_t k = 0; k < sequence[i].second[j].size(); k++){
                         for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++){
                             if(sequence[i].second[j][k].second[w] != '-'){
+
                                 line += sequence[i].second[j][k].second[w];
                             } else if(aligned){
                                 line += '-';
@@ -1154,6 +1199,12 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                     for(size_t k = 0; k < sequence[i].first[j].second.size(); k++){
                         if(sequence[i].first[j].second[k] != '-'){
                             line += sequence[i].first[j].second[k];
+                            if(debug){
+                                if(ctr == 433887){
+                                    std::cout << "f " << i << " " << j << " " << k << std::endl;
+                                }
+                                ctr++;
+                            }
                         } else if(aligned){
                             line += '-';
                         }
@@ -1168,6 +1219,13 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                     }
 
                     if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
+                        if(debug){
+                            if(ctr == 433887){
+                                std::cout << "f " << i << " " << -1 << " " << j << std::endl;
+                            }
+                            ctr++;
+                        }
+
                         line += sequence[i].first[j].first;
                     } else if(aligned){
                         line += '-';
@@ -1186,6 +1244,12 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
 
                     if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
                         line += getComplementCharacter(sequence[i].first[j].first);
+                        if(debug){
+                            if(ctr == 433887){
+                                std::cout << "r " << i << " " << -1 << " " << j << " " << line << std::endl;
+                            }
+                            ctr++;
+                        }
                     } else if(aligned){
                         line += '-';
                     }
@@ -1201,6 +1265,12 @@ void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector<
                     for(size_t k = sequence[i].first[j].second.size()-1; k+1 > 0; k--){
                         if(sequence[i].first[j].second[k] != '-'){
                             line += getComplementCharacter(sequence[i].first[j].second[k]);
+                            if(debug){
+                                if(ctr == 433887){
+                                    std::cout << "r " << i << " " << j << " " << k << " " << line << std::endl;
+                                }
+                                ctr++;
+                            }
                         } else if(aligned){
                             line += '-';
                         }
@@ -1658,8 +1728,8 @@ void printFASTAHelper(PangenomeMAT::Node* root,\
         //         }
         //     }
         // }
-
-        PangenomeMAT::printSequenceLines(sequence, blockExists, blockStrand, 60, aligned, fout);
+        if(root->identifier == "NZ_CP013985.1")
+        PangenomeMAT::printSequenceLines(sequence, blockExists, blockStrand, 60, aligned, fout, true);
 
     } else {
         // DFS on children
