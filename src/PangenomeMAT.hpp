@@ -18,9 +18,13 @@
 #define VCF_VERSION "4.2"
 
 typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
+// Individual block
+typedef std::vector< std::pair< char, std::vector< char > > > block_t;
+
 typedef  std::vector< std::pair< bool, std::vector< bool > > > blockExists_t;
 // Forward or reverse strand
 typedef  std::vector< std::pair< bool, std::vector< bool > > > blockStrand_t;
+
 
 namespace PangenomeMAT {
 
@@ -313,7 +317,6 @@ namespace PangenomeMAT {
             float m_meanDepth{ 0 };
 
             std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
-            std::unordered_map<std::string, Node*> allNodes;
 
             Node* createTreeFromNewickString(std::string newick);
             void assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MATNew::node >& nodes);
@@ -333,8 +336,6 @@ std::ofstream& fout, bool aligned = false);
             void adjustLevels(Node* node);
             void setupGlobalCoordinates();
 
-            std::vector< Node* > allLeaves;
-
             std::string newInternalNodeId() {
                 return "node_" + std::to_string(++m_currInternalNode);
             }
@@ -343,6 +344,9 @@ std::ofstream& fout, bool aligned = false);
             Tree(const MATNew::tree& mainTree);
             Tree(std::ifstream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
             Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
+            
+            // Copy blocks from current tree into new tree which is rooted at one of the internal nodes of the current tree. Used in split for PanMAN
+            Tree(Node* newRoot, const std::vector< Block >& b, const std::vector< GapList >& g, const std::unordered_map< std::string, int >& c, const BlockGapList& bgl);
 
             void protoMATToTree(const MATNew::tree& mainTree);
 
@@ -364,6 +368,8 @@ std::ofstream& fout, bool aligned = false);
             void printBfs(Node* node = nullptr);
             void printFASTA(std::ofstream& fout, bool aligned = false);
             void printFASTAParallel(std::ofstream& fout, bool aligned = false);
+
+            void printMAF(std::ofstream& fout);
             void printVCFParallel(std::string reference, std::ofstream& fout);
 
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
@@ -371,11 +377,14 @@ std::ofstream& fout, bool aligned = false);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true, bool incorporateInversions=true);
             void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference);
-            
+            void getBlockSequenceFromReference(block_t& sequence, bool& blockExists, bool& blockStrand, std::string reference, int64_t primaryBlockId, int64_t secondaryBlockId);
+
+            // Split file provided as input.
+            std::pair< Tree, Tree > splitByComplexMutations(const std::string& nodeId3);
 
             // get unaligned global coordinate
             int32_t getUnalignedGlobalCoordinate(int32_t primaryBlockId, int32_t secondaryBlockId, int32_t pos, int32_t gapPos, const sequence_t& sequence, const blockExists_t& blockExists);
-            std::tuple< int, int, int, int > globalCoordinateToBlockCoordinate(int64_t globalCoordinate, const sequence_t& sequence, const blockExists_t& blockExists);
+            std::tuple< int, int, int, int > globalCoordinateToBlockCoordinate(int64_t globalCoordinate, const sequence_t& sequence, const blockExists_t& blockExists, const blockStrand_t& blockStrand);
 
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
             bool verifyVCFFile(std::ifstream& fin);
@@ -396,6 +405,7 @@ std::ofstream& fout, bool aligned = false);
             std::vector< GapList > gaps;
             BlockGapList blockGaps;
             std::unordered_map< std::string, int > circularSequences;
+            std::unordered_map< std::string, Node* > allNodes;
 
     };
 
@@ -564,7 +574,8 @@ std::ofstream& fout, bool aligned = false);
         
         TreeGroup(std::ifstream& fin);
         TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile);
-        
+        TreeGroup(const std::vector< Tree >& t);
+
         void printFASTA(std::ofstream& fout);
         void writeToFile(std::ofstream& fout);
         void printComplexMutations();

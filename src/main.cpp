@@ -31,6 +31,8 @@ po::positional_options_description globalPositionArgumentDesc;
 po::options_description summaryDesc("Summary Command Line Arguments");
 po::options_description fastaDesc("FASTA Command Line Arguments");
 po::positional_options_description fastaPositionArgumentDesc;
+po::options_description mafDesc("MAF Writer Command Line Arguments");
+po::positional_options_description mafPositionArgumentDesc;
 po::options_description writeDesc("MAT Writer Command Line Arguments");
 po::positional_options_description writePositionArgumentDesc;
 po::options_description subtreeDesc("Subtree Extract Command Line Arguments");
@@ -79,6 +81,15 @@ void setupOptionDescriptions(){
 
     // Adding output file as positional argument
     fastaPositionArgumentDesc.add("output-file", -1);
+
+    // MAF option descriptions
+    mafDesc.add_options()
+        ("help", "produce help message")
+        ("output-file", po::value< std::string >()->required(), "Output file name")
+    ;
+
+    // Adding output file as positional argument
+    mafPositionArgumentDesc.add("output-file", -1);
 
     // MAT Writer option descriptions
     writeDesc.add_options()
@@ -194,12 +205,6 @@ void updatedParser(int argc, char* argv[]){
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
         T = new PangenomeMAT::Tree(inputStream);
-
-        // std::ifstream tempIfstream("vcf/klebs_small_subtree_vcf.vc");
-
-        // std::cout << "Verifying VCF File: " << T->verifyVCFFile(tempIfstream) << std::endl;
-
-        // tempIfstream.close();
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -405,6 +410,34 @@ void updatedParser(int argc, char* argv[]){
                     std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
 
                     std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+
+                    fout.close();
+
+                }
+            } else if(strcmp(splitCommandArray[0], "maf") == 0){
+                // If command was maf
+                po::variables_map mafVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(mafDesc).positional(mafPositionArgumentDesc).run(), mafVm);
+
+                if(mafVm.count("help")){
+                    std::cout << mafDesc;
+                } else {
+                    po::notify(mafVm);
+
+                    std::string fileName = mafVm["output-file"].as< std::string >();
+
+                    std::filesystem::create_directory("./maf");
+                    std::ofstream fout("./maf/" + fileName + ".maf");
+
+                    auto mafStart = std::chrono::high_resolution_clock::now();
+                    
+                    T->printMAF(fout);
+
+                    auto mafEnd = std::chrono::high_resolution_clock::now();
+                    
+                    std::chrono::nanoseconds mafTime = mafEnd - mafStart;
+
+                    std::cout << "\nMAF execution time: " << mafTime.count() << " nanoseconds\n";
 
                     fout.close();
 
@@ -689,7 +722,11 @@ void updatedParser(int argc, char* argv[]){
 void debuggingCode(){
     std::ifstream fin("../../klebs_100.json");
     Json::Value pangraphData;
+
     fin >> pangraphData;
+
+    std::cout << "Blocks orig: " << pangraphData["blocks"].size() << std::endl;
+
     std::map< std::string, std::map< std::pair< std::string, int >, bool > > paths;
 
     // load blocks
