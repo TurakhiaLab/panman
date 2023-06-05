@@ -370,6 +370,9 @@ std::ofstream& fout, bool aligned = false);
             void printFASTAParallel(std::ofstream& fout, bool aligned = false);
 
             void printMAF(std::ofstream& fout);
+            void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
+
+
             void printVCFParallel(std::string reference, std::ofstream& fout);
 
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);

@@ -1600,9 +1600,55 @@ void PangenomeMAT::Tree::printFASTAHelper(PangenomeMAT::Node* root,\
 
         fout << '>' << root->identifier << std::endl;
         int offset = 0;
-        if(circularSequences.find(root->identifier) != circularSequences.end()){
+        if(!aligned && circularSequences.find(root->identifier) != circularSequences.end()){
+            // If MSA is to be printed, offset doesn't matter
             offset = circularSequences[root->identifier];
         }
+
+        // if(root->identifier == "NZ_CP013985.1"){
+        //     int ctr = 0, blockCtr = -1;
+        //     for(int i  = 0; i < sequence.size(); i++){
+        //         if(!blockExists[i].first){
+        //             continue;
+        //         }
+        //         blockCtr++;
+        //         if(blockStrand[i].first){
+        //             for(int j = 0; j < sequence[i].first.size(); j++){
+        //                 for(int k = 0; k < sequence[i].first[j].second.size(); k++){
+        //                     if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x'){
+        //                         if(ctr == 433888){
+        //                             std::cout << "f " << blockCtr << std::endl;
+        //                         }
+        //                         ctr++;
+        //                     }
+        //                 }
+        //                 if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
+        //                     if(ctr == 433888){
+        //                         std::cout << "f " << blockCtr << std::endl;
+        //                     }
+        //                     ctr++;
+        //                 }
+        //             }
+        //         } else {
+        //             for(int j = sequence[i].first.size()-1; j >= 0; j--){
+        //                 if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
+        //                     if(ctr == 433888){
+        //                         std::cout << "r " << blockCtr << " " << j << std::endl;
+        //                     }
+        //                     ctr++;
+        //                 }
+        //                 for(int k = sequence[i].first[j].second.size()-1; k >= 0; k--){
+        //                     if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x'){
+        //                         if(ctr == 433888){
+        //                             std::cout << "r " << blockCtr << std::endl;
+        //                         }
+        //                         ctr++;
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         PangenomeMAT::printSequenceLines(sequence, blockExists, blockStrand, 70, aligned, fout, offset);
 
@@ -1724,6 +1770,70 @@ void PangenomeMAT::Tree::printFASTA(std::ofstream& fout, bool aligned){
 
 }
 
+void PangenomeMAT::Tree::generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout){
+    for(auto u: allNodes){
+        if(u.second->children.size() == 0){
+            // sequence
+            std::string sequenceId = u.first;
+            fout << ">" << sequenceId << "\n";
+
+            std::string line;
+            std::map< int, std::string > positionToSequence;
+
+            while(getline(fin, line, '\n')){
+                if(line.length() > 2 && line.substr(0,2) == "s\t"){
+                    std::vector< std::string > words;
+                    stringSplit(line, '\t', words);
+                    if(words.size() != 7){
+                        std::cout << "Line not in correct format. Line size: " << words.size() << std::endl;
+                        return;
+                    }
+
+                    int startPosition = std::stoll(words[2]);
+                    if(words[1] != sequenceId){
+                        continue;
+                    }
+
+                    bool strand = (words[4] == "+"?true: false);
+                    std::string sequence = words[words.size()-1];
+                    std::string strippedSequence;
+                    for(auto u: sequence){
+                        if(u != '-'){
+                            if(strand){
+                                strippedSequence+=u;
+                            } else {
+                                strippedSequence+=getComplementCharacter(u);
+                            }
+                        }
+                    }
+                    if(!strand){
+                        std::reverse(strippedSequence.begin(), strippedSequence.end());
+                    }
+                    positionToSequence[startPosition] = strippedSequence;
+                }
+            }
+            int nextExpected = 0;
+            int endLength = 0;
+            std::string fullSequence;
+            for(auto u: positionToSequence){
+                if(nextExpected == 0 && u.first != nextExpected){
+                    nextExpected = u.first;
+                    endLength = u.first;
+                }
+                if(u.first != nextExpected){
+                    std::cout << "Error in positions" << std::endl;
+                }
+                fullSequence+=u.second;
+                nextExpected+=u.second.length();
+            }
+            fullSequence = fullSequence.substr(fullSequence.length() - endLength) + fullSequence.substr(0,fullSequence.length() - endLength);
+            fout << fullSequence << '\n';
+            fin.clear();
+            fin.seekg(0);
+        }
+    }
+}
+
 void PangenomeMAT::Tree::printMAF(std::ofstream& fout){
     std::vector< std::string > sequenceNames;
 
@@ -1733,14 +1843,67 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout){
         blocksWithSameSequences[b.consensusSeq].push_back(std::make_pair(b.primaryBlockId, b.secondaryBlockId));
     }
 
+    // sequence name, primary bid, secondary bid -> actual sequence offset
+    std::map< std::tuple< std::string, int32_t, int32_t >, int32_t > sequenceBlockToStartPoint;
+    std::map< std::string, int32_t > sequenceLengths;
+
     for(auto u: allNodes){
         if(u.second->children.size() == 0){
             sequenceNames.push_back(u.first);
+            sequence_t sequence;
+            blockExists_t blockExists;
+            blockStrand_t blockStrand;
+            getSequenceFromReference(sequence, blockExists, blockStrand, u.first);
+            int ctr = 0;
+            for(size_t i = 0; i < sequence.size(); i++){
+                for(size_t j = 0; j < sequence[i].second.size(); j++){
+                    if(blockExists[i].second[j]){
+                        sequenceBlockToStartPoint[std::make_tuple(u.first, i, j)] = ctr;
+                        for(size_t k = 0; k < sequence[i].second[j].size(); k++){
+                            for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++){
+                                if(sequence[i].second[j][k].second[w] != '-' && sequence[i].second[j][k].second[w] != 'x'){
+                                    ctr++;
+                                }
+                            }
+                            if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x'){
+                                ctr++;
+                            }
+                        }
+                    }
+                }
+                if(blockExists[i].first){
+                    sequenceBlockToStartPoint[std::make_tuple(u.first, i, -1)] = ctr;
+                    for(size_t j = 0; j < sequence[i].first.size(); j++){
+                        for(size_t k = 0; k < sequence[i].first[j].second.size(); k++){
+                            if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x'){
+                                ctr++;
+                            }
+                        }
+                        if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
+                            ctr++;
+                        }
+                    }
+                }
+            }
+            sequenceLengths[u.first] = ctr;
+            if(circularSequences.find(u.first) != circularSequences.end()){
+                int offset = circularSequences[u.first];
+                for(auto& v: sequenceBlockToStartPoint){
+                    if(std::get<0>(v.first) != u.first){
+                        continue;
+                    }
+                    v.second -= offset;
+                    if(v.second < 0){
+                        v.second += ctr;
+                    }
+                }
+            }
         }
     }
 
     for(auto& common: blocksWithSameSequences){
         tbb::concurrent_unordered_map< std::string, std::pair< std::pair< int, int >, std::pair< std::string, bool > > > sequenceIdToSequence;
+        fout << "a\n";
         for(auto& b: common.second){
             int primaryBlockId = b.first;
             int secondaryBlockId = b.second;
@@ -1768,12 +1931,12 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout){
                     sequenceIdToSequence[u] = std::make_pair(std::make_pair(primaryBlockId, secondaryBlockId), std::make_pair(stringSequence, blockStrand));
                 }
             });
-            fout << "a\n";
+            
             for(auto u: sequenceIdToSequence){
-                fout << "s\t" << u.first << "\t.\t" << u.second.second.first.length() << "\t" << (u.second.second.second? "+\t":"-\t") << ".\t" << u.second.second.first << "\n";
+                fout << "s\t" << u.first << "\t"<< sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)] <<"\t" << u.second.second.first.length() << "\t" << (u.second.second.second? "+\t":"-\t") << sequenceLengths[u.first] << "\t" << u.second.second.first << "\n";
             }
-            fout << "\n";
         }
+        fout << "\n";
     }
 }
 
@@ -3614,24 +3777,13 @@ std::string PangenomeMAT::Tree::getStringFromReference(std::string reference, bo
     }
 
     int offset = 0;
-    if(circularSequences.find(reference) != circularSequences.end()){
+    if(!aligned && circularSequences.find(reference) != circularSequences.end()){
         offset = circularSequences[reference];
     }
     if(offset == 0){
         return sequenceString;
     } else {
-        size_t ctr = 0;
-        for(size_t i = 0; i < sequenceString.length(); i++){
-            if(sequenceString[i] != '-'){
-                if(ctr == (size_t)offset){
-                    // mark starting point
-                    ctr = i;
-                    break;
-                }
-                ctr++;
-            }
-        }
-        return sequenceString.substr(ctr) + sequenceString.substr(0,ctr);
+        return sequenceString.substr(offset) + sequenceString.substr(0,offset);
     }
 
 }

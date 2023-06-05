@@ -212,6 +212,13 @@ void updatedParser(int argc, char* argv[]){
         std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
 
         inputStream.close();
+
+        // std::ifstream fin("maf/ecoli_10.maf");
+        // std::ofstream fout("maf/mafTest.fasta");
+        // T->generateSequencesFromMAF(fin, fout);
+        // fout.close();
+        // fin.close();
+        
     } else if(globalVm.count("panman-in")){
         std::string fileName = globalVm["panman-in"].as< std::string >();
         std::ifstream inputStream(fileName);
@@ -735,6 +742,11 @@ void debuggingCode(){
 
     for(size_t i = 0; i < pangraphData["blocks"].size(); i++){
         std::string blockId = pangraphData["blocks"][(int)i]["id"].asString();
+        if(blockId == "STETJDHNZS"){
+            std::cout << pangraphData["blocks"][(int)i]["sequence"].asString() << std::endl;
+        } else {
+            continue;
+        }
         // blockLens[blockId] = pangraphData["blocks"][(int)i]["sequence"].asString().length();
         // if(blockId == "YTRMIRRHDS"){
         //     for(int j = 0; j < pangraphData["blocks"][(int)i]["positions"].size(); j++){
@@ -756,19 +768,19 @@ void debuggingCode(){
                 }
             }
         }
-        // for(size_t j = 0; j < pangraphData["blocks"][(int)i]["insert"].size(); j++){
-        //     std::string seqName = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["name"].asString();
-        //     size_t number = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["number"].asInt();
-        //     bool strand = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["strand"].asBool();
-        //     if(seqName == "NZ_CP013985.1" && blockId == "STETJDHNZS"){
-        //         for(size_t k = 0; k < pangraphData["blocks"][(int)i]["insert"][(int)j][1].size(); k++){
-        //             std::string mutationString = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][1].asString();
-        //             std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
-        //             std::cout << "I " << number << " " << strand << " " << pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt() << " " << pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt() << " " << " " << mutationString << std::endl;
-        //             // s+=mutationString.length();
-        //         }
-        //     }
-        // }
+        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["insert"].size(); j++){
+            std::string seqName = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["name"].asString();
+            size_t number = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["number"].asInt();
+            bool strand = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["strand"].asBool();
+            if(seqName == "NZ_CP013985.1" && blockId == "STETJDHNZS"){
+                for(size_t k = 0; k < pangraphData["blocks"][(int)i]["insert"][(int)j][1].size(); k++){
+                    std::string mutationString = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][1].asString();
+                    std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
+                    std::cout << "I " << number << " " << strand << " " << pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt() << " " << pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt() << " " << " " << mutationString << std::endl;
+                    // s+=mutationString.length();
+                }
+            }
+        }
         for(size_t j = 0; j < pangraphData["blocks"][(int)i]["delete"].size(); j++){
             std::string seqName = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["name"].asString();
             size_t number = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["number"].asInt();
@@ -782,28 +794,31 @@ void debuggingCode(){
         }
     }
 
-    // for(size_t i = 0; i < pangraphData["paths"].size(); i++){
-    //     Json::Value path = pangraphData["paths"][(int)i];
-    //     // std::map< std::pair< std::string, bool >, int > blocks;
-    //     // int ctr = 0;
+    for(size_t i = 0; i < pangraphData["paths"].size(); i++){
+        Json::Value path = pangraphData["paths"][(int)i];
+        // std::map< std::pair< std::string, bool >, int > blocks;
+        // int ctr = 0;
 
-    //     for(size_t j = 0; j < path["blocks"].size(); j++){
-    //         if(path["name"].asString() == "NZ_CP013985.1" && path["blocks"][(int)j]["id"].asString() == "STETJDHNZS"){
-    //             std::cout << path["blocks"][(int)j]["strand"].asBool() << std::endl;
-    //         }
-    //         // s+=blockLens[path["blocks"][(int)j]["id"].asString()];
-    //         // paths[path["name"].asString()][std::make_pair(path["blocks"][(int)j]["id"].asString(), path["blocks"][(int)j]["number"].asInt())] = path["blocks"][(int)j]["strand"].asBool();
-    //         // if(path["name"].asString() == "KX894803.1"){
-    //         //     std::cout << ctr << " " << path["blocks"][(int)j]["id"].asString() << std::endl;
-    //         //     ctr++;
-    //         // }
-    //         // if(blocks.find(std::make_pair(path["blocks"][(int)j]["id"].asString(), !path["blocks"][(int)j]["strand"].asBool())) != blocks.end()){
-    //         //     std::cout << path["name"].asString() << " " << path["blocks"][(int)j]["id"].asString() << std::endl;
-    //         //     // std::cout << blocks[std::make_pair(path["blocks"][(int)j]["id"].asString(), !path["blocks"][(int)j]["strand"].asBool())] << " " << path["blocks"][(int)j]["number"].asInt() << std::endl;
-    //         // }
-    //         // blocks[std::make_pair(path["blocks"][(int)j]["id"].asString(), path["blocks"][(int)j]["strand"].asBool())] = path["blocks"][(int)j]["number"].asInt();
-    //     }
-    // }
+        for(size_t j = 0; j < path["blocks"].size(); j++){
+            if(path["name"].asString() == "NZ_CP013985.1" && j == 198){
+                std::cout << path["blocks"][(int)j]["id"].asString() << " " << path["blocks"][(int)j]["strand"].asBool() << " " << path["position"][198].asInt() << " " << path["position"][199].asInt() << std::endl;
+            }
+            // if(path["name"].asString() == "NZ_CP013985.1" && path["blocks"][(int)j]["id"].asString() == "STETJDHNZS"){
+            //     std::cout << path["blocks"][(int)j]["strand"].asBool() << std::endl;
+            // }
+            // s+=blockLens[path["blocks"][(int)j]["id"].asString()];
+            // paths[path["name"].asString()][std::make_pair(path["blocks"][(int)j]["id"].asString(), path["blocks"][(int)j]["number"].asInt())] = path["blocks"][(int)j]["strand"].asBool();
+            // if(path["name"].asString() == "KX894803.1"){
+            //     std::cout << ctr << " " << path["blocks"][(int)j]["id"].asString() << std::endl;
+            //     ctr++;
+            // }
+            // if(blocks.find(std::make_pair(path["blocks"][(int)j]["id"].asString(), !path["blocks"][(int)j]["strand"].asBool())) != blocks.end()){
+            //     std::cout << path["name"].asString() << " " << path["blocks"][(int)j]["id"].asString() << std::endl;
+            //     // std::cout << blocks[std::make_pair(path["blocks"][(int)j]["id"].asString(), !path["blocks"][(int)j]["strand"].asBool())] << " " << path["blocks"][(int)j]["number"].asInt() << std::endl;
+            // }
+            // blocks[std::make_pair(path["blocks"][(int)j]["id"].asString(), path["blocks"][(int)j]["strand"].asBool())] = path["blocks"][(int)j]["number"].asInt();
+        }
+    }
     // std::cout << s << std::endl;
 
     // // load blocks
