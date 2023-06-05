@@ -213,7 +213,7 @@ void updatedParser(int argc, char* argv[]){
 
         inputStream.close();
 
-        // std::ifstream fin("maf/ecoli_10.maf");
+        // std::ifstream fin("maf/ecoli_10_test.maf");
         // std::ofstream fout("maf/mafTest.fasta");
         // T->generateSequencesFromMAF(fin, fout);
         // fout.close();
