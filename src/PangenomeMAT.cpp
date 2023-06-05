@@ -1901,6 +1901,8 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout){
         }
     }
 
+    fout << "##maf version=1\n";
+
     for(auto& common: blocksWithSameSequences){
         tbb::concurrent_unordered_map< std::string, std::pair< std::pair< int, int >, std::pair< std::string, bool > > > sequenceIdToSequence;
         fout << "a\n";
