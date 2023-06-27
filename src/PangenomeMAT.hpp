@@ -201,8 +201,8 @@ namespace PangenomeMAT {
     };
 
     struct Block {
-        Block(MATNew::block b, const std::vector< uint32_t >& blockConsensusSeq);
-        Block(size_t blockId, std::string seq);
+        Block(size_t primaryBlockId, std::string seq);
+        Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);
 
         int32_t primaryBlockId;
         int32_t secondaryBlockId;

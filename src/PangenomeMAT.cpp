@@ -39,20 +39,8 @@ PangenomeMAT::Node::Node(std::string id, Node* par, float len){
     par->children.push_back(this);
 }
 
-PangenomeMAT::Block::Block(MATNew::block b, const std::vector< uint32_t >& blockConsensusSeq){
-    primaryBlockId = (b.blockid() >> 32);
-    if(b.blockgapexist()){
-        secondaryBlockId = (b.blockid() & 0xFFFFFFFF);
-    } else {
-        secondaryBlockId = -1;
-    }
-    
-    chromosomeName = b.chromosomename();
-    consensusSeq = blockConsensusSeq;
-}
-
-PangenomeMAT::Block::Block(size_t blockId, std::string seq){
-    primaryBlockId = blockId;
+PangenomeMAT::Block::Block(size_t pBlockId, std::string seq){
+    primaryBlockId = pBlockId;
     secondaryBlockId = -1;
     for(size_t i = 0; i < seq.length(); i+=8){
         uint32_t currentConsensusSeq = 0;
@@ -62,6 +50,12 @@ PangenomeMAT::Block::Block(size_t blockId, std::string seq){
         }
         consensusSeq.push_back(currentConsensusSeq);
     }
+}
+
+PangenomeMAT::Block::Block(int32_t pBlockId, int32_t sBlockId, const std::vector< uint32_t >& seq){
+    primaryBlockId = pBlockId;
+    secondaryBlockId = sBlockId;
+    consensusSeq = seq;
 }
 
 void PangenomeMAT::stringSplit (std::string const& s, char delim, std::vector<std::string>& words) {
@@ -870,7 +864,7 @@ void PangenomeMAT::Tree::protoMATToTree(const MATNew::tree& mainTree){
     root = createTreeFromNewickString(mainTree.newick());
     invertTree(root);
 
-    std::map< int64_t, std::vector< uint32_t > > blockIdToConsensusSeq;
+    std::map< std::pair<int32_t, int32_t>, std::vector< uint32_t > > blockIdToConsensusSeq;
 
     for(int i = 0; i < mainTree.consensusseqmap_size(); i++){
         std::vector< uint32_t > seq;
@@ -878,7 +872,14 @@ void PangenomeMAT::Tree::protoMATToTree(const MATNew::tree& mainTree){
             seq.push_back(mainTree.consensusseqmap(i).consensusseq(j));
         }
         for(int j = 0; j < mainTree.consensusseqmap(i).blockid_size(); j++){
-            blockIdToConsensusSeq[mainTree.consensusseqmap(i).blockid(j)] = seq;
+            std::pair< int32_t, int32_t > blockId;
+            blockId.first = (mainTree.consensusseqmap(i).blockid(j) >> 32);
+            if(mainTree.consensusseqmap(i).blockgapexist(j)){
+                blockId.second = (mainTree.consensusseqmap(i).blockid(j) & 0xFFFFFFFF);
+            } else {
+                blockId.second = -1;
+            }
+            blockIdToConsensusSeq[blockId] = seq;
         }
     }
 
@@ -892,8 +893,8 @@ void PangenomeMAT::Tree::protoMATToTree(const MATNew::tree& mainTree){
     assignMutationsToNodes(root, initialIndex, storedNodes);
 
     // Block sequence
-    for(int i = 0; i < mainTree.blocks_size(); i++){
-        blocks.emplace_back(mainTree.blocks(i), blockIdToConsensusSeq[mainTree.blocks(i).blockid()]);
+    for(auto u: blockIdToConsensusSeq){
+        blocks.emplace_back(u.first.first, u.first.second, u.second);
     }
 
     // Gap List
@@ -2815,24 +2816,19 @@ void PangenomeMAT::Tree::writeToFile(std::ofstream& fout, PangenomeMAT::Node* no
 
     treeToWrite.set_newick(newick);
 
-    std::map< std::vector< uint32_t >, std::vector< int64_t > > consensusSeqToBlockIds;
+    std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > > consensusSeqToBlockIds;
 
     for(auto block: blocks){
-        MATNew::block b;
+        // MATNew::block b;
         int64_t blockId;
+        bool blockGapExists = false;
         if(block.secondaryBlockId != -1){
             blockId = ((int64_t)block.primaryBlockId << 32) + block.secondaryBlockId;
-            b.set_blockid(blockId);
-            b.set_blockgapexist(true);
+            blockGapExists = true;
         } else {
             blockId = ((int64_t)block.primaryBlockId << 32);
-            b.set_blockid(blockId);
-            b.set_blockgapexist(false);
         }
-        b.set_chromosomename(block.chromosomeName);
-        consensusSeqToBlockIds[block.consensusSeq].push_back(blockId);
-        treeToWrite.add_blocks();
-        *treeToWrite.mutable_blocks( treeToWrite.blocks_size() - 1 ) = b;
+        consensusSeqToBlockIds[block.consensusSeq].push_back( std::make_pair( blockId, blockGapExists ));
     }
 
     for(auto u: consensusSeqToBlockIds){
@@ -2841,7 +2837,8 @@ void PangenomeMAT::Tree::writeToFile(std::ofstream& fout, PangenomeMAT::Node* no
             c.add_consensusseq(v);
         }
         for(auto v: u.second){
-            c.add_blockid(v);
+            c.add_blockid(v.first);
+            c.add_blockgapexist(v.second);
         }
         treeToWrite.add_consensusseqmap();
         *treeToWrite.mutable_consensusseqmap( treeToWrite.consensusseqmap_size() - 1 ) = c;
@@ -5722,24 +5719,18 @@ void PangenomeMAT::TreeGroup::writeToFile(std::ofstream& fout){
         std::string newick = tree.getNewickString(node);
 
         treeToWrite.set_newick(newick);
-        std::map< std::vector< uint32_t >, std::vector< int64_t > > consensusSeqToBlockIds;
+        std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > > consensusSeqToBlockIds;
         
         for(auto block: tree.blocks){
-            MATNew::block b;
             int64_t blockId;
+            bool blockGapExists = false;
             if(block.secondaryBlockId != -1){
                 blockId = ((int64_t)block.primaryBlockId << 32) + block.secondaryBlockId;
-                b.set_blockid(blockId);
-                b.set_blockgapexist(true);
+                blockGapExists = true;
             } else {
                 blockId = ((int64_t)block.primaryBlockId << 32);
-                b.set_blockid(blockId);
-                b.set_blockgapexist(false);
             }
-            b.set_chromosomename(block.chromosomeName);
-            consensusSeqToBlockIds[block.consensusSeq].push_back(blockId);
-            treeToWrite.add_blocks();
-            *treeToWrite.mutable_blocks( treeToWrite.blocks_size() - 1 ) = b;
+            consensusSeqToBlockIds[block.consensusSeq].push_back( std::make_pair(blockId, blockGapExists ));
         }
 
         for(auto u: consensusSeqToBlockIds){
@@ -5748,7 +5739,8 @@ void PangenomeMAT::TreeGroup::writeToFile(std::ofstream& fout){
                 c.add_consensusseq(v);
             }
             for(auto v: u.second){
-                c.add_blockid(v);
+                c.add_blockid(v.first);
+                c.add_blockgapexist(v.second);
             }
             treeToWrite.add_consensusseqmap();
             *treeToWrite.mutable_consensusseqmap( treeToWrite.consensusseqmap_size() - 1 ) = c;
