@@ -936,7 +936,7 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
         }
 
         protoMATToTree(mainTree);
-        std::cout << "Blocks: " << blocks.size() << std::endl;
+        // std::cout << "Blocks: " << blocks.size() << std::endl;
     }
 }
 
@@ -2618,6 +2618,15 @@ std::string PangenomeMAT::Tree::getNewickString(Node* node){
 void PangenomeMAT::Tree::compressTreeParallel(PangenomeMAT::Node* node, size_t level){
     node->level = level;
 
+    while(node->children.size() == 1){
+        mergeNodes(node, node->children[0]);
+        auto oldVector = node->nucMutation;
+        node->nucMutation = consolidateNucMutations(oldVector);
+        if(!debugSimilarity(oldVector, node->nucMutation)){
+            std::cout << "Inaccuracy observed in subtree extract." << std::endl;
+        }
+    }
+
     if(node->children.size() == 0){
         return;
     }
@@ -2639,6 +2648,7 @@ void PangenomeMAT::Tree::compressTreeParallel(PangenomeMAT::Node* node, size_t l
             compressTreeParallel(node->children[i], level + 1);
         }
     });
+
 }
 
 PangenomeMAT::Node* subtreeExtractParallelHelper(PangenomeMAT::Node* node, const tbb::concurrent_unordered_map< PangenomeMAT::Node*, size_t >& ticks){
@@ -3070,14 +3080,14 @@ void PangenomeMAT::Tree::getSequenceFromReference(sequence_t& sequence, blockExi
     Node* referenceNode = nullptr;
 
     for(auto u: allNodes){
-        if(u.second->children.size() == 0 && u.first == reference){
+        if(u.first == reference){
             referenceNode = u.second;
             break;
         }
     }
 
     if(referenceNode == nullptr){
-        std::cerr << "Error: Reference sequence with matching name not found!" << std::endl;
+        std::cerr << "Error: Reference sequence with matching name not found: " << reference << std::endl;
         return;
     }
 
@@ -4657,6 +4667,84 @@ PangenomeMAT::Tree::Tree(Node* newRoot, const std::vector< Block >& b, const std
 std::pair< PangenomeMAT::Tree, PangenomeMAT::Tree > PangenomeMAT::Tree::splitByComplexMutations(const std::string& nodeId3){
 
     Node* newRoot = allNodes[nodeId3];
+
+    // getting all prior mutations
+    // Block mutations
+    std::vector< PangenomeMAT::Node* > path;
+    PangenomeMAT::Node* currentNode = newRoot;
+    while(currentNode != nullptr){
+        path.push_back(currentNode);
+        currentNode = currentNode->parent;
+    }
+
+    // For block mutations, we cancel out irrelevant mutations
+    std::map< std::pair<int, int>, std::pair< PangenomeMAT::BlockMutationType, bool > > bidMutations;
+    std::vector< PangenomeMAT::BlockMut > newBlockMutation;
+    std::vector< PangenomeMAT::NucMut > newNucMutation;
+
+    for(auto itr = path.rbegin(); itr!= path.rend(); itr++){
+        for(auto mutation: (*itr)->blockMutation){
+            int primaryBlockId = mutation.primaryBlockId;
+            int secondaryBlockId = mutation.secondaryBlockId;
+            bool type = (mutation.blockMutInfo);
+            bool inversion = (mutation.inversion);
+
+            if(type == PangenomeMAT::BlockMutationType::BI){
+                bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair( PangenomeMAT::BlockMutationType::BI, inversion );
+            } else {
+                if(bidMutations.find(std::make_pair(primaryBlockId, secondaryBlockId)) != bidMutations.end()){
+                    if(bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].first == PangenomeMAT::BlockMutationType::BI){
+                        // If it was insertion earlier
+                        if(inversion){
+                            // This means that the new mutation is an inversion. So, inverted the strand of the inserted block
+                            bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = !bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second;
+                        } else {
+                            // Actually a deletion. So insertion and deletion cancel out
+                            bidMutations.erase(std::make_pair(primaryBlockId, secondaryBlockId));
+                        }
+                    } else {
+                        // If previous mutation was an inversion
+                        if(!inversion){
+                            // Actually a deletion. Remove inversion mutation and put deletion instead
+                            bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = false;
+                        }
+                        // deletion followed by inversion doesn't make sense
+                    }
+                } else {
+                    bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair(PangenomeMAT::BlockMutationType::BD, inversion);
+                }
+            }
+        }
+        for(auto mutation: (*itr)->nucMutation){
+            newNucMutation.push_back( mutation );
+        }
+    }
+    
+    for(auto mutation: bidMutations){
+        if(mutation.second.first == PangenomeMAT::BlockMutationType::BI){
+            PangenomeMAT::BlockMut tempBlockMut;
+            tempBlockMut.primaryBlockId = mutation.first.first;
+            tempBlockMut.secondaryBlockId = mutation.first.second;
+            tempBlockMut.blockMutInfo = PangenomeMAT::BlockMutationType::BI;
+            tempBlockMut.inversion = mutation.second.second;
+            newBlockMutation.push_back( tempBlockMut );
+        } else {
+            PangenomeMAT::BlockMut tempBlockMut;
+            tempBlockMut.primaryBlockId = mutation.first.first;
+            tempBlockMut.secondaryBlockId = mutation.first.second;
+            tempBlockMut.blockMutInfo = PangenomeMAT::BlockMutationType::BD;
+            tempBlockMut.inversion = mutation.second.second;
+            newBlockMutation.push_back( tempBlockMut );
+        }
+    }
+
+    // Finally assigning Block Mutations
+    newRoot->blockMutation = newBlockMutation;
+
+    // Assigning Nuc Mutations
+    newRoot->nucMutation = consolidateNucMutations(newNucMutation);
+
+    // Adjusting parent and child pointers
     if(newRoot->parent != nullptr){
         for(size_t i = 0; i < newRoot->parent->children.size(); i++){
             if(newRoot->parent->children[i]->identifier == nodeId3){
@@ -4666,6 +4754,8 @@ std::pair< PangenomeMAT::Tree, PangenomeMAT::Tree > PangenomeMAT::Tree::splitByC
         }
     }
     newRoot->parent = nullptr;
+
+    // Creating a whole new tree out of the child
     Tree childTree(newRoot, blocks, gaps, circularSequences, blockGaps);
 
     // Assigning allNodes of childTree (and removing those nodes from current tree)
@@ -5556,23 +5646,27 @@ PangenomeMAT::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std:
         size_t endPoint2 = std::stoll(tokens[8]);
         size_t treeIndex3 = std::stoll(tokens[9]);
         std::string sequenceId3 = tokens[10];
+        bool splitOccurred = false;
 
         if(treeIndex3 == treeIndex1 && treeIndex3 == treeIndex2){
             // If all three sequences are from the same tree, split this tree
+            std::cout << "Performing Split" << std::endl;
             std::pair< PangenomeMAT::Tree, PangenomeMAT::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
+            splitOccurred = true;
             trees[treeIndex1] = parentAndChild.first;
-            trees[treeIndex2] = parentAndChild.first;
             trees.push_back(parentAndChild.second);
             treeIndex3 = trees.size()-1;
         } else if(treeIndex3 == treeIndex1){
             // If child belongs to one parent's tree, split this tree
             std::pair< PangenomeMAT::Tree, PangenomeMAT::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
+            splitOccurred = true;
             trees[treeIndex1] = parentAndChild.first;
             trees.push_back(parentAndChild.second);
             treeIndex3 = trees.size()-1;
         } else if(treeIndex3 == treeIndex2){
             // If child belongs to one parent's tree, split this tree
             std::pair< PangenomeMAT::Tree, PangenomeMAT::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
+            splitOccurred = true;
             trees[treeIndex2] = parentAndChild.first;
             trees.push_back(parentAndChild.second);
             treeIndex3 = trees.size()-1;
@@ -5583,14 +5677,17 @@ PangenomeMAT::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std:
         blockStrand_t blockStrand1, blockStrand2;
         trees[treeIndex1].getSequenceFromReference(sequence1, blockExists1, blockStrand1, sequenceId1);
         trees[treeIndex2].getSequenceFromReference(sequence2, blockExists2, blockStrand2, sequenceId2);
-        trees[treeIndex3].reroot(sequenceId3);
+
+        if(!splitOccurred){
+            trees[treeIndex3].reroot(sequenceId3);
+        }
 
         std::tuple< int,int,int,int > t_start1 = trees[treeIndex1].globalCoordinateToBlockCoordinate(startPoint1, sequence1, blockExists1, blockStrand1);
         std::tuple< int,int,int,int > t_end1 = trees[treeIndex1].globalCoordinateToBlockCoordinate(endPoint1, sequence1, blockExists1, blockStrand1);
         std::tuple< int,int,int,int > t_start2 = trees[treeIndex2].globalCoordinateToBlockCoordinate(startPoint2, sequence2, blockExists2, blockStrand2);
         std::tuple< int,int,int,int > t_end2 = trees[treeIndex2].globalCoordinateToBlockCoordinate(endPoint2, sequence2, blockExists2, blockStrand2);
 
-        complexMutations.emplace_back(mutationType, treeIndex1, treeIndex2, treeIndex3, sequenceId1, sequenceId2, t_start1, t_end1, t_start2, t_end2);
+        complexMutations.emplace_back(mutationType, treeIndex1, treeIndex2, treeIndex3, sequenceId1, sequenceId2, sequenceId3, t_start1, t_end1, t_start2, t_end2);
 
     }
 }
@@ -5703,6 +5800,6 @@ void PangenomeMAT::TreeGroup::printComplexMutations(){
         trees[u.treeIndex1].getSequenceFromReference(s1, b1, str1, u.sequenceId1);
         trees[u.treeIndex2].getSequenceFromReference(s2, b2, str2, u.sequenceId2);
 
-        std::cout << u.mutationType << " " << u.treeIndex1 << " " << u.sequenceId1 << " " << u.treeIndex2 << " " << u.sequenceId2 << " " << trees[u.treeIndex1].getUnalignedGlobalCoordinate(u.primaryBlockIdStart1, u.secondaryBlockIdStart1, u.nucPositionStart1, u.nucGapPositionStart1, s1, b1) << " " << trees[u.treeIndex1].getUnalignedGlobalCoordinate(u.primaryBlockIdEnd1, u.secondaryBlockIdEnd1, u.nucPositionEnd1, u.nucGapPositionEnd1, s1, b1) << " " << trees[u.treeIndex2].getUnalignedGlobalCoordinate(u.primaryBlockIdStart2, u.secondaryBlockIdStart2, u.nucPositionStart2, u.nucGapPositionStart2, s2, b2) << " " << trees[u.treeIndex2].getUnalignedGlobalCoordinate(u.primaryBlockIdEnd2, u.secondaryBlockIdEnd2, u.nucPositionEnd2, u.nucGapPositionEnd2, s2, b2) << " " << u.treeIndex3 << "\n";
+        std::cout << u.mutationType << " " << u.treeIndex1 << " " << u.sequenceId1 << " " << u.treeIndex2 << " " << u.sequenceId2 << " " << trees[u.treeIndex1].getUnalignedGlobalCoordinate(u.primaryBlockIdStart1, u.secondaryBlockIdStart1, u.nucPositionStart1, u.nucGapPositionStart1, s1, b1) << " " << trees[u.treeIndex1].getUnalignedGlobalCoordinate(u.primaryBlockIdEnd1, u.secondaryBlockIdEnd1, u.nucPositionEnd1, u.nucGapPositionEnd1, s1, b1) << " " << trees[u.treeIndex2].getUnalignedGlobalCoordinate(u.primaryBlockIdStart2, u.secondaryBlockIdStart2, u.nucPositionStart2, u.nucGapPositionStart2, s2, b2) << " " << trees[u.treeIndex2].getUnalignedGlobalCoordinate(u.primaryBlockIdEnd2, u.secondaryBlockIdEnd2, u.nucPositionEnd2, u.nucGapPositionEnd2, s2, b2) << " " << u.treeIndex3 << " " << u.sequenceId3 << "\n";
     }
 }

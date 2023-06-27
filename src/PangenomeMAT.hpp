@@ -415,7 +415,7 @@ std::ofstream& fout, bool aligned = false);
     struct ComplexMutation{
         char mutationType;
         size_t treeIndex1, treeIndex2, treeIndex3;
-        std::string sequenceId1, sequenceId2;
+        std::string sequenceId1, sequenceId2, sequenceId3;
         
         // coordinates of start in parent 1
         int32_t primaryBlockIdStart1;
@@ -441,7 +441,7 @@ std::ofstream& fout, bool aligned = false);
         int32_t nucPositionEnd2;
         int32_t nucGapPositionEnd2;
 
-        ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1, std::string sId2, std::tuple< int,int,int,int > t1, std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3, std::tuple< int,int,int,int > t4){
+        ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1, std::string sId2, std::string sId3, std::tuple< int,int,int,int > t1, std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3, std::tuple< int,int,int,int > t4){
             mutationType = mutType;
             treeIndex1 = tIndex1;
             treeIndex2 = tIndex2;
@@ -449,6 +449,7 @@ std::ofstream& fout, bool aligned = false);
 
             sequenceId1 = sId1;
             sequenceId2 = sId2;
+            sequenceId3 = sId3;
 
             primaryBlockIdStart1 = std::get<0>(t1);
             secondaryBlockIdStart1 = std::get<1>(t1);
@@ -478,6 +479,7 @@ std::ofstream& fout, bool aligned = false);
             treeIndex3 = cm.treeindex3();
             sequenceId1 = cm.sequenceid1();
             sequenceId2 = cm.sequenceid2();
+            sequenceId3 = cm.sequenceid3();
 
             primaryBlockIdStart1 = (cm.blockidstart1() >> 32);
             secondaryBlockIdStart1 = (cm.blockgapexiststart1()? (cm.blockidstart1()&(0xFFFFFFFF)): -1);
@@ -508,6 +510,7 @@ std::ofstream& fout, bool aligned = false);
             cm.set_treeindex3(treeIndex3);
             cm.set_sequenceid1(sequenceId1);
             cm.set_sequenceid2(sequenceId2);
+            cm.set_sequenceid3(sequenceId3);
 
             if(secondaryBlockIdStart1 != -1){
                 cm.set_blockgapexiststart1(true);

@@ -102,6 +102,8 @@ message complexMutation {
     int32           nucPositionEnd2 = 24;
     int32           nucGapPositionEnd2 = 25;
     bool            nucGapExistEnd2 = 26;
+
+    string          sequenceId3 = 27;
 }
 
 message treeGroup

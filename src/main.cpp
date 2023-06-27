@@ -49,7 +49,8 @@ po::options_description GFAToFASTADesc("GFA to Fasta writer Command Line Argumen
 po::positional_options_description GFAToFASTAArgumentDesc;
 po::options_description groupWriteDesc("Group MAT Writer Command Line Arguments");
 po::positional_options_description groupWritePositionArgumentDesc;
-
+po::options_description sequenceExtractDesc("Sequence Extract Command Line Arguments");
+po::positional_options_description sequenceExtractPositionArgumentDesc;
 po::options_description groupFastaDesc("Tree Group FASTA writer Command Line Arguments");
 po::positional_options_description groupFastaPositionArgumentDesc;
 
@@ -111,6 +112,16 @@ void setupOptionDescriptions(){
 
     // Adding output file as positional argument
     subtreePositionArgumentDesc.add("output-file", -1);
+
+    // Sequence Extract option descriptions
+    sequenceExtractDesc.add_options()
+        ("help", "produce help message")
+        ("sequence", po::value< std::string >()->required(), "Sequence name")
+        ("output-file", po::value< std::string >()->required(), "Output file name")
+    ;
+
+    // Adding output file as positional argument
+    sequenceExtractPositionArgumentDesc.add("output-file", -1);
 
     // VCF Writer option descriptions
     vcfDesc.add_options()
@@ -226,6 +237,10 @@ void updatedParser(int argc, char* argv[]){
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
         TG = new PangenomeMAT::TreeGroup(inputStream);
+
+        // for(auto& tree: TG->trees){
+        //     std::cout << tree.root->identifier << std::endl;
+        // }
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -522,7 +537,6 @@ void updatedParser(int argc, char* argv[]){
                         std::ofstream fout("./newick/" + outputFileName + ".newick");
 
                         auto subtreeStart = std::chrono::high_resolution_clock::now();
-
                         fout << T->getNewickString(T->subtreeExtractParallel(nodeIds));
 
                         auto subtreeEnd = std::chrono::high_resolution_clock::now();
@@ -610,8 +624,49 @@ void updatedParser(int argc, char* argv[]){
                     std::cout << std::endl;
                 }
 
+            } else if(strcmp(splitCommandArray[0], "sequence") == 0){
+                // If command was maf
+                po::variables_map sequenceExtractVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(sequenceExtractDesc).positional(sequenceExtractPositionArgumentDesc).run(), sequenceExtractVm);
+
+                if(sequenceExtractVm.count("help")){
+                    std::cout << sequenceExtractDesc;
+                } else {
+                    po::notify(sequenceExtractVm);
+
+                    std::string fileName = sequenceExtractVm["output-file"].as< std::string >();
+                    std::string sequenceName = sequenceExtractVm["sequence"].as< std::string >();
+
+                    std::filesystem::create_directory("./fasta");
+                    std::ofstream fout("./fasta/" + fileName + ".fasta");
+
+                    auto sequenceExtractStart = std::chrono::high_resolution_clock::now();
+                    
+                    std::string sequenceString = T->getStringFromReference(sequenceName, false);
+                    fout << ">" << sequenceName << '\n';
+                    for(size_t i = 0; i < sequenceString.length(); i+=70){
+                        fout << sequenceString.substr(i,std::min(sequenceString.length()-i, (size_t)70)) << '\n';
+                    }
+
+                    auto sequenceExtractEnd = std::chrono::high_resolution_clock::now();
+                    
+                    std::chrono::nanoseconds sequenceExtractTime = sequenceExtractEnd - sequenceExtractStart;
+
+                    std::cout << "\nSequence Extract execution time: " << sequenceExtractTime.count() << " nanoseconds\n";
+
+                    fout.close();
+
+                }
             } else if(strcmp(splitCommandArray[0], "newick") == 0){
-                std::cout << T->getNewickString(T->root) << std::endl;
+                if(T){
+                    std::cout << T->getNewickString(T->root) << std::endl;
+                } else if(TG){
+                    std::cout << "Printing newick string of each PanMAT in PanMAN" << std::endl;
+                    int index = 0;
+                    for(auto& t: TG->trees){
+                        std::cout << index++ << ": " << t.getNewickString(t.root) << std::endl;
+                    }
+                }
             } else if(strcmp(splitCommandArray[0], "genGFA") == 0){
                 // If command was genGFA
                 po::variables_map generateGFAVM;
@@ -727,7 +782,7 @@ void updatedParser(int argc, char* argv[]){
 }
 
 void debuggingCode(){
-    std::ifstream fin("../../klebs_100.json");
+    std::ifstream fin("../../ecoli_50.json");
     Json::Value pangraphData;
 
     fin >> pangraphData;
@@ -742,7 +797,7 @@ void debuggingCode(){
 
     for(size_t i = 0; i < pangraphData["blocks"].size(); i++){
         std::string blockId = pangraphData["blocks"][(int)i]["id"].asString();
-        if(blockId == "STETJDHNZS"){
+        if(blockId == "MBEUQKOMBV"){
             std::cout << pangraphData["blocks"][(int)i]["sequence"].asString() << std::endl;
         } else {
             continue;
@@ -760,7 +815,7 @@ void debuggingCode(){
             std::string seqName = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["name"].asString();
             size_t number = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["number"].asInt();
             bool strand = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["strand"].asBool();
-            if(seqName == "NZ_CP013985.1" && blockId == "STETJDHNZS"){
+            if(seqName == "NZ_CP006027.1" && blockId == "MBEUQKOMBV"){
                 for(size_t k = 0; k < pangraphData["blocks"][(int)i]["mutate"][(int)j][1].size(); k++){
                     std::string mutationString = pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString();
                     std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
@@ -772,7 +827,7 @@ void debuggingCode(){
             std::string seqName = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["name"].asString();
             size_t number = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["number"].asInt();
             bool strand = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["strand"].asBool();
-            if(seqName == "NZ_CP013985.1" && blockId == "STETJDHNZS"){
+            if(seqName == "NZ_CP006027.1" && blockId == "MBEUQKOMBV"){
                 for(size_t k = 0; k < pangraphData["blocks"][(int)i]["insert"][(int)j][1].size(); k++){
                     std::string mutationString = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][1].asString();
                     std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
@@ -785,7 +840,7 @@ void debuggingCode(){
             std::string seqName = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["name"].asString();
             size_t number = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["number"].asInt();
             bool strand = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["strand"].asBool();
-            if(seqName == "NZ_CP013985.1" && blockId == "STETJDHNZS"){
+            if(seqName == "NZ_CP006027.1" && blockId == "MBEUQKOMBV"){
                 for(size_t k = 0; k < pangraphData["blocks"][(int)i]["delete"][(int)j][1].size(); k++){
                     std::cout << "D " << number << " " << strand << " " << pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][0].asInt() << " " << pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][1].asInt() << std::endl;
                     // s-=pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][1].asInt();
@@ -799,9 +854,16 @@ void debuggingCode(){
         // std::map< std::pair< std::string, bool >, int > blocks;
         // int ctr = 0;
 
+        if(path["name"].asString() == "NZ_CP006027.1"){
+            std::cout << "OFFSET: " << path["offset"].asInt() << std::endl;
+        }
+
         for(size_t j = 0; j < path["blocks"].size(); j++){
-            if(path["name"].asString() == "NZ_CP013985.1" && j == 198){
-                std::cout << path["blocks"][(int)j]["id"].asString() << " " << path["blocks"][(int)j]["strand"].asBool() << " " << path["position"][198].asInt() << " " << path["position"][199].asInt() << std::endl;
+            if(path["name"].asString() == "NZ_CP006027.1" && path["blocks"][(int)j]["id"].asString() == "MBEUQKOMBV"){
+                std::cout << "Strand: " << path["blocks"][(int)j]["strand"].asBool() << std::endl;
+            }
+            if(path["name"].asString() == "NZ_CP006027.1" && j>0 && path["position"][(int)j].asInt() < path["position"][(int)j-1].asInt()){
+                std::cout << path["blocks"][(int)j-1]["id"].asString() << " " << path["blocks"][(int)j-1]["strand"].asBool() << " " << path["blocks"][(int)j]["id"].asString() << " " << path["blocks"][(int)j]["strand"].asBool() << " " << path["position"][(int)j-1].asInt() << " " << path["position"][(int)j].asInt() << std::endl;
             }
             // if(path["name"].asString() == "NZ_CP013985.1" && path["blocks"][(int)j]["id"].asString() == "STETJDHNZS"){
             //     std::cout << path["blocks"][(int)j]["strand"].asBool() << std::endl;
