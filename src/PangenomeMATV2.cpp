@@ -470,7 +470,6 @@ void PangenomeMAT2::printSequenceLines(const std::vector< std::pair< std::vector
 }
 
 
-
 std::string getSequence(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
     const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, bool aligned){
 
@@ -532,6 +531,7 @@ std::string getSequence(const std::vector< std::pair< std::vector< std::pair< ch
     return fastaSequence;
 
 }
+
 char PangenomeMAT2::getNucleotideFromCode(int code){
     switch(code){
         case 1:
@@ -3306,16 +3306,107 @@ void processNode(std::string referenceSequence, std::string altSequence, std::st
 //     }
 // }
 
-void indexSyncmersHelper(PangenomeMAT2::Node* root,\
+std::pair<size_t, size_t> getRecomputePositions(std::pair<size_t, size_t> p, std::string &gappedSequence, size_t k) {
+    size_t mutPos = p.first;
+    size_t mutLen = p.second;
+
+    size_t i = mutPos;
+    size_t curr = i;
+    while (i > mutPos - k - 1) {
+
+        if (gappedSequence[curr] != '-') {
+            i--;
+        }
+        curr--;
+    }
+    size_t start = curr;
+
+    i = mutPos + mutLen;
+    curr = i;
+    while (i < (mutPos+mutLen) + k + 1) {
+        if (gappedSequence[curr] != '-') {
+            i++;
+        }
+        curr++;
+    }
+    size_t stop = curr;
+    
+    return std::make_pair(start, stop);
+
+    
+}
+
+
+bool compareTuples(const std::pair<int, int>& a, const std::pair<int, int>& b) {
+    return a.first < b.first;
+}
+
+std::vector<std::pair<size_t, size_t>> mergeOverlappingTuples(std::vector<std::pair<size_t, size_t>>& tuples) {
+    std::sort(tuples.begin(), tuples.end(), compareTuples);
+
+    std::vector<std::pair<size_t, size_t>> mergedTuples;
+    mergedTuples.push_back(tuples[0]);
+
+    for (size_t i = 1; i < tuples.size(); i++) {
+        size_t currentStart = tuples[i].first;
+        size_t currentEnd = tuples[i].second;
+        size_t mergedEnd = mergedTuples.back().second;
+
+        if (currentStart > mergedEnd) {
+            mergedTuples.push_back(tuples[i]);
+        }
+        else {
+            mergedTuples.back().second = std::max(currentEnd, mergedEnd);
+        }
+    }
+
+    return mergedTuples;
+}
+
+std::set<size_t> discardSyncmers(std::set<kmer_t>& inSyncmers, const std::vector<std::pair<size_t, size_t>>& B) {
+
+    std::set<size_t> discardedSyncmers;
+
+    size_t i = 0;
+    for (auto it = inSyncmers.begin(); it != inSyncmers.end();) {
+        kmer_t syncmer = *it;
+        bool discard = false;
+        for (const auto& b : B) {
+            if (syncmer.pos >= b.first && (syncmer.pos+syncmer.seq.length()) <= b.second) {
+                discardedSyncmers.insert(i);
+                discard = true;
+                break;
+            }
+            
+        }
+        if (discard) {
+            //std::cout << "ERASING " << syncmer.seq << " at " << syncmer.pos << "\n";
+            it = inSyncmers.erase(it);
+        } else {
+            ++it;
+        }
+        i++;
+
+    }
+
+
+    return discardedSyncmers;
+}
+
+void PangenomeMAT2::Tree::indexSyncmersHelper(PangenomeMAT2::Node* root,\
     std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
     std::vector< std::pair< bool, std::vector< bool > > >& blockExists, std::ofstream& fout, std::unordered_map<std::string, PangenomeMAT2::Node*> &allNodes, std::set<kmer_t> const &syncmers,\
-    std::unordered_map<std::string, int> &counts){
+    std::unordered_map<std::string, int> &counts, std:: string &consensusSequence){
 
     // Aligned sequence of the parent node
-    std::string parentNodeSequence = getSequence(sequence, blockExists, true);
+    std::string parentNodeSequence = consensusSequence;
+    if (consensusSequence == "") {
+        parentNodeSequence = getSequence(sequence, blockExists, true);
+    }
 
     std::vector< std::tuple< int32_t, int32_t, bool, bool > > blockMutationInfo;
 
+    //std::cout << root->identifier << "\n";
     for(auto mutation: root->blockMutation){
         int32_t primaryBlockId = mutation.primaryBlockId;
         int32_t secondaryBlockId = mutation.secondaryBlockId;
@@ -3349,6 +3440,8 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
     std::vector< std::tuple< int32_t, int32_t, int, int, char, char > > mutationInfo;
 
     // Apply mutations to "sequence"
+    std::vector<std::pair<size_t, size_t>> mutPositions;
+
     for(size_t i = 0; i < root->nucMutation.size(); i++){
         int32_t primaryBlockId = root->nucMutation[i].primaryBlockId;
         int32_t secondaryBlockId = root->nucMutation[i].secondaryBlockId;
@@ -3357,13 +3450,14 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
         int32_t nucGapPosition = root->nucMutation[i].nucGapPosition;
         uint32_t type = (root->nucMutation[i].mutInfo & 0x7);
         char newVal = '-';
-
+        size_t globalCoord = getGlobalCoordinate(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition);
         if(type < 3){
             // Either S, I or D
 
             int len = ((root->nucMutation[i].mutInfo) >> 4);
 
             if(type == PangenomeMAT2::NucMutationType::NS){
+                mutPositions.push_back(std::make_pair(globalCoord, len));
                 if(secondaryBlockId != -1){
                     if(nucGapPosition != -1){
                         for(int j = 0; j < len; j++){
@@ -3371,6 +3465,7 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
+        //                    std::cout << "MUT Substitution " << oldVal << globalCoord << newVal << "\n";
                         }
                     } else {
                         for(int j = 0; j < len; j++){
@@ -3378,9 +3473,12 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
+            //                std::cout << "MUT Substitution " << oldVal << globalCoord << newVal << "\n";
+
                         }
 
                     }
+                    
                 } else {
                     if(nucGapPosition != -1){
                         for(int j = 0; j < len; j++){
@@ -3388,6 +3486,8 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));   
+             //               std::cout << "MUT Substitution " << oldVal << globalCoord << newVal << "\n";
+
                         }
                     } else {
                         for(int j = 0; j < len; j++){
@@ -3395,11 +3495,15 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].first[nucPosition+j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));   
+               //             std::cout << "MUT Substitution " << oldVal << globalCoord << newVal << "\n";
+
                         }
                     }
                 }
             }
             else if(type == PangenomeMAT2::NucMutationType::NI){
+                mutPositions.push_back(std::make_pair(globalCoord, len));
+
                 if(secondaryBlockId != -1){
                     if(nucGapPosition != -1){
                         for(int j = 0; j < len; j++){
@@ -3407,6 +3511,8 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
+                 //           std::cout << "MUT Insertion " << oldVal << globalCoord << newVal << "\n";
+
                         }
                     } else {
                         for(int j = 0; j < len; j++){
@@ -3414,6 +3520,8 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
+                //            std::cout << "MUT Insertion " << oldVal << globalCoord << newVal << "\n";
+
                         }
 
                     }
@@ -3424,6 +3532,7 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));   
+                //            std::cout << "MUT Insertion " << oldVal << globalCoord << newVal << "\n";
                         }
                     } else {
                         for(int j = 0; j < len; j++){
@@ -3431,23 +3540,27 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                             sequence[primaryBlockId].first[nucPosition+j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));   
+                //            std::cout << "MUT Insertion " << oldVal << globalCoord << newVal << "\n";
                         }
                     }
                 }
             }
             else if(type == PangenomeMAT2::NucMutationType::ND){
+                mutPositions.push_back(std::make_pair(globalCoord, 0));
                 if(secondaryBlockId != -1){
                     if(nucGapPosition != -1){
                         for(int j = 0; j < len; j++){
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j];
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = '-';
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, '-'));
+                       //     std::cout << "MUT deletion " << oldVal << globalCoord << "\n";
                         }
                     } else {
                         for(int j = 0; j < len; j++){
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first;
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = '-';
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, '-'));
+                      //      std::cout << "MUT deletion " << oldVal << globalCoord << "\n";
                         }
 
                     }
@@ -3457,18 +3570,21 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                             char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j];
                             sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = '-';
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, '-'));
+                      //      std::cout << "MUT deletion " << oldVal << globalCoord << "\n";
                         }
                     } else {
                         for(int j = 0; j < len; j++){
                             char oldVal = sequence[primaryBlockId].first[nucPosition+j].first;
                             sequence[primaryBlockId].first[nucPosition+j].first = '-';
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, '-'));
+                      //      std::cout << "MUT deletion " << oldVal << globalCoord << "\n";
                         }
                     }
                 }
             }
         } 
         else {
+            mutPositions.push_back(std::make_pair(globalCoord, 1));
             if(type == PangenomeMAT2::NucMutationType::NSNPS){
                 newVal = PangenomeMAT2::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
                 if(secondaryBlockId != -1){
@@ -3476,20 +3592,26 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
                         sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
+                  //      std::cout << "MUT SNP S " << oldVal << globalCoord << newVal << "\n";
+
                     } else {
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first;
                         sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
+                  //      std::cout << "MUT SNP S " << oldVal << globalCoord << newVal << "\n";
+
                     }
                 } else {
                     if(nucGapPosition != -1){
                         char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition];
                         sequence[primaryBlockId].first[nucPosition].second[nucGapPosition] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
+                  //      std::cout << "MUT SNP S " << oldVal << globalCoord << newVal << "\n";
                     } else {
                         char oldVal = sequence[primaryBlockId].first[nucPosition].first;
                         sequence[primaryBlockId].first[nucPosition].first = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));   
+                   //     std::cout << "MUT SNP S " << oldVal << globalCoord << newVal << "\n";
                     }
                 }
             }
@@ -3500,20 +3622,24 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
                         sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
+                    //    std::cout << "MUT SNP I " << oldVal << globalCoord << newVal << "\n";
                     } else {
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first;
                         sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
+                    //    std::cout << "MUT SNP I " << oldVal << globalCoord << newVal << "\n";
                     }
                 } else {
                     if(nucGapPosition != -1){
                         char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition];
                         sequence[primaryBlockId].first[nucPosition].second[nucGapPosition] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));   
-                    } else {
+                    //     std::cout << "MUT SNP I " << oldVal << globalCoord << newVal << "\n";
+                   } else {
                         char oldVal = sequence[primaryBlockId].first[nucPosition].first;
                         sequence[primaryBlockId].first[nucPosition].first = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));   
+                    //    std::cout << "MUT SNP I " << oldVal << globalCoord << newVal << "\n";
                     }
                 }
             }
@@ -3523,68 +3649,76 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
                         sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = '-';
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, '-'));
-                    } else {
+                    //      std::cout << "MUT SNP D " << oldVal << globalCoord << newVal << "\n";
+                  } else {
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first;
                         sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first = '-';
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, '-'));
-                    }
+                     //      std::cout << "MUT SNP D " << oldVal << globalCoord << newVal << "\n";
+                   }
                 } else {
                     if(nucGapPosition != -1){
                         char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition];
                         sequence[primaryBlockId].first[nucPosition].second[nucGapPosition] = '-';
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, '-'));
-                    } else {
+                      //      std::cout << "MUT SNP D " << oldVal << globalCoord << newVal << "\n";
+                  } else {
                         char oldVal = sequence[primaryBlockId].first[nucPosition].first;
                         sequence[primaryBlockId].first[nucPosition].first = '-';
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition, oldVal, '-'));
-                    }
+                     //        std::cout << "MUT SNP D " << oldVal << globalCoord << newVal << "\n";
+                 }
                 }
             }
         }
     }
     
+
+    //std::cout << "\nhere, mutPos length: " << mutPositions.size() << " sync size: " << syncmers.size() << "\n";
+
     // Aligned sequence of the current node
     std::string currNodeSequence = getSequence(sequence, blockExists, true);
 
+    //std::cout << currNodeSequence << "\n";
+
+    // std::cout << parentNodeSequence << "\n";
+    // std::cout << currNodeSequence << "\n";
     std::string unGapped = getSequence(sequence, blockExists, false);
 
     std::set<kmer_t> mutated_syncmers;
-    if (syncmers.size() == 0) {
-        // root node
-        mutated_syncmers = syncmerize(currNodeSequence, 15, 8, false, true);
-        for (auto syncmer : mutated_syncmers) {
-            fout << syncmer.seq << "\t";
-        }
-        fout << "\n";
+    if (false) {
+        // // root node
+        // mutated_syncmers = syncmerize(currNodeSequence, 15, 8, false, true);
+        // for (auto syncmer : mutated_syncmers) {
+        //     fout << syncmer.seq << "\t";
+        // }
+        // fout << "\n";
     } else {
-    //    mutated_syncmers = mutate_syncmers(node, syncmers, currNodeSequence, k, s, open);
-
-        // Goal: find positions in the gapped alignment that have mutated along this branch
-        // and then only re-compute syncmers that may have been modified by these mutations
-
-        // TEMP BAD CODE
-        mutated_syncmers = syncmerize(currNodeSequence, 15, 8, false, true);
-        std::set<kmer_t> inserted;
-        std::set<size_t> deleted;
+        std::vector<std::pair<size_t, size_t>> recompute;
+        for (std::pair<size_t,size_t> p : mutPositions) {
+            //std::cout << "mut at " << p.first << " len " << p.second << "\n";
+            auto r = getRecomputePositions(p, currNodeSequence, 15);
+            recompute.push_back(r);
+            //std::cout << "recomp from " << r.first << " to " << r.second << "\n";
+        }
+        
+        mutated_syncmers = syncmers;
+        std::set<size_t> discardedSyncmers = discardSyncmers(mutated_syncmers, recompute); //modifies mutated_syncmers
+        //std::cout << "SIZE AFTER DISCARD " << mutated_syncmers.size() << "\n";
         fout << root->identifier << "\tDELETIONS\t";
-        size_t i = 0;
-        for (kmer_t s : syncmers) {
-            if (mutated_syncmers.find(s) == mutated_syncmers.end()) {
-                deleted.insert(i);
-            }
-            i++;
+        for (size_t index : discardedSyncmers) {
+            fout << index << "\t";
         }
-        for (size_t i : deleted) {
-            fout << i << "\t";
-        }
-
-        std::set_difference(mutated_syncmers.begin(), mutated_syncmers.end(), syncmers.begin(), syncmers.end(), std::inserter(inserted, inserted.end()));
         fout << "\tINSERTIONS\t";
-        for (kmer_t s : inserted) {
-            fout << s.seq << "\t";
+        for (auto range : recompute) {
+            std::string redo = currNodeSequence.substr(range.first, range.second - range.first);
+            //std::cout << "redo: " << redo << '\n';
+            for (kmer_t syncmer : syncmerize(redo, 15, 8, false, true)) {
+                mutated_syncmers.insert(syncmer);
+                fout << syncmer.seq << "\t";
+            }
         }
         fout << "\n";
-        // END TEMP BAD CODE
 
     }
     // std::cout << root->identifier << " = ";
@@ -3605,7 +3739,9 @@ void indexSyncmersHelper(PangenomeMAT2::Node* root,\
     // }
 
    for(PangenomeMAT2::Node* child: root->children){
-        indexSyncmersHelper(child, sequence, blockExists, fout, allNodes, mutated_syncmers, counts);
+        //std::cout << "visiting child\n";
+        std::string blank = "";
+        indexSyncmersHelper(child, sequence, blockExists, fout, allNodes, mutated_syncmers, counts, blank);
     }
     
     
@@ -3666,6 +3802,7 @@ void PangenomeMAT2::Tree::indexSyncmers(std::ofstream& fout){
 
     int32_t maxBlockId = 0;
 
+
     for(size_t i = 0; i < blocks.size(); i++){
         
         int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
@@ -3723,10 +3860,33 @@ void PangenomeMAT2::Tree::indexSyncmers(std::ofstream& fout){
             }
         }
     }
+    
+    
+    std::string consensusSequence;
+    for (int i = 0; i < blocks.size(); i++) {
+        auto seq = sequence[i].first;
+        for (int j = 0; j < seq.size(); j++) {
+            auto pair = seq[j];
+            consensusSequence += pair.first;
+            for (char gap : pair.second) {
+                consensusSequence += gap;
+            }
+        }
+    }
 
-    std::set<kmer_t> rootSyncmers;
+    std::set<kmer_t> initialSyncmers;
     std::unordered_map<std::string, int> counts;
-    indexSyncmersHelper(root, sequence, blockExists, fout, allNodes, rootSyncmers, counts);
+    // std::string co = getRootSequence(true);
+
+//    std::cout << "Root " << rootSequence << "\n";
+
+
+    initialSyncmers = syncmerize(consensusSequence, 15, 8, false, true);
+    for (auto syncmer : initialSyncmers) {
+        fout << syncmer.seq << "\t";
+    }
+    fout << "\n";
+    indexSyncmersHelper(root, sequence, blockExists, fout, allNodes, initialSyncmers, counts, consensusSequence);
 
 }
 
@@ -3939,7 +4099,6 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
     std::cout << "Placing sample...\n";
 
     struct dynamicJaccard dj;
-    std::cout << "index size " << index.rootSeeds.size() << " rs size " << readSyncmers.size() << "\n";
     dj.intersectionSize = intersection_size(index.rootSeeds, readSyncmers);
     dj.unionSize = index.rootSeeds.size() + readSyncmers.size() - dj.intersectionSize;
     dj.jaccardIndex = (float)dj.intersectionSize / dj.unionSize;
@@ -3955,18 +4114,22 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
     std::sort(v.begin(), v.end(), [](auto &left, auto &right) {
         return left.second > right.second;
     });
-    std::set<std::pair<std::string, float>> topSet;
-    double a = v[0].second;
-    double b = v[0].second;
-    int i = 0;
-    std::cerr << "[";
-    while (fabs(a - b) < std::numeric_limits<double>::epsilon()) {
-        topSet.insert(v[i]);
-        std::cerr << v[i].first << ", ";
-        i++;
-        b = v[i].second;
+
+    for (auto s : v) {
+        std::cout << s.first << ": " << s.second << "\n";
     }
-    std::cerr << "\n";
+    // std::set<std::pair<std::string, float>> topSet;
+    // double a = v[0].second;
+    // double b = v[0].second;
+    // int i = 0;
+    // std::cerr << "[";
+    // while (fabs(a - b) < std::numeric_limits<double>::epsilon()) {
+    //     topSet.insert(v[i]);
+    //     std::cerr << v[i].first << ", ";
+    //     i++;
+    //     b = v[i].second;
+    // }
+    // std::cerr << "\n";
     
 }
 

@@ -196,6 +196,7 @@ namespace PangenomeMAT2 {
                 std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > >& coordinates,\
                 std::vector< std::pair< bool, std::vector< bool > > >& blockExists
             );
+            void indexSyncmersHelper(PangenomeMAT2::Node* root, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence, std::vector< std::pair< bool, std::vector< bool > > >& blockExists, std::ofstream& fout, std::unordered_map<std::string, PangenomeMAT2::Node*> &allNodes, std::set<kmer_t> const &syncmers, std::unordered_map<std::string, int> &counts, std::string &consensusSequence);
             void setupGlobalCoordinates();
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
 
@@ -217,6 +218,8 @@ namespace PangenomeMAT2 {
             void writeToFile(std::ofstream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true);
+            std::string getConsensusSequence(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence);
+
             void printVCFParallel(std::string reference, std::ofstream& fout);
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
             bool verifyVCFFile(std::ifstream& fin);
