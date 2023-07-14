@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <string>
 
+#include <zlib.h>
+
 #include "PangenomeMATV2.hpp"
 
 
@@ -834,8 +836,15 @@ void updatedParser(int argc, char* argv[]){
 
 }
 
+extern "C" {
+    void test_alignment_null();
+}
+
+
 int main(int argc, char* argv[]){
 
-    updatedParser(argc, argv);
+    test_alignment_null();
+    exit(0);
 
+    updatedParser(argc, argv);
 }

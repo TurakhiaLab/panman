@@ -1,18 +1,14 @@
-// To compile:
-//   gcc -g -O2 integration_test.c libminimap2.a -lz
-
-
-
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
 #include <zlib.h>
-#include "mmpriv.h"
-#include "minimap.h"
-#include "kseq.h"
-#include "kalloc.h"
-#include "khash.h"
-#include "kvec.h"
+#include <math.h>
+#include "minimap2_src/mmpriv.h"
+#include "minimap2_src/minimap.h"
+#include "minimap2_src/kseq.h"
+#include "minimap2_src/kalloc.h"
+#include "minimap2_src/khash.h"
+#include "minimap2_src/kvec.h"
 
 
 mm128_t *collect_seed_hits_heap(void *km, const mm_mapopt_t *opt, int max_occ, const mm_idx_t *mi, const char *qname, const mm128_v *mv, int qlen, int64_t *n_a, int *rep_len,
@@ -208,51 +204,9 @@ void align_read_given_seeds(const mm_idx_t *mi,const int read_length,const char 
 
 
 
+void align_reads(char *reference, int n_reads, char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions) {
 
-
-
-void test_alignment_null()
-{
-	int n_reads = 3;
-	char *reference = "GACGAAGAGTGTTATGTCTGTCGGCAGTTGAAAGCTAAACGTAGATTACTACGCGCAATATCCAGAAAGAAGTTAGACCCGTGAAAACGTGCGCCTTTCGGGGACTTGAGCGCACAAATA";
-	char *read_0 =    "GACGAAGAGTGTTATGTCTGTCGGCAGTTGAAAGCTAAACGTAGATTACTACGCGCAATA";
-	char *read_1 =                                                                "TCCAGAAAGAAGTTAGACCCGTGAAAACGTGCGCCTTTCGGGGACTTGAGCGCACAAATA";
-	char *read_2 =                                  "ACGTTTTCACGGGTCTAACTTCTTTCTGGATATTGCGCGTAGTAATCTACGTTTAGCTTT";
-
-	char **reads =  malloc(sizeof(char *) * n_reads);
-	reads[0] = read_0;
-	reads[1] = read_1;
-	reads[2] = read_2;
-
-	int *r_lens = malloc(sizeof(int) * n_reads);
-	r_lens[0] = 60;
-	r_lens[1] = 60;
-	r_lens[2] = 60;
-
-
-	uint8_t rev_0[] = {0,0,0,0,0,0,0,0,0,0,0};
-	int qp_0[] = {17,22,31,34,35,36,37,47,53,54,55,};
-	int rp_0[] = {17,22,31,34,35,36,37,47,53,54,55,};
-
-	uint8_t rev_1[] = {0,0,0,0,0,0,0};
-	int qp_1[] = {22,24,28,33,40,50,57,};
-	int rp_1[] = {82,84,88,93,100,110,117,};
-
-	uint8_t rev_2[] = {1,1,1,1,1,1,1,1,1,1,1};
-	int qp_2[] = {23,24,25,34,37,38,41,51,52,54,58,};
-	int rp_2[] = {53,54,55,64,67,68,71,81,82,84,88,};
-
-	int seed_counts[] = {11, 7, 11};
-
-	uint8_t *reversed[]  = {rev_0, rev_1, rev_2};
-	int *ref_positions[] = {rp_0, rp_1, rp_2};
-	int *qry_positions[] = {qp_0, qp_1, qp_2};
-
-	
-	
-
-
-	mm_idxopt_t iopt;
+    mm_idxopt_t iopt;
 	mm_mapopt_t mopt;
 	int n_threads = 1;
 
@@ -294,7 +248,53 @@ void test_alignment_null()
 	}
 	mm_tbuf_destroy(tbuf);
 	mm_idx_destroy(mi);
+}
 
+
+
+
+
+void test_alignment_null()
+{
+	int n_reads = 3;
+	char *reference = "GACGAAGAGTGTTATGTCTGTCGGCAGTTGAAAGCTAAACGTAGATTACTACGCGCAATATCCAGAAAGAAGTTAGACCCGTGAAAACGTGCGCCTTTCGGGGACTTGAGCGCACAAATA";
+	char *read_0 =    "GACGAAGAGTGTTATGTCTGTCGGCAGTTGAAAGCTAAACGTAGATTACTACGCGCAATA";
+	char *read_1 =                                                                "TCCAGAAAGAAGTTAGACCCGTGAAAACGTGCGCCTTTCGGGGACTTGAGCGCACAAATA";
+	char *read_2 =                                  "ACGTTTTCACGGGTCTAACTTCTTTCTGGATATTGCGCGTAGTAATCTACGTTTAGCTTT";
+
+	char **reads =  malloc(sizeof(char *) * n_reads);
+	reads[0] = read_0;
+	reads[1] = read_1;
+	reads[2] = read_2;
+
+	int *r_lens = malloc(sizeof(int) * n_reads);
+	r_lens[0] = 60;
+	r_lens[1] = 60;
+	r_lens[2] = 60;
+
+
+	uint8_t rev_0[] = {0,0,0,0,0,0,0,0,0,0,0};
+	int qp_0[] = {17,22,31,34,35,36,37,47,53,54,55,};
+	int rp_0[] = {17,22,31,34,35,36,37,47,53,54,55,};
+
+	uint8_t rev_1[] = {0,0,0,0,0,0,0};
+	int qp_1[] = {22,24,28,33,40,50,57,};
+	int rp_1[] = {82,84,88,93,100,110,117,};
+
+	uint8_t rev_2[] = {1,1,1,1,1,1,1,1,1,1,1};
+	int qp_2[] = {23,24,25,34,37,38,41,51,52,54,58,};
+	int rp_2[] = {53,54,55,64,67,68,71,81,82,84,88,};
+
+	int seed_counts[] = {11, 7, 11};
+
+	uint8_t *reversed[]  = {rev_0, rev_1, rev_2};
+	int *ref_positions[] = {rp_0, rp_1, rp_2};
+	int *qry_positions[] = {qp_0, qp_1, qp_2};
+
+
+    align_reads(reference, n_reads, reads, r_lens, seed_counts, reversed, ref_positions, qry_positions);
+    
+	
 	free(reads);
 	free(r_lens);
 }
