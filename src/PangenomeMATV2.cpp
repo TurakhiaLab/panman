@@ -3799,9 +3799,8 @@ void PangenomeMAT2::Tree::indexSyncmers(std::ofstream& fout){
         sequence[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i]);
         blockExists[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
     }
-
+    
     int32_t maxBlockId = 0;
-
 
     for(size_t i = 0; i < blocks.size(); i++){
         
@@ -3861,7 +3860,6 @@ void PangenomeMAT2::Tree::indexSyncmers(std::ofstream& fout){
         }
     }
     
-    
     std::string consensusSequence;
     for (int i = 0; i < blocks.size(); i++) {
         auto seq = sequence[i].first;
@@ -3891,30 +3889,41 @@ void PangenomeMAT2::Tree::indexSyncmers(std::ofstream& fout){
 }
 
 
-std::set<kmer_t> syncmersFromFastq(std::string fastqPath) {
+std::set<kmer_t> syncmersFromFastq(std::string fastqPath,  std::vector<read_t> &reads) {
     FILE *fp;
     kseq_t *seq;
     fp = fopen(fastqPath.c_str(), "r");
     seq = kseq_init(fileno(fp));
     std::set<std::string> input;
+    
     int line;
     while ((line = kseq_read(seq)) >= 0) {
         std::string this_seq = seq->seq.s;
         input.insert(this_seq);
     }
-    float est_coverage = 1;
+    float est_coverage = 0; //TODO change this to 1
     int k = 15;
     int s = 8;
     bool open = false;
-
+    
     std::set<kmer_t> syncmers;
     std::unordered_map<std::string, int> counts;
     std::unordered_map<std::string, int> counts_rc;
 
+    //std::cerr << "length: " << input.size() << "\n";
+    reads.resize(input.size());
+    int i = 0;
+
     for (auto seq : input) {
+        
+        read_t this_read;
+        this_read.seq = seq;
+
         std::string rc = reverse_complement(seq);
         std::set<kmer_t> these = syncmerize(seq, k, s, false, false);
         std::set<kmer_t> these_rc = syncmerize(rc, k, s, false, false);
+        
+        
         for (auto m : these) {
             if (counts.find(m.seq) == counts.end()) {
                 counts[m.seq] = 1;
@@ -3923,8 +3932,16 @@ std::set<kmer_t> syncmersFromFastq(std::string fastqPath) {
             }
             if (counts[m.seq] > est_coverage) {
                 syncmers.insert(m);
+
+                //std::cerr << syncmers.begin() << "\n";
+                m.pos = m.pos + k - 1;
+                m.reversed = false;
+                this_read.kmers.insert(m);
+                //this_read.read_coord.push_back(m.pos + k - 1);
+                //this_read.reversed.push_back(false);
             }
         }
+        
         for (auto m : these_rc) {
             if (counts_rc.find(m.seq) == counts_rc.end()) {
                 counts_rc[m.seq] = 1;
@@ -3933,8 +3950,15 @@ std::set<kmer_t> syncmersFromFastq(std::string fastqPath) {
             }
             if (counts_rc[m.seq] > est_coverage) {
                 syncmers.insert(m);
+
+                //std::cerr << syncmers.begin() << "\n";
+                m.pos = m.pos + k - 1;
+                m.reversed = true;
+                this_read.kmers.insert(m);
             }
         }
+
+        reads[i++] = this_read;
     }
     return syncmers;
 }
@@ -3971,7 +3995,7 @@ void PangenomeMAT2::Tree::placeDFS(Node *currNode, std::set<kmer_t> currNodeSync
 
     std::set<kmer_t>::reverse_iterator syncIt = currNodeSyncmers.rbegin();
     std::set<size_t>::reverse_iterator delIt;
-    size_t syncItIdx = currNodeSyncmers.size()-1;
+    size_t syncItIdx = currNodeSyncmers.size() - 1;
     for (delIt = deletedIndices.rbegin(); delIt != deletedIndices.rend(); delIt++) {
         //std::cout << "delIt " << *delIt << "\n" << std::flush;
         //std::cout << "syncItIdx: " << syncItIdx << "\n";
@@ -4087,16 +4111,34 @@ size_t intersection_size(const T1& s1, const T2& s2)
   return c.count;
 }
 
+extern "C" {
+    void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions);
+}
+
 void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
+    
+    std::vector<read_t> reads;
 
-    std::set<kmer_t> readSyncmers = syncmersFromFastq(fastqPath);
+    std::set<kmer_t> readSyncmers = syncmersFromFastq(fastqPath, reads);
 
-    // std::cout << "read syncmers:\n";
-    // for (kmer_t syncmer : readSyncmers) {
-    //     std::cout << "'" << syncmer.seq << "', " ;
-    // }
-    // std::cout << "\n";
+    int k = 15;
+    int s = 8;
+    
+    /*
+    for (int i = 0; i < reads.size(); i++) {
+        std::cerr << "read: " <<  i << " " << reads[i].seq << "\n";
+        for( auto kmer : reads[i].kmers) {
+            std::cout << kmer.seq << "\n";
+            std::cout << kmer.pos << "\n";
+            std::cout << kmer.reversed << "\n";
+        }
+    }
+    */
+    
+
+    std::cout << "\n";
     std::cout << "Placing sample...\n";
+
 
     struct dynamicJaccard dj;
     dj.intersectionSize = intersection_size(index.rootSeeds, readSyncmers);
@@ -4107,17 +4149,133 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
   
 
     placeDFS(root, index.rootSeeds, readSyncmers, index, dj, scores);
-        std::vector<std::pair<std::string, float>> v;
+    std::vector<std::pair<std::string, float>> v;
     for ( const auto &p : scores ) {
         v.push_back(std::make_pair(p.first, p.second));
     } 
-    std::sort(v.begin(), v.end(), [](auto &left, auto &right) {
+    std::sort(v.begin(), v.end(), [] (auto &left, auto &right) {
         return left.second > right.second;
     });
 
+    std::string best_match = v[0].first;
     for (auto s : v) {
         std::cout << s.first << ": " << s.second << "\n";
     }
+    //First in this s vector is the highest scoring node
+    //   that will be reference
+
+
+    std::string ref_seq = getStringFromReference(best_match, false);
+    //std::cerr << "CLOSEST REF MATCH: \n\n";
+    //std::cerr << ref_seq;
+
+
+    std::set<kmer_t> ref_syncmers = syncmerize(ref_seq, k, s, false, false);
+    
+
+    
+    //Finding syncmer matches
+    for(int r = 0; r < reads.size() ; r++){
+
+        auto readSyncmer = reads[r].kmers.begin();
+        auto refSyncmer = ref_syncmers.begin();
+
+        std::set<kmer_t> matchingSyncmers;
+
+        while(readSyncmer != reads[r].kmers.end() && refSyncmer != ref_syncmers.end()) {
+            if(*readSyncmer < *refSyncmer){
+                readSyncmer++;
+            }else if (*refSyncmer < *readSyncmer){
+                refSyncmer++;
+            }else{
+
+                kmer_t matched;
+                matched.seq  = (*readSyncmer).seq;
+                matched.pos  = (*readSyncmer).pos;
+                matched.pos2 = (*refSyncmer).pos + k - 1;
+                matched.reversed  = (*readSyncmer).reversed;
+                matchingSyncmers.insert(matched);
+                
+                readSyncmer++;
+                refSyncmer++;
+            }
+        }
+
+        reads[r].kmers = matchingSyncmers;
+    }
+
+    /*
+    std::cout << "\n\n\n\nmatched syncmners\n";
+    for (int i = 0; i < reads.size(); i++) {
+        std::cerr << "read: " <<  i << " " << reads[i].seq << "\n";
+        for( auto kmer : reads[i].kmers) {
+            std::cout << kmer.seq << "\n";
+            std::cout << kmer.pos << "\n";
+            std::cout << kmer.pos2 << "\n";
+            std::cout << kmer.reversed << "\n";
+        }
+    }
+    */
+
+
+
+
+
+
+    //Figure out a better way to do this
+    
+    const char *reference = ref_seq.c_str();
+    int n_reads = reads.size();
+    const char **read_strings = (const char **)malloc(n_reads*sizeof(char *));
+    int *r_lens         = (int *)malloc(n_reads*sizeof(int));
+    int *seed_counts    = (int *)malloc(n_reads*sizeof(int));
+
+    uint8_t **reversed  = (uint8_t **)malloc(n_reads*sizeof(uint8_t *));
+    int **ref_positions = (int **)malloc(n_reads*sizeof(int *));
+    int **qry_positions = (int **)malloc(n_reads*sizeof(int *));
+
+    for(int i = 0; i < n_reads; i++) {
+        int n_seeds = reads[i].kmers.size();
+        seed_counts[i] = n_seeds;
+        read_strings[i] = reads[i].seq.c_str();
+        r_lens[i] = reads[i].seq.length();
+
+        uint8_t *reversed_array = (uint8_t *)malloc(n_seeds*sizeof(uint8_t));
+        int *ref_pos_array = (int *)malloc(n_seeds*sizeof(int));
+        int *qry_pos_array = (int *)malloc(n_seeds*sizeof(int));
+
+        int j = 0;
+        for (auto it = reads[i].kmers.begin(); it != reads[i].kmers.end(); it++) {
+            reversed_array[j] = (*it).reversed;
+            qry_pos_array[j] = (*it).pos;
+            ref_pos_array[j] = (*it).pos2;
+            j++;
+        }
+
+        reversed[i]      = reversed_array;
+        ref_positions[i] = ref_pos_array;
+        qry_positions[i] = qry_pos_array;
+    }
+
+
+    align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions);
+
+
+
+    for(int i = 0; i < n_reads; i++) {
+        free(reversed[i]);
+        free(ref_positions[i]);
+        free(qry_positions[i]);
+    }
+    free(qry_positions);
+    free(ref_positions);
+    free(reversed);
+    free(seed_counts);
+    free(r_lens);
+    free(read_strings);
+    
+    
+
     // std::set<std::pair<std::string, float>> topSet;
     // double a = v[0].second;
     // double b = v[0].second;

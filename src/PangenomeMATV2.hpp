@@ -219,7 +219,7 @@ namespace PangenomeMAT2 {
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true);
             std::string getConsensusSequence(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence);
-
+            
             void printVCFParallel(std::string reference, std::ofstream& fout);
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
             bool verifyVCFFile(std::ifstream& fin);

@@ -204,7 +204,7 @@ void align_read_given_seeds(const mm_idx_t *mi,const int read_length,const char 
 
 
 
-void align_reads(char *reference, int n_reads, char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions) {
+void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions) {
 
     mm_idxopt_t iopt;
 	mm_mapopt_t mopt;
