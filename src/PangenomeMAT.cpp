@@ -5139,11 +5139,18 @@ bool PangenomeMAT::GFAGraph::pathExists(size_t nId1, size_t nId2, std::vector< b
     if(nId1 == nId2){
         return true;
     }
-    visited[nId1] = true;
-
-    for(auto u: adj[nId1]){
-        if(!visited[u] && pathExists(u, nId2, visited)){
-            return true;
+    std::queue<size_t> q;
+    q.push(nId1);
+    while(!q.empty()){
+        size_t fr = q.front();
+        q.pop();
+        for(auto u: adj[fr]){
+            if(u == nId2){
+                return true;
+            }
+            if(!visited[u]){
+                q.push(u);
+            }
         }
     }
     return false;
@@ -5184,6 +5191,8 @@ PangenomeMAT::GFAGraph::GFAGraph(const std::vector< std::string >& pathNames, co
             }
         }
     }
+
+    edges.clear();
 
     intSequences.resize(sequences.size());
     for(size_t i = 0; i < sequences.size(); i++){
@@ -5235,6 +5244,7 @@ PangenomeMAT::GFAGraph::GFAGraph(const std::vector< std::string >& pathNames, co
             }
 
             std::vector< bool > visited(numNodes, false);
+
             if(!pathExists(nextNode, currentNode, visited)){
                 adj[currentNode].push_back(nextNode);
                 currentNode = nextNode;
@@ -5258,32 +5268,37 @@ PangenomeMAT::GFAGraph::GFAGraph(const std::vector< std::string >& pathNames, co
 
 }
 
-bool PangenomeMAT::GFAGraph::checkForCyclesHelper(size_t nodeId, std::vector< int >& color){
-    color[nodeId] = 1;
-    for(auto u: adj[nodeId]){
-        if(color[u] == 1){
-            return true;
-        }
-        if(color[u] == 0){
-            if(checkForCyclesHelper(u, color)){
-                return true;
-            }
-        }
-    }
-    color[nodeId] = 2;
-    return false;
-}
-
 bool PangenomeMAT::GFAGraph::checkForCycles(){
 
-    std::vector< int > color(numNodes, 0);
+    std::vector<bool> visited(numNodes, false);
+    std::vector<bool> onStack(numNodes, false);
+    std::stack<size_t> st;
+
     for(size_t i = 0; i < numNodes; i++){
-        if(color[i] == 0){
-            if(checkForCyclesHelper(i, color)){
-                return true;
+        if(visited[i]){
+            continue;
+        }
+        st.push(i);
+        while(!st.empty()){
+            size_t s = st.top();
+
+            if(!visited[s]){
+                visited[s] = true;
+                onStack[s] = true;
+            } else {
+                onStack[s] = false;
+                st.pop();
+            }
+            for(auto u: adj[s]){
+                if(!visited[u]){
+                    st.push(u);
+                } else if(onStack[u]){
+                    return true;
+                }
             }
         }
     }
+
     return false;
 }
 
@@ -5516,41 +5531,53 @@ bool PangenomeMAT::Pangraph::pathExists(size_t nId1, size_t nId2, std::vector< b
     if(nId1 == nId2){
         return true;
     }
-    visited[nId1] = true;
-
-    for(auto u: adj[nId1]){
-        if(!visited[u] && pathExists(u, nId2, visited)){
-            return true;
-        }
-    }
-    return false;
-}
-
-bool PangenomeMAT::Pangraph::checkForCyclesHelper(size_t nodeId, std::vector< int >& color){
-    color[nodeId] = 1;
-    for(auto u: adj[nodeId]){
-        if(color[u] == 1){
-            return true;
-        }
-        if(color[u] == 0){
-            if(checkForCyclesHelper(u, color)){
+    std::queue<size_t> q;
+    q.push(nId1);
+    while(!q.empty()){
+        size_t fr = q.front();
+        q.pop();
+        for(auto u: adj[fr]){
+            if(u == nId2){
                 return true;
+            }
+            if(!visited[u]){
+                q.push(u);
             }
         }
     }
-    color[nodeId] = 2;
     return false;
 }
 
 bool PangenomeMAT::Pangraph::checkForCycles(){
-    std::vector< int > color(numNodes, 0);
+    std::vector<bool> visited(numNodes, false);
+    std::vector<bool> onStack(numNodes, false);
+    std::stack<size_t> st;
+
     for(size_t i = 0; i < numNodes; i++){
-        if(color[i] == 0){
-            if(checkForCyclesHelper(i, color)){
-                return true;
+        if(visited[i]){
+            continue;
+        }
+        st.push(i);
+        while(!st.empty()){
+            size_t s = st.top();
+
+            if(!visited[s]){
+                visited[s] = true;
+                onStack[s] = true;
+            } else {
+                onStack[s] = false;
+                st.pop();
+            }
+            for(auto u: adj[s]){
+                if(!visited[u]){
+                    st.push(u);
+                } else if(onStack[u]){
+                    return true;
+                }
             }
         }
     }
+
     return false;
 }
 

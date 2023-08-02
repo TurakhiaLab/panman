@@ -116,7 +116,7 @@ void setupOptionDescriptions(){
     // Sequence Extract option descriptions
     sequenceExtractDesc.add_options()
         ("help", "produce help message")
-        ("sequence", po::value< std::string >()->required(), "Sequence name")
+        ("ids", po::value< std::vector< std::string > >()->multitoken()->required(), "Sequence names")
         ("output-file", po::value< std::string >()->required(), "Output file name")
     ;
 
@@ -624,7 +624,7 @@ void updatedParser(int argc, char* argv[]){
                     std::cout << std::endl;
                 }
 
-            } else if(strcmp(splitCommandArray[0], "sequence") == 0){
+            } else if(strcmp(splitCommandArray[0], "getSequences") == 0){
                 // If command was maf
                 po::variables_map sequenceExtractVm;
                 po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(sequenceExtractDesc).positional(sequenceExtractPositionArgumentDesc).run(), sequenceExtractVm);
@@ -635,17 +635,19 @@ void updatedParser(int argc, char* argv[]){
                     po::notify(sequenceExtractVm);
 
                     std::string fileName = sequenceExtractVm["output-file"].as< std::string >();
-                    std::string sequenceName = sequenceExtractVm["sequence"].as< std::string >();
+                    std::vector< std::string > sequenceNames = sequenceExtractVm["ids"].as< std::vector< std::string > >();
 
                     std::filesystem::create_directory("./fasta");
                     std::ofstream fout("./fasta/" + fileName + ".fasta");
 
                     auto sequenceExtractStart = std::chrono::high_resolution_clock::now();
                     
-                    std::string sequenceString = T->getStringFromReference(sequenceName, false);
-                    fout << ">" << sequenceName << '\n';
-                    for(size_t i = 0; i < sequenceString.length(); i+=70){
-                        fout << sequenceString.substr(i,std::min(sequenceString.length()-i, (size_t)70)) << '\n';
+                    for(auto sequenceName: sequenceNames){
+                        std::string sequenceString = T->getStringFromReference(sequenceName, false);
+                        fout << ">" << sequenceName << '\n';
+                        for(size_t i = 0; i < sequenceString.length(); i+=70){
+                            fout << sequenceString.substr(i,std::min(sequenceString.length()-i, (size_t)70)) << '\n';
+                        }
                     }
 
                     auto sequenceExtractEnd = std::chrono::high_resolution_clock::now();

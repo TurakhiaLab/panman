@@ -245,7 +245,6 @@ namespace PangenomeMAT {
 
     class Pangraph{
     private:
-        bool checkForCyclesHelper(size_t nodeId, std::vector< int >& color);
         void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited);
     public:
         // Graph adjacency list
@@ -285,7 +284,6 @@ namespace PangenomeMAT {
 
     class GFAGraph {
     private:
-        bool checkForCyclesHelper(size_t nodeId, std::vector< int >& color);
         void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited);
     public:
         size_t numNodes;
