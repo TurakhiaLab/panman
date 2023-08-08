@@ -5141,6 +5141,7 @@ bool PangenomeMAT::GFAGraph::pathExists(size_t nId1, size_t nId2, std::vector< b
     }
     std::queue<size_t> q;
     q.push(nId1);
+    visited[nId1] = true;
     while(!q.empty()){
         size_t fr = q.front();
         q.pop();
@@ -5149,6 +5150,7 @@ bool PangenomeMAT::GFAGraph::pathExists(size_t nId1, size_t nId2, std::vector< b
                 return true;
             }
             if(!visited[u]){
+                visited[u] = true;
                 q.push(u);
             }
         }
@@ -5482,20 +5484,20 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
                 currentNode = nextNode;
             } else {
                 
-                bool nodeFound = false;
-                for(auto u: stringToNodeIds[intIdToStringId[nextNode]]){
-                    std::vector< bool > visited(numNodes, false);
-                    if(u != nextNode && !pathExists(u, currentNode, visited)){
-                        nodeFound = true;
-                        nextNode = u;
-                        sequence.second[i] = u;
-                        break;
-                    }
-                }
-                if(nodeFound){
-                    adj[currentNode].push_back(nextNode);
-                    currentNode = nextNode;
-                } else {
+                // bool nodeFound = false;
+                // for(auto u: stringToNodeIds[intIdToStringId[nextNode]]){
+                //     std::vector< bool > visited(numNodes, false);
+                //     if(u != nextNode && !pathExists(u, currentNode, visited)){
+                //         nodeFound = true;
+                //         nextNode = u;
+                //         sequence.second[i] = u;
+                //         break;
+                //     }
+                // }
+                // if(nodeFound){
+                //     adj[currentNode].push_back(nextNode);
+                //     currentNode = nextNode;
+                // } else {
                     adj[currentNode].push_back(numNodes);
                     adj.push_back({});
                     intIdToStringId[numNodes] = intIdToStringId[nextNode];
@@ -5503,17 +5505,10 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
                     sequence.second[i] = numNodes;
                     currentNode = numNodes;
                     numNodes++;
-                }
+                // }
             }
         }
     }
-
-    // for(auto u: intSequences){
-    //     for(auto v: u.second){
-    //         std::cout << v << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
 
     std::cout << "Number of blocks after cycle removal: " << numNodes << std::endl;
 
@@ -5533,6 +5528,7 @@ bool PangenomeMAT::Pangraph::pathExists(size_t nId1, size_t nId2, std::vector< b
     }
     std::queue<size_t> q;
     q.push(nId1);
+    visited[nId1] = true;
     while(!q.empty()){
         size_t fr = q.front();
         q.pop();
@@ -5541,6 +5537,7 @@ bool PangenomeMAT::Pangraph::pathExists(size_t nId1, size_t nId2, std::vector< b
                 return true;
             }
             if(!visited[u]){
+                visited[u] = true;
                 q.push(u);
             }
         }
