@@ -180,6 +180,18 @@ data = json.load(fjson)
 fjson.close()
 
 seqPaths, seqStrands = getPaths(data)
+#### Writing seqpaths to files
+count = 0
+for p in seqPaths:
+    path = "ecoli_" + str(count) + ".csv"
+    f = open(path,"w")
+    for b in seqPaths[p]:
+        f.write(b)
+        f.write(",")
+    count += 1
+    f.close()
+####
+exit()
 blocksLen = getBlocksLen (data)
 max_, count, fil_blocks = distribution(blocksLen)
 
