@@ -9,9 +9,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-fjson = open(argv[1])
-data = json.load(fjson)
-fjson.close()
 
 def normal_rotation(data):
     seqPaths, seqStrands = getPaths(data)
@@ -22,7 +19,7 @@ def normal_rotation(data):
         seqList.append(seq)
 
     s1 = seqPaths[seqList[0]]
-    plot=False
+    plot=True
     if plot:
         for z in range(1,len(s1)):
             s2 = seqPaths[seqList[z]]
@@ -47,7 +44,7 @@ def normal_rotation(data):
 
 
 
-    hist = True
+    hist = False
     if hist:
         for z in range(10):
             s4 = seqPaths[seqList[z]]
@@ -137,6 +134,37 @@ def k_mer_based_rotation(data, K, M):
     plt.savefig("k-mer")
     plt.figure().clear()
 
+def read_file(f):
+    f1=open(f)
+    d=f1.readlines()
+    f1.close()
 
-k_mer_based_rotation(data,6,3)
+    a = d[0].split(",")
+    return a[:-1]
+
+def rotation_plot(f1, f2):
     
+    s1 = read_file(f1)
+    s2 = read_file(f2)
+
+
+    plot=True
+    if plot:
+        x=np.array([])
+        y=np.array([])
+        for i in range (len(s1)):
+            for j in range(len(s2)):
+                if (s1[i]==s2[j]):
+                    # matrix[j][i] = 1
+                    x = np.append(x,[i])
+                    y = np.append(y,[len(s2)-j])
+
+
+        plt.scatter(x,y)
+        string = argv[3]
+        plt.savefig(string)
+        plt.figure().clear()
+
+
+
+rotation_plot(argv[1], argv[2])
