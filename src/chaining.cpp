@@ -216,11 +216,16 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
 
     // // Printing the result
     // cout << "Points within the range (" << queryPoint1.first << "," << queryPoint1.second << ") and (" << queryPoint2.first << "," << queryPoint2.second << "):" << endl;
-    // for (const auto& point : result) {
+    // for (const auto& point : points_conc) {
     //     cout << "(" << point.first << "," << point.second << ")" << endl;
     // }
 
-    // exit(1);
+    // std::cout << "Length: " << points_conc.size() << std::endl; 
+
+    if (points_conc.size() == 0)
+    {
+        return chain;
+    }
 
     std::unordered_map<std::pair<int,int>, std::pair<int,std::pair<int,int>>, hash_pair> map;
     for (auto point: points_conc)
@@ -254,6 +259,7 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
         // cout << "Chained:" << point.first << "," << point.second << " with: " << map[point].second.first << "," << map[point].second.second << endl;
     } 
     
+
     int max_score = -1;
     std::pair<int,int> max_score_seed = {};
     for (auto m: map)
@@ -276,7 +282,6 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
             break;
         }
     }
-    // cout << "Exiting chaining Function\n";
     
     return chain;
 }
