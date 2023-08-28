@@ -164,7 +164,7 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
 {
     std::vector<std::pair<int,int>> chain;
     int INF = std::numeric_limits<int>::max();
-    int K = 200;
+    int K = 500;
 
     std::vector<std::pair<int,int>>  points;
     std::cout << "Finding seeds sequencial ";

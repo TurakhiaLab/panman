@@ -5520,7 +5520,7 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
     std::vector<std::string> sample_base = {};
     int seq_count = 0;
     std::string sample_base_string;
-
+    /*
     for(const auto& p: paths) 
     {
         for(const auto& block: p.second)
@@ -5529,37 +5529,49 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
         }
         sample_base_string = p.first;
     }
-
+    
     tbb::parallel_for_each(paths, [&](auto& p){
-        if (p.first == sample_base_string)
+        if (p.first != sample_base_string)
         {
-            continue;
-        }
-        std::vector<std::string> sample_dumy = {};
+         
+		std::vector<std::string> sample_dumy = {};
 
-        for(const auto& block: p.second)
-        {
-            sample_dumy.push_back(block);
-        }
-        p.second = rotate_sample(sample_base, sample_dumy);
+		for(const auto& block: p.second)
+		{
+		    sample_dumy.push_back(block);
+		}
+		p.second = rotate_sample(sample_base, sample_dumy);
+	}
+	std::cout << p.first << std::endl;
+
     });
     
+    */
     
-    // for(const auto& p: paths) 
-    // {
-    //     if (seq_count == 0)
-    //     {
-    //         for(const auto& block: p.second)
-    //         {
-    //             sample_base.push_back(block);
-    //         }
-    //     }
-    //     else
-    //     {
-            
-    //     }
-    //     seq_count++;
-    // }
+    std::vector<std::string> sample_new = {};
+    for(const auto& p: paths) 
+    {
+        if (seq_count == 0)
+        {
+            for(const auto& block: p.second)
+            {
+                sample_base.push_back(block);
+            }
+        }
+        else
+        {
+            std::vector<std::string> sample_dumy = {};
+            sample_new.clear();
+            for(const auto& block: p.second)
+            {
+                sample_dumy.push_back(block);
+            }
+            sample_new = rotate_sample(sample_base, sample_dumy);
+            paths[p.first] = sample_new;
+        }
+        seq_count++;
+        std::cout << seq_count << " " << sample_new.size() <<  "\n";
+    }
 
     std::cout << "All Seqeunces Rotated\n";
 
