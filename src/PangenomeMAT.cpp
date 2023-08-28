@@ -5658,9 +5658,10 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
             for(const auto& block: p.second)
             {
                 sample.push_back(block);
+                // std::cout << block << " ";
             }
+            // std::cout << "\n";
 
-            
             chain_align (consensus, 
                 sample, 
                 intSequenceConsensus,
