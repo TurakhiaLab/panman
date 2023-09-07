@@ -3,22 +3,34 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-
+#include <vector>
 
 
 struct kmer_t {
     std::string seq;
     size_t pos;
-    bool operator<(const kmer_t &rhs) const { 
+    size_t pos2;
+    bool reversed;
+    bool operator<(const kmer_t &rhs) const {
         if (seq == "") {
             return false;
         } else if (rhs.seq == "") {
             return true;
-        } else { 
+        } else {
             return seq < rhs.seq;
         }
     };
 };
+
+
+struct read_t {
+    std::string seq;
+    std::set<kmer_t> kmers;
+    //std::vector<int> read_coord;
+    //std::vector<int> ref_coord;
+    //std::vector<bool> reversed;
+};
+
 
 struct seedIndex {
     std::set<kmer_t> rootSeeds;

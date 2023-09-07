@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <string>
 
+#include <zlib.h>
+
 #include "PangenomeMATV2.hpp"
 
 
@@ -534,18 +536,19 @@ void updatedParser(int argc, char* argv[]){
                 if(placeVm.count("help")){
                     std::cout << placeDesc;
                 } else {
+                    
                     po::notify(placeVm);
                     std::string treeFileName = globalVm["input-file"].as< std::string >();
                     size_t len = treeFileName.length();
-
+                    
                     std::ifstream indexFile(treeFileName.substr(0, len-4) + ".mai");
                     std::string fastqPath = placeVm["fastq"].as< std::string >();
-
+                    
                     auto placeStart = std::chrono::high_resolution_clock::now();
-  
                    
 
                     struct seedIndex index;
+
                     T->loadIndex(indexFile, index);
                     
                     T->placeSample(fastqPath, index);
@@ -559,6 +562,7 @@ void updatedParser(int argc, char* argv[]){
 
             }
         } catch (std::exception& e){
+            std::cerr << "error\n";
             std::cout << e.what() << std::endl;
         }
     }
@@ -834,8 +838,10 @@ void updatedParser(int argc, char* argv[]){
 
 }
 
+
+
+
 int main(int argc, char* argv[]){
 
     updatedParser(argc, argv);
-
 }
