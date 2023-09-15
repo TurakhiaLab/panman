@@ -1,0 +1,9 @@
+Data load time: 26404636 nanoseconds 
+> read	301	0	301	-	(null)	29759	0	301	301	301	60	cg:Z:301M
+read	301	0	301	+	(null)	29759	3027	3328	299	301	60	cg:Z:301M
+read	301	0	301	+	(null)	29759	15480	15781	293	301	60	cg:Z:301M
+read	301	0	301	+	(null)	29759	19555	19856	296	301	60	cg:Z:301M
+read	301	0	301	+	(null)	29759	21237	21538	300	301	60	cg:Z:301M
+
+Placement execution time: 280816434 nanoseconds
+> 

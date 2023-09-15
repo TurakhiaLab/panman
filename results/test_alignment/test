@@ -1,0 +1,2 @@
+echo "place ../example0.fastq" | ../../build/panmat-utils ../sars_10.mat > stdout 2> stderr
+
