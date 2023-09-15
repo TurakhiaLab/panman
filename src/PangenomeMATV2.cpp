@@ -4123,11 +4123,11 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
 
     int k = 15;
     int s = 8;
-    
+
     /*
     for (int i = 0; i < reads.size(); i++) {
         std::cerr << "read: " <<  i << " " << reads[i].seq << "\n";
-        for( auto kmer : reads[i].kmers) {
+        for( auto kmer : reads[i].kmers ) {
             std::cout << kmer.seq << "\n";
             std::cout << kmer.pos << "\n";
             std::cout << kmer.reversed << "\n";
@@ -4136,8 +4136,8 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
     */
     
 
-    std::cout << "\n";
-    std::cout << "Placing sample...\n";
+    std::cerr << "\n";
+    std::cerr << "Placing sample...\n";
 
 
     struct dynamicJaccard dj;
@@ -4159,7 +4159,7 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
 
     std::string best_match = v[0].first;
     for (auto s : v) {
-        std::cout << s.first << ": " << s.second << "\n";
+        std::cerr << s.first << ": " << s.second << "\n";
     }
     //First in this s vector is the highest scoring node
     //   that will be reference
@@ -4216,6 +4216,7 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
         }
     }
     */
+    
 
 
 
@@ -4223,7 +4224,7 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
 
 
     //Figure out a better way to do this
-    
+    //C++ to C interface will have to be cleaned up
     const char *reference = ref_seq.c_str();
     int n_reads = reads.size();
     const char **read_strings = (const char **)malloc(n_reads*sizeof(char *));
@@ -4256,10 +4257,9 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
         ref_positions[i] = ref_pos_array;
         qry_positions[i] = qry_pos_array;
     }
-
+    
 
     align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions);
-
 
 
     for(int i = 0; i < n_reads; i++) {
