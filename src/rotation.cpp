@@ -78,7 +78,7 @@ std::pair<int, int> rotate_alignment(std::vector<std::string> consensus, std::ve
 
 }
 
-std::vector<std::string> rotate_sample(std::vector<std::string> consensus, std::vector<std::string> sample)
+std::vector<std::string>rotate_sample(std::vector<std::string> consensus, std::vector<std::string> sample, std::unordered_map<std::string, int> &blockSizeMap, int &rotation_index, bool &invert)
 {
     std::vector<std::string> rotated_sample;
     std::pair<int,int> front_rotate = rotate_alignment(consensus, sample);
@@ -88,7 +88,8 @@ std::vector<std::string> rotate_sample(std::vector<std::string> consensus, std::
     std::pair<int,int> back_rotate = rotate_alignment(consensus, sample);
 
     int rotate;
-    if(back_rotate.first < front_rotate.first)
+    invert = back_rotate.first > front_rotate.first;
+    if(!invert)
     {
         reverse(sample.begin(), sample.end());
         rotate = front_rotate.second;
@@ -100,7 +101,10 @@ std::vector<std::string> rotate_sample(std::vector<std::string> consensus, std::
 
     }
 
-    // std::ofstream output_file (argv[3]);
+    // for (auto i=0;i<rotate;i++){
+    //     rotation_index += blockSizeMap[sample[i]];
+    // }
+    rotation_index = rotate;
     int index;
     for (auto i=0;i < sample.size(); i++)
     {

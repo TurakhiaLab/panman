@@ -2815,7 +2815,7 @@ void PangenomeMAT::Tree::getNodesPreorder(PangenomeMAT::Node* root, MATNew::tree
 }
 
 // Write PanMAT to file
-void PangenomeMAT::Tree::writeToFile(std::ofstream& fout, PangenomeMAT::Node* node){
+void PangenomeMAT::Tree::writeToFile(std::ostream& fout, PangenomeMAT::Node* node){
     if(node == nullptr){
         node = root;
     }
@@ -5348,19 +5348,10 @@ std::vector< size_t > PangenomeMAT::GFAGraph::getTopologicalSort(){
     return topoArray;
 }
 
-// std::vector<int> parallel_construct(PangenomeMAT::Node* node)
-// {
-//     std::vector<PangenomeMAT::Node*> children = node->children;
-//     if (children[0] == nullptr && children[1] == nullptr)
-//     {
-//         return;
-//     }
-// }
 
-/*
-void PangenomeMAT::Pangraph::Pangraph_parallel(Json::Value& pangraphData)
-{
-        // load paths
+PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
+    // load paths
+    bool circular=false;
     for(size_t i = 0; i < pangraphData["paths"].size(); i++){
         Json::Value path = pangraphData["paths"][(int)i];
         for(size_t j = 0; j < path["blocks"].size(); j++){
@@ -5368,9 +5359,12 @@ void PangenomeMAT::Pangraph::Pangraph_parallel(Json::Value& pangraphData)
             strandPaths[path["name"].asString()].push_back(path["blocks"][(int)j]["strand"].asBool());
         }
         if(path["circular"].asBool() == true){
+            circular = true;
             circularSequences[path["name"].asString()] = -path["offset"].asInt();
         }
     }
+
+    std::unordered_map<std::string, int> blockSizeMap;
 
     // load blocks
     for(size_t i = 0; i < pangraphData["blocks"].size(); i++){
@@ -5378,6 +5372,7 @@ void PangenomeMAT::Pangraph::Pangraph_parallel(Json::Value& pangraphData)
         std::string sequence = pangraphData["blocks"][(int)i]["sequence"].asString();
         std::transform(sequence.begin(), sequence.end(),sequence.begin(), ::toupper);
         stringIdToConsensusSeq[blockId] = sequence;
+        blockSizeMap[blockId] = sequence.size();
         std::vector< std::string > gapMemberNames = pangraphData["blocks"][(int)i]["gaps"].getMemberNames();
         for(auto member: gapMemberNames){
             stringIdToGaps[blockId].push_back( std::make_pair( std::stoi(member), pangraphData["blocks"][(int)i]["gaps"][member].asInt() ) );
@@ -5411,209 +5406,65 @@ void PangenomeMAT::Pangraph::Pangraph_parallel(Json::Value& pangraphData)
             }
         }
         
-    }
-
-    // Auto increment ID to assign to nodes
-    numNodes = 0;
-
-    // Old string Node ID to new integer Node ID
-    std::unordered_map< std::string, size_t > stringToNodeId;
-    std::unordered_map< std::string, std::vector< size_t > > stringToNodeIds;
-
-    std::unordered_map<int,std::string> intToString; // Locally stored -> Later on mapped to intIdToStringId
-    int seqCount = 0; // Current Sequence ID
-    std::vector<std::string> consensus = {};
-    std::vector<std::string> sample = {};
-    std::vector<std::string> consensus_new = {};
-    std::vector<int> intSequenceConsensus={};
-    std::vector<int> intSequenceSample={};
-    std::vector<int> intSequenceConsensus_new={};
-
-    for(const auto& p: paths) 
-    {
-        cout << seqCount << " " << intSequenceConsensus_new.size() << endl;
-        if (seqCount == 0)// Load first sequence path
-        {
-            for(const auto& block: p.second)
-            {
-                consensus.push_back(block);
-                intToString[numNodes] = block;
-                intSequences[p.first].push_back(numNodes);
-                intSequenceConsensus.push_back(numNodes);
-                numNodes++;
-            }
-        }
-        else
-        {
-            intSequenceSample.clear();
-            intSequenceConsensus_new.clear();
-            sample.clear();
-            consensus_new.clear();
-            for(const auto& block: p.second)
-            {
-                sample.push_back(block);
-            }
-
-            chain_align (consensus, 
-                sample, 
-                intSequenceConsensus,
-                intSequenceSample,
-                numNodes, 
-                consensus_new,
-                intSequenceConsensus_new,
-                intToString);
-            for (auto &b: intSequenceSample)
-            {
-                intSequences[p.first].push_back(b);
-            }
-            consensus.clear();
-            intSequenceConsensus.clear();
-            for (auto &b: consensus_new)
-            {
-                consensus.push_back(b);
-            }
-
-            for (auto &b: intSequenceConsensus_new)
-            {
-                intSequenceConsensus.push_back(b);
-            }
-            
-        }
-        seqCount++;
-    }
-
-    // re-assigning IDs in fixed order
-    int reorder = 0;
-    std::unordered_map<int,int> order_map = {};
-    for (auto &i: intSequenceConsensus)
-    {
-        order_map[i] = reorder;
-        intIdToStringId[reorder] = intToString[i];
-        topo_sort_intSequences.push_back(reorder);
-        reorder++;
-    }
-
-    for (auto &m: intSequences)
-    {
-        for (auto &s: m.second)
-        {
-            s = order_map[s];
-        }
-        cout << m.second.size() << " ";
-    }
-}
-*/
-PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
-    // load paths
-    for(size_t i = 0; i < pangraphData["paths"].size(); i++){
-        Json::Value path = pangraphData["paths"][(int)i];
-        for(size_t j = 0; j < path["blocks"].size(); j++){
-            paths[path["name"].asString()].push_back(path["blocks"][(int)j]["id"].asString());
-            strandPaths[path["name"].asString()].push_back(path["blocks"][(int)j]["strand"].asBool());
-        }
-        if(path["circular"].asBool() == true){
-            circularSequences[path["name"].asString()] = -path["offset"].asInt();
-        }
     }
 
     // Rotation
-    std::vector<std::string> sample_base = {};
-    int seq_count = 0;
-    std::string sample_base_string;
-    /*
-    for(const auto& p: paths) 
+    // Testing data structure 
+    std::unordered_map<std::string, std::vector<string>> test;
+    if (circular)
     {
-        for(const auto& block: p.second)
-        {
-            sample_base.push_back(block);
-        }
-        sample_base_string = p.first;
-    }
-    
-    tbb::parallel_for_each(paths, [&](auto& p){
-        if (p.first != sample_base_string)
-        {
-         
-		std::vector<std::string> sample_dumy = {};
 
-		for(const auto& block: p.second)
-		{
-		    sample_dumy.push_back(block);
-		}
-		p.second = rotate_sample(sample_base, sample_dumy);
-	}
-	std::cout << p.first << std::endl;
-
-    });
-    
-    */
-    
-    std::vector<std::string> sample_new = {};
-    for(const auto& p: paths) 
-    {
-        if (seq_count == 0)
-        {
-            for(const auto& block: p.second)
-            {
-                sample_base.push_back(block);
-            }
-        }
-        else
-        {
-            std::vector<std::string> sample_dumy = {};
-            sample_new.clear();
-            for(const auto& block: p.second)
-            {
-                sample_dumy.push_back(block);
-            }
-            sample_new = rotate_sample(sample_base, sample_dumy);
-            paths[p.first] = sample_new;
-        }
-        seq_count++;
-        std::cout << seq_count << " " << sample_new.size() <<  "\n";
-    }
-
-    std::cout << "All Seqeunces Rotated\n";
-
-    // load blocks
-    for(size_t i = 0; i < pangraphData["blocks"].size(); i++){
-        std::string blockId = pangraphData["blocks"][(int)i]["id"].asString();
-        std::string sequence = pangraphData["blocks"][(int)i]["sequence"].asString();
-        std::transform(sequence.begin(), sequence.end(),sequence.begin(), ::toupper);
-        stringIdToConsensusSeq[blockId] = sequence;
-        std::vector< std::string > gapMemberNames = pangraphData["blocks"][(int)i]["gaps"].getMemberNames();
-        for(auto member: gapMemberNames){
-            stringIdToGaps[blockId].push_back( std::make_pair( std::stoi(member), pangraphData["blocks"][(int)i]["gaps"][member].asInt() ) );
-        }
-        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["mutate"].size(); j++){
-            std::string seqName = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["name"].asString();
-            size_t number = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["number"].asInt();
-
-            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["mutate"][(int)j][1].size(); k++){
-                std::string mutationString = pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString();
-                std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
-                substitutions[blockId][seqName][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt(), mutationString) );
-            }
-        }
-        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["insert"].size(); j++){
-            std::string seqName = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["name"].asString();
-            size_t number = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["number"].asInt();
-
-            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["insert"][(int)j][1].size(); k++){
-                std::string mutationString = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][1].asString();
-                std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
-                insertions[blockId][seqName][number].push_back( std::make_tuple( pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt(), pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt(), mutationString ) );
-            }
-        }
-        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["delete"].size(); j++){
-            std::string seqName = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["name"].asString();
-            size_t number = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["number"].asInt();
-
-            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["delete"][(int)j][1].size(); k++){
-                deletions[blockId][seqName][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][0].asInt(), pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][1].asInt() ) );
-            }
-        }
+        std::vector<std::string> sample_base = {};
+        int seq_count = 0;
+        std::string sample_base_string;
         
+        std::vector<std::string> sample_new = {};
+        for(const auto& p: paths) 
+        {
+            // std::cout << p.first << "\n";
+            
+            test[p.first] = p.second;
+            if (seq_count == 0)
+            {
+                for(const auto& block: p.second)
+                {
+                    // std::cout << block << ",";
+                    sample_base.push_back(block);
+                }
+            }
+            else
+            {
+                std::vector<std::string> sample_dumy = {};
+                sample_new.clear();
+                for(const auto& block: p.second)
+                {
+                    // std::cout << block << ",";
+                    sample_dumy.push_back(block);
+                }
+                int rotation_index;
+                bool invert;
+                sample_new= rotate_sample(sample_base, sample_dumy, blockSizeMap, rotation_index, invert);
+                // std::cout << p.first << " " << invert << " " << circularSequences[p.first] << " ";
+
+                // // Testing
+                // for (auto i = 0; i < sample_dumy.size(); i++)
+                // {
+                //     if (sample_dumy[(i+rotation_index)%sample_dumy.size()] != sample_new[i])
+                //     {
+                //         std::cout << "Error\n";
+                //         // break;
+                //     }
+                        
+                // }
+
+                circularSequences[p.first] = rotation_index;
+                // std::cout << rotation_index << "\n";
+                paths[p.first] = sample_new;
+            }
+            seq_count++;
+        }
+
+        std::cout << "All Seqeunces Rotated\n";
     }
 
     // Auto increment ID to assign to nodes
@@ -5641,7 +5492,7 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
             for(const auto& block: p.second)
             {
                 consensus.push_back(block);
-                sample_base.push_back(block);
+                // sample_base.push_back(block);
                 intToString[numNodes] = block;
                 intSequences[p.first].push_back(numNodes);
                 intSequenceConsensus.push_back(numNodes);
@@ -5688,10 +5539,10 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
             
         }
         seqCount++;
-        cout << seqCount << " " << intSequenceConsensus_new.size() << endl;
+        std::cout << seqCount << " " << intSequenceConsensus_new.size() << endl;
     }
 
-    // re-assigning IDs in fixed order
+    // // re-assigning IDs in fixed order
     int reorder = 0;
     std::unordered_map<int,int> order_map = {};
     for (auto &i: intSequenceConsensus)
@@ -5708,10 +5559,33 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
         {
             s = order_map[s];
         }
-        // cout << m.second.size() << " ";
     }
+   
 
-    // exit(0);
+    // Testing
+    // for (auto &m: intSequences)
+    // {
+    //     cout << m.first << "\n";
+    //     // std::cout << (m.second.size() == test[m.first].size()) << std::endl;
+    //     // for (auto i=0; i<m.second.size();i++)
+    //     // {
+    //     //     // std::cout << s << " " << intIdToStringId[s] << " "  <<  test[m.first][c] << std::endl;
+    //     //     if (intIdToStringId[m.second[(i+circularSequences[m.first])%m.second.size()]] != test[m.first][i])
+    //     //         std::cout << "Error ";
+    //     // }
+    //     for (auto i=0; i < m.second.size(); i++)
+    //     {
+    //         std::cout << intIdToStringId[m.second[i]] << " ";
+    //     }
+    //     cout << "\n";
+    //     for (auto i=0; i < test[m.first].size(); i++)
+    //     {
+    //         std::cout << test[m.first][i] << " ";
+    //     }
+    //     cout << "\n";
+    // }
+
+    // exit(1);
 
 
     
@@ -6018,6 +5892,8 @@ PangenomeMAT::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std:
 
 PangenomeMAT::TreeGroup::TreeGroup(std::ifstream& fin){
     MATNew::treeGroup TG;
+    
+
     if(!TG.ParseFromIstream(&fin)){
         throw std::invalid_argument("Could not read tree group from input file.");
     }
