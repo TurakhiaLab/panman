@@ -378,7 +378,7 @@ std::ofstream& fout, bool aligned = false);
             void printVCFParallel(std::string reference, std::ofstream& fout);
 
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
-            void writeToFile(std::ofstream& fout, Node* node = nullptr);
+            void writeToFile(std::ostream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true, bool incorporateInversions=true);
             void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference);

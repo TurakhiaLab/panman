@@ -4,6 +4,8 @@
 #include <chrono>
 #include <filesystem>
 #include <boost/program_options.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 #include <json/json.h>
 
 #include <fstream>
@@ -572,11 +574,23 @@ void updatedParser(int argc, char* argv[]){
                     po::notify(writeVm);
                     std::string fileName = writeVm["output-file"].as< std::string >();
                     std::filesystem::create_directory("./pmat");
-                    std::ofstream fout("./pmat/" + fileName + ".pmat");
+
+                    //------Changes
+                    // std::ofstream fout("./pmat/" + fileName + ".pmat");
+                    std::ofstream outfile("./pmat/" + fileName + ".pmat");
+                    boost::iostreams::filtering_streambuf< boost::iostreams::output> out_pmat_buf;
+                    //-------
 
                     auto writeStart = std::chrono::high_resolution_clock::now();
                     
-                    T->writeToFile(fout);
+                    out_pmat_buf.push(boost::iostreams::gzip_compressor());
+                    out_pmat_buf.push(outfile);
+                    std::ostream outstream(&out_pmat_buf);
+                    T->writeToFile(outstream);
+                    // data.SerializeToOstream(&outstream);
+                    boost::iostreams::close(out_pmat_buf);
+                    outfile.close();
+
 
                     auto writeEnd = std::chrono::high_resolution_clock::now();
                     
@@ -584,7 +598,7 @@ void updatedParser(int argc, char* argv[]){
 
                     std::cout << "\nTree Write execution time: " << writeTime.count() << " nanoseconds\n";
 
-                    fout.close();
+                    // fout.close();
                 }
             } else if(strcmp(splitCommandArray[0], "annotate") == 0){
                 // If command was annotate
