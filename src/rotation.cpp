@@ -93,11 +93,11 @@ std::vector<std::string>rotate_sample(std::vector<std::string> consensus, std::v
     {
         reverse(sample.begin(), sample.end());
         rotate = front_rotate.second;
-        // cout << "Front\n";
+        cout << "Front\n";
     }
     else {
         rotate = back_rotate.second;
-        // cout << "Back\n";
+        cout << "Back\n";
 
     }
 

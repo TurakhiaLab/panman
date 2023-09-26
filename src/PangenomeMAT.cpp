@@ -5444,8 +5444,7 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
                 int rotation_index;
                 bool invert;
                 sample_new= rotate_sample(sample_base, sample_dumy, blockSizeMap, rotation_index, invert);
-                // std::cout << p.first << " " << invert << " " << circularSequences[p.first] << " ";
-
+                std::cout << p.first << "\n";
                 // // Testing
                 // for (auto i = 0; i < sample_dumy.size(); i++)
                 // {
