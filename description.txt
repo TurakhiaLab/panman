@@ -1,16 +1,67 @@
 <!--        
                      tree
                      |                 
+<<<<<<< HEAD
+        ____________________________
+       |              |             |
+    newick          node        block list
+                      |
+                ______________
+=======
         _________________________________________
        |              |              |          |
     newick           node         gapList    blockGapList
                       |                         
                 ______________                 
+>>>>>>> c628dec607758af1150d82915d5fc604da520b67
                |              |                             
             nuc_mut        block_mut
                                                           
    
 -->
+<<<<<<< HEAD
+Node:
+   Nuc_Mut has four attributes:
+   1. position: mutation co-ordinate
+   2. gap_position: mutation gap co-ordinate w.r.t. position
+   3. condensed: it has 3 (or 4) sub-attributes
+      Note: Depending upon type of mutation, sub-attributes changes
+      if (Non-SNP):
+         a. block-id (3B)
+         b. length of contiguous mutation (5 bits)
+         c. type of mutation (3 bits)
+      else :
+         a. block-id (3B)
+         b. length of contiguous mutation (1 bits)
+         c. mutation character (4 bits)
+         d. type of mutation (3 bits)
+   4. nucs: list of mutation characters. Each character is represented by 4 bits (One-hot encoding), therefore maximum 8 characters can be stored.
+      Note: We do not need to store mutations character list in case of deletions
+
+   block_mut has one attribute, condensed_block_mut, which has two sub-attributes:
+         a. block-id (3B)
+         b. type of mutation (3 bits)
+
+Gap list:
+   It has 3 attributes:
+   1. position: gap co-ordinate
+   2. block-id: (3B -> Stored in int32)
+   b. length of contiguous gaps (4B)
+      
+Block list: (Currently not used)
+   It has 2 attributes:
+   1. blockid: List of block ids
+   2. chromosome_name: List of chromosome name associated with corresponding blocks
+
+
+Type of mutations:
+SUBS    =   "000"
+DEL     =   "001"
+INS     =   "010"
+SUBS1   =   "011"
+INS1    =   "100"
+DEL1    =   "101"
+=======
 newick: Stores the newick tree
 node:
    a) nucMut has following attributes:
@@ -54,3 +105,4 @@ INS     =   "0010"
 SUBS1   =   "0011"
 INS1    =   "0100"
 DEL1    =   "0101"
+>>>>>>> c628dec607758af1150d82915d5fc604da520b67
