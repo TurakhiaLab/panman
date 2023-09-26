@@ -5639,7 +5639,7 @@ std::vector< size_t > PangenomeMAT::Pangraph::getTopologicalSort(){
         }
     }
     std::reverse(topoArray.begin(), topoArray.end());
-
+    std::cout << topoArray.size() << std::endl;
     return topoArray;
 }
 
