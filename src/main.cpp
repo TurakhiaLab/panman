@@ -4,6 +4,8 @@
 #include <chrono>
 #include <filesystem>
 #include <boost/program_options.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 #include <json/json.h>
 
 #include <fstream>
@@ -116,7 +118,7 @@ void setupOptionDescriptions(){
     // Sequence Extract option descriptions
     sequenceExtractDesc.add_options()
         ("help", "produce help message")
-        ("ids", po::value< std::vector< std::string > >()->multitoken()->required(), "Sequence names")
+        ("sequence", po::value< std::string >()->required(), "Sequence name")
         ("output-file", po::value< std::string >()->required(), "Output file name")
     ;
 
@@ -572,11 +574,23 @@ void updatedParser(int argc, char* argv[]){
                     po::notify(writeVm);
                     std::string fileName = writeVm["output-file"].as< std::string >();
                     std::filesystem::create_directory("./pmat");
-                    std::ofstream fout("./pmat/" + fileName + ".pmat");
+
+                    //------Changes
+                    // std::ofstream fout("./pmat/" + fileName + ".pmat");
+                    std::ofstream outfile("./pmat/" + fileName + ".pmat");
+                    boost::iostreams::filtering_streambuf< boost::iostreams::output> out_pmat_buf;
+                    //-------
 
                     auto writeStart = std::chrono::high_resolution_clock::now();
                     
-                    T->writeToFile(fout);
+                    out_pmat_buf.push(boost::iostreams::gzip_compressor());
+                    out_pmat_buf.push(outfile);
+                    std::ostream outstream(&out_pmat_buf);
+                    T->writeToFile(outstream);
+                    // data.SerializeToOstream(&outstream);
+                    boost::iostreams::close(out_pmat_buf);
+                    outfile.close();
+
 
                     auto writeEnd = std::chrono::high_resolution_clock::now();
                     
@@ -584,7 +598,7 @@ void updatedParser(int argc, char* argv[]){
 
                     std::cout << "\nTree Write execution time: " << writeTime.count() << " nanoseconds\n";
 
-                    fout.close();
+                    // fout.close();
                 }
             } else if(strcmp(splitCommandArray[0], "annotate") == 0){
                 // If command was annotate
@@ -624,7 +638,7 @@ void updatedParser(int argc, char* argv[]){
                     std::cout << std::endl;
                 }
 
-            } else if(strcmp(splitCommandArray[0], "getSequences") == 0){
+            } else if(strcmp(splitCommandArray[0], "sequence") == 0){
                 // If command was maf
                 po::variables_map sequenceExtractVm;
                 po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(sequenceExtractDesc).positional(sequenceExtractPositionArgumentDesc).run(), sequenceExtractVm);
@@ -635,19 +649,17 @@ void updatedParser(int argc, char* argv[]){
                     po::notify(sequenceExtractVm);
 
                     std::string fileName = sequenceExtractVm["output-file"].as< std::string >();
-                    std::vector< std::string > sequenceNames = sequenceExtractVm["ids"].as< std::vector< std::string > >();
+                    std::string sequenceName = sequenceExtractVm["sequence"].as< std::string >();
 
                     std::filesystem::create_directory("./fasta");
                     std::ofstream fout("./fasta/" + fileName + ".fasta");
 
                     auto sequenceExtractStart = std::chrono::high_resolution_clock::now();
                     
-                    for(auto sequenceName: sequenceNames){
-                        std::string sequenceString = T->getStringFromReference(sequenceName, false);
-                        fout << ">" << sequenceName << '\n';
-                        for(size_t i = 0; i < sequenceString.length(); i+=70){
-                            fout << sequenceString.substr(i,std::min(sequenceString.length()-i, (size_t)70)) << '\n';
-                        }
+                    std::string sequenceString = T->getStringFromReference(sequenceName, false);
+                    fout << ">" << sequenceName << '\n';
+                    for(size_t i = 0; i < sequenceString.length(); i+=70){
+                        fout << sequenceString.substr(i,std::min(sequenceString.length()-i, (size_t)70)) << '\n';
                     }
 
                     auto sequenceExtractEnd = std::chrono::high_resolution_clock::now();

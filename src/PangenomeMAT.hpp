@@ -31,8 +31,8 @@ namespace PangenomeMAT {
     char getNucleotideFromCode(int code);
     char getCodeFromNucleotide(char nuc);
     char getComplementCharacter(char nuc);
-    void printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-        const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset = 0, bool debug = false);
+    void printSequenceLines(const sequence_t& sequence,\
+        const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset = 0, bool debug = false);
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
     std::string stripGaps(std::string sequenceString);
     std::string getDate();
@@ -245,20 +245,30 @@ namespace PangenomeMAT {
 
     class Pangraph{
     private:
+        bool checkForCyclesHelper(size_t nodeId, std::vector< int >& color);
         void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited);
     public:
         // Graph adjacency list
         size_t numNodes;
         std::vector< std::vector< size_t > > adj;
         std::unordered_map< std::string, std::vector< size_t > > intSequences;
+        std::vector< size_t > topo_sort_intSequences;
 
         std::unordered_map< std::string, std::vector< std::string > > paths;
         
         // Added as a patch to incorporate strands
         std::unordered_map< std::string, std::vector< int > > strandPaths;
 
+        // Represents the "number" parameter of each block
+        std::unordered_map< std::string, std::vector< size_t > > blockNumbers;
+
         // Circular sequences
         std::unordered_map< std::string, int > circularSequences;
+        
+        std::unordered_map< std::string, int > rotationIndexes;
+        
+        // Specifies whether sequence is inverted or not by the rotation algorithm
+        std::unordered_map< std::string, bool > sequenceInverted;
 
         std::unordered_map< std::string, std::string > stringIdToConsensusSeq;
         std::unordered_map< std::string, std::vector< std::pair< size_t, size_t > > > stringIdToGaps;
@@ -272,6 +282,7 @@ namespace PangenomeMAT {
         tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t , std::vector< std::pair< size_t, size_t > > > > > deletions;
 
         Pangraph(Json::Value& pangraphData);
+        void Pangraph_parallel(Json::Value& pangraphData);
         bool pathExists(size_t nId1, size_t nId2, std::vector< bool >& visited);
         std::vector< size_t > getTopologicalSort();
         std::unordered_map< std::string,std::vector< int > > getAlignedSequences(const std::vector< size_t >& topoArray);
@@ -284,6 +295,7 @@ namespace PangenomeMAT {
 
     class GFAGraph {
     private:
+        bool checkForCyclesHelper(size_t nodeId, std::vector< int >& color);
         void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited);
     public:
         size_t numNodes;
@@ -374,7 +386,7 @@ std::ofstream& fout, bool aligned = false);
             void printVCFParallel(std::string reference, std::ofstream& fout);
 
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
-            void writeToFile(std::ofstream& fout, Node* node = nullptr);
+            void writeToFile(std::ostream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true, bool incorporateInversions=true);
             void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference);
@@ -406,6 +418,12 @@ std::ofstream& fout, bool aligned = false);
             std::vector< GapList > gaps;
             BlockGapList blockGaps;
             std::unordered_map< std::string, int > circularSequences;
+
+            std::unordered_map< std::string, int > rotationIndexes;
+
+            // Specifies whether sequence is inverted or not by the rotation algorithm
+            std::unordered_map< std::string, bool > sequenceInverted;
+
             std::unordered_map< std::string, Node* > allNodes;
 
     };
