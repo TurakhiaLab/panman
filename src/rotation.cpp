@@ -11,7 +11,7 @@
 using namespace std;
 
 
-std::pair<int, int> rotate_alignment(std::vector<std::string> consensus, std::vector<std::string> sample)
+std::pair<int, int> rotate_alignment(const std::vector<std::string>& consensus, const std::vector<std::string>& sample)
 {
     std::vector<std::pair<int, int>> score(sample.size(), std::make_pair(-1,-1));
     std::vector<std::pair<int, int>> next_score(sample.size(), std::make_pair(-1,-1));
@@ -72,19 +72,21 @@ std::pair<int, int> rotate_alignment(std::vector<std::string> consensus, std::ve
     }
 
     
-    // cout << max_.first << " " << max_.second << " ";
+    cout << max_.first << " " << max_.second << " ";
 
     return max_;
 
 }
 
-std::vector<std::string>rotate_sample(std::vector<std::string> consensus, std::vector<std::string> sample, std::unordered_map<std::string, int> &blockSizeMap, int &rotation_index, bool &invert)
+std::vector<std::string>rotate_sample(const std::vector<std::string>& consensus, std::vector<std::string>& sample, std::vector<int>& blockStrand, std::vector< size_t >& blockNumbers, std::unordered_map<std::string, int> &blockSizeMap, int &rotation_index, bool &invert)
 {
     std::vector<std::string> rotated_sample;
     std::pair<int,int> front_rotate = rotate_alignment(consensus, sample);
 
     reverse(sample.begin(), sample.end());
-    
+    reverse(blockStrand.begin(), blockStrand.end());
+    reverse(blockNumbers.begin(), blockNumbers.end());
+
     std::pair<int,int> back_rotate = rotate_alignment(consensus, sample);
 
     int rotate;
@@ -92,27 +94,32 @@ std::vector<std::string>rotate_sample(std::vector<std::string> consensus, std::v
     if(!invert)
     {
         reverse(sample.begin(), sample.end());
+        reverse(blockStrand.begin(), blockStrand.end());
+        reverse(blockNumbers.begin(), blockNumbers.end());
         rotate = front_rotate.second;
-        // cout << "Front\n";
+        cout << "Front\n";
     }
     else {
         rotate = back_rotate.second;
-        // cout << "Back\n";
-
+        cout << "Back\n";
     }
 
-    // for (auto i=0;i<rotate;i++){
-    //     rotation_index += blockSizeMap[sample[i]];
-    // }
-    rotation_index = rotate;
+    rotation_index = (sample.size() - rotate) % sample.size();
     int index;
+    std::vector<int> newBlockStrand = {};
+    std::vector<size_t> newBlockNumbers = {};
+
     for (auto i=0;i < sample.size(); i++)
     {
         index = (i+rotate)%sample.size();
         rotated_sample.push_back(sample[index]);
+        newBlockStrand.push_back(blockStrand[index]);
+        newBlockNumbers.push_back(blockNumbers[index]);
         // output_file << sample[index];
     }
 
+    blockStrand = newBlockStrand;
+    blockNumbers = newBlockNumbers;
     return rotated_sample;
 }
 

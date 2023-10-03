@@ -559,7 +559,9 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
         std::cout << "Psuedo Root Calculated in: " << timing.count() << " nanoseconds \n";
         
         circularSequences = pg.circularSequences;
-        
+        sequenceInverted = pg.sequenceInverted;
+        rotationIndexes = pg.rotationIndexes;
+
         std::vector< size_t > topoArray = pg.getTopologicalSort();
         std::cout << "Length of Pseudo Root: " << topoArray.size() << endl;
         std::unordered_map< std::string, std::vector< int > > alignedSequences = pg.getAlignedSequences(topoArray);
@@ -584,7 +586,6 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
 
         tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, std::pair< BlockMutationType, bool > > > globalBlockMutations;
 
-
         tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i){
             std::unordered_map< std::string, int > states;
             std::unordered_map< std::string, std::pair< BlockMutationType, bool > > mutations;
@@ -606,7 +607,6 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
             globalBlockMutations[i] = mutations;
 
         });
-
 
         std::unordered_map< std::string, std::mutex > nodeMutexes;
 
@@ -631,11 +631,14 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
         }
 
         tbb::parallel_for_each(alignedSequences, [&](const auto& u){
-            std::unordered_map< std::string, size_t > currentCount;
+            // std::unordered_map< std::string, size_t > currentCount;
+            int currentPtr = 0;
             for(size_t i = 0; i < u.second.size(); i++){
                 if(u.second[i] != -1){
-                    blockCounts[u.first][i] = currentCount[pg.intIdToStringId[u.second[i]]] + 1;
-                    currentCount[pg.intIdToStringId[u.second[i]]]++;
+                    // blockCounts[u.first][i] = currentCount[pg.intIdToStringId[u.second[i]]] + 1;
+                    // currentCount[pg.intIdToStringId[u.second[i]]]++;
+                    blockCounts[u.first][i] = pg.blockNumbers[u.first][currentPtr];
+                    currentPtr++;
                 }
             }
         });
@@ -1061,8 +1064,8 @@ void PangenomeMAT::Tree::printBfs(Node* node){
     std::cout << '\n';
 }
 
-void PangenomeMAT::printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-    const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset, bool debug){
+void PangenomeMAT::printSequenceLines(const sequence_t& sequence,\
+    const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset, bool debug){
 
     // String that stores the sequence to be printed
     std::string line;
@@ -1616,53 +1619,33 @@ void PangenomeMAT::Tree::printFASTAHelper(PangenomeMAT::Node* root,\
             // If MSA is to be printed, offset doesn't matter
             offset = circularSequences[root->identifier];
         }
+        sequence_t sequencePrint = sequence;
+        blockExists_t blockExistsPrint = blockExists;
+        blockStrand_t blockStrandPrint = blockStrand;
 
-        // if(root->identifier == "NZ_CP013985.1"){
-        //     int ctr = 0, blockCtr = -1;
-        //     for(int i  = 0; i < sequence.size(); i++){
-        //         if(!blockExists[i].first){
-        //             continue;
-        //         }
-        //         blockCtr++;
-        //         if(blockStrand[i].first){
-        //             for(int j = 0; j < sequence[i].first.size(); j++){
-        //                 for(int k = 0; k < sequence[i].first[j].second.size(); k++){
-        //                     if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x'){
-        //                         if(ctr == 433888){
-        //                             std::cout << "f " << blockCtr << std::endl;
-        //                         }
-        //                         ctr++;
-        //                     }
-        //                 }
-        //                 if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
-        //                     if(ctr == 433888){
-        //                         std::cout << "f " << blockCtr << std::endl;
-        //                     }
-        //                     ctr++;
-        //                 }
-        //             }
-        //         } else {
-        //             for(int j = sequence[i].first.size()-1; j >= 0; j--){
-        //                 if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x'){
-        //                     if(ctr == 433888){
-        //                         std::cout << "r " << blockCtr << " " << j << std::endl;
-        //                     }
-        //                     ctr++;
-        //                 }
-        //                 for(int k = sequence[i].first[j].second.size()-1; k >= 0; k--){
-        //                     if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x'){
-        //                         if(ctr == 433888){
-        //                             std::cout << "r " << blockCtr << std::endl;
-        //                         }
-        //                         ctr++;
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+        if(rotationIndexes.find(root->identifier) != rotationIndexes.end() && rotationIndexes[root->identifier] != 0) {
+            int ctr = -1, rotInd = 0;
+            for(size_t i = 0; i < blockExistsPrint.size(); i++){
+                if(blockExistsPrint[i].first){
+                    ctr++;
+                }
+                if(ctr == rotationIndexes[root->identifier]) {
+                    rotInd = i;
+                    break;
+                }
+            }
+            rotate(sequencePrint.begin(), sequencePrint.begin() + rotInd, sequencePrint.end());
+            rotate(blockExistsPrint.begin(), blockExistsPrint.begin() + rotInd, blockExistsPrint.end());
+            rotate(blockStrandPrint.begin(), blockStrandPrint.begin() + rotInd, blockStrandPrint.end());
+        }
 
-        PangenomeMAT::printSequenceLines(sequence, blockExists, blockStrand, 70, aligned, fout, offset);
+        if(sequenceInverted.find(root->identifier) != sequenceInverted.end() && sequenceInverted[root->identifier]) {
+            reverse(sequencePrint.begin(), sequencePrint.end());
+            reverse(blockExistsPrint.begin(), blockExistsPrint.end());
+            reverse(blockStrandPrint.begin(), blockStrandPrint.end());
+        }
+
+        PangenomeMAT::printSequenceLines(sequencePrint, blockExistsPrint, blockStrandPrint, 70, aligned, fout, offset);
 
     } else {
         // DFS on children
@@ -3381,6 +3364,12 @@ void PangenomeMAT::Tree::getSequenceFromReference(sequence_t& sequence, blockExi
             }
         }
     }
+
+    if(sequenceInverted.find(reference) != sequenceInverted.end() && sequenceInverted[reference]){
+        reverse(sequence.begin(), sequence.end());
+        reverse(blockExists.begin(), blockExists.end());
+        reverse(blockStrand.begin(), blockStrand.end());
+    }
 }
 
 std::string PangenomeMAT::Tree::getStringFromReference(std::string reference, bool aligned,  bool incorporateInversions){
@@ -3680,6 +3669,12 @@ std::string PangenomeMAT::Tree::getStringFromReference(std::string reference, bo
                 }
             }
         }
+    }
+
+    if(sequenceInverted.find(reference) != sequenceInverted.end() && sequenceInverted[reference]){
+        reverse(sequence.begin(), sequence.end());
+        reverse(blockExists.begin(), blockExists.end());
+        reverse(blockStrand.begin(), blockStrand.end());
     }
 
     std::string sequenceString;
@@ -5426,14 +5421,27 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
             test[p.first] = p.second;
             if (seq_count == 0)
             {
+                std::unordered_map< std::string, size_t > baseBlockNumber;
+                sequenceInverted[p.first] = false;
+                rotationIndexes[p.first] = 0;
+
                 for(const auto& block: p.second)
                 {
-                    // std::cout << block << ",";
+                    blockNumbers[p.first].push_back(baseBlockNumber[block]+1);
+                    baseBlockNumber[block]++;
                     sample_base.push_back(block);
                 }
             }
             else
             {
+                // Assigning block numbers
+                std::unordered_map< std::string, size_t > baseBlockNumber;
+                for(const auto& block: p.second)
+                {
+                    blockNumbers[p.first].push_back(baseBlockNumber[block]+1);
+                    baseBlockNumber[block]++;
+                }
+
                 std::vector<std::string> sample_dumy = {};
                 sample_new.clear();
                 for(const auto& block: p.second)
@@ -5442,9 +5450,21 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
                     sample_dumy.push_back(block);
                 }
                 int rotation_index;
-                bool invert;
-                sample_new= rotate_sample(sample_base, sample_dumy, blockSizeMap, rotation_index, invert);
-                // std::cout << p.first << " " << invert << " " << circularSequences[p.first] << " ";
+                bool invert = false;
+                sample_new= rotate_sample(sample_base, sample_dumy, strandPaths[p.first], blockNumbers[p.first], blockSizeMap, rotation_index, invert);
+
+                std::cout << p.first << "\n";
+                // std::vector<string> temp1({"a","b","c","d","e","f"});
+                // std::vector<string> temp2({"a","b","c","d","g","h"});
+                // std::vector<int> temp3({1,1,1,1,1,1});
+                // int temp4;
+                // bool temp5;
+                // temp2 = rotate_sample(temp1, temp2, temp3, blockSizeMap, temp4, temp5);
+                // std::cout << "ROTATED" << std::endl;
+                // for(auto u: temp2){
+                //     std::cout << u << " ";
+                // }
+                // std::cout << std::endl;
 
                 // // Testing
                 // for (auto i = 0; i < sample_dumy.size(); i++)
@@ -5454,11 +5474,12 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
                 //         std::cout << "Error\n";
                 //         // break;
                 //     }
-                        
                 // }
 
-                circularSequences[p.first] = rotation_index;
-                // std::cout << rotation_index << "\n";
+                sequenceInverted[p.first] = invert;
+
+                rotationIndexes[p.first] = rotation_index;
+
                 paths[p.first] = sample_new;
             }
             seq_count++;
@@ -5482,8 +5503,6 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
     std::vector<int> intSequenceConsensus={};
     std::vector<int> intSequenceSample={};
     std::vector<int> intSequenceConsensus_new={};
-
-    
 
     for(const auto& p: paths) 
     {
@@ -5560,151 +5579,6 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData){
             s = order_map[s];
         }
     }
-   
-
-    // Testing
-    // for (auto &m: intSequences)
-    // {
-    //     cout << m.first << "\n";
-    //     // std::cout << (m.second.size() == test[m.first].size()) << std::endl;
-    //     // for (auto i=0; i<m.second.size();i++)
-    //     // {
-    //     //     // std::cout << s << " " << intIdToStringId[s] << " "  <<  test[m.first][c] << std::endl;
-    //     //     if (intIdToStringId[m.second[(i+circularSequences[m.first])%m.second.size()]] != test[m.first][i])
-    //     //         std::cout << "Error ";
-    //     // }
-    //     for (auto i=0; i < m.second.size(); i++)
-    //     {
-    //         std::cout << intIdToStringId[m.second[i]] << " ";
-    //     }
-    //     cout << "\n";
-    //     for (auto i=0; i < test[m.first].size(); i++)
-    //     {
-    //         std::cout << test[m.first][i] << " ";
-    //     }
-    //     cout << "\n";
-    // }
-
-    // exit(1);
-
-
-    
-    /* Cycle removal
-    for(const auto& p: paths){
-        for(const auto& block: p.second){
-            if(stringToNodeId.find(block) == stringToNodeId.end()){
-                stringToNodeId[block] = numNodes;
-                stringToNodeIds[block].push_back(numNodes);
-
-                intIdToStringId[numNodes] = block;
-                numNodes++;
-            }
-        }
-    }
-    
-
-    adj.resize(numNodes);
-    std::set< std::pair< size_t, size_t > > edges;
-
-    for(const auto& p: paths){
-        for(size_t i = 1; i < p.second.size(); i++){
-            size_t nId1 = stringToNodeId[p.second[i-1]];
-            size_t nId2 = stringToNodeId[p.second[i]];
-            if(edges.find( std::make_pair(nId1, nId2) ) == edges.end()){
-                edges.insert(std::make_pair(nId1, nId2));
-                adj[nId1].push_back(nId2);
-            }
-        }
-    }
-
-    for(const auto& p: paths){
-        for(size_t i = 0; i < p.second.size(); i++){
-            intSequences[p.first].push_back(stringToNodeId[p.second[i]]);
-        }
-    }
-
-    if(!checkForCycles()){
-        return;
-    }
-
-    std::cout << "Cycles found in Pangraph. Removing them..." << std::endl;
-    std::cout << "Number of blocks before cycle removal: " << numNodes << std::endl;
-
-    adj.clear();
-    adj.resize(numNodes);
-
-    for(auto& sequence: intSequences){
-        if(sequence.second.size() == 0){
-            continue;
-        }
-        size_t currentNode = sequence.second[0];
-        for(size_t i = 1; i < sequence.second.size(); i++){
-
-            size_t nextNode = sequence.second[i];
-
-            bool neighbourFound = false;
-            for(auto neighbour: adj[currentNode]){
-                if(intIdToStringId[neighbour] == intIdToStringId[nextNode]){
-                    neighbourFound = true;
-                    nextNode = neighbour;
-                    sequence.second[i] = neighbour;
-                    break;
-                }
-            }
-            if(neighbourFound){
-                currentNode = nextNode;
-                continue;
-            }
-
-            std::vector< bool > visited(numNodes, false);
-            if(!pathExists(nextNode, currentNode,visited)){
-                adj[currentNode].push_back(nextNode);
-                currentNode = nextNode;
-            } else {
-                
-                bool nodeFound = false;
-                for(auto u: stringToNodeIds[intIdToStringId[nextNode]]){
-                    std::vector< bool > visited(numNodes, false);
-                    if(u != nextNode && !pathExists(u, currentNode, visited)){
-                        nodeFound = true;
-                        nextNode = u;
-                        sequence.second[i] = u;
-                        break;
-                    }
-                }
-                if(nodeFound){
-                    adj[currentNode].push_back(nextNode);
-                    currentNode = nextNode;
-                } else {
-                    adj[currentNode].push_back(numNodes);
-                    adj.push_back({});
-                    intIdToStringId[numNodes] = intIdToStringId[nextNode];
-                    stringToNodeIds[intIdToStringId[numNodes]].push_back(numNodes);
-                    sequence.second[i] = numNodes;
-                    currentNode = numNodes;
-                    numNodes++;
-                }
-            }
-        }
-    }
-
-    // for(auto u: intSequences){
-    //     for(auto v: u.second){
-    //         std::cout << v << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
-
-    std::cout << "Number of blocks after cycle removal: " << numNodes << std::endl;
-
-    if(!checkForCycles()){
-        std::cout << "Cycles Removed!" << std::endl;
-        return;
-    } else {
-        std::cout << "Error: Cycle removal failed!" << std::endl;
-        return;
-    }
-    */
 
 }
 

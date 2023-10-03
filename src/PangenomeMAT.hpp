@@ -31,8 +31,8 @@ namespace PangenomeMAT {
     char getNucleotideFromCode(int code);
     char getCodeFromNucleotide(char nuc);
     char getComplementCharacter(char nuc);
-    void printSequenceLines(const std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-        const std::vector< std::pair< bool, std::vector< bool > > >& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset = 0, bool debug = false);
+    void printSequenceLines(const sequence_t& sequence,\
+        const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset = 0, bool debug = false);
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
     std::string stripGaps(std::string sequenceString);
     std::string getDate();
@@ -259,8 +259,16 @@ namespace PangenomeMAT {
         // Added as a patch to incorporate strands
         std::unordered_map< std::string, std::vector< int > > strandPaths;
 
+        // Represents the "number" parameter of each block
+        std::unordered_map< std::string, std::vector< size_t > > blockNumbers;
+
         // Circular sequences
         std::unordered_map< std::string, int > circularSequences;
+        
+        std::unordered_map< std::string, int > rotationIndexes;
+        
+        // Specifies whether sequence is inverted or not by the rotation algorithm
+        std::unordered_map< std::string, bool > sequenceInverted;
 
         std::unordered_map< std::string, std::string > stringIdToConsensusSeq;
         std::unordered_map< std::string, std::vector< std::pair< size_t, size_t > > > stringIdToGaps;
@@ -410,6 +418,12 @@ std::ofstream& fout, bool aligned = false);
             std::vector< GapList > gaps;
             BlockGapList blockGaps;
             std::unordered_map< std::string, int > circularSequences;
+
+            std::unordered_map< std::string, int > rotationIndexes;
+
+            // Specifies whether sequence is inverted or not by the rotation algorithm
+            std::unordered_map< std::string, bool > sequenceInverted;
+
             std::unordered_map< std::string, Node* > allNodes;
 
     };

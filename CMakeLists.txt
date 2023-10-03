@@ -17,7 +17,7 @@ if(Protobuf_FOUND)
 endif()
 include_directories(${Protobuf_INCLUDE_DIRS})
 
-FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
@@ -27,7 +27,7 @@ find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
 find_package(jsoncpp CONFIG REQUIRED)
 # target_link_libraries(main PRIVATE JsonCpp::JsonCpp)
 
-#find_package(ZLIB REQUIRED)
+# FIND_PACKAGE(ZLIB COMPONENTS ZLIB REQUIRED)
 
 
 file(GLOB PANMAT_SRCS "src/main.cpp" "src/PangenomeMAT.cpp" "src/PangenomeMAT.hpp")
@@ -70,5 +70,5 @@ TARGET_COMPILE_OPTIONS(panmat-utils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 add_subdirectory(spoa EXCLUDE_FROM_ALL)
 
 # find_package(spoa)
-TARGET_LINK_LIBRARIES(panmat-utils PRIVATE spoa::spoa stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} -lboost_iostreams ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ZLIB::ZLIB) # OpenMP::OpenMP_CXX)
+TARGET_LINK_LIBRARIES(panmat-utils PRIVATE spoa::spoa stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
 target_include_directories(panmat-utils PUBLIC "${PROJECT_BINARY_DIR}")
