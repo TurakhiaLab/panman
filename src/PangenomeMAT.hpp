@@ -352,7 +352,7 @@ std::ofstream& fout, bool aligned = false);
 
         public:
             Tree(const MATNew::tree& mainTree);
-            Tree(std::ifstream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
+            Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
             Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
             
             // Copy blocks from current tree into new tree which is rooted at one of the internal nodes of the current tree. Used in split for PanMAN

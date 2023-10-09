@@ -941,7 +941,7 @@ PangenomeMAT::Tree::Tree(const MATNew::tree& mainTree){
 
 }
 
-PangenomeMAT::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
+PangenomeMAT::Tree::Tree(std::istream& fin, FILE_TYPE ftype){
 
     if(ftype == PangenomeMAT::FILE_TYPE::PANMAT){
         MATNew::tree mainTree;
@@ -951,7 +951,6 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, FILE_TYPE ftype){
         }
 
         protoMATToTree(mainTree);
-        // std::cout << "Blocks: " << blocks.size() << std::endl;
     }
 }
 
