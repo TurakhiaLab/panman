@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package MATNew;
+package PanMAT;
 
 message nucMut
 {
@@ -17,11 +17,10 @@ message mutation
     bool  blockMutExist = 3;
     bool  blockMutInfo = 4;
     optional bool  blockInversion = 5;
-
     repeated nucMut nucMutation = 6;
 }
 
-message node 
+message node
 {
     repeated mutation mutations = 1;
     repeated string   annotations = 2;
@@ -55,7 +54,19 @@ message circularOffset
     int32           offset = 2;
 }
 
-message tree 
+message rotationIndex
+{
+    string          sequenceId = 1;
+    int32           blockOffset = 2;
+}
+
+message sequenceInverted
+{
+    string          sequenceId = 1;
+    bool            inverted = 2;
+}
+
+message tree
 {
     string           newick = 1;
     repeated node    nodes = 2;
@@ -63,6 +74,8 @@ message tree
     repeated gapList gaps = 5;
     blockGapList     blockGaps = 6;
     repeated circularOffset circularSequences = 7;
+    repeated rotationIndex rotationIndexes = 8;
+    repeated sequenceInverted sequencesInverted = 9;
 }
 
 message complexMutation {

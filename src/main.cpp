@@ -200,11 +200,7 @@ search for")
     groupWritePositionArgumentDesc.add("output-file", -1);
 }
 
-void printError(std::string e) {
-    std::cout << "\033[1;31m" << "Error: " << "\033[0m" << e << "\n";
-}
-
-void updatedParser(int argc, char* argv[]) {
+void parseAndExecute(int argc, char* argv[]) {
 
     // Setup boost::program_options
     setupOptionDescriptions();
@@ -265,7 +261,7 @@ void updatedParser(int argc, char* argv[]) {
 
         std::string fileName = globalVm["gfa-in"].as< std::string >();
         if(!globalVm.count("newick-in")) {
-            printError("File containing newick string not provided!");
+            PangenomeMAT::printError("File containing newick string not provided!");
             return;
         }
         std::string newickFileName = globalVm["newick-in"].as< std::string >();
@@ -290,7 +286,7 @@ void updatedParser(int argc, char* argv[]) {
 
         std::string fileName = globalVm["pangraph-in"].as< std::string >();
         if(!globalVm.count("newick-in")) {
-            printError("File containing newick string not provided!");
+            PangenomeMAT::printError("File containing newick string not provided!");
             return;
         }
         std::string newickFileName = globalVm["newick-in"].as< std::string >();
@@ -316,7 +312,7 @@ void updatedParser(int argc, char* argv[]) {
 
         std::string fileName = globalVm["msa-in"].as< std::string >();
         if(!globalVm.count("newick-in")) {
-            printError("File containing newick string not provided!");
+            PangenomeMAT::printError("File containing newick string not provided!");
             return;
         }
         bool optimize = false;
@@ -355,7 +351,7 @@ void updatedParser(int argc, char* argv[]) {
 
         std::string mutationFileName;
         if(!globalVm.count("mutation-file")) {
-            printError("File containing complex mutations not provided!");
+            PangenomeMAT::printError("File containing complex mutations not provided!");
             return;
         }
 
@@ -382,10 +378,15 @@ void updatedParser(int argc, char* argv[]) {
             u.close();
         }
     } else {
-        printError("Incorrect Format");
+        PangenomeMAT::printError("Incorrect Format");
         std::cout << globalDesc;
         return;
     }
+
+    std::ifstream finn("./maf/ecoli_10_maf.maf");
+    std::ofstream foutt("./fasta/ecoli_10_maf.fasta");
+
+    T->generateSequencesFromMAF(finn, foutt);
 
     char** splitCommandArray;
 
@@ -550,7 +551,7 @@ void updatedParser(int argc, char* argv[]) {
                     } else if(subtreeVm.count("node-ids")) {
                         nodeIds = subtreeVm["node-ids"].as< std::vector< std::string > >();
                     } else {
-                        printError("No source of node ids provided");
+                        PangenomeMAT::printError("No source of node ids provided");
                         std::cout << subtreeDesc;
                     }
 
@@ -571,18 +572,24 @@ void updatedParser(int argc, char* argv[]) {
                         fout.close();
                     } else {
                         std::filesystem::create_directory("./pmat");
-                        std::ofstream fout("./pmat/" + outputFileName + ".pmat");
+                        std::ofstream outputFile("./pmat/" + outputFileName + ".pmat");
+                        boost::iostreams::filtering_streambuf< boost::iostreams::output>
+                            outPMATBuffer;
 
                         auto subtreeStart = std::chrono::high_resolution_clock::now();
 
-                        T->writeToFile(fout, T->subtreeExtractParallel(nodeIds));
+                        outPMATBuffer.push(boost::iostreams::gzip_compressor());
+                        outPMATBuffer.push(outputFile);
+                        std::ostream outstream(&outPMATBuffer);
+                        T->writeToFile(outstream, T->subtreeExtractParallel(nodeIds));
+                        boost::iostreams::close(outPMATBuffer);
+                        outputFile.close();
 
                         auto subtreeEnd = std::chrono::high_resolution_clock::now();
                         std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
 
                         std::cout << "\nParallel Subtree Extract execution time: "
                             << subtreeTime.count() << " nanoseconds\n";
-                        fout.close();
                     }
                 }
             } else if(strcmp(splitCommandArray[0], "write") == 0) {
@@ -836,9 +843,6 @@ void updatedParser(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-
     tbb::task_scheduler_init init(32);
-
-    updatedParser(argc, argv);
-
+    parseAndExecute(argc, argv);
 }

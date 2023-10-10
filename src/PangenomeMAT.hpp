@@ -1,5 +1,7 @@
-#ifndef PANGENOME_MAT_NEW_HPP
-#define PANGENOME_MAT_NEW_HPP
+#ifndef PANGENOME_MAT_HPP
+#define PANGENOME_MAT_HPP
+
+#pragma once
 
 #include <vector>
 #include <string>
@@ -12,12 +14,12 @@
 
 #include <json/json.h>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
-#include "spoa/spoa.hpp"
 
 #define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
 
-typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
+typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >,
+            std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
 // Individual block
 typedef std::vector< std::pair< char, std::vector< char > > > block_t;
 
@@ -25,15 +27,29 @@ typedef  std::vector< std::pair< bool, std::vector< bool > > > blockExists_t;
 // Forward or reverse strand
 typedef  std::vector< std::pair< bool, std::vector< bool > > > blockStrand_t;
 
-
 namespace PangenomeMAT {
 
+    static inline void printError(std::string e) {
+        std::cout << "\033[1;31m" << "Error: " << "\033[0m" << e << std::endl;
+    }
+
+    // Get nucleotide character from 4-bit PanMAT code
     char getNucleotideFromCode(int code);
+
+    // Get 4-bit PanMAT code from nucleotide character
     char getCodeFromNucleotide(char nuc);
+
+    // Get complement Nucleotide character of given nucleotide character. Used to compute reverse
+    // complement
     char getComplementCharacter(char nuc);
-    void printSequenceLines(const sequence_t& sequence,\
-        const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ofstream& fout, int offset = 0, bool debug = false);
-    std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation, std::pair<int, int> newMutation);
+
+    // Given a sequence and block presence/strand information, print the sequence in FASTA format
+    // where each line has length lineSize
+    void printSequenceLines(const sequence_t& sequence,
+        const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize,
+        bool aligned, std::ofstream& fout, int offset = 0, bool debug = false);
+
+    // Remove '-' character from sequence string
     std::string stripGaps(std::string sequenceString);
     std::string getDate();
     std::string stripString(std::string s);
@@ -48,27 +64,39 @@ namespace PangenomeMAT {
     };
 
     enum NucMutationType {
+        // Nucleotide Substutution
         NS = 0,
+        // Nucleotide Deletion
         ND = 1,
+        // Nucleotide Insertion
         NI = 2,
+        // Single Nucleotide Substitution
         NSNPS = 3,
+        // Single Nucleotide Insertion
         NSNPI = 4,
+        // Single Nucleotide Deletion
         NSNPD = 5,
+        // None
         NNONE = 2000
     };
 
     enum BlockMutationType {
+        // Block Insertion
         BI = 1,
+        // Block Deletion
         BD = 0,
+        // Block Inversion
         BIn = 2,
+        // None
         NONE = 1000
     };
 
     void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
+    // Struct for representing Nucleotide Mutation
     struct NucMut {
         // For creating SNP mutation
-        NucMut( const std::tuple< int, int, int, int, int, int >& mutationInfo ){
+        NucMut( const std::tuple< int, int, int, int, int, int >& mutationInfo ) {
             // primaryBlockId, secondaryBlockId, pos, gapPos, type, char
             primaryBlockId = std::get<0>(mutationInfo);
             secondaryBlockId = std::get<1>(mutationInfo);
@@ -78,14 +106,15 @@ namespace PangenomeMAT {
             nucs = (std::get<5>(mutationInfo) << 20);
         }
 
-        // For creating non-SNP mutations from SNP mutations
-        NucMut(const std::vector< std::tuple< int, int, int, int, int, int > >& mutationArray, int start, int end){
+        // For creating non-SNP mutations from SNP mutations at consecutive positions
+        NucMut(const std::vector< std::tuple< int, int, int, int, int, int > >& mutationArray,
+            int start, int end) {
             primaryBlockId = std::get<0>(mutationArray[start]);
             secondaryBlockId = std::get<1>(mutationArray[start]);
 
             mutInfo = ((end - start) << 4);
             // type
-            switch(std::get<4>(mutationArray[start])){
+            switch(std::get<4>(mutationArray[start])) {
                 case PangenomeMAT::NucMutationType::NSNPS:
                     mutInfo += PangenomeMAT::NucMutationType::NS;
                     break;
@@ -110,25 +139,25 @@ namespace PangenomeMAT {
             nucGapPosition = std::get<3>(mutationArray[start]);
 
             nucs = 0;
-            for(int i = start; i < end; i++){
+            for(int i = start; i < end; i++) {
                 nucs += (std::get<5>(mutationArray[i]) << (4*(5-(i - start))));
             }
         }
 
-        NucMut(MATNew::nucMut mutation, int64_t blockId, bool blockGapExist){
+        NucMut(PanMAT::nucMut mutation, int64_t blockId, bool blockGapExist) {
             nucPosition = mutation.nucposition();
             primaryBlockId = (blockId >> 32);
             mutInfo = (mutation.mutinfo() & 0xFF);
             nucs = (mutation.mutinfo() >> 8);
             nucs = ((nucs) << (24 - (mutInfo >> 4)*4));
 
-            if(blockGapExist){
+            if(blockGapExist) {
                 secondaryBlockId = (blockId & 0xFFFFFFFF);
             } else {
                 secondaryBlockId = -1;
             }
 
-            if(mutation.nucgapexist()){
+            if(mutation.nucgapexist()) {
                 nucGapPosition = mutation.nucgapposition();
             } else {
                 nucGapPosition = -1;
@@ -143,40 +172,43 @@ namespace PangenomeMAT {
         uint32_t nucs;
     };
 
+    // Struct for representing Block Mutations
     struct BlockMut {
-
-        void loadFromProtobuf(MATNew::mutation mutation){
+        void loadFromProtobuf(PanMAT::mutation mutation) {
             primaryBlockId = (mutation.blockid() >> 32);
-            if(mutation.blockgapexist()){
+            if(mutation.blockgapexist()) {
                 secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
             } else {
                 secondaryBlockId = -1;
             }
             blockMutInfo = mutation.blockmutinfo();
-            
+            // If the mutation is a block inversion or not. Inversion is marked by
+            // `blockMutInfo = deletion` and `inversion = true`
             inversion = mutation.blockinversion();
         }
 
-        BlockMut(size_t blockId, bool type, int secondaryBId = -1){
+        BlockMut(size_t blockId, bool type, int secondaryBId = -1) {
             primaryBlockId = blockId;
             secondaryBlockId = secondaryBId;
             blockMutInfo = type;
 
-            // Change
+            // @TODO (Harsh): Update GFA interoperability to account for block strands. Remove this
+            // constructor and just use the previous constructor
             inversion = false;
         }
 
-        BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1){
+        BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1) {
             primaryBlockId = blockId;
             secondaryBlockId = secondaryBId;
-            if(type.first == BlockMutationType::BI){
+            if(type.first == BlockMutationType::BI) {
                 blockMutInfo = true;
             } else {
-                // blockMutInfo is also set to false in the case of inversions. Generally it indicates deletions
+                // blockMutInfo is also set to false in the case of inversions. If the mutation
+                // isn't an inversion, `blockMutInfo = false` indicates deletion
                 blockMutInfo = false;
             }
 
-            if(type.second == 1){
+            if(type.second == 1) {
                 // If type.second == 1 (inversion)
                 inversion = true;
             } else {
@@ -184,24 +216,23 @@ namespace PangenomeMAT {
             }
         }
 
-        BlockMut(){
-            
-        }
+        BlockMut() {}
 
         int32_t primaryBlockId;
         int32_t secondaryBlockId;
 
-        // The following two variables are separate because the strand patch was added later
-
-        // If mutation is an insertion or deletion - Strand inversions are marked by blockMutInfo=false, however, they are not deletions
+        // If mutation is an insertion or deletion - Strand inversions are marked by
+        // `blockMutInfo=false`, but they are not deletions
         bool  blockMutInfo;
-        
+
         // Whether the block is being inverted or not
         bool inversion;
     };
 
+    // List of default blocks in the global coordinate system of the PanMAT
     struct Block {
         Block(size_t primaryBlockId, std::string seq);
+        // seq is a compressed form of the sequence where each nucleotide is stored in 4 bytes
         Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);
 
         int32_t primaryBlockId;
@@ -211,8 +242,8 @@ namespace PangenomeMAT {
         std::string chromosomeName;
     };
 
+    // List of gaps in the global coordinate system of the PanMAT
     struct GapList {
-
         std::vector< uint32_t > nucPosition;
         int32_t primaryBlockId;
         int32_t secondaryBlockId;
@@ -220,17 +251,20 @@ namespace PangenomeMAT {
 
     };
 
+    // @DEPRECATED. To be removed when secondary block ID is removed
     struct BlockGapList {
         std::vector< uint32_t > blockPosition;
         std::vector< uint32_t > blockGapLength;
     };
 
+    // PanMAT tree node
     class Node {
     public:
         Node(std::string id, float len);
         Node(std::string id, Node* par, float len);
 
         float branchLength;
+
         size_t level;
 
         std::string identifier;
@@ -245,14 +279,22 @@ namespace PangenomeMAT {
 
     class Pangraph{
     private:
-        bool checkForCyclesHelper(size_t nodeId, std::vector< int >& color);
-        void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited);
+        void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray,
+            std::vector< bool >& visited);
     public:
+        Pangraph(Json::Value& pangraphData);
+        std::vector< size_t > getTopologicalSort();
+        std::unordered_map< std::string,std::vector< int > >
+            getAlignedSequences(const std::vector< size_t >& topoArray);
+        // Patch to incorporate strands
+        std::unordered_map< std::string,std::vector< int > >
+            getAlignedStrandSequences(const std::vector< size_t >& topoArray);
+
         // Graph adjacency list
         size_t numNodes;
         std::vector< std::vector< size_t > > adj;
         std::unordered_map< std::string, std::vector< size_t > > intSequences;
-        std::vector< size_t > topo_sort_intSequences;
+        std::vector< size_t > topoSortedIntSequences;
 
         std::unordered_map< std::string, std::vector< std::string > > paths;
         
@@ -262,35 +304,37 @@ namespace PangenomeMAT {
         // Represents the "number" parameter of each block
         std::unordered_map< std::string, std::vector< size_t > > blockNumbers;
 
-        // Circular sequences
+        // Circular offset of given sequence. Zero if not circular
         std::unordered_map< std::string, int > circularSequences;
-        
+
+        // If a sequence was rotated, which block was it rotated by
         std::unordered_map< std::string, int > rotationIndexes;
-        
-        // Specifies whether sequence is inverted or not by the rotation algorithm
+
+        // Specifies whether sequence is inverted by the rotation algorithm or not
         std::unordered_map< std::string, bool > sequenceInverted;
 
         std::unordered_map< std::string, std::string > stringIdToConsensusSeq;
-        std::unordered_map< std::string, std::vector< std::pair< size_t, size_t > > > stringIdToGaps;
+
+        // block identifier to list of gaps - < position, size > pairs
+        std::unordered_map< std::string,
+            std::vector< std::pair< size_t, size_t > > > stringIdToGaps;
+
+        // Mapping from new integer ID of block to old string ID. Duplicated blocks have same string
+        // ID
         std::unordered_map< size_t, std::string > intIdToStringId;
-        
-        // substitutions
-        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t , std::vector< std::pair< size_t, std::string > > > > > substitutions;
-        // insertions
-        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t , std::vector< std::tuple< size_t, size_t, std::string > > > > > insertions;
-        // deletions
-        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< size_t , std::vector< std::pair< size_t, size_t > > > > > deletions;
 
-        Pangraph(Json::Value& pangraphData);
-        void Pangraph_parallel(Json::Value& pangraphData);
-        bool pathExists(size_t nId1, size_t nId2, std::vector< bool >& visited);
-        std::vector< size_t > getTopologicalSort();
-        std::unordered_map< std::string,std::vector< int > > getAlignedSequences(const std::vector< size_t >& topoArray);
-        
-        // Patch to incorporate strands
-        std::unordered_map< std::string,std::vector< int > > getAlignedStrandSequences(const std::vector< size_t >& topoArray);
-
-        bool checkForCycles();
+        // List of substitutions for each block
+        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string,
+            tbb::concurrent_unordered_map< size_t,
+            std::vector< std::pair< size_t, std::string > > > > > substitutions;
+        // List of insertions for each block
+        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string,
+            tbb::concurrent_unordered_map< size_t, std::vector< std::tuple< size_t, size_t,
+            std::string > > > > > insertions;
+        // List of deletions for each block
+        tbb::concurrent_unordered_map< std::string, tbb::concurrent_unordered_map< std::string,
+            tbb::concurrent_unordered_map< size_t,
+            std::vector< std::pair< size_t, size_t > > > > > deletions;
     };
 
     class GFAGraph {
@@ -321,44 +365,67 @@ namespace PangenomeMAT {
 
     class Tree {
         private:
+            Node* createTreeFromNewickString(std::string newick);
+            
+            // In the proto file, nodes are stored in preorder. Once the tree has been generated in
+            // memory, assign mutations from the proto file to the tree nodes using preorder
+            // traversal
+            void assignMutationsToNodes(Node* root, size_t& currentIndex,
+                std::vector< PanMAT::node >& nodes);
+
+            // Get the total number of mutations of given type
+            int getTotalParsimonyParallel(NucMutationType nucMutType,
+                BlockMutationType blockMutType = NONE);
+
+            // Tree traversal for FASTA writer
+            void printFASTAHelper(PangenomeMAT::Node* root, sequence_t& sequence,
+                blockExists_t& blockExists, blockStrand_t& blockStrand, std::ofstream& fout,
+                bool aligned = false);
+
+            // Merge parent and child nodes when compressing subtree
+            void mergeNodes(Node* par, Node* chi);
+
+            // Used to combine their mutations at corresponding positions when parent and child
+            // nodes are combined
+            std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation,
+                std::pair<int, int> newMutation);
+
+            // Iterate through mutations and combine mutations at the same position
+            std::vector< NucMut > consolidateNucMutations(const std::vector< NucMut >& nucMutation);
+
+            // Used to confirm that consolidateNucMutations worked correctly. Can be removed in
+            // production
+            bool debugSimilarity(const std::vector< NucMut > array1,
+                const std::vector< NucMut > array2);
+
+            // Compress extracted subtree by combining parent and child nodes where parent has only
+            // one child
+            void compressTreeParallel(Node* node, size_t level);
+
+            // Used in rerooting
+            void dfsExpansion(Node* node, std::vector< Node* >& vec);
+            Node* transformHelper(Node* node);
+            void adjustLevels(Node* node);
+
+            std::string newInternalNodeId() {
+                return "node_" + std::to_string(++m_currInternalNode);
+            }
+
             size_t m_currInternalNode{ 0 };
             size_t m_numLeaves{ 0 };
             size_t m_maxDepth{ 0 };
             float m_meanDepth{ 0 };
 
             std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
-
-            Node* createTreeFromNewickString(std::string newick);
-            void assignMutationsToNodes(Node* root, size_t& currentIndex, std::vector< MATNew::node >& nodes);
-            int getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType = NONE);
-            void printFASTAHelper(PangenomeMAT::Node* root,\
-std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-std::vector< std::pair< bool, std::vector< bool > > >& blockExists,\
-blockStrand_t& blockStrand,\
-std::ofstream& fout, bool aligned = false);
-
-            void invertTree(Node* root);
-            void compressTreeParallel(Node* node, size_t level);
-            void mergeNodes(Node* par, Node* chi);
-            bool debugSimilarity(const std::vector< NucMut > array1, const std::vector< NucMut > array2);
-            void dfsExpansion(Node* node, std::vector< Node* >& vec);
-            Node* transformHelper(Node* node);
-            void adjustLevels(Node* node);
-            void setupGlobalCoordinates();
-
-            std::string newInternalNodeId() {
-                return "node_" + std::to_string(++m_currInternalNode);
-            }
-
         public:
-            Tree(const MATNew::tree& mainTree);
+            Tree(const PanMAT::tree& mainTree);
             Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
             Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
-            
+
             // Copy blocks from current tree into new tree which is rooted at one of the internal nodes of the current tree. Used in split for PanMAN
             Tree(Node* newRoot, const std::vector< Block >& b, const std::vector< GapList >& g, const std::unordered_map< std::string, int >& c, const BlockGapList& bgl);
 
-            void protoMATToTree(const MATNew::tree& mainTree);
+            void protoMATToTree(const PanMAT::tree& mainTree);
 
             int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
             void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState, int defaultState = (1<<28));
@@ -381,7 +448,6 @@ std::ofstream& fout, bool aligned = false);
 
             void printMAF(std::ofstream& fout);
             void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
-
 
             void printVCFParallel(std::string reference, std::ofstream& fout);
 
@@ -406,7 +472,7 @@ std::ofstream& fout, bool aligned = false);
             std::vector< std::string > searchByAnnotation(std::string annotation);
             void convertToGFA(std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
-            void getNodesPreorder(PangenomeMAT::Node* root, MATNew::tree& treeToWrite);
+            void getNodesPreorder(PangenomeMAT::Node* root, PanMAT::tree& treeToWrite);
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
 
             // Transforms tree such that given node becomes child of new root
@@ -416,9 +482,14 @@ std::ofstream& fout, bool aligned = false);
             Node *root;
             std::vector< Block > blocks;
             std::vector< GapList > gaps;
+
+            // @DEPRECATED: To be removed with secondary block ID
             BlockGapList blockGaps;
+            
+            // Specifies the circular offset required to print the original sequence
             std::unordered_map< std::string, int > circularSequences;
 
+            // Specifies the block by which the rotation algorithm rotated the sequence
             std::unordered_map< std::string, int > rotationIndexes;
 
             // Specifies whether sequence is inverted or not by the rotation algorithm
@@ -457,7 +528,7 @@ std::ofstream& fout, bool aligned = false);
         int32_t nucPositionEnd2;
         int32_t nucGapPositionEnd2;
 
-        ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1, std::string sId2, std::string sId3, std::tuple< int,int,int,int > t1, std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3, std::tuple< int,int,int,int > t4){
+        ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1, std::string sId2, std::string sId3, std::tuple< int,int,int,int > t1, std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3, std::tuple< int,int,int,int > t4) {
             mutationType = mutType;
             treeIndex1 = tIndex1;
             treeIndex2 = tIndex2;
@@ -488,7 +559,7 @@ std::ofstream& fout, bool aligned = false);
             nucGapPositionEnd2 = std::get<3>(t4);
         }
 
-        ComplexMutation(MATNew::complexMutation cm){
+        ComplexMutation(PanMAT::complexMutation cm) {
             mutationType = (cm.mutationtype()? 'H': 'R');
             treeIndex1 = cm.treeindex1();
             treeIndex2 = cm.treeindex2();
@@ -518,8 +589,8 @@ std::ofstream& fout, bool aligned = false);
             nucGapPositionEnd2 = (cm.nucgapexistend2()? (cm.nucgappositionend2()) : -1);
         }
 
-        MATNew::complexMutation toProtobuf(){
-            MATNew::complexMutation cm;
+        PanMAT::complexMutation toProtobuf() {
+            PanMAT::complexMutation cm;
             cm.set_mutationtype(mutationType == 'H');
             cm.set_treeindex1(treeIndex1);
             cm.set_treeindex2(treeIndex2);
@@ -528,7 +599,7 @@ std::ofstream& fout, bool aligned = false);
             cm.set_sequenceid2(sequenceId2);
             cm.set_sequenceid3(sequenceId3);
 
-            if(secondaryBlockIdStart1 != -1){
+            if(secondaryBlockIdStart1 != -1) {
                 cm.set_blockgapexiststart1(true);
                 cm.set_blockidstart1(((int64_t)primaryBlockIdStart1 << 32)+secondaryBlockIdStart1);
             } else {
@@ -537,12 +608,12 @@ std::ofstream& fout, bool aligned = false);
             }
             cm.set_nucpositionstart1(nucPositionStart1);
 
-            if(nucGapPositionStart1 != -1){
+            if(nucGapPositionStart1 != -1) {
                 cm.set_nucgapexiststart1(true);
                 cm.set_nucgappositionstart1(nucGapPositionStart1);
             }
 
-            if(secondaryBlockIdStart2 != -1){
+            if(secondaryBlockIdStart2 != -1) {
                 cm.set_blockgapexiststart2(true);
                 cm.set_blockidstart2(((int64_t)primaryBlockIdStart2 << 32)+secondaryBlockIdStart2);
             } else {
@@ -551,12 +622,12 @@ std::ofstream& fout, bool aligned = false);
             }
             cm.set_nucpositionstart2(nucPositionStart2);
 
-            if(nucGapPositionStart2 != -1){
+            if(nucGapPositionStart2 != -1) {
                 cm.set_nucgapexiststart2(true);
                 cm.set_nucgappositionstart2(nucGapPositionStart2);
             }
 
-            if(secondaryBlockIdEnd1 != -1){
+            if(secondaryBlockIdEnd1 != -1) {
                 cm.set_blockgapexistend1(true);
                 cm.set_blockidend1(((int64_t)primaryBlockIdEnd1 << 32)+secondaryBlockIdEnd1);
             } else {
@@ -565,12 +636,12 @@ std::ofstream& fout, bool aligned = false);
             }
             cm.set_nucpositionend1(nucPositionEnd1);
 
-            if(nucGapPositionEnd1 != -1){
+            if(nucGapPositionEnd1 != -1) {
                 cm.set_nucgapexistend1(true);
                 cm.set_nucgappositionend1(nucGapPositionEnd1);
             }
 
-            if(secondaryBlockIdEnd2 != -1){
+            if(secondaryBlockIdEnd2 != -1) {
                 cm.set_blockgapexistend2(true);
                 cm.set_blockidend2(((int64_t)primaryBlockIdEnd2 << 32)+secondaryBlockIdEnd2);
             } else {
@@ -579,7 +650,7 @@ std::ofstream& fout, bool aligned = false);
             }
             cm.set_nucpositionend2(nucPositionEnd2);
 
-            if(nucGapPositionEnd2 != -1){
+            if(nucGapPositionEnd2 != -1) {
                 cm.set_nucgapexistend2(true);
                 cm.set_nucgappositionend2(nucGapPositionEnd2);
             }
@@ -605,4 +676,4 @@ std::ofstream& fout, bool aligned = false);
 
 };
 
-#endif // PANGENOME_MAT_NEW_HPP
+#endif // PANGENOME_MAT_HPP
