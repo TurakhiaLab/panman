@@ -735,8 +735,6 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
             int currentPtr = 0;
             for(size_t i = 0; i < u.second.size(); i++) {
                 if(u.second[i] != -1) {
-                    // blockCounts[u.first][i] = currentCount[pg.intIdToStringId[u.second[i]]] + 1;
-                    // currentCount[pg.intIdToStringId[u.second[i]]]++;
                     blockCounts[u.first][i] = pg.blockNumbers[u.first][currentPtr];
                     currentPtr++;
                 }
@@ -1325,11 +1323,8 @@ void PangenomeMAT::printSequenceLines(const sequence_t& sequence,\
 }
 
 // Depth first traversal FASTA writer
-void PangenomeMAT::Tree::printFASTAHelper(PangenomeMAT::Node* root,\
-    std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence,\
-    std::vector< std::pair< bool, std::vector< bool > > >& blockExists,\
-    blockStrand_t& blockStrand,\
-    std::ofstream& fout, bool aligned) {
+void PangenomeMAT::Tree::printFASTAHelper(PangenomeMAT::Node* root, sequence_t& sequence,
+    blockExists_t& blockExists, blockStrand_t& blockStrand, std::ofstream& fout, bool aligned) {
 
     // Apply mutations
     
@@ -1847,32 +1842,24 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
             sequence_t sequence;
             blockExists_t blockExists;
             blockStrand_t blockStrand;
-            
+            int rotIndex;
+            getSequenceFromReference(sequence, blockExists, blockStrand, u.first, &rotIndex);
+
             // List of block IDs to account for rotation and inversion
             std::vector< int > blockIds(sequence.size());
             for(size_t i = 0; i < sequence.size(); i++) {
                 blockIds[i] = i;
             }
             if(rotationIndexes.find(u.first) != rotationIndexes.end()) {
-                int ctr = -1, rotInd = 0;
-                for(size_t i = 0; i < blockExists.size(); i++) {
-                    if(blockExists[i].first) {
-                        ctr++;
-                    }
-                    if(ctr == rotationIndexes[u.first]) {
-                        rotInd = i;
-                        break;
-                    }
-                }
-                rotate(blockIds.begin(), blockIds.begin() + rotInd, blockIds.end());
+                rotate(blockIds.begin(), blockIds.begin() + rotIndex, blockIds.end());
             }
-            if(sequenceInverted.find(u.first) != sequenceInverted.end()) {
+            if(sequenceInverted.find(u.first) != sequenceInverted.end()
+                && sequenceInverted[u.first]) {
                 reverse(blockIds.begin(), blockIds.end());
             }
 
-            getSequenceFromReference(sequence, blockExists, blockStrand, u.first);
-            
             int ctr = 0;
+
             for(size_t i = 0; i < sequence.size(); i++) {
                 // for(size_t j = 0; j < sequence[i].second.size(); j++) {
                 //     if(blockExists[i].second[j]) {
@@ -1919,6 +1906,7 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
         }
     }
 
+
     fout << "##maf version=1\n";
 
     for(auto& common: blocksWithSameSequences) {
@@ -1927,11 +1915,16 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
         for(auto& b: common.second) {
             int primaryBlockId = b.first;
             int secondaryBlockId = b.second;
-            
+
             tbb::parallel_for_each(sequenceNames, [&](auto u) {
                 block_t sequence;
                 bool blockExists = false, blockStrand = true;
-                getBlockSequenceFromReference(sequence, blockExists, blockStrand, u, primaryBlockId, secondaryBlockId);
+                getBlockSequenceFromReference(sequence, blockExists, blockStrand, u, primaryBlockId,
+                    secondaryBlockId);
+                if(!blockExists) {
+                    return;
+                }
+
                 std::string stringSequence;
                 for(size_t i = 0; i < sequence.size(); i++) {
                     for(size_t j = 0; j < sequence[i].second.size(); j++) {
@@ -1947,11 +1940,9 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
                         stringSequence += '-';
                     }
                 }
-                if(blockExists) {
-                    sequenceIdToSequence[u] = std::make_pair(std::make_pair(primaryBlockId, secondaryBlockId), std::make_pair(stringSequence, blockStrand));
-                }
+                sequenceIdToSequence[u] = std::make_pair(std::make_pair(primaryBlockId, secondaryBlockId), std::make_pair(stringSequence, blockStrand));
             });
-            
+
             for(auto u: sequenceIdToSequence) {
                 fout << "s\t" << u.first << "\t"<< sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)] <<"\t" << u.second.second.first.length() << "\t" << (u.second.second.second? "+\t":"-\t") << sequenceLengths[u.first] << "\t" << u.second.second.first << "\n";
             }
@@ -2830,14 +2821,13 @@ void getNodesRootedAt(std::set< std::string >& nodeIds, PangenomeMAT::Node* node
 
 // Write PanMAT to file
 void PangenomeMAT::Tree::writeToFile(std::ostream& fout, PangenomeMAT::Node* node) {
+    if(node == nullptr) {
+        node = root;
+    }
     // Get the list of nodes in subtree rooted at `node`, so only their information is recorded in
     // the written PanMAT - useful in the case of subtree extract
     std::set< std::string > nodeIds;
     getNodesRootedAt(nodeIds, node);
-
-    if(node == nullptr) {
-        node = root;
-    }
 
     PanMAT::tree treeToWrite;
     getNodesPreorder(node, treeToWrite);
@@ -2979,7 +2969,6 @@ void PangenomeMAT::Tree::getBlockSequenceFromReference(block_t& sequence, bool& 
             } else {
                 if(inversion) {
                     // This is not actually a deletion but an inversion
-                    
                     blockStrand = !blockStrand;
                 } else {
                     blockExists = false;
@@ -3006,7 +2995,7 @@ void PangenomeMAT::Tree::getBlockSequenceFromReference(block_t& sequence, bool& 
             bool endFlag = false;
             for(size_t k = 0; k < 8; k++) {
                 const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
-                
+
                 if(nucCode == 0) {
                     endFlag = true;
                     break;
@@ -3023,10 +3012,8 @@ void PangenomeMAT::Tree::getBlockSequenceFromReference(block_t& sequence, bool& 
                 break;
             }
         }
-
         sequence.push_back({'x', {}});
     }
-
 
     // Assigning nucleotide gaps
     for(size_t i = 0; i < gaps.size(); i++) {
@@ -3133,7 +3120,7 @@ void PangenomeMAT::Tree::getBlockSequenceFromReference(block_t& sequence, bool& 
     }
 }
 
-void PangenomeMAT::Tree::getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference) {
+void PangenomeMAT::Tree::getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference, int* rotIndex) {
     Node* referenceNode = nullptr;
 
     for(auto u: allNodes) {
@@ -3441,6 +3428,9 @@ void PangenomeMAT::Tree::getSequenceFromReference(sequence_t& sequence, blockExi
                 rotInd = i;
                 break;
             }
+        }
+        if(rotIndex != nullptr) {
+            *rotIndex = rotInd;
         }
         rotate(sequence.begin(), sequence.begin() + rotInd, sequence.end());
         rotate(blockExists.begin(), blockExists.begin() + rotInd, blockExists.end());
@@ -3753,6 +3743,22 @@ std::string PangenomeMAT::Tree::getStringFromReference(std::string reference, bo
         }
     }
 
+    if(rotationIndexes.find(reference) != rotationIndexes.end()) {
+        int ctr = -1, rotInd = 0;
+        for(size_t i = 0; i < blockExists.size(); i++) {
+            if(blockExists[i].first) {
+                ctr++;
+            }
+            if(ctr == rotationIndexes[reference]) {
+                rotInd = i;
+                break;
+            }
+        }
+        rotate(sequence.begin(), sequence.begin() + rotInd, sequence.end());
+        rotate(blockExists.begin(), blockExists.begin() + rotInd, blockExists.end());
+        rotate(blockStrand.begin(), blockStrand.begin() + rotInd, blockStrand.end());
+    }
+
     if(sequenceInverted.find(reference) != sequenceInverted.end() && sequenceInverted[reference]) {
         reverse(sequence.begin(), sequence.end());
         reverse(blockExists.begin(), blockExists.end());
@@ -3953,7 +3959,8 @@ std::string PangenomeMAT::Tree::getSequenceFromVCF(std::string sequenceId, std::
 
     std::string referenceSequenceId = line.substr(12);
 
-    std::string referenceSequence = getStringFromReference(referenceSequenceId, false);
+    std::string referenceSequence = stripGaps(getStringFromReference(referenceSequenceId));
+
 
     if(sequenceId == referenceSequenceId) {
         return referenceSequence;
@@ -4301,96 +4308,273 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
         }
     } else {
         size_t autoIncrId = 0;
-        // std::map< std::tuple< int32_t, int32_t, int32_t, int32_t, std::string >, uint64_t > sequenceNodes;
-        std::map< std::pair< size_t, std::string >, size_t > allSequenceNodes;
-        std::map< std::string, std::vector< size_t > > paths;
+        std::map< std::pair< std::tuple< size_t, size_t, size_t >, std::string >,
+            std::pair< size_t, bool > > allSequenceNodes;
+        std::mutex allSequenceNodeMutex;
+        tbb::concurrent_unordered_map< std::string, std::vector< size_t > > paths;
+        tbb::concurrent_unordered_map< std::string, std::vector< bool > > strandPaths;
 
-        for(auto u: allNodes) {
+        for(const auto& u: allNodes){
+        // tbb::parallel_for_each(allNodes, [&](const auto& u) {
             if(u.second->children.size() != 0) {
+                // return;
                 continue;
             }
 
-            std::string alignedSequence = getStringFromReference(u.first, true);
+            sequence_t sequence;
+            blockExists_t blockExists;
+            blockStrand_t blockStrand;
+            getSequenceFromReference(sequence, blockExists, blockStrand, u.first);
+
+            // if(u.first == "NZ_CP006027.1") {
+            //     for(int i = 0; i < sequence.size(); i++) {
+            //         if(blockExists[i].first) {
+            //             for(int j = sequence[i].first.size()-1; j>=0; j--) {
+            //                 if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x') {
+            //                     std::cout << sequence[i].first[j].first << std::endl;
+            //                 }
+            //                 for(int k = sequence[i].first[j].second.size()-1; k>=0; k--) {
+            //                     if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x') {
+            //                         std::cout << sequence[i].first[j].second[k] << std::endl;
+            //                     }
+            //                 }
+            //             }
+            //             break;
+            //         }
+            //     }
+            // }
 
             std::string currentSequence;
-            size_t currentStart = 0;
             std::vector< size_t > sequenceNodeIds;
+            std::vector< bool > sequenceStrands;
 
-            for(size_t i = 0; i < alignedSequence.length(); i++) {
-                if(currentSequence.length() == 0) {
-                    currentStart = i;
-                }
-                currentSequence += alignedSequence[i];
-                if(currentSequence.length() == 32) {
-                    currentSequence = stripGaps(currentSequence);
-                    if(currentSequence.length()) {
-                        if(allSequenceNodes.find(std::make_pair(currentStart, currentSequence)) == allSequenceNodes.end()) {
-                            allSequenceNodes[std::make_pair(currentStart, currentSequence)] = autoIncrId;
-                            sequenceNodeIds.push_back(autoIncrId);
-                            autoIncrId++;
-                        } else {
-                            sequenceNodeIds.push_back(allSequenceNodes[std::make_pair(currentStart, currentSequence)]);
+            for(size_t i = 0; i < sequence.size(); i++) {
+                if(blockExists[i].first) {
+                    if(blockStrand[i].first) {
+                        std::tuple< size_t, size_t, size_t > currentStart;
+                        for(size_t j = 0; j < sequence[i].first.size(); j++) {
+                            for(size_t k = 0; k < sequence[i].first[j].second.size(); k++) {
+                                if(currentSequence.length() == 0) {
+                                    currentStart = std::make_tuple(i,j,k);
+                                }
+                                currentSequence += sequence[i].first[j].second[k];
+                                if(currentSequence.length() == 32) {
+                                    currentSequence = stripGaps(currentSequence);
+                                    if(currentSequence.length()) {
+                                        allSequenceNodeMutex.lock();
+                                        if(allSequenceNodes.find(std::make_pair(currentStart,
+                                            currentSequence)) == allSequenceNodes.end()) {
+                                            allSequenceNodes[std::make_pair(currentStart,
+                                                currentSequence)] = std::make_pair(autoIncrId, true);
+                                            sequenceNodeIds.push_back(autoIncrId);
+                                            sequenceStrands.push_back(true);
+                                            autoIncrId++;
+                                        } else {
+                                            sequenceNodeIds.push_back(
+                                                allSequenceNodes[std::make_pair(currentStart,
+                                                currentSequence)].first);
+                                            sequenceStrands.push_back(true);
+                                        }
+                                        allSequenceNodeMutex.unlock();
+                                    }
+                                    currentSequence = "";
+                                }
+                            }
+                            if(currentSequence.length() == 0) {
+                                currentStart = std::make_tuple(i,j,-1);
+                            }
+                            currentSequence += sequence[i].first[j].first;
+                            if(currentSequence.length() == 32) {
+                                currentSequence = stripGaps(currentSequence);
+                                if(currentSequence.length()) {
+                                    allSequenceNodeMutex.lock();
+                                    if(allSequenceNodes.find(std::make_pair(currentStart,
+                                        currentSequence)) == allSequenceNodes.end())  {
+                                        allSequenceNodes[std::make_pair(currentStart,
+                                            currentSequence)] = std::make_pair(autoIncrId, true);
+                                        sequenceNodeIds.push_back(autoIncrId);
+                                        sequenceStrands.push_back(true);
+                                        autoIncrId++;
+                                    } else {
+                                        sequenceNodeIds.push_back(
+                                            allSequenceNodes[std::make_pair(currentStart,
+                                            currentSequence)].first);
+                                        sequenceStrands.push_back(true);
+                                    }
+                                    allSequenceNodeMutex.unlock();
+                                }
+                                currentSequence = "";
+                            }
+                        }
+                        if(currentSequence.length()) {
+                            currentSequence = stripGaps(currentSequence);
+                            if(currentSequence.length()) {
+                                allSequenceNodeMutex.lock();
+                                if(allSequenceNodes.find(std::make_pair(currentStart,
+                                    currentSequence)) == allSequenceNodes.end()) {
+                                    allSequenceNodes[std::make_pair(currentStart, currentSequence)]
+                                        = std::make_pair(autoIncrId, true);
+                                    sequenceNodeIds.push_back(autoIncrId);
+                                    sequenceStrands.push_back(true);
+                                    autoIncrId++;
+                                } else {
+                                    sequenceNodeIds.push_back(
+                                        allSequenceNodes[std::make_pair(currentStart,
+                                        currentSequence)].first);
+                                    sequenceStrands.push_back(true);
+                                }
+                                allSequenceNodeMutex.unlock();
+                            }
+                            currentSequence = "";
+                        }
+                    } else {
+                        std::tuple< size_t, size_t, size_t > currentStart;
+                        for(size_t j = sequence[i].first.size()-1; j + 1 > 0; j--) {
+                            currentSequence += sequence[i].first[j].first;
+                            currentStart = std::make_tuple(i,j,-1);
+                            if(currentSequence.length() == 32) {
+                                currentSequence = stripGaps(currentSequence);
+                                if(currentSequence.length()) {
+                                    // Since the GFA stores the strand parameter, the reverse
+                                    // complement will be computed anyway
+                                    std::reverse(currentSequence.begin(), currentSequence.end());
+                                    // if(u.first == "NZ_CP006027.1") {
+                                    //     std::cout << currentSequence << std::endl;
+                                    //     return;
+                                    // }
+                                    allSequenceNodeMutex.lock();
+                                    if(allSequenceNodes.find(std::make_pair(currentStart,
+                                        currentSequence)) == allSequenceNodes.end()) {                                    
+                                        allSequenceNodes[std::make_pair(currentStart, currentSequence)]
+                                            = std::make_pair(autoIncrId, false);
+                                        sequenceNodeIds.push_back(autoIncrId);
+                                        sequenceStrands.push_back(false);
+                                        autoIncrId++;
+                                    } else {
+                                        sequenceNodeIds.push_back(allSequenceNodes[
+                                            std::make_pair(currentStart, currentSequence)].first);
+                                        sequenceStrands.push_back(false);
+                                    }
+                                    allSequenceNodeMutex.unlock();
+                                    currentSequence = "";
+                                }
+                            }
+                            for(size_t k = sequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
+                                currentSequence += sequence[i].first[j].second[k];
+                                currentStart = std::make_tuple(i,j,k);
+                                if(currentSequence.length() == 32) {
+                                    currentSequence = stripGaps(currentSequence);
+                                    if(currentSequence.length()) {
+                                        // Since the GFA stores the strand parameter, the reverse
+                                        // complement will be computed anyway
+                                        std::reverse(currentSequence.begin(), currentSequence.end());
+                                        // if(u.first == "NZ_CP006027.1") {
+                                        //     std::cout << currentSequence << std::endl;
+                                        //     return;
+                                        // }
+                                        allSequenceNodeMutex.lock();
+                                        if(allSequenceNodes.find(std::make_pair(currentStart,
+                                            currentSequence)) == allSequenceNodes.end()) {
+                                            allSequenceNodes[std::make_pair(currentStart,
+                                                currentSequence)] = std::make_pair(autoIncrId, false);
+                                            sequenceNodeIds.push_back(autoIncrId);
+                                            sequenceStrands.push_back(false);
+                                            autoIncrId++;
+                                        } else {
+                                            sequenceNodeIds.push_back(allSequenceNodes[
+                                                std::make_pair(currentStart, currentSequence)].first);
+                                            sequenceStrands.push_back(false);
+                                        }
+                                        allSequenceNodeMutex.unlock();
+                                    }
+                                    currentSequence = "";
+                                }
+                            }
+                        }
+                        if(currentSequence.length()) {
+                            currentSequence = stripGaps(currentSequence);
+                            if(currentSequence.length()) {
+                                // Since the GFA stores the strand parameter, the reverse
+                                // complement will be computed anyway
+                                std::reverse(currentSequence.begin(), currentSequence.end());
+                                allSequenceNodeMutex.lock();
+                                if(allSequenceNodes.find(std::make_pair(currentStart, currentSequence))
+                                    == allSequenceNodes.end()) {
+                                    allSequenceNodes[std::make_pair(currentStart, currentSequence)]
+                                        = std::make_pair(autoIncrId, false);
+                                    sequenceNodeIds.push_back(autoIncrId);
+                                    sequenceStrands.push_back(false);
+                                    autoIncrId++;
+                                } else {
+                                    sequenceNodeIds.push_back(allSequenceNodes[
+                                        std::make_pair(currentStart, currentSequence)].first);
+                                    sequenceStrands.push_back(false);
+                                }
+                                allSequenceNodeMutex.unlock();
+                            }
+                            currentSequence = "";
                         }
                     }
-                    currentSequence = "";
                 }
             }
-            if(currentSequence.length()) {
-                currentSequence = stripGaps(currentSequence);
-                if(currentSequence.length()) {
-                    if(allSequenceNodes.find(std::make_pair(currentStart, currentSequence)) == allSequenceNodes.end()) {
-                        allSequenceNodes[std::make_pair(currentStart, currentSequence)] = autoIncrId;
-                        sequenceNodeIds.push_back(autoIncrId);
-                        autoIncrId++;
-                    } else {
-                        sequenceNodeIds.push_back(allSequenceNodes[std::make_pair(currentStart, currentSequence)]);
-                    }
-                }
-                currentSequence = "";
-            }
+
             paths[u.first] = sequenceNodeIds;
+            strandPaths[u.first] = sequenceStrands;
+        // });
         }
-        
-        std::map< size_t, std::string > finalNodes;
-        for(auto u: allSequenceNodes) {
+
+        std::map< std::pair< size_t, bool >, std::string > finalNodes;
+        for(const auto& u: allSequenceNodes) {
             finalNodes[u.second] = u.first.second;
         }
 
-
         // Graph and its transpose
-        std::vector< std::pair< std::string, size_t > > G[autoIncrId];
-        std::vector< std::pair< std::string, size_t > > GT[autoIncrId];
+        // Maps from < blockID, strand > pair to list of neighbours stored as
+        // < sequenceId, < blockId, strand > >
+        std::map< std::pair< size_t, bool >, std::vector< std::pair< std::string,
+            std::pair< size_t, bool > > > > G;
+        std::map< std::pair< size_t, bool >, std::vector< std::pair< std::string,
+            std::pair< size_t, bool > > > > GT;
+        // std::vector< std::pair< std::string, size_t > > G[autoIncrId];
+        // std::vector< std::pair< std::string, size_t > > GT[autoIncrId];
 
-        for(auto u: paths) {
+        for(const auto& u: paths) {
             for(size_t i = 1; i < u.second.size(); i++) {
-                G[u.second[i-1]].push_back(std::make_pair(u.first, u.second[i]));
-                GT[u.second[i]].push_back(std::make_pair(u.first, u.second[i-1]));
+                G[std::make_pair(u.second[i-1], strandPaths[u.first][i-1])].push_back(
+                    std::make_pair(u.first, std::make_pair(u.second[i], strandPaths[u.first][i])));
+                GT[std::make_pair(u.second[i], strandPaths[u.first][i])].push_back(
+                    std::make_pair(u.first, std::make_pair(u.second[i-1],
+                    strandPaths[u.first][i-1])));
             }
         }
 
-        for(size_t i = 0; i < autoIncrId; i++) {
+        for(auto& u: G) {
             // Sort so we can compare the sequence IDs of incoming and outgoing edges for equality
-            sort(G[i].begin(), G[i].end());
-            sort(GT[i].begin(), GT[i].end());
+            tbb::parallel_sort(u.second.begin(), u.second.end());
+        }
+        for(auto& u: GT) {
+            // Sort so we can compare the sequence IDs of incoming and outgoing edges for equality
+            tbb::parallel_sort(u.second.begin(), u.second.end());
         }
 
-        for(size_t i = 0; i < autoIncrId; i++) {
-            if(finalNodes.find(i) == finalNodes.end()) {
+        for(auto& u: G) {
+            if(finalNodes.find(u.first) == finalNodes.end()) {
                 continue;
             }
 
             while(true) {
-                // check if a node's edges only go to one next next node and there is an outgoing edge for every incoming edge
-                if(G[i].size() != GT[i].size() || G[i].size() == 0) {
+                // check if a node's edges only go to one next next node and there is an
+                // outgoing edge for every incoming edge
+                if(u.second.size() != GT[u.first].size() || u.second.size() == 0) {
                     break;
                 }
                 bool check = true;
 
-                for(size_t j = 0; j < G[i].size(); j++) {
-                    if(G[i][j].first != GT[i][j].first) {
+                for(size_t j = 0; j < u.second.size(); j++) {
+                    if(u.second[j].first != GT[u.first][j].first) {
                         check = false;
                         break;
-                    } else if(j > 0 && G[i][j].second != G[i][j-1].second) {
+                    } else if(j>0 && u.second[j].second != u.second[j-1].second) {
                         check = false;
                         break;
                     }
@@ -4400,13 +4584,16 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
                     break;
                 }
 
-                size_t dest = G[i][0].second;
-                if(G[i].size() != GT[dest].size()) {
+                std::pair< size_t, bool > dest = u.second[0].second;
+                if(u.second.size() != GT[dest].size()) {
                     break;
                 }
-
-                for(size_t j = 0; j < G[i].size(); j++) {
-                    if(G[i][j].first != GT[dest][j].first && GT[dest][j].second != i) {
+                // Combine only if strands match
+                if(u.first.second != dest.second) {
+                    break;
+                }
+                for(size_t j = 0; j < u.second.size(); j++) {
+                    if(u.second[j].first != GT[dest][j].first && GT[dest][j].second != u.first) {
                         check = false;
                         break;
                     }
@@ -4420,60 +4607,84 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
                         break;
                     }
                 }
-
                 if(!check) {
                     break;
                 }
-                // combine i and dest
-                finalNodes[i] += finalNodes[dest];
+
+                // combine src and dest
+                if(u.first.second){
+                    // forward strand
+                    finalNodes[u.first] += finalNodes[dest];
+                } else {
+                    // reverse strand
+                    finalNodes[u.first] = finalNodes[dest] + finalNodes[u.first];
+                }
                 finalNodes.erase(dest);
-                G[i].clear();
-                G[i] = G[dest];
+                u.second.clear();
+                u.second = G[dest];
             }
         }
 
-        std::set< std::pair< size_t, size_t > > edges;
-        
-        for(size_t i = 0; i < autoIncrId; i++) {
-            if(finalNodes.find(i) == finalNodes.end()) {
+        std::set< std::pair< pair< size_t, bool >, pair< size_t, bool > > > edges;
+
+        for(const auto& u: G) {
+            if(finalNodes.find(u.first) == finalNodes.end()) {
                 continue;
             }
-            for(auto edge: G[i]) {
-                edges.insert(std::make_pair(i, edge.second));
+            for(auto edge: u.second) {
+                edges.insert(std::make_pair(u.first, edge.second));
             }
         }
 
-        for(auto p: paths) {
+        for(auto& p: paths) {
             std::vector< size_t > newPath;
-            for(auto n: p.second) {
-                if(finalNodes.find(n) != finalNodes.end()) {
-                    newPath.push_back(n);
+            std::vector< bool > newStrandPath;
+            for(size_t j = 0; j < p.second.size(); j++) {
+                if(finalNodes.find(std::make_pair(p.second[j], strandPaths[p.first][j]))
+                    != finalNodes.end()) {
+                    newPath.push_back(p.second[j]);
+                    newStrandPath.push_back(strandPaths[p.first][j]);
                 }
             }
-            paths[p.first] = newPath;
+            p.second = newPath;
+            strandPaths[p.first] = newStrandPath;
         }
 
-        // convert node IDs to consecutive node IDs after path compression
+        // for(auto& p: paths) {
+        //     fout << ">" << p.first << "\n";
+        //     for(int i = 0; i < p.second.size(); i++) {
+        //         fout << finalNodes[std::make_pair(p.second[i], true)];
+        //     }
+        //     fout << "\n";
+        // }
+
+        // convert node IDs to consecutive node IDs
         int currentID = 0;
-        std::map< size_t, size_t > oldToNew;
+        std::unordered_map< size_t, size_t > oldToNew;
         for(auto u: finalNodes) {
-            oldToNew[u.first] = currentID;
+            oldToNew[u.first.first] = currentID;
             currentID++;
         }
 
         fout << "H\tVN:Z:1.1\n";
+        std::unordered_map< size_t, bool > alreadyPrinted;
         for(auto u: finalNodes) {
-            fout << "S\t" << oldToNew[u.first] << "\t" << u.second << "\n";
+            if(!alreadyPrinted[u.first.first]) {
+                alreadyPrinted[u.first.first] = true;
+                fout << "S\t" << oldToNew[u.first.first] << "\t" << u.second << "\n";
+            }
         }
 
         for(auto u: edges) {
-            fout << "L\t" << oldToNew[u.first] << "\t+\t" << oldToNew[u.second] << "\t+\t0M\n";
+            fout << "L\t" << oldToNew[u.first.first] << "\t" << (u.first.second? "+":"-")
+                << "\t" << oldToNew[u.second.first] << "\t" << (u.second.second? "+":"-")
+                << "\t0M\n";
         }
 
         for(auto u: paths) {
             fout << "P\t" << u.first << "\t";
             for(size_t i = 0; i < u.second.size(); i++) {
-                fout << oldToNew[u.second[i]] << "+";
+                fout << oldToNew[u.second[i]] << (strandPaths[u.first][i]?"+":"-");
                 if(i != u.second.size() - 1) {
                     fout << ",";
                 }
@@ -5559,7 +5770,6 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData) {
                 // }
 
                 sequenceInverted[p.first] = invert;
-
                 rotationIndexes[p.first] = rotation_index;
 
                 paths[p.first] = sample_new;
@@ -5568,6 +5778,18 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData) {
         }
 
         std::cout << "All Seqeunces Rotated\n";
+    } else {
+        for(auto p: paths) {
+            std::unordered_map< std::string, size_t > baseBlockNumber;
+            sequenceInverted[p.first] = false;
+            rotationIndexes[p.first] = 0;
+
+            for(const auto& block: p.second)
+            {
+                blockNumbers[p.first].push_back(baseBlockNumber[block]+1);
+                baseBlockNumber[block]++;
+            }
+        }
     }
 
     // Auto increment ID to assign to nodes

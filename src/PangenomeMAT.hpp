@@ -455,7 +455,7 @@ namespace PangenomeMAT {
             void writeToFile(std::ostream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true, bool incorporateInversions=true);
-            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference);
+            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference, int* rotIndex = nullptr);
             void getBlockSequenceFromReference(block_t& sequence, bool& blockExists, bool& blockStrand, std::string reference, int64_t primaryBlockId, int64_t secondaryBlockId);
 
             // Split file provided as input.
