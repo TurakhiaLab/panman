@@ -838,191 +838,198 @@ void parseAndExecute(int argc, char* argv[]) {
 }
 
 void debuggingCode(){
-    // std::string sequenceName = "NZ_CP006834.2";
+    std::string sequenceName = "01B.CN.2019.hcz0045.OK392125";
 
-    // std::ifstream fin("../../ecoli/pangraph/ecoli_100.json");
-    // Json::Value pangraphData;
-    // fin >> pangraphData;
-    // std::vector< std::string > blocks;
-    // std::vector< int > blockNumbers;
-    // std::vector< bool > strands;
+    std::ifstream fin("/home/AD.UCSD.EDU/swalia/data/HIV/pangraph/HIV_20000.json");
+    Json::Value pangraphData;
+    fin >> pangraphData;
+    std::vector< std::string > blocks;
+    std::vector< int > blockNumbers;
+    std::vector< bool > strands;
 
-    // std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence;
-    // std::unordered_map< std::string, std::string > stringIdToConsensusSeq;
-    // std::unordered_map< std::string, std::vector< std::pair< int, int > > > stringIdToGaps;
-    // std::unordered_map< std::string, std::unordered_map< int, std::vector< std::pair< int, std::string > > > > substitutions;
-    // std::unordered_map< std::string, std::unordered_map< int, std::vector< std::tuple< int, int, std::string > > > > insertions;
-    // std::unordered_map< std::string, std::unordered_map< int, std::vector< std::pair< int, int > > > > deletions;
+    std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence;
+    std::unordered_map< std::string, std::string > stringIdToConsensusSeq;
+    std::unordered_map< std::string, std::vector< std::pair< int, int > > > stringIdToGaps;
+    std::unordered_map< std::string, std::unordered_map< int, std::vector< std::pair< int, std::string > > > > substitutions;
+    std::unordered_map< std::string, std::unordered_map< int, std::vector< std::tuple< int, int, std::string > > > > insertions;
+    std::unordered_map< std::string, std::unordered_map< int, std::vector< std::pair< int, int > > > > deletions;
 
-    // for(int i = 0; i < pangraphData["blocks"].size(); i++) {
-    //     std::string blockId = pangraphData["blocks"][(int)i]["id"].asString();
-    //     std::string stringSequence = pangraphData["blocks"][(int)i]["sequence"].asString();
-    //     std::transform(stringSequence.begin(), stringSequence.end(),stringSequence.begin(), ::toupper);
-    //     stringIdToConsensusSeq[blockId] = stringSequence;
-    //     std::vector< std::string > gapMemberNames = pangraphData["blocks"][(int)i]["gaps"].getMemberNames();
-    //     for(auto member: gapMemberNames) {
-    //         stringIdToGaps[blockId].push_back( std::make_pair( std::stoi(member), pangraphData["blocks"][(int)i]["gaps"][member].asInt() ) );
-    //     }
-    //     for(size_t j = 0; j < pangraphData["blocks"][(int)i]["mutate"].size(); j++) {
-    //         std::string seqName = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["name"].asString();
-    //         if(seqName != sequenceName){
-    //             continue;
-    //         }
-    //         size_t number = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["number"].asInt();
-
-    //         for(size_t k = 0; k < pangraphData["blocks"][(int)i]["mutate"][(int)j][1].size(); k++) {
-    //             std::string mutationString = pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString();
-    //             std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
-    //             substitutions[blockId][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt(), mutationString) );
-    //         }
-    //     }
-    //     for(size_t j = 0; j < pangraphData["blocks"][(int)i]["insert"].size(); j++) {
-    //         std::string seqName = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["name"].asString();
-    //         if(seqName != sequenceName){
-    //             continue;
-    //         }
-    //         size_t number = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["number"].asInt();
-
-    //         for(size_t k = 0; k < pangraphData["blocks"][(int)i]["insert"][(int)j][1].size(); k++) {
-    //             std::string mutationString = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][1].asString();
-    //             std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
-    //             insertions[blockId][number].push_back( std::make_tuple( pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt(), pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt(), mutationString ) );
-    //         }
-    //     }
-    //     for(size_t j = 0; j < pangraphData["blocks"][(int)i]["delete"].size(); j++) {
-    //         std::string seqName = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["name"].asString();
-    //         if(seqName != sequenceName){
-    //             continue;
-    //         }
-    //         size_t number = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["number"].asInt();
-
-    //         for(size_t k = 0; k < pangraphData["blocks"][(int)i]["delete"][(int)j][1].size(); k++) {
-    //             deletions[blockId][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][0].asInt(), pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][1].asInt() ) );
-    //         }
-    //     }
-    // }
-
-    // for(int i = 0; i < pangraphData["paths"].size(); i++) {
-    //     if(pangraphData["paths"][i]["name"].asString() == sequenceName) {
-    //         std::cout << "FOUND" << std::endl;
-    //         std::unordered_map< std::string, int > numbers;
-    //         for(int j = 0; j < pangraphData["paths"][i]["blocks"].size(); j++) {
-    //             blocks.push_back(pangraphData["paths"][i]["blocks"][(int)j]["id"].asString());
-    //             numbers[pangraphData["paths"][i]["blocks"][(int)j]["id"].asString()]++;
-    //             blockNumbers.push_back(numbers[pangraphData["paths"][i]["blocks"][(int)j]["id"]
-    //                 .asString()]);
-    //             strands.push_back(pangraphData["paths"][i]["blocks"][(int)j]["strand"].asBool());
-    //         }
-    //         sequence.resize(blocks.size());
-    //         for(int j = 0; j < blocks.size(); j++){
-    //             std::string sequenceString = stringIdToConsensusSeq[blocks[j]];
-    //             sequence[j].resize(sequenceString.length()+1, {'-',{}});
-    //             for(int k = 0; k < sequenceString.size(); k++){
-    //                 sequence[j][k].first = sequenceString[k];
-    //             }
-    //             for(size_t k = 0; k < stringIdToGaps[blocks[j]].size(); k++) {
-    //                 sequence[j][stringIdToGaps[blocks[j]][k].first].second.resize(stringIdToGaps[blocks[j]][k].second, '-');
-    //             }
-    //             for(const auto& v: substitutions[blocks[j]][blockNumbers[j]]) {
-    //                 sequence[j][v.first-1].first = v.second[0];
-    //             }
-    //             for(const auto& v: insertions[blocks[j]][blockNumbers[j]]) {
-    //                 for(size_t k = 0; k < std::get<2>(v).length(); k++) {
-    //                     sequence[j][std::get<0>(v)].second[std::get<1>(v)+k] = std::get<2>(v)[k];
-    //                 }
-    //             }
-    //             for(const auto& v: deletions[blocks[j]][blockNumbers[j]]) {
-    //                 for(size_t k = v.first; k < v.first + v.second; k++) {
-    //                     sequence[j][k-1].first = '-';
-    //                 }
-    //             }
-    //         }
-    //         std::string sequenceString;
-    //         for(int j = 0; j < sequence.size(); j++) {
-    //             for(int k = 0; k < sequence[j].size(); k++) {
-    //                 for(int w = 0; w < sequence[j][k].second.size(); w++) {
-    //                     if(sequence[j][k].second[w] != '-') {
-    //                         sequenceString += sequence[j][k].second[w];
-    //                     }
-    //                 }
-    //                 if(sequence[j][k].first != '-') {
-    //                     sequenceString += sequence[j][k].first;
-    //                 }
-    //             }
-    //         }
-    //         std::cout << sequenceString.length() << std::endl;
-
-    //         break;
-    //     }
-    // }
-    // fin.close();
-    std::ifstream fin("./gfa/ecoli_10_optimize_test.gfa");
-    std::ofstream fout("./fasta/ecoli_10_gfa_4.fasta");
-    std::unordered_map< size_t, std::string > nodeIdToSequence;
-    std::string line;
-    while(getline(fin, line)) {
-        if(line[0] == 'S') {
-            std::vector< std::string > words;
-            std::string str;
-            for(size_t i = 0; i < line.length(); i++) {
-                if(line[i] == '\t') {
-                    if(str.length())words.push_back(str);
-                    str = "";
-                } else {
-                    str += line[i];
-                }
+    for(int i = 0; i < pangraphData["blocks"].size(); i++) {
+        std::string blockId = pangraphData["blocks"][(int)i]["id"].asString();
+        std::string stringSequence = pangraphData["blocks"][(int)i]["sequence"].asString();
+        std::transform(stringSequence.begin(), stringSequence.end(),stringSequence.begin(), ::toupper);
+        stringIdToConsensusSeq[blockId] = stringSequence;
+        std::vector< std::string > gapMemberNames = pangraphData["blocks"][(int)i]["gaps"].getMemberNames();
+        for(auto member: gapMemberNames) {
+            stringIdToGaps[blockId].push_back( std::make_pair( std::stoi(member), pangraphData["blocks"][(int)i]["gaps"][member].asInt() ) );
+        }
+        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["mutate"].size(); j++) {
+            std::string seqName = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["name"].asString();
+            if(seqName != sequenceName){
+                continue;
             }
-            if(str.length()) {
-                words.push_back(str);
-                str = "";
+            size_t number = pangraphData["blocks"][(int)i]["mutate"][(int)j][0]["number"].asInt();
+
+            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["mutate"][(int)j][1].size(); k++) {
+                std::string mutationString = pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][1].asString();
+                std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
+                substitutions[blockId][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["mutate"][(int)j][1][(int)k][0].asInt(), mutationString) );
             }
-            nodeIdToSequence[std::stoll(words[1])] = words[2];
+        }
+        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["insert"].size(); j++) {
+            std::string seqName = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["name"].asString();
+            if(seqName != sequenceName){
+                continue;
+            }
+            size_t number = pangraphData["blocks"][(int)i]["insert"][(int)j][0]["number"].asInt();
+
+            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["insert"][(int)j][1].size(); k++) {
+                std::string mutationString = pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][1].asString();
+                std::transform(mutationString.begin(), mutationString.end(),mutationString.begin(), ::toupper);
+                insertions[blockId][number].push_back( std::make_tuple( pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][0].asInt(), pangraphData["blocks"][(int)i]["insert"][(int)j][1][(int)k][0][1].asInt(), mutationString ) );
+            }
+        }
+        for(size_t j = 0; j < pangraphData["blocks"][(int)i]["delete"].size(); j++) {
+            std::string seqName = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["name"].asString();
+            if(seqName != sequenceName){
+                continue;
+            }
+            size_t number = pangraphData["blocks"][(int)i]["delete"][(int)j][0]["number"].asInt();
+
+            for(size_t k = 0; k < pangraphData["blocks"][(int)i]["delete"][(int)j][1].size(); k++) {
+                deletions[blockId][number].push_back( std::make_pair( pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][0].asInt(), pangraphData["blocks"][(int)i]["delete"][(int)j][1][(int)k][1].asInt() ) );
+            }
         }
     }
-    fin.clear();
-    fin.seekg(0);
-    while(getline(fin, line)) {
-        if(line[0] == 'P'){
-            std::vector< std::string > words;
-            std::string str;
-            for(size_t i = 0; i < line.length(); i++) {
-                if(line[i] == '\t' || line[i] == ',' || line[i] == '*') {
-                    if(str.length())words.push_back(str);
-                    str = "";
-                } else {
-                    str += line[i];
+
+    for(int i = 0; i < pangraphData["paths"].size(); i++) {
+        if(pangraphData["paths"][i]["name"].asString() == sequenceName) {
+            std::cout << "FOUND" << std::endl;
+            std::unordered_map< std::string, int > numbers;
+            for(int j = 0; j < pangraphData["paths"][i]["blocks"].size(); j++) {
+                blocks.push_back(pangraphData["paths"][i]["blocks"][(int)j]["id"].asString());
+                numbers[pangraphData["paths"][i]["blocks"][(int)j]["id"].asString()]++;
+                blockNumbers.push_back(numbers[pangraphData["paths"][i]["blocks"][(int)j]["id"]
+                    .asString()]);
+                strands.push_back(pangraphData["paths"][i]["blocks"][(int)j]["strand"].asBool());
+            }
+            sequence.resize(blocks.size());
+            for(int j = 0; j < blocks.size(); j++){
+                if(!strands[j]) {
+                    std::cout << "REVERSE STRAND FOUND" << std::endl;
                 }
-            }
-            if(str.length()) {
-                words.push_back(str);
-                str = "";
-            }
-            fout << ">" << words[1] << "\n";
-            for(size_t i = 2; i < words.size(); i++) {
-                char strand = words[i][words[i].length()-1];
-                words[i].pop_back();
-                size_t blockId = std::stoll(words[i]);
-                std::string seq = nodeIdToSequence[blockId];
-                if(strand == '+') {
-                    fout << seq;
-                } else {
-                    // if(words[1] == "NZ_CP006027.1") {
-                    //     std::cout << seq << std::endl;
-                    //     return;
-                    // }
-                    for(int j = seq.length()-1; j>=0; j--) {
-                        fout << PangenomeMAT::getComplementCharacter(seq[j]);
+
+                std::string sequenceString = stringIdToConsensusSeq[blocks[j]];
+                sequence[j].resize(sequenceString.length()+1, {'-',{}});
+                for(int k = 0; k < sequenceString.size(); k++){
+                    sequence[j][k].first = sequenceString[k];
+                }
+                for(size_t k = 0; k < stringIdToGaps[blocks[j]].size(); k++) {
+                    sequence[j][stringIdToGaps[blocks[j]][k].first].second.resize(stringIdToGaps[blocks[j]][k].second, '-');
+                }
+                for(const auto& v: substitutions[blocks[j]][blockNumbers[j]]) {
+                    sequence[j][v.first-1].first = v.second[0];
+                }
+                for(const auto& v: insertions[blocks[j]][blockNumbers[j]]) {
+                    for(size_t k = 0; k < std::get<2>(v).length(); k++) {
+                        sequence[j][std::get<0>(v)].second[std::get<1>(v)+k] = std::get<2>(v)[k];
                     }
-                    // for(int j = seq.length()-1; j>=0; j--) {
-                    //     fout << PangenomeMAT::getComplementCharacter(seq[j]);
-                    // }
+                }
+                for(const auto& v: deletions[blocks[j]][blockNumbers[j]]) {
+                    for(size_t k = v.first; k < v.first + v.second; k++) {
+                        sequence[j][k-1].first = '-';
+                    }
                 }
             }
-            fout << "\n";
+            std::string sequenceString;
+            for(int j = 0; j < sequence.size(); j++) {
+                for(int k = 0; k < sequence[j].size(); k++) {
+                    for(int w = 0; w < sequence[j][k].second.size(); w++) {
+                        if(sequence[j][k].second[w] != '-') {
+                            sequenceString += sequence[j][k].second[w];
+                        }
+                    }
+                    if(sequence[j][k].first != '-') {
+                        sequenceString += sequence[j][k].first;
+                    }
+                }
+            }
+            std::cout << sequenceString.substr(12, 10) << std::endl;
+            std::cout << sequenceString.length() << std::endl;
+
+            break;
         }
     }
-    fout.close();
     fin.close();
+    // std::ifstream fin("./gfa/ecoli_100_parallel.gfa");
+    // std::ofstream fout("./fasta/ecoli_100_parallel.fasta");
+    // std::unordered_map< size_t, std::string > nodeIdToSequence;
+    // std::string line;
+    // while(getline(fin, line)) {
+    //     if(line[0] == 'S') {
+    //         std::vector< std::string > words;
+    //         std::string str;
+    //         for(size_t i = 0; i < line.length(); i++) {
+    //             if(line[i] == '\t') {
+    //                 if(str.length())words.push_back(str);
+    //                 str = "";
+    //             } else {
+    //                 str += line[i];
+    //             }
+    //         }
+    //         if(str.length()) {
+    //             words.push_back(str);
+    //             str = "";
+    //         }
+    //         nodeIdToSequence[std::stoll(words[1])] = words[2];
+    //     }
+    // }
+
+    // std::cout << nodeIdToSequence.size() << std::endl;
+    // fin.clear();
+    // fin.seekg(0);
+    // while(getline(fin, line)) {
+    //     if(line[0] == 'P'){
+    //         std::vector< std::string > words;
+    //         std::string str;
+    //         for(size_t i = 0; i < line.length(); i++) {
+    //             if(line[i] == '\t' || line[i] == ',' || line[i] == '*') {
+    //                 if(str.length())words.push_back(str);
+    //                 str = "";
+    //             } else {
+    //                 str += line[i];
+    //             }
+    //         }
+    //         if(str.length()) {
+    //             words.push_back(str);
+    //             str = "";
+    //         }
+    //         fout << ">" << words[1] << "\n";
+    //         for(size_t i = 2; i < words.size(); i++) {
+    //             char strand = words[i][words[i].length()-1];
+    //             words[i].pop_back();
+    //             size_t blockId = std::stoll(words[i]);
+    //             std::string seq = nodeIdToSequence[blockId];
+    //             if(strand == '+') {
+    //                 fout << seq;
+    //             } else {
+    //                 // if(words[1] == "NZ_CP006027.1") {
+    //                 //     std::cout << seq << std::endl;
+    //                 //     return;
+    //                 // }
+    //                 for(int j = seq.length()-1; j>=0; j--) {
+    //                     fout << PangenomeMAT::getComplementCharacter(seq[j]);
+    //                 }
+    //                 // for(int j = seq.length()-1; j>=0; j--) {
+    //                 //     fout << PangenomeMAT::getComplementCharacter(seq[j]);
+    //                 // }
+    //             }
+    //         }
+    //         fout << "\n";
+    //     }
+    // }
+    // fout.close();
+    // fin.close();
 }
 
 int main(int argc, char* argv[]) {

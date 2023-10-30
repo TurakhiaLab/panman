@@ -90,19 +90,19 @@ std::vector<std::string>rotate_sample(const std::vector<std::string>& consensus,
     std::pair<int,int> back_rotate = rotate_alignment(consensus, sample);
 
     int rotate;
-    invert = back_rotate.first > front_rotate.first;
-    if(!invert)
-    {
+    // invert = back_rotate.first > front_rotate.first;
+    // if(!invert)
+    // {
         reverse(sample.begin(), sample.end());
         reverse(blockStrand.begin(), blockStrand.end());
         reverse(blockNumbers.begin(), blockNumbers.end());
         rotate = front_rotate.second;
         cout << "Front\n";
-    }
-    else {
-        rotate = back_rotate.second;
-        cout << "Back\n";
-    }
+    // }
+    // else {
+    //     rotate = back_rotate.second;
+    //     cout << "Back\n";
+    // }
 
     rotation_index = (sample.size() - rotate) % sample.size();
     int index;

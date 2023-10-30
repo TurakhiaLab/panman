@@ -352,15 +352,25 @@ namespace PangenomeMAT {
         // The sequences themselves where each node has an integer ID
         std::vector< std::vector< size_t > > intSequences;
 
+        std::vector< size_t > topoSortedIntSequences;
+
+        // The strands of each block in the sequences
+        std::vector< std::vector< int > > strandPaths;
+
         // Raw sequence corresponding to each node
         std::vector< std::string > intNodeToSequence;
 
-        GFAGraph(const std::vector< std::string >& pathNames, const std::vector< std::vector< std::string > >& sequences, std::map< std::string, std::string >& nodes);
+        GFAGraph(const std::vector< std::string >& pathNames,
+            const std::vector< std::vector< std::pair< std::string, bool > > >& sequences,
+            std::map< std::string, std::string >& nodes);
 
         bool pathExists(size_t nId1, size_t nId2, std::vector< bool >& visited);
         bool checkForCycles();
         std::vector< size_t > getTopologicalSort();
-        std::vector< std::vector< int64_t > > getAlignedSequences(const std::vector< size_t >& topoArray);
+        std::vector< std::vector< int64_t > > getAlignedSequences(const
+            std::vector< size_t >& topoArray);
+        std::vector< std::vector< int > > getAlignedStrandSequences(const
+            std::vector< size_t >& topoArray);
     };
 
     class Tree {
@@ -455,7 +465,7 @@ namespace PangenomeMAT {
             void writeToFile(std::ostream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true, bool incorporateInversions=true);
-            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference, int* rotIndex = nullptr);
+            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false, int* rotIndex = nullptr);
             void getBlockSequenceFromReference(block_t& sequence, bool& blockExists, bool& blockStrand, std::string reference, int64_t primaryBlockId, int64_t secondaryBlockId);
 
             // Split file provided as input.
@@ -664,7 +674,7 @@ namespace PangenomeMAT {
     public:
         std::vector< Tree > trees;
         std::vector< ComplexMutation > complexMutations;
-        
+
         TreeGroup(std::ifstream& fin);
         TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile);
         TreeGroup(const std::vector< Tree >& t);
