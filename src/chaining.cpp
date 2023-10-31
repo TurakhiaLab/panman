@@ -105,7 +105,6 @@ void queryRange(Node* root, std::pair<int,int> rangeStart, std::pair<int,int> ra
 
 void find_chain(Node* root, std::pair<int,int> point, std::unordered_map<std::pair<int,int>, std::pair<int, std::pair<int,int>>,hash_pair>&map, int K, pair<int,int> &curr_base,pair<int,int> &max_score_point)
 {
-    int INF = std::numeric_limits<int>::max();
 
     std::vector<std::pair<int,int>> result;
     std::pair<int,int> new_base ((point.first - K > 0 ? point.first - K: 0), (point.second - K > 0 ? point.second - K: 0));
@@ -163,7 +162,6 @@ void find_chain(Node* root, std::pair<int,int> point, std::unordered_map<std::pa
 std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, std::vector<std::string> &sample)
 {
     std::vector<std::pair<int,int>> chain;
-    int INF = std::numeric_limits<int>::max();
     int K = 500;
 
     std::vector<std::pair<int,int>>  points;
@@ -188,7 +186,6 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds time_ = (end-start);
     std::cout << time_.count() << "\n";
-    // bool check = correctness(points, points_conc);
 
     // Sort points by x-coordinate
     std::vector<std::pair<int,int>> pointsX = points;
@@ -208,20 +205,6 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
     time_ = (end-start);
     cout << time_.count() << "\n";
 
-    // Querying for points within the range (2,2) and (7,7)
-    // std::pair<int,int> queryPoint1 = {410, 0};
-    // std::pair<int,int> queryPoint2 = {420, 420};
-    // vector<std::pair<int,int>> result;
-    // queryRange(root, queryPoint1, queryPoint2, result);
-
-    // // Printing the result
-    // cout << "Points within the range (" << queryPoint1.first << "," << queryPoint1.second << ") and (" << queryPoint2.first << "," << queryPoint2.second << "):" << endl;
-    // for (const auto& point : points_conc) {
-    //     cout << "(" << point.first << "," << point.second << ")" << endl;
-    // }
-
-    // std::cout << "Length: " << points_conc.size() << std::endl; 
-
     if (points_conc.size() == 0)
     {
         return chain;
@@ -233,32 +216,13 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
         std::pair<int,std::pair<int,int>> h (-1, origin);
         map[point] = h;
     }
-
-    bool opt = false;
-    int s = points_conc[0].first;
-    int e = points_conc[points_conc.size() - 1].first;
-    int b = 0;
-    if (e -s > 10000)
-    {
-        opt = true;
-        b = int((e-s)/(points_conc.size()/50));
-    }
         
     pair<int,int> max_score_point = base;
-    pair<int,int> curr_base = base;
-    int count = 0;
+    pair<int,int> curr_base = base;    
     
-    
-    for (auto point: points_conc)
-    {   
-        // if (opt && (point.first - curr_base.first > b))
-        // {
-        //     curr_base = max_score_point;
-        // }
+    for (auto point: points_conc) {
         find_chain(root, point, map, K, curr_base, max_score_point);
-        // cout << "Chained:" << point.first << "," << point.second << " with: " << map[point].second.first << "," << map[point].second.second << endl;
-    } 
-    
+    }
 
     int max_score = -1;
     std::pair<int,int> max_score_seed = {};
@@ -328,13 +292,13 @@ void build_consensus (
         prev_sample_coord = sample_coord;
     } 
 
-    for (auto j = prev_consensus_coord + 1; j < consensus.size(); ++j)
+    for (auto j = prev_consensus_coord + 1; j < (int)consensus.size(); ++j)
     {
         consensus_new.push_back(consensus[j]);
         intSequenceConsensus_new.push_back(intSequenceConsensus[j]);
     } 
 
-    for (auto j = prev_sample_coord + 1; j < sample.size(); ++j)
+    for (auto j = prev_sample_coord + 1; j < (int)sample.size(); ++j)
     {
         consensus_new.push_back(sample[j]);
         intSequenceSample.push_back(numBlocks);
@@ -371,116 +335,3 @@ void chain_align (
     }
 
 }
-
-// int main(int argc, char* argv[]) {
-
-//     std::ifstream consensus_file (argv[1]);
-//     std::ifstream sample_file (argv[2]);
-
-//     std::vector<std::string> consensus = {};
-//     std::string line, colname;
-//     int val;
-
-//     std::vector<int> intSequenceConsensus={};
-//     std::vector<int> intSequenceSample={};
-//     std::vector<int> intSequenceConsensus_new={};
-
-
-//     if(consensus_file.good())
-//     {
-//         std::getline(consensus_file, line);
-
-//         std::stringstream ss(line);
-
-//         while(std::getline(ss, colname, ',')){  
-//             if (colname == "\n")
-//             {
-//                 break;
-//             }
-//             consensus.push_back(colname);
-//         }
-//     }
-//     consensus_file.close();
-
-//     std::vector<std::string> sample = {};
-
-//     if(sample_file.good())
-//     {
-//         std::getline(sample_file, line);
-
-//         std::stringstream ss(line);
-
-//         while(std::getline(ss, colname, ',')){  
-//             if (colname == "\n")
-//             {
-//                 break;
-//             }
-//             sample.push_back(colname);
-//         }
-//     }
-//     sample_file.close();    
-//     // Sample points
-//     cout <<"Size:" << consensus.size() << " " << sample.size() << endl;
-
-//     size_t numBlocks = 0;
-//     std::unordered_map<int,std::string> intToString;
-//     // std::unordered_map<string,int> stringToint;
-//     std::unordered_map< std::string, std::vector< int > > intSequences; 
-//     std::vector<std::string> consensus_new;
-    
-//     string consensus_name = "consensus";
-//     string sample_name = "sample";
-//     intSequences[consensus_name]={};
-//     for (auto s: consensus)
-//     {
-//         intToString[numBlocks] = s;
-//         intSequenceConsensus.push_back(numBlocks);
-//         intSequences[consensus_name].push_back(numBlocks);
-//         // stringToint[s] += 1;
-//         numBlocks++;
-
-//     }
-
-
-//     chain_align (consensus, 
-//                 sample, 
-//                 intSequenceConsensus,
-//                 intSequenceSample,
-//                 numBlocks, 
-//                 consensus_new,
-//                 intSequenceConsensus_new,
-//                 intToString); 
-
-//     // for (auto i = 0; i <  consensus_new.size(); ++i)
-//     // {
-//     //     cout << consensus_new[i] << " ";
-//     // }
-//     // cout << "\n";
-
-//     // for (auto i = 0; i <  intSequenceConsensus_new.size(); ++i)
-//     // {
-//     //     cout << intSequenceConsensus_new[i] << " ";
-//     // }
-//     // cout << "\n";
-    
-//     // for (auto i = 0; i <  intSequenceSample.size(); ++i)
-//     // {
-//     //     cout << intSequenceSample[i] << " ";
-//     // }
-//     // cout << "\n";
-
-//     cout << numBlocks << "\n";
-
-//     bool print = true;
-//     if (print)
-//     {
-//         std::ofstream output_file (argv[3]);
-//         for (auto i = 0; i <  consensus_new.size(); ++i)
-//         {
-//             output_file << consensus_new[i] << ",";
-//         }
-//     }
-    
-
-//     return 0;
-// }

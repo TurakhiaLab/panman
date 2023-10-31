@@ -11,6 +11,8 @@
 #include <atomic>
 #include <tbb/concurrent_unordered_map.h>
 #include <tbb/task_scheduler_init.h>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 
 #include <json/json.h>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
@@ -187,16 +189,6 @@ namespace PangenomeMAT {
             inversion = mutation.blockinversion();
         }
 
-        BlockMut(size_t blockId, bool type, int secondaryBId = -1) {
-            primaryBlockId = blockId;
-            secondaryBlockId = secondaryBId;
-            blockMutInfo = type;
-
-            // @TODO (Harsh): Update GFA interoperability to account for block strands. Remove this
-            // constructor and just use the previous constructor
-            inversion = false;
-        }
-
         BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1) {
             primaryBlockId = blockId;
             secondaryBlockId = secondaryBId;
@@ -262,25 +254,18 @@ namespace PangenomeMAT {
     public:
         Node(std::string id, float len);
         Node(std::string id, Node* par, float len);
-
         float branchLength;
-
         size_t level;
-
         std::string identifier;
         Node* parent;
         std::vector< Node* > children;
-
         std::vector< NucMut > nucMutation;
         std::vector< BlockMut > blockMutation;
-
         std::vector< std::string > annotations;
     };
 
+    // Represents input PanGraph information for PanMAT generation
     class Pangraph{
-    private:
-        void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray,
-            std::vector< bool >& visited);
     public:
         Pangraph(Json::Value& pangraphData);
         std::vector< size_t > getTopologicalSort();
@@ -295,9 +280,8 @@ namespace PangenomeMAT {
         std::vector< std::vector< size_t > > adj;
         std::unordered_map< std::string, std::vector< size_t > > intSequences;
         std::vector< size_t > topoSortedIntSequences;
-
         std::unordered_map< std::string, std::vector< std::string > > paths;
-        
+
         // Added as a patch to incorporate strands
         std::unordered_map< std::string, std::vector< int > > strandPaths;
 
@@ -337,11 +321,20 @@ namespace PangenomeMAT {
             std::vector< std::pair< size_t, size_t > > > > > deletions;
     };
 
+    // Represents input GFA information for PanMAT construction
     class GFAGraph {
-    private:
-        bool checkForCyclesHelper(size_t nodeId, std::vector< int >& color);
-        void topologicalSortHelper(size_t nodeId, std::vector< size_t >& topoArray, std::vector< bool >& visited);
     public:
+        GFAGraph(const std::vector< std::string >& pathNames,
+            const std::vector< std::vector< std::pair< std::string, bool > > >& sequences,
+            std::map< std::string, std::string >& nodes);
+
+        std::vector< size_t > getTopologicalSort();
+        std::vector< std::vector< int64_t > > getAlignedSequences(const
+            std::vector< size_t >& topoArray);
+        std::vector< std::vector< int > > getAlignedStrandSequences(const
+            std::vector< size_t >& topoArray);
+
+
         size_t numNodes;
         // Graph adjacency list
         std::vector< std::vector< size_t > > adj;
@@ -359,20 +352,9 @@ namespace PangenomeMAT {
 
         // Raw sequence corresponding to each node
         std::vector< std::string > intNodeToSequence;
-
-        GFAGraph(const std::vector< std::string >& pathNames,
-            const std::vector< std::vector< std::pair< std::string, bool > > >& sequences,
-            std::map< std::string, std::string >& nodes);
-
-        bool pathExists(size_t nId1, size_t nId2, std::vector< bool >& visited);
-        bool checkForCycles();
-        std::vector< size_t > getTopologicalSort();
-        std::vector< std::vector< int64_t > > getAlignedSequences(const
-            std::vector< size_t >& topoArray);
-        std::vector< std::vector< int > > getAlignedStrandSequences(const
-            std::vector< size_t >& topoArray);
     };
 
+    // Data structure to represent a PangenomeMAT
     class Tree {
         private:
             Node* createTreeFromNewickString(std::string newick);
@@ -432,48 +414,70 @@ namespace PangenomeMAT {
             Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
             Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
 
-            // Copy blocks from current tree into new tree which is rooted at one of the internal nodes of the current tree. Used in split for PanMAN
-            Tree(Node* newRoot, const std::vector< Block >& b, const std::vector< GapList >& g, const std::unordered_map< std::string, int >& c, const BlockGapList& bgl);
+            // Copy blocks from current tree into new tree which is rooted at one of the internal
+            // nodes of the current tree. Used in split for PanMAN
+            Tree(Node* newRoot, const std::vector< Block >& b, const std::vector< GapList >& g,
+                std::unordered_map< std::string, int >& cs,
+                std::unordered_map< std::string, int >& ri,
+                std::unordered_map< std::string, bool >& si,
+                const BlockGapList& bgl);
 
             void protoMATToTree(const PanMAT::tree& mainTree);
 
+            // Fitch Algorithm on Nucleotide mutations
             int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
-            void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState, int defaultState = (1<<28));
-            void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > >& mutations, int parentState);
+            // Default state is used in rerooting to a tip sequence. It is used to fix the state at
+            // the root
+            void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states,
+                int parentState, int defaultState = (1<<28));
+            void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states,
+                std::unordered_map< std::string,
+                std::pair< PangenomeMAT::NucMutationType, char > >& mutations,
+                int parentState);
 
-            // To account for strand
-            int blockFitchForwardPassNew(Node* node, std::unordered_map< std::string, int >& states);
-            void blockFitchBackwardPassNew(Node* node, std::unordered_map< std::string, int >& states, int parentState,  int defaultValue = (1<<28));
-            void blockFitchAssignMutationsNew(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, std::pair< PangenomeMAT::BlockMutationType, bool > >& mutations, int parentState);
-
-            int blockFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
-            // The defaultValue parameter is used in rerooting.
-            void blockFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states, int parentState,  int defaultValue = 2);
-            void blockFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states, std::unordered_map< std::string, bool >& mutations, int parentState);
+            // Fitch algorithm on Block Mutations
+            int blockFitchForwardPassNew(Node* node,
+                std::unordered_map< std::string, int >& states);
+            void blockFitchBackwardPassNew(Node* node,
+                std::unordered_map< std::string, int >& states, int parentState,
+                int defaultValue = (1<<28));
+            void blockFitchAssignMutationsNew(Node* node,
+                std::unordered_map< std::string, int >& states,
+                std::unordered_map< std::string,
+                std::pair< PangenomeMAT::BlockMutationType, bool > >& mutations, int parentState);
 
             void printSummary();
             void printBfs(Node* node = nullptr);
             void printFASTA(std::ofstream& fout, bool aligned = false);
             void printFASTAParallel(std::ofstream& fout, bool aligned = false);
-
             void printMAF(std::ofstream& fout);
             void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
-
             void printVCFParallel(std::string reference, std::ofstream& fout);
-
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
             void writeToFile(std::ostream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
-            std::string getStringFromReference(std::string reference, bool aligned = true, bool incorporateInversions=true);
-            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false, int* rotIndex = nullptr);
-            void getBlockSequenceFromReference(block_t& sequence, bool& blockExists, bool& blockStrand, std::string reference, int64_t primaryBlockId, int64_t secondaryBlockId);
+            std::string getStringFromReference(std::string reference, bool aligned = true,
+                bool incorporateInversions=true);
+            void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists,
+                blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false,
+                int* rotIndex = nullptr);
+            void getBlockSequenceFromReference(block_t& sequence, bool& blockExists,
+                bool& blockStrand, std::string reference, int64_t primaryBlockId,
+                int64_t secondaryBlockId);
 
             // Split file provided as input.
             std::pair< Tree, Tree > splitByComplexMutations(const std::string& nodeId3);
 
             // get unaligned global coordinate
-            int32_t getUnalignedGlobalCoordinate(int32_t primaryBlockId, int32_t secondaryBlockId, int32_t pos, int32_t gapPos, const sequence_t& sequence, const blockExists_t& blockExists);
-            std::tuple< int, int, int, int > globalCoordinateToBlockCoordinate(int64_t globalCoordinate, const sequence_t& sequence, const blockExists_t& blockExists, const blockStrand_t& blockStrand);
+            int32_t getUnalignedGlobalCoordinate(int32_t primaryBlockId, int32_t secondaryBlockId,
+                int32_t pos, int32_t gapPos, const sequence_t& sequence,
+                const blockExists_t& blockExists, const blockStrand_t& blockStrand,
+                int circularOffset = 0);
+            std::tuple< int, int, int, int > globalCoordinateToBlockCoordinate(
+                int64_t globalCoordinate,
+                const sequence_t& sequence,
+                const blockExists_t& blockExists,
+                const blockStrand_t& blockStrand, int64_t circularOffset = 0);
 
             std::string getSequenceFromVCF(std::string sequenceId, std::ifstream& fin);
             bool verifyVCFFile(std::ifstream& fin);
@@ -483,7 +487,8 @@ namespace PangenomeMAT {
             void convertToGFA(std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
             void getNodesPreorder(PangenomeMAT::Node* root, PanMAT::tree& treeToWrite);
-            size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
+            size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition,
+                int nucGapPosition);
 
             // Transforms tree such that given node becomes child of new root
             void transform(Node* node);
@@ -495,7 +500,7 @@ namespace PangenomeMAT {
 
             // @DEPRECATED: To be removed with secondary block ID
             BlockGapList blockGaps;
-            
+
             // Specifies the circular offset required to print the original sequence
             std::unordered_map< std::string, int > circularSequences;
 
@@ -509,6 +514,7 @@ namespace PangenomeMAT {
 
     };
 
+    // Represents complex mutations like Horizontal Gene Transfer or Recombinations
     struct ComplexMutation{
         char mutationType;
         size_t treeIndex1, treeIndex2, treeIndex3;
@@ -538,7 +544,10 @@ namespace PangenomeMAT {
         int32_t nucPositionEnd2;
         int32_t nucGapPositionEnd2;
 
-        ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1, std::string sId2, std::string sId3, std::tuple< int,int,int,int > t1, std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3, std::tuple< int,int,int,int > t4) {
+        ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1,
+            std::string sId2, std::string sId3, std::tuple< int,int,int,int > t1,
+            std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3,
+            std::tuple< int,int,int,int > t4) {
             mutationType = mutType;
             treeIndex1 = tIndex1;
             treeIndex2 = tIndex2;
@@ -579,12 +588,14 @@ namespace PangenomeMAT {
             sequenceId3 = cm.sequenceid3();
 
             primaryBlockIdStart1 = (cm.blockidstart1() >> 32);
-            secondaryBlockIdStart1 = (cm.blockgapexiststart1()? (cm.blockidstart1()&(0xFFFFFFFF)): -1);
+            secondaryBlockIdStart1 = (cm.blockgapexiststart1()?
+                (cm.blockidstart1()&(0xFFFFFFFF)): -1);
             nucPositionStart1 = cm.nucpositionstart1();
             nucGapPositionStart1 = (cm.nucgapexiststart1()? (cm.nucgappositionstart1()) : -1);
 
             primaryBlockIdStart2 = (cm.blockidstart2() >> 32);
-            secondaryBlockIdStart2 = (cm.blockgapexiststart2()? (cm.blockidstart2()&(0xFFFFFFFF)): -1);
+            secondaryBlockIdStart2 = (cm.blockgapexiststart2()?
+                (cm.blockidstart2()&(0xFFFFFFFF)): -1);
             nucPositionStart2 = cm.nucpositionstart2();
             nucGapPositionStart2 = (cm.nucgapexiststart2()? (cm.nucgappositionstart2()) : -1);
 
@@ -670,17 +681,21 @@ namespace PangenomeMAT {
 
     };
 
+    // Data structure to represent PanMAN
     class TreeGroup {
     public:
+        // List of PanMATs in PanMAN
         std::vector< Tree > trees;
+        // List of complex mutations linking PanMATs
         std::vector< ComplexMutation > complexMutations;
 
-        TreeGroup(std::ifstream& fin);
+        TreeGroup(std::istream& fin);
+        // List of PanMAT files and a file with all the complex mutations relating these files
         TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile);
         TreeGroup(const std::vector< Tree >& t);
 
         void printFASTA(std::ofstream& fout);
-        void writeToFile(std::ofstream& fout);
+        void writeToFile(std::ostream& fout);
         void printComplexMutations();
     };
 
