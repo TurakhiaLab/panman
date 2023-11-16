@@ -1,5 +1,5 @@
 #include <iostream>
-#include <set>
+#include <vector>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -7,8 +7,10 @@
 
 
 struct kmer_t {
+    
     std::string seq;
     size_t pos;
+    int32_t idx; // index of kmer in vector used in indexing DFS
     size_t pos2;
     bool reversed;
     bool operator<(const kmer_t &rhs) const {
@@ -20,23 +22,33 @@ struct kmer_t {
             return seq < rhs.seq;
         }
     };
+    bool operator==(const kmer_t &rhs) const {
+        return seq == rhs.seq;
+    };
 };
-
+class KHash {
+public:
+    size_t operator()(const kmer_t& t) const
+    {
+        const std::hash<std::string> h;
+        return h(t.seq);
+    }
+    
+};
 
 struct read_t {
     std::string seq;
-    std::set<kmer_t> kmers;
+    std::vector<kmer_t> kmers;
     //std::vector<int> read_coord;
     //std::vector<int> ref_coord;
     //std::vector<bool> reversed;
 };
 
-
 struct seedIndex {
-    std::set<kmer_t> rootSeeds;
-    std::unordered_map<std::string, std::set<size_t>> deletions;
-    std::unordered_map<std::string, std::set<kmer_t>> insertions;
-};
+    std::vector<kmer_t> rootSeeds;
+    std::unordered_map<std::string, std::vector<kmer_t>> deletions;
+    std::unordered_map<std::string, std::vector<kmer_t>> insertions;
+}; 
 
 struct dynamicJaccard {
     size_t intersectionSize;
@@ -44,18 +56,23 @@ struct dynamicJaccard {
     float jaccardIndex;
 };
 
-inline bool is_syncmer(std::string seq, int s, bool open) {
-    std::set<std::string> submers;
+inline bool is_syncmer(std::string &seq, int s, bool open) {
+    if (seq.size() < s) {
+        return false;
+    }
+    std::string min(s, 'Z');
     for (size_t i = 0; i < seq.size() -  s + 1; i++) {
         std::string submer = seq.substr(i, s);
-        submers.insert(submer);
+        if (submer < min) {
+            min = submer;
+        }
     }
     if (open) {
-        if ((*(submers.begin())) == seq.substr(0, s)) {
+        if (min == seq.substr(0, s)) {
             return true;
         }
     } else {
-        if ((*(submers.begin())) == seq.substr(0, s) || (*(submers.begin())) == seq.substr(seq.length()-s, s)) {
+        if (min == seq.substr(0, s) || min == seq.substr(seq.length()-s, s)) {
             return true;
         }
     }
@@ -63,32 +80,35 @@ inline bool is_syncmer(std::string seq, int s, bool open) {
     return false;
 }
 
-inline std::set<kmer_t> syncmerize(std::string seq, int k, int s, bool open, bool aligned) {
-    std::set<kmer_t> ret;
+inline std::vector<kmer_t> syncmerize(std::string seq, int k, int s, bool open, bool aligned, int pad) {
+    std::vector<kmer_t> ret;
     if (aligned) {
-        std::unordered_map<size_t, size_t> degap;
-        size_t pos = 0;
+        std::unordered_map<int32_t, int32_t> degap;
+        int32_t pos = 0;
         std::string ungapped = "";
-        for (size_t i = 0; i < seq.size(); i++) {
+        for (int32_t i = 0; i < seq.size(); i++) {
             char c = seq[i];
+            degap[pos] = i;
             if (c != '-') {
-                pos++;
                 ungapped += c;
+                pos++;
             }
-            degap[i] = pos;
         }
-    
-        for (size_t i = 0; i < ungapped.size() - k + 1; i++) {
+    // 012345 6789
+        if (ungapped.size() < k + 1) {
+            return ret;
+        }
+        for (int32_t i = 0; i < ungapped.size() - k + 1; i++) {
             std::string kmer = ungapped.substr(i, k);
             if (is_syncmer(kmer, s, open)) {
-                ret.insert(kmer_t{kmer, degap[i]});
+                ret.push_back(kmer_t{kmer, degap[i]+pad, -1});
             }
         }
     } else {
-        for (size_t i = 0; i < seq.size() - k + 1; i++) {
+        for (int32_t i = 0; i < seq.size() - k + 1; i++) {
             std::string kmer = seq.substr(i, k);
             if (is_syncmer(kmer, s, open)) {
-                ret.insert(kmer_t{kmer, i});
+                ret.push_back(kmer_t{kmer, i+pad, -1});
             }
         }
     }

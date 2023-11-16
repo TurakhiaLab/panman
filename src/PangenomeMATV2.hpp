@@ -15,6 +15,7 @@
 #include "syncmer.hpp"
 #include <math.h>
 
+
 #define PMAT_VERSION "1.0-beta"
 #define VCF_VERSION "4.2"
 
@@ -196,7 +197,11 @@ namespace PangenomeMAT2 {
                 std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > >& coordinates,\
                 std::vector< std::pair< bool, std::vector< bool > > >& blockExists
             );
-            void indexSyncmersHelper(PangenomeMAT2::Node* root, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence, std::vector< std::pair< bool, std::vector< bool > > >& blockExists, std::ofstream& fout, std::unordered_map<std::string, PangenomeMAT2::Node*> &allNodes, std::set<kmer_t> const &syncmers, std::unordered_map<std::string, int> &counts, std::string &consensusSequence);
+            seedIndex shaveIndex(seedIndex &index, std::unordered_map<std::string, bool> &invariants, std::vector<kmer_t> &initialSyncmers);
+            void shaveDFS(Node *currNode, std::vector<kmer_t> &currNodeSyncmers, seedIndex &index_orig, std::unordered_map<std::string, std::vector<kmer_t>> &deletions  , std::unordered_map<std::string, bool> &invariants);
+            void writeIndexDFS(Node *currNode, seedIndex &index, std::stringstream &ss, std::vector<kmer_t> &seeds);
+
+            void indexSyncmersHelper(PangenomeMAT2::Node* root, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence, std::vector< std::pair< bool, std::vector< bool > > >& blockExists, seedIndex &index, std::unordered_map<std::string, PangenomeMAT2::Node*> &allNodes, std::vector<kmer_t> &syncmers, std::unordered_map<std::string, int32_t> &counts, std::unordered_map<std::string, bool> &variable_syncmers);
             void setupGlobalCoordinates();
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
 
@@ -229,8 +234,10 @@ namespace PangenomeMAT2 {
             AuxilaryMAT::Tree* convertToAuxMat();
             void indexSyncmers(std::ofstream& fout);
             void placeSample(std::string fastqPath, seedIndex &index);
-            void placeDFS(Node *currNode, std::set<kmer_t> currNodeSyncmers, std::set<kmer_t> &querySyncmers, seedIndex &index, dynamicJaccard dj, std::unordered_map<std::string, float> &scores);
+            void placeDFS(Node *currNode, std::vector<kmer_t> &currNodeSyncmers, std::unordered_map<std::string, bool> &querySyncmers, seedIndex &index, dynamicJaccard dj, std::unordered_map<std::string, float> &scores);
             void loadIndex(std::ifstream &indexFile, seedIndex &index);
+            void writeIndex(std::ofstream &outFile, seedIndex &index);
+            void shaveIndex(seedIndex &index);
 
             Node *root;
             std::vector< Block > blocks;

@@ -221,6 +221,7 @@ void updatedParser(int argc, char* argv[]){
                 std::cout << "\nSummary creation time: " << summaryTime.count() << " nanoseconds\n";
             } else if(strcmp(splitCommandArray[0], "fasta") == 0){
                 // If command was fasta
+                std::cout << "Faste\n";
                 po::variables_map fastaVm;
                 po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(fastaDesc).positional(fastaPositionArgumentDesc).run(), fastaVm);
 

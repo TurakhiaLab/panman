@@ -1,15 +1,20 @@
-cmake_minimum_required (VERSION 3.8) 
+cmake_minimum_required (VERSION 3.16) 
 
 project(panmat-utils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
-set(CMAKE_INCLUDE_CURRENT_DIR ON) 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -std=c++17 -lboost_filesystem -lboost_system -lboost_program_options") 
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+
+
 
 if(DEFINED Protobuf_PATH)
 	find_package(Protobuf REQUIRED HINTS ${Protobuf_PATH})
 else()
 	find_package(Protobuf REQUIRED)
 endif()
+
 
 # Print version messages
 if(Protobuf_FOUND)
@@ -21,7 +26,9 @@ FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
+
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
+
 find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
 
 #find_package(ZLIB)
