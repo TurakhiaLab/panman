@@ -9,9 +9,9 @@
 struct kmer_t {
     
     std::string seq;
-    size_t pos;
+    int32_t pos;
     int32_t idx; // index of kmer in vector used in indexing DFS
-    size_t pos2;
+    int32_t pos2;
     bool reversed;
     bool operator<(const kmer_t &rhs) const {
         if (seq == "") {
@@ -80,7 +80,7 @@ inline bool is_syncmer(std::string &seq, int s, bool open) {
     return false;
 }
 
-inline std::vector<kmer_t> syncmerize(std::string seq, int k, int s, bool open, bool aligned, int pad) {
+inline std::vector<kmer_t> syncmerize(std::string seq, int32_t k, int32_t s, bool open, bool aligned, int32_t pad) {
     std::vector<kmer_t> ret;
     if (aligned) {
         std::unordered_map<int32_t, int32_t> degap;
@@ -94,7 +94,6 @@ inline std::vector<kmer_t> syncmerize(std::string seq, int k, int s, bool open, 
                 pos++;
             }
         }
-    // 012345 6789
         if (ungapped.size() < k + 1) {
             return ret;
         }

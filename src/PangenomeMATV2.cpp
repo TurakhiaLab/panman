@@ -3687,8 +3687,8 @@ void PangenomeMAT2::Tree::shaveDFS(Node *currNode, std::vector<kmer_t> &currNode
     for (kmer_t d : index_orig.deletions[currNode->identifier]) {
         auto r = std::find(currNodeSyncmers.begin(), currNodeSyncmers.end(), d);
         if (r != currNodeSyncmers.end()) {
-            deletions[currNode->identifier].push_back(kmer_t{r->seq, r->pos, r - currNodeSyncmers.begin()});
-            di.push_back(r - currNodeSyncmers.begin());
+            deletions[currNode->identifier].push_back(kmer_t{r->seq, r->pos, static_cast<int32_t>(r - currNodeSyncmers.begin())});
+            di.push_back(static_cast<int32_t>(r - currNodeSyncmers.begin()));
         }
     }
     std::sort(deletions[currNode->identifier].begin(), deletions[currNode->identifier].end(),
