@@ -205,7 +205,6 @@ void align_read_given_seeds(const mm_idx_t *mi,const int read_length,const char 
 
 
 void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions) {
-
     mm_idxopt_t iopt;
 	mm_mapopt_t mopt;
 	int n_threads = 1;
@@ -222,6 +221,8 @@ void align_reads(const char *reference, int n_reads, const char **reads, int *r_
 	mm_mapopt_update(&mopt, mi); // this sets the maximum minimizer occurrence;
 	mm_tbuf_t *tbuf = mm_tbuf_init(); // thread buffer; for multi-threading, allocate one tbuf for each thread
 
+
+	
 	for(int k = 0; k < n_reads; k++){
 
 		mm_reg1_t *reg;
@@ -229,17 +230,27 @@ void align_reads(const char *reference, int n_reads, const char **reads, int *r_
 
 		align_read_given_seeds(mi,r_lens[k],reads[k], &n_reg, &reg, tbuf, &mopt, iopt.k, seed_counts[k], ref_positions[k], qry_positions[k], reversed[k]);
 
-			
-		for (j = 0; j < n_reg; ++j) { // traverse hits and print them out
+		
+		kstring_t sam = {0,0,0};
+		mm_bseq1_t t;
+		t.l_seq = r_lens[k];
+		t.seq = reads[k];
+		t.name = "test";
+		t.qual = NULL;
+		const int n_regss[1] = {1};
+		const mm_reg1_t *regss = {reg};
+
+		
+
+		mi->seq[0].name = "reference";
+		mm_write_sam3( &sam, mi, &t, 0, 0, 1, n_regss, &regss, NULL, 0, 0);
+		printf("%s\n",sam.s);
+
+
+
+		for (j = 0; j < n_reg; ++j) {
 			mm_reg1_t *r = &reg[j];
 			assert(r->p); // with MM_F_CIGAR, this should not be NULL
-
-			printf("%s\t%d\t%d\t%d\t%c\t", "read", r_lens[k], r->qs, r->qe, "+-"[r->rev]);
-			printf("%s\t%d\t%d\t%d\t%d\t%d\t%d\tcg:Z:", mi->seq[r->rid].name, mi->seq[r->rid].len, r->rs, r->re, r->mlen, r->blen, r->mapq);
-
-			for (i = 0; i < r->p->n_cigar; ++i) // IMPORTANT: this gives the CIGAR in the aligned regions. NO soft/hard clippings!
-				printf("%d%c", r->p->cigar[i]>>4, MM_CIGAR_STR[r->p->cigar[i]&0xf]);
-			putchar('\n');
 
 			free(r->p);
 		}

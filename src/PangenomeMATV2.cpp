@@ -3894,12 +3894,16 @@ std::set<kmer_t> syncmersFromFastq(std::string fastqPath,  std::vector<read_t> &
     kseq_t *seq;
     fp = fopen(fastqPath.c_str(), "r");
     seq = kseq_init(fileno(fp));
-    std::set<std::string> input;
+    std::vector<std::string> input;
+    std::vector<std::string> input_names;
     
     int line;
     while ((line = kseq_read(seq)) >= 0) {
-        std::string this_seq = seq->seq.s;
-        input.insert(this_seq);
+        std::string this_seq  = seq->seq.s;
+        std::string this_name = seq->name.s;
+
+        input.push_back(this_seq);
+        input_names.push_back(this_name);
     }
     float est_coverage = 0; //TODO change this to 1
     int k = 15;
@@ -3912,12 +3916,16 @@ std::set<kmer_t> syncmersFromFastq(std::string fastqPath,  std::vector<read_t> &
 
     //std::cerr << "length: " << input.size() << "\n";
     reads.resize(input.size());
-    int i = 0;
 
-    for (auto seq : input) {
+    for (int i = 0; i < input.size(); i++) {
         
         read_t this_read;
+        std::string seq = input[i];
+        std::string name = input_names[i];
+        
         this_read.seq = seq;
+        this_read.name = name;
+
 
         std::string rc = reverse_complement(seq);
         std::set<kmer_t> these = syncmerize(seq, k, s, false, false);
@@ -3958,7 +3966,7 @@ std::set<kmer_t> syncmersFromFastq(std::string fastqPath,  std::vector<read_t> &
             }
         }
 
-        reads[i++] = this_read;
+        reads[i] = this_read;
     }
     return syncmers;
 }
@@ -4203,24 +4211,10 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
 
         reads[r].kmers = matchingSyncmers;
     }
-
-    /*
-    std::cout << "\n\n\n\nmatched syncmners\n";
-    for (int i = 0; i < reads.size(); i++) {
-        std::cerr << "read: " <<  i << " " << reads[i].seq << "\n";
-        for( auto kmer : reads[i].kmers) {
-            std::cout << kmer.seq << "\n";
-            std::cout << kmer.pos << "\n";
-            std::cout << kmer.pos2 << "\n";
-            std::cout << kmer.reversed << "\n";
-        }
-    }
-    */
     
 
 
-
-
+    std::cout << "\n" << ref_seq << std::endl;
 
 
     //Figure out a better way to do this
@@ -4258,7 +4252,7 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
         qry_positions[i] = qry_pos_array;
     }
     
-
+    std::cout << "\n@SQ	SN:reference	LN:" << ref_seq.length() << std::endl;
     align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions);
 
 
@@ -4273,21 +4267,6 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
     free(seed_counts);
     free(r_lens);
     free(read_strings);
-    
-    
-
-    // std::set<std::pair<std::string, float>> topSet;
-    // double a = v[0].second;
-    // double b = v[0].second;
-    // int i = 0;
-    // std::cerr << "[";
-    // while (fabs(a - b) < std::numeric_limits<double>::epsilon()) {
-    //     topSet.insert(v[i]);
-    //     std::cerr << v[i].first << ", ";
-    //     i++;
-    //     b = v[i].second;
-    // }
-    // std::cerr << "\n";
     
 }
 
