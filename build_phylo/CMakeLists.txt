@@ -15,7 +15,7 @@ include(${TBB_DIR}/cmake/TBBBuild.cmake)
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
 find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
 
-file(GLOB LIKELIHOOD_SRCS "../src/core_likelihood.cpp" "../src/core_likelihood.hpp")
+file(GLOB LIKELIHOOD_SRCS "../src/llk_example.cpp")
 
 
 add_executable(core_likelihood

@@ -1,8 +1,6 @@
 #include "core_likelihood.hpp"
-#include "common.cpp"
+#include "core_likelihood.cpp"
 #include "tree.cpp"
-#include "felsenstein.cpp"
-
 
 int main(int argc, char** argv)
 {

@@ -13,6 +13,7 @@
 #include <tbb/blocked_range.h>
 #include <bits/stdc++.h>
 
+
 #define NORM 1
 #define STATES 5
 #define DEBUG 0
