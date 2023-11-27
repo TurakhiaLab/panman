@@ -7,39 +7,20 @@ int main(int argc, char** argv)
     if (argc != 3)
         std::cerr << "Usage: "<< argv[0] <<" [alignment file] [newick tree file]" << std::endl;
 
+    utility::msa_seq(argv[1]);    // Store MSA data into data-structure
+    utility::subs_param.resize(10); // Set Subs parameter
+    for (size_t i = 0; i < 10; i++) utility::subs_param[i] = 1;
+    utility::rate_matrix_calc(); // Find the rate matrix
+
     
-    // Store MSA data into data-structure
-    utility::msa_seq(argv[1]);
-
-    // Set Subs parameter
-    utility::subs_param.resize(10);
-    for (size_t i = 0; i < 10; i++)
-    {
-        utility::subs_param[i] = 1;
-    }
-    
-    // Find the rate matrix
-    utility::rate_matrix_calc();
-
-    std::vector<std::vector<double>> mat_out;
-
-    // Print matrix_exp Matrix
-    if (DEBUG)
+    if (PRINT_RATE_MATRIX) // Print matrix_exp Matrix
     {
         for (size_t i = 0; i < utility::rate_matrix.size(); i++)
         {
-            for (size_t j = 0; j < utility::rate_matrix[0].size(); j++)
-            {
-                std::cout << utility::rate_matrix[i][j] << "\t";
-            }
+            for (size_t j = 0; j < utility::rate_matrix[0].size(); j++) std::cout << utility::rate_matrix[i][j] << "\t";
             std::cout << "\n";
         }
-
-        // Print Pi
-        for (auto &p: utility::pi)
-        {
-            std::cout << p << "\n";
-        }
+        for (auto &p: utility::pi) std::cout << p << "\n";
     }
 
 
@@ -48,14 +29,23 @@ int main(int argc, char** argv)
     newickTree >> newickString;
     utility::Tree tree(newickString);
 
-    // for (auto s: tree.allNodes)
-    // {
-    //     std::cout << s.first << std::endl;
-    // }
 
     utility::bottom_up(tree);
+    std::cout << "\n";
     utility::top_down(tree);
+    std::cout << "\n";
     utility::marginal(tree);
+
+
+    // utility::fitch(tree);
+
+    // if (PRINT_INFERENCE)
+    // {
+    //     std::string tip="Mon";
+    //     auto search = tree.allNodes.find(tip);
+    //     if (search != tree.allNodes.end()) utility::printLikelihoodInference(tree, search->second);
+    //     else {std::cerr<<"Tip not found";}
+    // }
 
     return 0;
 }

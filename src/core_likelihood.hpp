@@ -17,6 +17,9 @@
 #define NORM 1
 #define STATES 5
 #define DEBUG 0
+#define PRINT_INFERENCE 1
+#define PRINT_RATE_MATRIX 1
+#define PRINT_CHILDREN 0
 
 namespace utility
 {
@@ -44,11 +47,14 @@ namespace utility
         Node* parent;
         std::vector< Node* > children;
 
-        // For Phylo Analysis
+        // For Parsimony
+        std::vector<int8_t> fitch_inference;
+
+        // For Likelihood
         std::vector<std::vector<double>> bottom;
         std::vector<std::vector<double>> up;
         std::vector<std::vector<double>> marginal;
-        std::vector<char> inference;
+        std::vector<std::vector<int8_t>> inference;
     };
     
     class Tree
@@ -74,5 +80,8 @@ namespace utility
     void top_down(utility::Tree& tree);
     void marginal(utility::Tree& tree);
     void felsenstein_pruning(utility::Tree& tree);
+    void fitch(Tree& tree);
+    void printLikelihoodInference(Tree& tree, Node* node);
+    void printParsimonyInference(Tree& tree, Node* node);
 };
 

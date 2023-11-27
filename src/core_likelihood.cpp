@@ -53,7 +53,7 @@ void utility::rate_matrix_calc()
     tbb::concurrent_vector<tbb::concurrent_vector<int>> freq_vec( STATES, tbb::concurrent_vector<int> (seqs.size(), 0));
     std::vector<double> freq;
     freq.resize(STATES);
-    double total;
+    double total = 0.0000000001;
 
     tbb::parallel_for_each(seqs, [&](auto& seq){
         std::string seq_ = seq.second.second;
@@ -348,10 +348,10 @@ void utility::felsenstein_pruning(utility::Tree& tree)
 
 void top_down_preorder_traversal(utility::Node* node, utility::Tree& tree, std::vector<utility::Node*> siblings)
 {
-    size_t i,j,k,m;
+    size_t i,j,k,m,l;
     std::vector<std::vector<double>> up;
     up.resize(utility::length);
-
+    // std::cout << node->identifier << "\t";
     std::vector<std::vector<double>> bottom = node->bottom;
 
     for (i=0; i<siblings.size(); i++)
@@ -364,12 +364,15 @@ void top_down_preorder_traversal(utility::Node* node, utility::Tree& tree, std::
         }
     }
 
-    std::cout << node->identifier << "\t";
-    for (i=0; i<siblings.size(); i++)
+    if (PRINT_CHILDREN)
     {
-        std::cout << siblings[i]->identifier << " ";
+        std::cout << node->identifier << "\t";
+        for (i=0; i<siblings.size(); i++)
+        {
+            std::cout << siblings[i]->identifier << " ";
+        }
+        std::cout << "\n";
     }
-    std::cout << "\n";
 
     for (i=0; i<utility::length; i++) up[i].resize(STATES,1); // Initializing with 1;
 
@@ -379,10 +382,13 @@ void top_down_preorder_traversal(utility::Node* node, utility::Tree& tree, std::
         utility::matrix_exp(node->branchLength, mat_out_curr);
 
         std::vector<std::vector<std::vector<double>>> mat_out;
+        std::vector<std::vector<std::vector<double>>> sib_bottom;
         mat_out.resize(siblings.size());
+        sib_bottom.resize(siblings.size());
         for (i=0; i<siblings.size(); i++)
         {
             utility::matrix_exp(siblings[i]->branchLength, mat_out[i]);
+            sib_bottom[i] = siblings[i]->bottom;
         }
 
         std::vector<std::vector<double>> parent_up = node->parent->up;
@@ -393,15 +399,14 @@ void top_down_preorder_traversal(utility::Node* node, utility::Tree& tree, std::
                 double prob = 0;
                 for (j=0; j<STATES; j++)
                 {
-                    double prob_sib = 0;
+                    double prob_sib = 1;
                     int sib_count = 0;
-                    for(auto &sib: siblings)
+                    for(l=0; l<siblings.size(); l++)
                     {
                         double prob_sib_local = 0;
-                        std::vector<std::vector<double>> sib_bottom = sib->bottom;
                         for (k=0; k<STATES; k++)
                         {
-                            prob_sib_local += sib_bottom[m][k]*mat_out[sib_count][j][k];
+                            prob_sib_local += sib_bottom[sib_count][m][k]*mat_out[sib_count][j][k];
                         }
                         prob_sib *= prob_sib_local;
                         sib_count++;
@@ -442,23 +447,17 @@ void marginal_preorder_traversal(utility::Node* node, utility::Tree& tree)
     std::vector<std::vector<double>> bottom = node->bottom;
 
     for (i=0; i<utility::length; i++) marginal[i].resize(STATES,1); // Initializing with 1;
-
+    node->inference.resize(utility::length);
     for (i=0; i<utility::length; i++)
     {
         double total_prob = 0;
         for (j=0; j<STATES; j++) total_prob += utility::pi[j]*up[i][j]*bottom[i][j];
         for (j=0; j<STATES; j++) marginal[i][j] = (utility::pi[j]*up[i][j]*bottom[i][j])/total_prob;
-
         // infer characters
         double max = 0;
-        for (j=0; j<STATES; j++)
-        {
-            if (marginal[i][j] > max) max = marginal[i][j];
-        }
-        for (j=0; j<STATES; j++)
-        {
-            if (marginal[i][j] == max) node->inference.push_back(j);
-        }
+        for (j=0; j<STATES; j++) { if (marginal[i][j] > max) max = marginal[i][j]; }
+        for (j=0; j<STATES; j++) { if (marginal[i][j] == max) node->inference[i].push_back(int8_t(pow(2,j)));}
+
     }
     node->marginal = marginal;
 
@@ -479,4 +478,185 @@ void utility::marginal(utility::Tree& tree)
 
 }
 
+char int2char(int v)
+{
+    switch (v)
+    {
+    case 1:
+        return 'A';
+    case 2:
+        return 'C';
+    case 4:
+        return 'G';
+    case 8:
+        return 'T';
+    case 16:
+        return '-';
+    default:
+        return '-';
+    }
 
+}
+
+void utility::printLikelihoodInference(utility::Tree& tree, utility::Node* node)
+{
+    
+    size_t index = 0;
+    std::cout << node->identifier << "\t";
+    for (index=0; index<utility::length; index++)
+    {
+        char tip_char = utility::seqs.find(node->identifier)->second.second[index];
+        std::cout << tip_char;
+    }
+    std::cout << "\n";
+
+
+    while (node->parent != nullptr)
+    {   
+        node = node->parent;
+        std::cout << node->identifier << "\t";
+        for (index=0; index<utility::length; index++)
+        {
+            char tip_char = int2char(node->inference[index][0]);
+            std::cout << tip_char;
+        }
+        std::cout << "\n";
+    }
+}
+
+int8_t char2int(char& c)
+{
+    switch (c)
+    {
+    case 'A':
+        return 1;
+    case 'C':
+        return 2;
+    case 'G':
+        return 4;
+    case 'T':
+        return 8;
+    case '-':
+        return 16;
+    default:
+        return 16;
+    }
+}
+
+int8_t fitch_op(int8_t& a, int8_t&b)
+{
+    int8_t c = ((a&b) == 0) ? (a|b) : (a&b);
+    return c;
+}
+
+void bottom_up_fitch(utility::Tree& tree, utility::Node* node)
+{
+    size_t i;
+    std::vector<int8_t> inference(utility::length, 0);
+    if (!node->children.size()) //tips
+    {
+        std::string seq = utility::seqs[node->identifier].second;
+        for (i=0; i<utility::length; i++)
+        {
+            inference[i]= char2int(seq[i]);
+        }
+    }
+    else //internal nodes
+    {
+        bool child_count = false;
+        for (auto &child: node->children)
+        {
+            bottom_up_fitch(tree, child);
+            std::vector<int8_t> child_inference = child->fitch_inference;
+            if (!child_count)
+            {
+                child_count = true;
+                for (i=0; i<utility::length; i++)
+                {
+                    inference[i] = child_inference[i];
+                }
+                continue;
+            }
+            for (i=0; i<utility::length; i++)
+            {
+                inference[i] = fitch_op(inference[i], child_inference[i]);
+            }
+        }
+    }
+    node->fitch_inference = inference;
+}
+
+int8_t accInt82Int8(int8_t& acc)
+{
+    if (acc >= 16) return 16;
+    else if (acc >= 8) return 8;
+    else if (acc >= 4) return 4;
+    else if (acc >= 2) return 2;
+    else return 1;
+}
+
+void top_dowm_fitch(utility::Tree& tree, utility::Node* node)
+{
+    size_t i;
+    std::vector<int8_t> inference = node->fitch_inference;
+
+    if (node == tree.root)
+    {
+        for (i=0; i<utility::length; i++)
+        {
+            inference[i] = accInt82Int8(inference[i]);
+        }
+    }
+    else
+    {
+        std::vector<int8_t> parent_inference = node->parent->fitch_inference;
+        std::vector<int8_t> inference = node->fitch_inference;
+        for (i=0; i<utility::length; i++)
+        {
+            inference[i] = ((parent_inference[i]&inference[i]) == 0) ? accInt82Int8(inference[i]) : parent_inference[i];
+        }
+    }
+    node->fitch_inference = inference;
+
+    for (auto &child: node->children)
+    {
+        top_dowm_fitch(tree, child);
+    }
+    return;
+}
+
+
+
+
+void utility::fitch(utility::Tree& tree)
+{
+    utility::Node* root = tree.root;
+    bottom_up_fitch(tree, root);
+    top_dowm_fitch(tree, root);
+}
+
+
+void utility::printParsimonyInference(utility::Tree& tree, utility::Node* node)
+{
+    size_t index = 0;
+    std::cout << node->identifier << "\t";
+    for (index=0; index<utility::length; index++)
+    {
+        char tip_char = utility::seqs.find(node->identifier)->second.second[index];
+        std::cout << tip_char;
+    }
+    std::cout << "\n";
+
+
+    while (node->parent != nullptr)
+    {   
+        node = node->parent;
+        std::cout << node->identifier << "\t";
+        for (index=0; index<utility::length; index++)
+        {
+            char tip_char = int2char(node->fitch_inference[index]);
+            std::cout << tip_char;
+        }
+        std::cout << "\n";
+    }
+}
