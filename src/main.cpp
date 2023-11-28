@@ -46,6 +46,9 @@ po::positional_options_description searchPositionArgumentDesc;
 
 po::options_description indexDesc("index");
 
+po::options_description genotypeDesc("genotype");
+po::positional_options_description genotypePositionArgumentDesc;
+
 po::options_description placeDesc("place");
 po::positional_options_description placePositionArgumentDesc;
 
@@ -129,6 +132,12 @@ void setupOptionDescriptions(){
 
     // Indexing
     placePositionArgumentDesc.add("fastq", -1);
+
+    // statistical genotyping
+    genotypeDesc.add_options()
+        ("help", "product help message")
+        ("input-file", po::value< std::string >()->required(), "path to SAM alignment file");
+    ;
 
 }
 
@@ -561,6 +570,27 @@ void updatedParser(int argc, char* argv[]){
 
                 }
 
+            } else if(strcmp(splitCommandArray[0], "genotype") == 0) {
+                using namespace std;
+                using namespace PangenomeMAT2;
+
+                //po::variables_map genotypeVm;
+                //po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(annotateDesc).positional(annotatePositionArgumentDesc).run(), genotypeVm);
+
+                //string SAMFileName = genotypeVm["input-file"].as< std::string >();
+                string SAMFileName = "/home/azhang/rotations/rotation_2/pangenome-mat/alignments/1k.pileup";
+                ifstream fin(SAMFileName);
+
+                auto genotypeStart = std::chrono::high_resolution_clock::now();
+
+                T->printVCFGenotypeStats(fin);
+
+                auto genotypeEnd = std::chrono::high_resolution_clock::now();
+                std::chrono::nanoseconds genotypeTime = genotypeEnd - genotypeStart;
+
+                std::cout << "\nstatistical genotype execution time: " << genotypeTime.count() << " nanoseconds\n";
+
+                
             }
         } catch (std::exception& e){
             std::cerr << "error\n";

@@ -3412,6 +3412,133 @@ void PangenomeMAT2::Tree::indexSyncmersHelper(PangenomeMAT2::Node* root,\
     }
 }
 
+void PangenomeMAT2::Tree::fillMutationMats(statsgenotype::mutationMatrices& mutmat, PangenomeMAT2::Node* node) {
+    // Does BFS and fill in the mutation matrices
+    queue<Node*> bfs_queue;
+    bfs_queue.push(node);
+    while (!bfs_queue.empty()) {
+        Node* current = bfs_queue.front();
+        bfs_queue.pop();
+
+        if (!current->nucMutation.empty()) {
+            for (const auto& nucmut : current->nucMutation) {
+                auto variant_len = nucmut.mutInfo >> 4;
+                auto mut_type    = nucmut.mutInfo & 15;
+
+                if (mut_type == NucMutationType::ND) {
+                    // deletion
+                    if (variant_len > mutmat.delmat.size() - 1) {
+                        mutmat.delmat.resize(variant_len + 1);
+                    }
+                    mutmat.delmat[variant_len] += 1;
+                    mutmat.total_delmut += 1;
+                } else if (mut_type == NucMutationType::NI) {
+                    // insertion
+                    if (variant_len > mutmat.insmat.size() - 1) {
+                        mutmat.insmat.resize(variant_len + 1);
+                    }
+                    mutmat.insmat[variant_len] += 1;
+                    mutmat.total_insmut += 1;
+                } else if (mut_type == NucMutationType::NS) {
+                    // substitution
+                    const auto& substitution = get_substitution(current->identifier, nucmut);
+                    for (size_t i = 0; i < substitution.first.size(); i++) {
+                        char ref = statsgenotype::getIndexFromNucleotide(substitution.first[i]);
+                        char var = statsgenotype::getIndexFromNucleotide(substitution.second[i]);
+                        if (ref == -1 || var == -1) {
+                            continue;
+                        }
+                        mutmat.submat[ref][var] += 1;
+                        mutmat.total_submuts[ref] += 1;
+                    }
+                }
+
+            }
+        }
+
+        for(const auto& child: current->children) {
+            bfs_queue.push(child);
+        }
+    }
+
+    // Calculate probablities in phred log scale
+    // deletion
+    for (auto i = 0; i < mutmat.delmat.size(); ++i) {
+        mutmat.delmat[i] =  -10 * log10f64x(mutmat.delmat[i] / mutmat.total_delmut);
+    }
+    // insertion
+    for (auto i = 0; i < mutmat.insmat.size(); ++i) {
+        mutmat.insmat[i] = -10 * log10f64x(mutmat.insmat[i] / mutmat.total_insmut);
+    }
+    // substitution
+    for (auto i = 0; i < 4; i++) {
+        for (auto j = 0; j < 4; j++) {
+            mutmat.submat[i][j] = -10 * log10f64x(mutmat.submat[i][j] / mutmat.total_submuts[i]);
+        }
+    }
+}
+
+void printMatrices(const statsgenotype::mutationMatrices& mutmat) {
+    for (const auto& row : mutmat.submat) {
+        for (const auto& count : row) {
+            cout << count << " ";
+        }
+        cout << endl;
+    }
+    for (const auto& total : mutmat.total_submuts) {
+        cout << total << " ";
+    }
+    cout << endl;
+    for (const auto& count : mutmat.delmat) {
+        cout << count << " ";
+    }
+    cout << endl;
+    for (const auto& count : mutmat.insmat) {
+        cout << count << " ";
+    }
+    cout << endl;
+}
+
+void PangenomeMAT2::Tree::printVCFGenotypeStats(std::ifstream& fin) {
+    // Infer mutation matrix
+    auto mutmat = statsgenotype::mutationMatrices();
+    fillMutationMats(mutmat, this->root);
+    // printMatrices(mutmat);
+
+    // get potential variant sites.. Currently read from mpileup file
+    vector<statsgenotype::variationSite> candidate_variants;
+    std::string line;
+    while(getline(fin, line)) {
+        cout << line << endl;
+        break;
+    }
+
+    
+}
+
+std::pair<std::string, std::string> PangenomeMAT2::Tree::get_substitution(const std::string& nid, const PangenomeMAT2::NucMut& nucmut) {
+    PangenomeMAT2::Node* current_node = allNodes[nid];
+    auto variant_len      = nucmut.mutInfo >> 4;
+    auto mut_type         = nucmut.mutInfo & 15;
+    assert(mut_type == PangenomeMAT2::NucMutationType::NS);
+    const auto& globalCoord = PangenomeMAT2::Tree::getGlobalCoordinate(nucmut.primaryBlockId, nucmut.secondaryBlockId, nucmut.nucPosition, nucmut.nucGapPosition);
+
+    std::string variantSeq  = "";
+    std::string originalSeq = "";
+    const auto& parent_seq = Tree::getStringFromReference(current_node->parent->identifier);
+
+    for (auto i = 0; i < variant_len; i++) {
+        char nuc = getNucleotideFromCode((nucmut.nucs >> (20 - i * 4)) & 15);
+        variantSeq  += nuc;
+        originalSeq += parent_seq[globalCoord+i];
+    }
+
+    std::pair<std::string, std::string> substitution = std::make_pair(originalSeq, variantSeq);
+    return substitution;
+}
+
+
+
 std::string reverse_complement(std::string dna_sequence) {
     std::string complement = "";
     for (char c : dna_sequence) {
