@@ -63,6 +63,7 @@ void setupOptionDescriptions(){
         ("input-file,I", po::value< std::string >(), "PanMAT input file path")
         ("gfa-in", po::value< std::string >(), "create PanMAT from GFA file")
         ("pangraph-in", po::value< std::string >(), "create PanMAT from Pangraph file")
+        ("mode", po::value< std::string >(), "Phylogenetic Method")
         ("msa-in", po::value< std::string >(), "create PanMAT from MSA file")
         ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
         ("newick-in", po::value< std::string >(), "Input file path for file containing newick string")
@@ -282,7 +283,7 @@ void updatedParser(int argc, char* argv[]){
         }
         std::string newickFileName = globalVm["newick-in"].as< std::string >();
 
-        std::cout << "Creating PanMAT from Pangraph" << std::endl;
+        std::cout << "Creating PanMAT from Pangraph using Parsimony based methods" << std::endl;
 
         std::ifstream inputStream(fileName);
         std::ifstream newickInputStream(newickFileName);

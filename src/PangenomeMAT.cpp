@@ -675,6 +675,7 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
                 }
                 individualSequences[u.first] = currentSequence;
             });
+            
             tbb::parallel_for((size_t) 0, sequence.size(), [&](size_t j){
                 tbb::parallel_for((size_t)0, sequence[j].second.size(), [&](size_t k){
                     std::unordered_map< std::string, int > states;
