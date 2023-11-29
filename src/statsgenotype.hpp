@@ -12,17 +12,15 @@ namespace statsgenotype {
 static int getIndexFromNucleotide(char nucleotide) {
     switch(nucleotide) {
         case 'A':
-        case 'a':
             return 0;
         case 'C':
-        case 'c':
             return 1;
         case 'G':
-        case 'g':
             return 2;
         case 'T':
-        case 't':
             return 3;
+        case '*':
+            return 4;
         default:
             return -1;
     }
@@ -54,28 +52,33 @@ enum variationType {
 
 struct variationSite {
     // substitution only
-    variationSite(size_t sid, char ref, size_t position, int variation_types, string nucs, string errors, const vector<string>& insertion_seqs, const vector<size_t>& deletion_lens) {
+    variationSite(
+        size_t sid, char ref, size_t position, int variation_types, const string& nucs,
+        const vector<string>& insertion_seqs, const vector<size_t>& deletion_lens, const string& errors
+    ) {
         site_id = sid;
         ref_position = position;
+        size_t offset = 0;
         site_info = (getIndexFromNucleotide(ref) << 3) + variation_types;
-        read_errs.resize(4);
+        read_errs.resize(5);
 
         if (variation_types && variationType::SNP) {
-            assert(nucs.size() == errors.size());
             for (auto i = 0; i < nucs.size(); ++i) {
                 read_errs[getIndexFromNucleotide(nucs[i])].push_back(double(errors[i]) - 33.0);
             }
+            offset += nucs.size();
         }
 
         if (variation_types && variationType::INS) {
-            for (auto insertion_seq : insertion_seqs) {
-                insertions[insertion_seq] += 1;
+            for (auto i = 0; i < insertion_seqs.size(); ++i) {
+                insertions[insertion_seqs[i]].push_back(double(errors[i + offset] - 33.0));
             }
+            offset += insertion_seqs.size();
         }
 
         if (variation_types && variationType::DEL) {
-            for (auto deletion_len : deletion_lens) {
-                deletions[deletion_len] += 1;
+            for (auto i = 0; i < deletion_lens.size(); i++) {
+                deletions[deletion_lens[i]].push_back(double(errors[i + offset] - 33.0));
             }
         }
     }
@@ -88,10 +91,12 @@ struct variationSite {
     vector< vector<double> > read_errs;
 
     // deletion
-    map<size_t, size_t> deletions;
+    // map<size_t, size_t> deletions;
+    map<size_t, vector<double> > deletions;
     
     // insertion
-    map<string, size_t> insertions;
+    // map<string, size_t> insertions;
+    map<string, vector<double> > insertions;
     
 };
 

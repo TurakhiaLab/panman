@@ -11,6 +11,7 @@
 #include <ctime>
 #include <iomanip>
 #include <mutex>
+#include <regex>
 #include "kseq.hpp"
 #include "PangenomeMATV2.hpp"
 
@@ -3499,20 +3500,117 @@ void printMatrices(const statsgenotype::mutationMatrices& mutmat) {
     cout << endl;
 }
 
+size_t countChar(std::string str, char chr) {
+    size_t numchar = 0;
+    
+    if (str.empty()) {
+        return numchar;
+    }
+
+    for (const char& c : str) {
+        if (c == chr) {
+            numchar += 1;
+        }
+    }
+
+    return numchar;
+}
+
+int parse_readbases(
+    const string& readbase_string, char ref_nuc, string& nucs,
+    vector<string>& insertion_seqs, vector<size_t>& deletion_sizes, string& errs 
+) {
+    int variation_types = 0;
+
+    regex ins_regex("[.,]\\+\\d+([ACGTacgt]+)");
+    regex del_regex("[.,]-(\\d+)[ACGTacgt]+");
+    regex snp_regex("([.,]|[ACGTacgt*])");
+
+    size_t cur_start = 0;
+    size_t readbase_strlen = readbase_string.size();
+    while (cur_start < readbase_string.size()) {
+        string readbase_substr = readbase_string.substr(cur_start, readbase_strlen - cur_start);
+        smatch matches;
+        if (regex_search(readbase_substr, matches, ins_regex) && matches[0].start() == cur_start) {
+            
+        }
+    }
+    // sregex_iterator matches_begin = sregex_iterator(readbase_string.begin(), readbase_string.end(), ins_regex);
+    // sregex_iterator matches_end   = sregex_iterator();
+    // for (sregex_iterator i = matches_begin; i != matches_end; ++i) {
+    //     smatch match = *i;
+    //     string match_str = match.str(1);
+    //     insertion_seqs.push_back(match_str);
+    //     variation_types |= statsgenotype::variationType::INS;
+    // }
+    // readbase_string = regex_replace(readbase_string, ins_regex, "");
+
+    // matches_begin = sregex_iterator(readbase_string.begin(), readbase_string.end(), del_regex);
+    // for (sregex_iterator i = matches_begin; i != matches_end; ++i) {
+    //     smatch match = *i;
+    //     string match_str = match.str(1);
+    //     deletion_sizes.push_back(stoul(match_str));
+    //     variation_types |= statsgenotype::variationType::DEL;
+    // }
+    // readbase_string = regex_replace(readbase_string, del_regex, "");
+
+    // matches_begin = sregex_iterator(readbase_string.begin(), readbase_string.end(), snp_regex);
+    // while (matches_begin != matches_end) {
+    //     smatch match = *matches_begin;
+    //     if (match.str() == "." || match.str() == ",") {
+    //         nucs += ref_nuc;
+    //     } else {
+    //         nucs += toupper(match.str()[0]);
+    //         variation_types |= statsgenotype::variationType::SNP;
+    //     }
+    //     matches_begin++;
+    // }
+    return variation_types;
+}
+
+double phred_complement(double q) {
+    double p = 10 ** (-q / 10);
+    return -10 * log10(1 - p);
+}
+
 void PangenomeMAT2::Tree::printVCFGenotypeStats(std::ifstream& fin) {
     // Infer mutation matrix
     auto mutmat = statsgenotype::mutationMatrices();
     fillMutationMats(mutmat, this->root);
     // printMatrices(mutmat);
 
+    regex variant_pattern("[ACGTacgt\\*]+");
+
     // get potential variant sites.. Currently read from mpileup file
     vector<statsgenotype::variationSite> candidate_variants;
+    size_t site_id = 0;
     std::string line;
     while(getline(fin, line)) {
-        cout << line << endl;
-        break;
-    }
+        vector<string> fields;
+        PangenomeMAT2::stringSplit(line, '\t', fields);
+        string readbases_string = fields[4];
+        size_t coverage = stoul(fields[3]);
+        if ((coverage > 0) && regex_search(readbases_string, variant_pattern)) {
+            char ref_nuc = fields[2][0];
+            size_t position = stoul(fields[1]);
+            string errs;
+            string nucs;
+            vector<string> insertion_seqs;
+            vector<size_t> deletion_sizes;
 
+            auto variation_types = parse_readbases(readbases_string, ref_nuc, nucs, insertion_seqs, deletion_sizes, errs);
+            candidate_variants.emplace_back(statsgenotype::variationSite(
+                site_id, ref_nuc, position, variation_types, nucs,
+                insertion_seqs, deletion_sizes, fields[5]
+            ));
+            site_id++;
+        }
+    }
+    cout << candidate_variants.size() << endl;
+
+    for (const auto& variant : candidate_variants) {
+        cout << variant.ref_position << ": " << (variant.site_info & 7) << endl;
+    }
     
 }
 

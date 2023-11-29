@@ -578,7 +578,7 @@ void updatedParser(int argc, char* argv[]){
                 //po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(annotateDesc).positional(annotatePositionArgumentDesc).run(), genotypeVm);
 
                 //string SAMFileName = genotypeVm["input-file"].as< std::string >();
-                string SAMFileName = "/home/azhang/rotations/rotation_2/pangenome-mat/alignments/1k.pileup";
+                string SAMFileName = "/home/azhang/rotations/rotation_2/pangenome-mat/alignments/5k.pileup";
                 ifstream fin(SAMFileName);
 
                 auto genotypeStart = std::chrono::high_resolution_clock::now();
