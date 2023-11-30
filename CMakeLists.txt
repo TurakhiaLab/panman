@@ -1,74 +1,64 @@
-cmake_minimum_required (VERSION 3.8) 
+cmake_minimum_required (VERSION 3.26) 
 
 project(panmat-utils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
-if(DEFINED Protobuf_PATH) 
-	find_package(Protobuf REQUIRED HINTS ${Protobuf_PATH}) 
-else()
-	find_package(Protobuf REQUIRED) 
-endif()
-
-# Print version messages
-if(Protobuf_FOUND)
-	message(STATUS "Using Protocol Buffers ${Protobuf_VERSION}")
-endif()
+find_package(Protobuf REQUIRED CONFIG) 
 include_directories(${Protobuf_INCLUDE_DIRS})
+if(Protobuf_FOUND)
+	message(STATUS "Found Protocol Buffers: ${Protobuf_VERSION}")
+endif()
 
-FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
+
+FIND_PACKAGE(Boost COMPONENTS system filesystem program_options unit_test_framework iostreams date_time REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
+# include("./vcpkg.cmake")
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP jsoncpp)
+
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
-include("/home/AD.UCSD.EDU/hmotwani/vcpkg/scripts/buildsystems/vcpkg.cmake")
-tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
+tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS arch=arm64 tbb_cpf=1)
 find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
-find_package(jsoncpp CONFIG REQUIRED)
-# target_link_libraries(main PRIVATE JsonCpp::JsonCpp)
 
 # FIND_PACKAGE(ZLIB COMPONENTS ZLIB REQUIRED)
 
-
-file(GLOB PANMAT_SRCS "src/main.cpp" "src/PangenomeMAT.cpp" "src/PangenomeMAT.hpp")
-
-if(DEFINED Protobuf_PATH)
-	add_executable(panmat-utils
-		${PANMAT_SRCS}
-		)
-
-	protobuf_generate(
-		LANGUAGE cpp
-		TARGET panmat-utils 
-		PROTOS mutation_annotation_test_proto3_optional_new.proto vg.proto)
-
-	# protobuf_generate(
-	# 	LANGUAGE cpp
-	# 	TARGET panmat-utils 
-	# 	PROTOS mutation_annotation_test_proto3_optional_new.proto)
+# minimap2
+add_custom_target(libminimap2.a
+   COMMAND make arm_neon=1 aarch64=1 libminimap2.a
+   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/minimap2_src/
+)
+add_custom_target(clean-minimap
+    COMMAND make clean
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/src/minimap2_src/
+)
+file(GLOB PANMAT_SRCS  "src/align_from_seeds.c" "src/main.cpp" "src/PangenomeMAT.cpp" "src/PangenomeMAT.hpp"  "src/minimap2_src/libminimap2.a" "src/kseq.h")
+file(GLOB TEST_SRCS "src/align_from_seeds.c"  "src/PangenomeMAT.cpp" "src/PangenomeMAT.hpp"  "src/minimap2_src/libminimap2.a" "src/kseq.h" "src/test/*.cpp")
 
 
-else()
-	protobuf_generate_cpp(
-		PROTO_SRCS PROTO_HDRS
-		mutation_annotation_test_proto3_optional_new.proto vg.proto)
-	
-	# protobuf_generate_cpp(
-	# 	PROTO_SRCS PROTO_HDRS
-	# 	mutation_annotation_test_proto3_optional_new.proto)
+# targets
+add_executable(panmat-utils ${PANMAT_SRCS})
+add_executable(tests ${TEST_SRCS})
 
-	add_executable(panmat-utils
-		${PANMAT_SRCS}
-		${PROTO_SRCS}
-		${PROTO_HDRS}
-		)
 
-endif()
+protobuf_generate(LANGUAGE cpp 
+	TARGET panmat-utils 
+	PROTOS mutation_annotation_test_proto3_optional_new.proto)
+protobuf_generate(LANGUAGE cpp 
+	TARGET tests 
+	PROTOS mutation_annotation_test_proto3_optional_new.proto)
 
-TARGET_COMPILE_OPTIONS(panmat-utils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
+add_dependencies(panmat-utils libminimap2.a)
+add_dependencies(tests libminimap2.a)
 
-add_subdirectory(spoa EXCLUDE_FROM_ALL)
+set_directory_properties(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES ${CMAKE_BINARY_DIR}/clean-minimap)
 
-# find_package(spoa)
-TARGET_LINK_LIBRARIES(panmat-utils PRIVATE spoa::spoa stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
-target_include_directories(panmat-utils PUBLIC "${PROJECT_BINARY_DIR}")
+target_compile_options(panmat-utils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
+target_compile_options(tests PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
+
+target_link_libraries(panmat-utils PRIVATE ${JSONCPP_LINK_LIBRARIES} ${spoa_DIR}/build/lib/libspoa.a stdc++ ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} protobuf::libprotobuf ${CMAKE_SOURCE_DIR}/src/minimap2_src/libminimap2.a z) 
+target_link_libraries(tests PRIVATE ${JSONCPP_LINK_LIBRARIES} ${spoa_DIR}/build/lib/libspoa.a stdc++ ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} protobuf::libprotobuf ${CMAKE_SOURCE_DIR}/src/minimap2_src/libminimap2.a z) 
+
+target_include_directories(panmat-utils PUBLIC "${PROJECT_BINARY_DIR}"  ${spoa_DIR}/include)

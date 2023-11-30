@@ -14,6 +14,8 @@
 
 #include <json/json.h>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
+#include "kseq.h"
+#include "syncmer.hpp"
 
 #define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
@@ -112,7 +114,7 @@ namespace PangenomeMAT {
             primaryBlockId = std::get<0>(mutationArray[start]);
             secondaryBlockId = std::get<1>(mutationArray[start]);
 
-            mutInfo = ((end - start) << 4);
+            mutInfo = ((end - start) << 4); 
             // type
             switch(std::get<4>(mutationArray[start])) {
                 case PangenomeMAT::NucMutationType::NSNPS:
@@ -460,6 +462,7 @@ namespace PangenomeMAT {
 
             // Split file provided as input.
             std::pair< Tree, Tree > splitByComplexMutations(const std::string& nodeId3);
+            std::vector< std::pair< std::vector< std::pair< int, std::vector< int > > >, std::vector< std::vector< std::pair< int, std::vector< int > > > > > > globalCoordinates;
 
             // get unaligned global coordinate
             int32_t getUnalignedGlobalCoordinate(int32_t primaryBlockId, int32_t secondaryBlockId, int32_t pos, int32_t gapPos, const sequence_t& sequence, const blockExists_t& blockExists);
@@ -473,6 +476,7 @@ namespace PangenomeMAT {
             void convertToGFA(std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
             void getNodesPreorder(PangenomeMAT::Node* root, PanMAT::tree& treeToWrite);
+            void setupGlobalCoordinates();
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
 
             // Transforms tree such that given node becomes child of new root
@@ -673,6 +677,41 @@ namespace PangenomeMAT {
         void writeToFile(std::ofstream& fout);
         void printComplexMutations();
     };
+
+    /* seed indexing */
+
+    struct Counter
+    {
+    struct value_type { template<typename T> value_type(const T&) { } };
+    void push_back(const value_type&) { ++count; }
+    int32_t count = 0;
+    };
+
+    template<typename T1, typename T2> int32_t intersection_size(const T1& s1, const T2& s2)
+    {
+    Counter c;
+    set_intersection(s1.begin(), s1.end(), s2.begin(), s2.end(), std::back_inserter(c));
+    return c.count;
+    }
+
+    template <typename INT, typename T>
+    void removeIndices(std::vector<T>& v, std::stack<INT>& rm);
+    void discardSyncmers(std::vector<kmer_t> &inSyncmers, const std::vector<std::pair<int32_t, int32_t>>& B, std::string &gappedSequence, std::unordered_map<std::string, kmer_t> &to_insert, std::unordered_map<std::string, bool> &variable_syncmers, seedIndex &index, std::string nid, size_t k);
+    void shaveDFS(Node *currNode, std::vector<kmer_t> &currNodeSyncmers, seedIndex &index_orig, std::unordered_map<std::string, std::vector<kmer_t>> &deletions, std::unordered_map<std::string, bool> &invariants);
+    void placeDFS(Node *currNode, std::vector<kmer_t> &currNodeSyncmers, std::unordered_map<std::string, bool> &querySyncmers, seedIndex &index, dynamicJaccard dj, std::unordered_map<std::string, float> &scores);
+
+    void writeIndexDFS(Node *currNode, seedIndex &index, std::stringstream &ss, std::vector<kmer_t> &seeds);
+    void writeIndex(Node *node, std::ofstream &fout, seedIndex &index);
+    void indexSyncmersHelper(Tree *T, Node *root, sequence_t &sequence, blockExists_t &blockExists, blockStrand_t &blockStrand, seedIndex &index, std::vector<kmer_t> &syncmers, std::unordered_map<std::string, int32_t> &counts, std::unordered_map<std::string, bool> &variable_syncmers, size_t k, size_t s);
+    void indexSyncmers(Tree *t, std::ofstream& fout, size_t k, size_t s);
+    seedIndex shaveIndex(Node *root, seedIndex &index, std::unordered_map<std::string, bool> &invariants, std::vector<kmer_t> &initialSyncmers);
+    std::pair<int32_t, int32_t> getRecomputePositions(std::pair<int32_t, int32_t> p, std::string &gappedSequence, int32_t k);
+    int32_t alignedEndPos(int32_t pos, int32_t k, std::string &gappedSequence);
+    void loadIndex(Node *root, std::ifstream &indexFile, seedIndex &index);
+    void placeSample(Tree *T, std::string fastqPath, seedIndex &index, size_t k, size_t s);
+    std::set<kmer_t> syncmersFromFastq(std::string fastqPath,  std::vector<read_t> &reads, size_t k, size_t s);
+    std::string getCurrentFastaSequence(const sequence_t& sequence, const blockExists_t& blockExists, blockStrand_t& blockStrand, bool aligned);
+
 
 };
 
