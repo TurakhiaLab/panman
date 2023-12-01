@@ -100,9 +100,7 @@ static double likelihood(
                 genotype_probs.push_back(phred_complement(prob));
             }
         } else {
-            
             variants_probs.insert(variants_probs.end(), row.begin(), row.end());
-            
         }
     }
 
@@ -144,15 +142,15 @@ static vector<double> genotype_likelihoods(
 ) {
     vector<double> likelihoods;
     likelihoods.resize(5);
-    for (auto& prob : likelihoods) {
-        prob = numeric_limits<double>::max();
+    for (auto i = 0; i < 5; ++i) {
+        likelihoods[i] = numeric_limits<double>::max();
     }
 
     auto variation_types = site_info & 7;
-
+    auto ref_nuc = site_info >> 3;
 
     for (size_t i = 0; i < read_errs.size(); ++i) {
-        if (read_errs[i].empty()) { continue; }
+        if (read_errs[i].empty() && i != ref_nuc) { continue; }
         likelihoods[i] = likelihood(i, read_errs, deletions, insertions, variationType::SNP);
     }
 
@@ -171,10 +169,47 @@ static vector<double> genotype_likelihoods(
     return likelihoods;
 }
 
+static vector<double> genotype_posteriors(
+    const vector<double>& likelihoods, const map<size_t, vector<double> >& deletions,
+    const map<string, vector<double> >& insertions, const int8_t& site_info, const mutationMatrices& mutmat
+) {
+    vector<double> posteriors;
+    posteriors.resize(4);
+    for (auto i = 0; i < 4; i++) {
+        posteriors[i] = numeric_limits<double>::max();
+    }
+
+    auto ref_nuc = site_info >> 3;
+    for (auto i = 0; i < 4; ++i) {
+        if (likelihoods[i] != numeric_limits<double>::max()) {
+            posteriors[i] = likelihoods[i] + mutmat.submat[ref_nuc][i];
+        }
+    }
+
+    size_t insertion_idx = 0;
+    for (const auto& insertion : insertions) {
+        posteriors.push_back(likelihoods[5 + insertion_idx] + mutmat.insmat[insertion.first.size()]);
+        insertion_idx++; 
+    }
+
+    size_t deletion_idx = 0;
+    for (const auto& deletion : deletions) {
+        posteriors.push_back(likelihoods[5 + insertion_idx + deletion_idx] + mutmat.insmat[deletion.first]);
+        insertion_idx++; 
+    }
+
+    double min_score = *min_element(posteriors.begin(), posteriors.end());
+    for (int i = 0; i < posteriors.size(); ++i) {
+        posteriors[i] -= min_score;
+    }
+    return posteriors;
+}
+
 struct variationSite {
     variationSite(
         size_t sid, char ref, size_t position, int variation_types, const string& nucs,
-        const vector<string>& insertion_seqs, const vector<size_t>& deletion_lens, const string& errors
+        const vector<string>& insertion_seqs, const vector<size_t>& deletion_lens, const string& errors,
+        const mutationMatrices& mutmat
     ) {
         site_id = sid;
         ref_position = position;
@@ -204,6 +239,7 @@ struct variationSite {
         }
 
         likelihoods = genotype_likelihoods(read_errs, deletions, insertions, site_info);
+        posteriors = genotype_posteriors(likelihoods, deletions, insertions, site_info, mutmat);
     }
 
     size_t site_id;
@@ -222,7 +258,7 @@ struct variationSite {
     map<string, vector<double> > insertions;
 
     vector<double> likelihoods;
-    
+    vector<double> posteriors;
 };
 
 static void printSiteGenotypeLikelihoods(const variationSite& site) {
@@ -242,6 +278,40 @@ static void printSiteGenotypeLikelihoods(const variationSite& site) {
     size_t deletion_idx = 0;
     for (const auto& deletion : site.deletions) {
         cout << "-" << deletion.first << ":" << site.likelihoods[5 + site.insertions.size() + deletion_idx] << "\t";
+        deletion_idx++;
+    }
+    cout << endl;
+}
+
+static void printSiteGenotypePosteriors(const variationSite& site) {
+    auto ref_nuc_idx = site.site_info >> 3;
+    
+    bool no_print = true;
+    for (int i = 0; i < site.posteriors.size(); i++) {
+        if (i != ref_nuc_idx && site.posteriors[i] != numeric_limits<double>::max()) {
+            no_print = false;
+        }
+    }
+    if (no_print) {
+        return;
+    }
+    
+    cout << site.ref_position << '\t' << getNucleotideFromIndex(ref_nuc_idx) << "\t";
+    for (int i = 0; i < 4; i++) {
+        if (site.posteriors[i] != numeric_limits<double>::max()) {
+            cout << getNucleotideFromIndex(i) << ":" << site.posteriors[i] << "\t";
+        }
+    }
+
+    size_t insertion_idx = 0;
+    for (const auto& insertion : site.insertions) {
+        cout << "+" << insertion.first.size() << insertion.first << ":" << site.posteriors[4 + insertion_idx] << "\t";
+        insertion_idx++;
+    }
+
+    size_t deletion_idx = 0;
+    for (const auto& deletion : site.deletions) {
+        cout << "-" << deletion.first << ":" << site.posteriors[4 + site.insertions.size() + deletion_idx] << "\t";
         deletion_idx++;
     }
     cout << endl;

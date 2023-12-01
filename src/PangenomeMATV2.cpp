@@ -8,6 +8,7 @@
 #include <tbb/parallel_for_each.h>
 #include <tbb/concurrent_vector.h>
 #include <tbb/concurrent_unordered_map.h>
+#include <boost/algorithm/string.hpp>
 #include <ctime>
 #include <iomanip>
 #include <mutex>
@@ -3526,6 +3527,11 @@ void PangenomeMAT2::Tree::fillMutationMats(statsgenotype::mutationMatrices& mutm
 }
 
 void printMatrices(const statsgenotype::mutationMatrices& mutmat) {
+    for (const auto& count : mutmat.total_submuts) {
+        cout << count << endl;
+    }
+    cout << endl;
+    
     for (const auto& row : mutmat.submat) {
         for (const auto& count : row) {
             cout << count << " ";
@@ -3534,15 +3540,14 @@ void printMatrices(const statsgenotype::mutationMatrices& mutmat) {
     }
     cout << endl;
     
-    // for (const auto& count : mutmat.total_submuts) {
-    //     cout << count << " ";
-    // }
-    // cout << endl;
     
+    cout << mutmat.total_delmut << endl;
     for (const auto& count : mutmat.delmat) {
         cout << count << " ";
     }
     cout << endl;
+
+    cout << mutmat.total_insmut << endl;
     for (const auto& count : mutmat.insmat) {
         cout << count << " ";
     }
@@ -3589,7 +3594,9 @@ int parse_readbases(
             indel_size = stoul(matches.str(1));
             indel_size_len = matches.length(1);
             indel_size_idx = matches.position(1);
-            insertion_seqs.push_back(readbase_substr.substr(indel_size_idx + indel_size_len, indel_size));
+            string seq = readbase_substr.substr(indel_size_idx + indel_size_len, indel_size);
+            boost::to_upper(seq);
+            insertion_seqs.push_back(seq);
             ins_errs += readbase_errors[cur_idx];
             cur_start += (indel_size_idx + indel_size_len + indel_size);
             cur_idx++;
@@ -3650,15 +3657,15 @@ void PangenomeMAT2::Tree::printVCFGenotypeStats(std::ifstream& fin) {
             auto variation_types = parse_readbases(readbases_string, readbases_errors, ref_nuc, nucs, insertion_seqs, deletion_sizes, errs);
             candidate_variants.emplace_back(statsgenotype::variationSite(
                 site_id, ref_nuc, position, variation_types, nucs,
-                insertion_seqs, deletion_sizes, errs
+                insertion_seqs, deletion_sizes, errs, mutmat
             ));
             site_id++;
         }
     }
 
-    // for (const auto& site : candidate_variants) {
-    //     statsgenotype::printSiteGenotypeLikelihoods(site);
-    // }
+    for (const auto& site : candidate_variants) {
+        statsgenotype::printSiteGenotypePosteriors(site);
+    }
 
 
 }
