@@ -203,7 +203,7 @@ namespace PangenomeMAT2 {
             void writeIndexDFS(Node *currNode, seedIndex &index, std::stringstream &ss, std::vector<kmer_t> &seeds);
 
             void indexSyncmersHelper(PangenomeMAT2::Node* root, std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > >& sequence, std::vector< std::pair< bool, std::vector< bool > > >& blockExists, seedIndex &index, std::unordered_map<std::string, PangenomeMAT2::Node*> &allNodes, std::vector<kmer_t> &syncmers, std::unordered_map<std::string, int32_t> &counts, std::unordered_map<std::string, bool> &variable_syncmers);
-            void fillMutationMats(statsgenotype::mutationMatrices& mutmat, Node* node);
+            void fillMutationMats(statsgenotype::mutationMatrices& mutmat, Node* node, std::ifstream* min = nullptr);
             void setupGlobalCoordinates();
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
 
@@ -234,7 +234,7 @@ namespace PangenomeMAT2 {
             void annotate(std::ifstream& fin);
             std::vector< std::string > searchByAnnotation(std::string annotation);
             AuxilaryMAT::Tree* convertToAuxMat();
-            void printVCFGenotypeStats(std::ifstream& fin);
+            void printVCFGenotypeStats(std::ifstream& fin, std::ifstream* min = nullptr);
             std::pair<std::string, std::string> get_substitution(const std::string& nid, const PangenomeMAT2::NucMut& nucmut);
             void indexSyncmers(std::ofstream& fout);
             void placeSample(std::string fastqPath, seedIndex &index);
