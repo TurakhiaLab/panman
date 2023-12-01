@@ -209,7 +209,7 @@ struct variationSite {
     variationSite(
         size_t sid, char ref, size_t position, int variation_types, const string& nucs,
         const vector<string>& insertion_seqs, const vector<size_t>& deletion_lens, const string& errors,
-        const mutationMatrices& mutmat
+        const mutationMatrices& mutmat, const string& tmp_string
     ) {
         site_id = sid;
         ref_position = position;
@@ -240,6 +240,7 @@ struct variationSite {
 
         likelihoods = genotype_likelihoods(read_errs, deletions, insertions, site_info);
         posteriors = genotype_posteriors(likelihoods, deletions, insertions, site_info, mutmat);
+        tmp_readbase_string = tmp_string;
     }
 
     size_t site_id;
@@ -259,6 +260,8 @@ struct variationSite {
 
     vector<double> likelihoods;
     vector<double> posteriors;
+
+    string tmp_readbase_string;
 };
 
 static void printSiteGenotypeLikelihoods(const variationSite& site) {
@@ -314,7 +317,8 @@ static void printSiteGenotypePosteriors(const variationSite& site) {
         cout << "-" << deletion.first << ":" << site.posteriors[4 + site.insertions.size() + deletion_idx] << "\t";
         deletion_idx++;
     }
-    cout << endl;
+    
+    cout << site.tmp_readbase_string << endl;
 }
 
 }

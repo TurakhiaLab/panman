@@ -136,9 +136,11 @@ void setupOptionDescriptions(){
     // statistical genotyping
     genotypeDesc.add_options()
         ("help", "product help message")
-        ("input-file", po::value< std::string >()->required(), "path to SAM alignment file");
+        ("input-file", po::value< std::string >()->required(), "path to SAM alignment file")
+        ("mutmat-file", po::value< std::string >(), "path to mutation matrices file. Inferred from tree if not provided");
     ;
 
+    genotypePositionArgumentDesc.add("input-file", -1);
 }
 
 void printError(std::string e){
@@ -574,22 +576,42 @@ void updatedParser(int argc, char* argv[]){
                 using namespace std;
                 using namespace PangenomeMAT2;
 
-                //po::variables_map genotypeVm;
-                //po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(annotateDesc).positional(annotatePositionArgumentDesc).run(), genotypeVm);
+                po::variables_map genotypeVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray).options(genotypeDesc).positional(genotypePositionArgumentDesc).run(), genotypeVm);
 
-                //string SAMFileName = genotypeVm["input-file"].as< std::string >();
-                string SAMFileName = "/home/azhang/rotations/rotation_2/pangenome-mat/alignments/5k.pileup";
-                ifstream fin(SAMFileName);
+                if(genotypeVm.count("help")){
+                    std::cout << genotypeDesc;
+                } else {
+                    string SAMFileName;
+                    string mutmatFileName;
+                    if (genotypeVm.count("input-file")) {
+                        SAMFileName = genotypeVm["input-file"].as< std::string >();
+                    } else {
+                        cout << "no sam file input, using default sam file" << endl;
+                        SAMFileName = "/home/azhang/rotations/rotation_2/pangenome-mat/alignments/5k.pileup";
+                    }
 
-                auto genotypeStart = std::chrono::high_resolution_clock::now();
+                    if (genotypeVm.count("mutmat-file")) {
+                        mutmatFileName = genotypeVm["mutmat-file"].as< std::string >();
+                    }
+                    
+                    ifstream fin(SAMFileName);
 
-                T->printVCFGenotypeStats(fin);
+                    auto genotypeStart = std::chrono::high_resolution_clock::now();
 
-                auto genotypeEnd = std::chrono::high_resolution_clock::now();
-                std::chrono::nanoseconds genotypeTime = genotypeEnd - genotypeStart;
+                    if (mutmatFileName.empty()) {
+                        T->printVCFGenotypeStats(fin);
+                    } else {
+                        ifstream min(mutmatFileName);
+                        T->printVCFGenotypeStats(fin, &min);
+                    }
+                    
 
-                std::cout << "\nstatistical genotype execution time: " << genotypeTime.count() << " nanoseconds\n";
+                    auto genotypeEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds genotypeTime = genotypeEnd - genotypeStart;
 
+                    std::cout << "\nstatistical genotype execution time: " << genotypeTime.count() << " nanoseconds\n";
+                }
                 
             }
         } catch (std::exception& e){
