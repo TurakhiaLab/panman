@@ -102,7 +102,6 @@ void queryRange(Node* root, std::pair<int,int> rangeStart, std::pair<int,int> ra
         queryRange(root->right, rangeStart, rangeEnd, result);
 }
 
-
 void find_chain(Node* root, std::pair<int,int> point, std::unordered_map<std::pair<int,int>, std::pair<int, std::pair<int,int>>,hash_pair>&map, int K, pair<int,int> &curr_base,pair<int,int> &max_score_point)
 {
 
@@ -114,7 +113,7 @@ void find_chain(Node* root, std::pair<int,int> point, std::unordered_map<std::pa
     {
         std::pair<int,int> p(-1,-1);
         std::pair<int,std::pair<int,int>> temp_map (match, p);
-        map[point] = temp_map; 
+        map[point] = temp_map;
         return;
     }
     queryRange(root, new_base, new_point, result);
@@ -149,7 +148,6 @@ void find_chain(Node* root, std::pair<int,int> point, std::unordered_map<std::pa
         {
             y_b = p.second - 1;
         }
-        
 
     }
     
@@ -168,7 +166,7 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
     std::cout << "Finding seeds sequencial ";
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Concurrent Vector    
+    // Concurrent Vector
     tbb::concurrent_vector<std::pair<int,int>> points_conc;
     tbb::parallel_for((size_t)0, consensus.size(),[&](size_t i)
     {
@@ -216,10 +214,10 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
         std::pair<int,std::pair<int,int>> h (-1, origin);
         map[point] = h;
     }
-        
+
     pair<int,int> max_score_point = base;
-    pair<int,int> curr_base = base;    
-    
+    pair<int,int> curr_base = base;
+
     for (auto point: points_conc) {
         find_chain(root, point, map, K, curr_base, max_score_point);
     }
@@ -263,13 +261,12 @@ void build_consensus (
     std::unordered_map<int,std::string> &intToString 
 )
 {
-    
 
-    int prev_consensus_coord = -1;    
+    int prev_consensus_coord = -1;
     int prev_sample_coord = -1;
     for (vector<std::pair<int,int>>::reverse_iterator i = chain.rbegin(); i != chain.rend(); ++i ) 
     {
-        int consensus_coord = i->first;    
+        int consensus_coord = i->first;
         int sample_coord = i->second;
 
         for (auto j = prev_consensus_coord + 1; j < consensus_coord; ++j)
@@ -284,13 +281,13 @@ void build_consensus (
             intToString[numBlocks] = sample[j];
             intSequenceConsensus_new.push_back(numBlocks);
             numBlocks++;
-        }    
+        }
         consensus_new.push_back(consensus[consensus_coord]);
         intSequenceSample.push_back(intSequenceConsensus[consensus_coord]);
         intSequenceConsensus_new.push_back(intSequenceConsensus[consensus_coord]);
         prev_consensus_coord = consensus_coord;
         prev_sample_coord = sample_coord;
-    } 
+    }
 
     for (auto j = prev_consensus_coord + 1; j < (int)consensus.size(); ++j)
     {

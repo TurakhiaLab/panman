@@ -33,6 +33,7 @@ po::positional_options_description globalPositionArgumentDesc;
 
 // program option descriptions of various command line functions
 po::options_description summaryDesc("Summary Command Line Arguments");
+po::options_description useDesc("Use Command Line Arguments");
 po::options_description fastaDesc("FASTA Command Line Arguments");
 po::positional_options_description fastaPositionArgumentDesc;
 po::options_description mafDesc("MAF Writer Command Line Arguments");
@@ -51,6 +52,10 @@ po::options_description generateGFADesc("Generate GFA Command Line Arguments");
 po::positional_options_description generateGFAArgumentDesc;
 po::options_description rerootDesc("Reroot Command Line Arguments");
 po::positional_options_description rerootArgumentDesc;
+po::options_description substitutionsDesc("Substitutions Command Line Arguments");
+po::positional_options_description substitutionsArgumentDesc;
+po::options_description aaTranslationDesc("Amino Acid Translation Command Line Arguments");
+po::positional_options_description aaTranslationArgumentDesc;
 po::options_description GFAToFASTADesc("GFA to Fasta writer Command Line Arguments");
 po::positional_options_description GFAToFASTAArgumentDesc;
 po::options_description groupWriteDesc("Group MAT Writer Command Line Arguments");
@@ -81,6 +86,12 @@ group")
 
     // Adding input file as positional argument (doesn't require the --input-file tag)
     globalPositionArgumentDesc.add("panmat-in", -1);
+
+    // Use option descriptions
+    useDesc.add_options()
+        ("help", "produce help message")
+        ("index", po::value< size_t >()->required(), "PanMAT index")
+    ;
 
     // FASTA option descriptions
     fastaDesc.add_options()
@@ -189,6 +200,24 @@ search for")
     ;
 
     rerootArgumentDesc.add("sequence-name", -1);
+
+    substitutionsDesc.add_options()
+        ("help", "produce help message")
+        ("sequence-name", po::value< std::string >()->required(), "Name of sequence to get the "
+            "substitutions for")
+    ;
+
+    substitutionsArgumentDesc.add("sequence-name", -1);
+
+    aaTranslationDesc.add_options()
+        ("help", "produce help message")
+        ("output-file", po::value< std::string >()->required(),
+            "Name of output file to store tsv file")
+        ("start", po::value< int64_t >()->required(), "Root coordinate to start transcription")
+        ("end", po::value< int64_t >()->required(), "Root coordinate to end transcription")
+    ;
+
+    aaTranslationArgumentDesc.add("output-file", -1);
 
     // Tree Group FASTA option descriptions
     groupFastaDesc.add_options()
@@ -415,8 +444,37 @@ void parseAndExecute(int argc, char* argv[]) {
         }
 
         try{
-            if(strcmp(splitCommandArray[0], "summary") == 0) {
+            if(strcmp(splitCommandArray[0], "use") == 0) {
+                // If command was use, select the PanMAT with the given index from the PanMAN
+                po::variables_map useVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                    .options(useDesc)
+                    .run(), useVm);
+
+                if(useVm.count("help")) {
+                    std::cout << useDesc;
+                } else {
+                    po::notify(useVm);
+                    size_t treeIndex = useVm["index"].as< size_t >();
+                    if(TG == nullptr) {
+                        std::cout << "No PanMAN loaded" << std::endl;
+                    } else {
+                        if(TG->trees.size() > treeIndex) {
+                            T = &TG->trees[treeIndex];
+                            std::cout << "PanMAT loaded" << std::endl;
+                        } else {
+                            std::cout << "PanMAT with index " << treeIndex << " doesn't exist."
+                                " There are only " << TG->trees.size() << " PanMATs." << std::endl;
+                        }
+                    }
+                }
+            } else if(strcmp(splitCommandArray[0], "summary") == 0) {
                 // If command was summary, print the summary of the PanMAT
+                if(T == nullptr) {
+                    std::cout << "No PanMAT selected" << std::endl;
+                    continue;
+                }
+
                 auto summaryStart = std::chrono::high_resolution_clock::now();
                 T->printSummary();
                 auto summaryEnd = std::chrono::high_resolution_clock::now();
@@ -434,6 +492,11 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(fastaVm.count("help")) {
                     std::cout << fastaDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
                     po::notify(fastaVm);
                     std::string fileName = fastaVm["output-file"].as< std::string >();
 
@@ -479,6 +542,12 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(mafVm.count("help")) {
                     std::cout << mafDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected. Try groupFasta for FASTA of the whole"
+                            " PanMAN" << std::endl;
+                        continue;
+                    }
+
                     po::notify(mafVm);
 
                     std::string fileName = mafVm["output-file"].as< std::string >();
@@ -504,6 +573,12 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(rerootVm.count("help")) {
                     std::cout << rerootDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
+
                     po::notify(rerootVm);
 
                     std::string sequenceName = rerootVm["sequence-name"].as< std::string >();
@@ -517,6 +592,71 @@ void parseAndExecute(int argc, char* argv[]) {
                     std::cout << "\nReroot execution time: " << rerootTime.count()
                         << " nanoseconds\n";
                 }
+            } else if(strcmp(splitCommandArray[0], "substitutions") == 0) {
+                // Print list of substitutions in sequence.
+                po::variables_map substitutionsVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                    .options(substitutionsDesc).positional(substitutionsArgumentDesc).run(),
+                    substitutionsVm);
+                if(substitutionsVm.count("help")) {
+                    std::cout << substitutionsDesc;
+                } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
+                    po::notify(substitutionsVm);
+
+                    std::string sequenceName = substitutionsVm["sequence-name"].as< std::string >();
+
+                    auto substitutionsStart = std::chrono::high_resolution_clock::now();
+
+                    std::vector< std::string > subs = T->getSubstitutionsFromReference(sequenceName);
+                    for(auto sub: subs) {
+                        std::cout << sub << " ";
+                    }
+                    std::cout << "\n";
+
+                    auto substitutionsEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds substitutionsTime = substitutionsEnd - substitutionsStart;
+                    std::cout << "\nSubstitutions extract execution time: "
+                        << substitutionsTime.count() << " nanoseconds\n";
+                }
+
+            } else if(strcmp(splitCommandArray[0], "aaTranslation") == 0) {
+                // Extract amino acid translations in tsv file
+                po::variables_map aaTranslationVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                    .options(aaTranslationDesc)
+                    .positional(aaTranslationArgumentDesc).run(), aaTranslationVm);
+
+                if(aaTranslationVm.count("help")) {
+                    std::cout << aaTranslationDesc;
+                } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
+                    po::notify(aaTranslationVm);
+                    std::string fileName = aaTranslationVm["output-file"].as< std::string >();
+                    int64_t startCoordinate = aaTranslationVm["start"].as< int64_t >();
+                    int64_t endCoordinate = aaTranslationVm["end"].as< int64_t >();
+
+                    std::filesystem::create_directory("./aa_translations");
+                    std::ofstream fout("./aa_translations/" + fileName + ".tsv");
+
+                    auto aaStart = std::chrono::high_resolution_clock::now();
+
+                    T->extractAminoAcidTranslations(fout, startCoordinate, endCoordinate);
+
+                    auto aaEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds aaTime = aaEnd - aaStart;
+                    std::cout << "\nAmino Acid translate execution time: " << aaTime.count()
+                            << " nanoseconds\n";
+                    fout.close();
+                }
             } else if(strcmp(splitCommandArray[0], "vcf") == 0) {
                 // Print the VCF file for sequences in PanMAT
                 po::variables_map vcfVm;
@@ -526,6 +666,11 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(vcfVm.count("help")) {
                     std::cout << vcfDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
                     po::notify(vcfVm);
 
                     std::string reference = vcfVm["reference"].as< std::string >();
@@ -564,6 +709,11 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(subtreeVm.count("help")) {
                     std::cout << subtreeDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
                     po::notify(subtreeVm);
                     std::string outputFileName = subtreeVm["output-file"].as< std::string >();
 
@@ -632,6 +782,11 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(writeVm.count("help")) {
                     std::cout << writeDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
                     po::notify(writeVm);
                     std::string fileName = writeVm["output-file"].as< std::string >();
                     std::filesystem::create_directory("./pmat");
@@ -664,6 +819,11 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(annotateVm.count("help")) {
                     std::cout << annotateDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
                     po::notify(annotateVm);
                     std::string fileName = annotateVm["input-file"].as< std::string >();
                     std::ifstream fin(fileName);
@@ -685,6 +845,11 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(searchVm.count("help")) {
                     std::cout << searchDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
                     std::vector< std::string > annotationVector = searchVm["keywords"]
                         .as< std::vector< std::string > >();
 
@@ -709,6 +874,11 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(sequenceExtractVm.count("help")) {
                     std::cout << sequenceExtractDesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
                     po::notify(sequenceExtractVm);
 
                     std::string fileName = sequenceExtractVm["output-file"].as< std::string >();
@@ -758,6 +928,11 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(generateGFAVM.count("help")) {
                     std::cout << generateGFADesc;
                 } else {
+                    if(T == nullptr) {
+                        std::cout << "No PanMAT selected" << std::endl;
+                        continue;
+                    }
+
                     po::notify(generateGFAVM);
                     std::string fileName = generateGFAVM["output-file"].as< std::string >();
                     std::filesystem::create_directory("./gfa");

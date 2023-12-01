@@ -453,6 +453,7 @@ namespace PangenomeMAT {
             void printMAF(std::ofstream& fout);
             void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
             void printVCFParallel(std::string reference, std::ofstream& fout);
+            void extractAminoAcidTranslations(std::ofstream& fout, int64_t start, int64_t end);
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
             void writeToFile(std::ostream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
@@ -461,6 +462,11 @@ namespace PangenomeMAT {
             void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists,
                 blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false,
                 int* rotIndex = nullptr);
+
+            // Get substitutions in given sequence with respect to the root sequence. Since we are
+            // comparing with the root sequence, only the coordinates where the root sequence is not
+            // '-' are considered
+            std::vector< std::string > getSubstitutionsFromReference(std::string reference);
             void getBlockSequenceFromReference(block_t& sequence, bool& blockExists,
                 bool& blockStrand, std::string reference, int64_t primaryBlockId,
                 int64_t secondaryBlockId);
