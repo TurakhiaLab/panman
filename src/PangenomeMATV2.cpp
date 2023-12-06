@@ -4122,7 +4122,7 @@ int32_t intersection_size(const T1& s1, const T2& s2)
 }
 
 extern "C" {
-    void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions);
+    void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions, char** sam_alignments);
 }
 
 void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
@@ -4201,9 +4201,9 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
 
         reads[r].kmers = matchingSyncmers;
     }
+    
 
-    std::cout << "\n" << ref_seq << std::endl;
-
+    
 
     //Figure out a better way to do this
     //C++ to C interface will have to be cleaned up
@@ -4240,11 +4240,18 @@ void PangenomeMAT2::Tree::placeSample(std::string fastqPath, seedIndex &index){
         qry_positions[i] = qry_pos_array;
     }
     
-    std::cout << "\n@SQ	SN:reference	LN:" << ref_seq.length() << std::endl;
-    align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions);
+    //std::cout << "\n@SQ	SN:reference	LN:" << ref_seq.length() << std::endl;  // sam header, not necessary
+
+    char *sam_alignments[n_reads];
+
+    align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions, sam_alignments);
 
 
     for(int i = 0; i < n_reads; i++) {
+        std::cout << sam_alignments[i] << std::endl;
+
+        
+        free(sam_alignments[i]);
         free(reversed[i]);
         free(ref_positions[i]);
         free(qry_positions[i]);

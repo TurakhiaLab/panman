@@ -3,7 +3,8 @@
 
 #include <iostream>
 #include <vector>
-// #include "PangenomeMATV2.hpp"
+#include <cmath>
+#include <numeric>
 
 using namespace std;
 
@@ -72,17 +73,6 @@ static double phred_complement(double q) {
     return -10 * log10(1 - p);
 }
 
-/*
-Calculating genotype likelihoods:
-    iterate through read_errs:
-        if row is not empty:
-            collect errs for current row in one vec
-            collect errs for other rows as well as indels in another vec
-            compute likelihood
-    iterate through indels:
-        if not empty, do same thing as snps
-*/
-
 static double likelihood(
     int genotype_idx,
     const vector< vector<double> >& read_errs,
@@ -93,7 +83,7 @@ static double likelihood(
     vector<double> genotype_probs;
     vector<double> variants_probs;
 
-    for (auto i = 0; i < read_errs.size(); i++) {
+    for (int i = 0; i < read_errs.size(); i++) {
         const auto& row = read_errs[i];
         if ((variation_type & variationType::SNP) && (genotype_idx == i)) {
             for (const auto& prob : row) {
@@ -128,8 +118,8 @@ static double likelihood(
         del_i++;
     }
     
-    double genotype_prob = accumulate(genotype_probs.begin(), genotype_probs.end(), 0.0);
-    double variant_prob = accumulate(variants_probs.begin(), variants_probs.end(), 0.0);
+    double genotype_prob = std::accumulate(genotype_probs.begin(), genotype_probs.end(), 0.0);
+    double variant_prob = std::accumulate(variants_probs.begin(), variants_probs.end(), 0.0);
     
     return genotype_prob + variant_prob;
 
@@ -149,7 +139,7 @@ static vector<double> genotype_likelihoods(
     auto variation_types = site_info & 7;
     auto ref_nuc = site_info >> 3;
 
-    for (size_t i = 0; i < read_errs.size(); ++i) {
+    for (int i = 0; i < read_errs.size(); ++i) {
         if (read_errs[i].empty() && i != ref_nuc) { continue; }
         likelihoods[i] = likelihood(i, read_errs, deletions, insertions, variationType::SNP);
     }
@@ -302,24 +292,32 @@ static void printSiteGenotypePosteriors(const variationSite& site) {
     cout << site.ref_position << '\t' << getNucleotideFromIndex(ref_nuc_idx) << "\t";
     for (int i = 0; i < 4; i++) {
         if (site.posteriors[i] != numeric_limits<double>::max()) {
-            cout << getNucleotideFromIndex(i) << ":" << site.posteriors[i] << "\t";
+            cout << getNucleotideFromIndex(i) << ":" << site.posteriors[i] << ";";
         }
     }
 
     size_t insertion_idx = 0;
     for (const auto& insertion : site.insertions) {
-        cout << "+" << insertion.first.size() << insertion.first << ":" << site.posteriors[4 + insertion_idx] << "\t";
+        cout << "+" << insertion.first.size() << insertion.first << ":" << site.posteriors[4 + insertion_idx] << ";";
         insertion_idx++;
     }
 
     size_t deletion_idx = 0;
     for (const auto& deletion : site.deletions) {
-        cout << "-" << deletion.first << ":" << site.posteriors[4 + site.insertions.size() + deletion_idx] << "\t";
+        cout << "-" << deletion.first << ":" << site.posteriors[4 + site.insertions.size() + deletion_idx] << ";";
         deletion_idx++;
     }
     
-    cout << site.tmp_readbase_string << endl;
+    cout << endl;
+    // cout << "\t" << site.tmp_readbase_string << endl;
 }
+
+// static void printVCFLine(const variationSite& site) {
+//     cout << "ref" << "\t"
+//          << site.ref_position << "\t"
+//          << "." << "\t"
+//          << 
+// }
 
 }
 

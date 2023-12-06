@@ -83,6 +83,10 @@ inline bool is_syncmer(std::string &seq, int s, bool open) {
 
 inline std::vector<kmer_t> syncmerize(std::string seq, int32_t k, int32_t s, bool open, bool aligned, int32_t pad) {
     std::vector<kmer_t> ret;
+    if (seq.size() < k) {
+        return ret;
+    }
+//    std::cout << "smz> " << seq << std::endl;
     if (aligned) {
         std::unordered_map<int32_t, int32_t> degap;
         int32_t pos = 0;
@@ -95,12 +99,15 @@ inline std::vector<kmer_t> syncmerize(std::string seq, int32_t k, int32_t s, boo
                 pos++;
             }
         }
+      //  std::cout << "ungapped " << ungapped << std::endl;
         if (ungapped.size() < k + 1) {
             return ret;
         }
         for (int32_t i = 0; i < ungapped.size() - k + 1; i++) {
             std::string kmer = ungapped.substr(i, k);
+ //          std::cout << "kmer " << kmer << std::endl;
             if (is_syncmer(kmer, s, open)) {
+  //              std::cout << "is syncmer " << kmer << " " << degap[i] << " " << open << std::endl;
                 ret.push_back(kmer_t{kmer, degap[i]+pad, -1});
             }
         }

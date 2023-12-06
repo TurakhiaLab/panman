@@ -204,7 +204,7 @@ void align_read_given_seeds(const mm_idx_t *mi,const int read_length,const char 
 
 
 
-void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions) {
+void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions, char** sam_alignments) {
     mm_idxopt_t iopt;
 	mm_mapopt_t mopt;
 	int n_threads = 1;
@@ -244,7 +244,9 @@ void align_reads(const char *reference, int n_reads, const char **reads, int *r_
 
 		mi->seq[0].name = "reference";
 		mm_write_sam3( &sam, mi, &t, 0, 0, 1, n_regss, &regss, NULL, 0, 0);
-		printf("%s\n",sam.s);
+		
+		r_lens[k] = sam.l;
+		sam_alignments[k] = sam.s;
 
 
 
@@ -303,7 +305,7 @@ void test_alignment_null()
 	int *qry_positions[] = {qp_0, qp_1, qp_2};
 
 
-    align_reads(reference, n_reads, reads, r_lens, seed_counts, reversed, ref_positions, qry_positions);
+    //align_reads(reference, n_reads, reads, r_lens, seed_counts, reversed, ref_positions, qry_positions);
     
 	
 	free(reads);

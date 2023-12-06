@@ -396,7 +396,6 @@ void mm_write_sam3(kstring_t *s, const mm_idx_t *mi, const mm_bseq1_t *t, int se
 	int this_rid = -1, this_pos = -1;
 	const mm_reg1_t *regs = regss[seg_idx], *r_prev = NULL, *r_next;
 	const mm_reg1_t *r = n_regs > 0 && reg_idx < n_regs && reg_idx >= 0? &regs[reg_idx] : NULL;
-
 	// find the primary of the previous and the next segments, if they are mapped
 	if (n_seg > 1) {
 		int i, next_sid = (seg_idx + 1) % n_seg;
@@ -414,9 +413,10 @@ void mm_write_sam3(kstring_t *s, const mm_idx_t *mi, const mm_bseq1_t *t, int se
 
 	// write QNAME
 	s->l = 0;
-	mm_sprintf_lite(s, "%s", t->name);
-	if (n_seg > 1) s->l = mm_qname_len(t->name); // trim the suffix like /1 or /2
 
+	mm_sprintf_lite(s, "%s", t->name);
+
+	if (n_seg > 1) s->l = mm_qname_len(t->name); // trim the suffix like /1 or /2
 	// write flag
 	flag = n_seg > 1? 0x1 : 0x0;
 	if (r == 0) {
@@ -434,16 +434,21 @@ void mm_write_sam3(kstring_t *s, const mm_idx_t *mi, const mm_bseq1_t *t, int se
 		else if (r_next->rev) flag |= 0x20;
 	}
 	mm_sprintf_lite(s, "\t%d", flag);
-
 	// write coordinate, MAPQ and CIGAR
 	if (r == 0) {
+
 		if (r_prev) {
+			
 			this_rid = r_prev->rid, this_pos = r_prev->rs;
 			mm_sprintf_lite(s, "\t%s\t%d\t0\t*", mi->seq[this_rid].name, this_pos+1);
 		} else mm_sprintf_lite(s, "\t*\t0\t0\t*");
+	
 	} else {
+	
 		this_rid = r->rid, this_pos = r->rs;
+
 		mm_sprintf_lite(s, "\t%s\t%d\t%d\t", mi->seq[r->rid].name, r->rs+1, r->mapq);
+
 		if ((opt_flag & MM_F_LONG_CIGAR) && r->p && r->p->n_cigar > max_bam_cigar_op - 2) {
 			int n_cigar = r->p->n_cigar;
 			if (r->qs != 0) ++n_cigar;
@@ -451,6 +456,7 @@ void mm_write_sam3(kstring_t *s, const mm_idx_t *mi, const mm_bseq1_t *t, int se
 			if (n_cigar > max_bam_cigar_op)
 				cigar_in_tag = 1;
 		}
+	
 		if (cigar_in_tag) {
 			int slen;
 			if ((flag & 0x900) == 0 || (opt_flag & MM_F_SOFTCLIP)) slen = t->l_seq;
@@ -485,17 +491,27 @@ void mm_write_sam3(kstring_t *s, const mm_idx_t *mi, const mm_bseq1_t *t, int se
 
 	// write SEQ and QUAL
 	if (r == 0) {
+
 		sam_write_sq(s, t->seq, t->l_seq, 0, 0);
+
 		mm_sprintf_lite(s, "\t");
-		if (t->qual) sam_write_sq(s, t->qual, t->l_seq, 0, 0);
+		if (t->qual)sam_write_sq(s, t->qual, t->l_seq, 0, 0);
 		else mm_sprintf_lite(s, "*");
 	} else {
+
+
 		if ((flag & 0x900) == 0 || (opt_flag & MM_F_SOFTCLIP)) {
+
 			sam_write_sq(s, t->seq, t->l_seq, r->rev, r->rev);
 			mm_sprintf_lite(s, "\t");
-			if (t->qual) sam_write_sq(s, t->qual, t->l_seq, r->rev, 0);
-			else mm_sprintf_lite(s, "*");
+
+			if (t->qual) {
+				sam_write_sq(s, t->qual, t->l_seq, r->rev, 0);
+			} else{
+				mm_sprintf_lite(s, "*");
+			}
 		} else if ((flag & 0x100) && !(opt_flag & MM_F_SECONDARY_SEQ)){
+
 			mm_sprintf_lite(s, "*\t*");
 		} else {
 			sam_write_sq(s, t->seq + r->qs, r->qe - r->qs, r->rev, r->rev);
