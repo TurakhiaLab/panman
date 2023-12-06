@@ -1,16 +1,34 @@
 <!--        
                      tree
                      |                 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> origin/sample-placement-alan-backup
         ____________________________
        |              |             |
     newick          node        block list
                       |
                 ______________
+<<<<<<< HEAD
+=======
+=======
+        _________________________________________
+       |              |              |          |
+    newick           node         gapList    blockGapList
+                      |                         
+                ______________                 
+>>>>>>> c628dec607758af1150d82915d5fc604da520b67
+>>>>>>> origin/sample-placement-alan-backup
                |              |                             
             nuc_mut        block_mut
                                                           
    
 -->
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> origin/sample-placement-alan-backup
 Node:
    Nuc_Mut has four attributes:
    1. position: mutation co-ordinate
@@ -51,4 +69,53 @@ DEL     =   "001"
 INS     =   "010"
 SUBS1   =   "011"
 INS1    =   "100"
+<<<<<<< HEAD
 DEL1    =   "101"
+=======
+DEL1    =   "101"
+=======
+newick: Stores the newick tree
+node:
+   a) nucMut has following attributes:
+      1. nucPosition: mutation co-ordinate
+      2. nucGapPosition: mutation gap co-ordinate w.r.t. position
+      3. nucGapExist: whether gap exist or not in nucleotide list 
+      4. blockId: unique block identifier (4B for global co-ordinate and 4B for co-ordinate witin a gap)
+      5. blockGapExist: whether gap exist or not inn block list
+      6. mutInfo: it has 3 sub-attributes
+         a. type of mutation (4 bits)
+         b. length of contiguous mutation (4 bits)
+         b. mutated nucleotides (24 bits)
+         
+   b) blockMut has following attributes:
+      1. blockId
+      2. blockGapExist
+      3. blockMutInfo (True: Insertion, False: Deletion)
+
+block:
+   It has three attributes:
+   a) blockId
+   b) consensus sequence
+   c) chromosomeName 
+
+gapList:
+   It has 3 attributes:
+   a) nucPosition
+   b) blockId
+   c) nucGapLength
+      
+blockGapList:
+   It has 2 attributes:
+   a) blockPosition
+   b) blockGapLength
+
+
+Type of mutations:
+SUBS    =   "0000"
+DEL     =   "0001"
+INS     =   "0010"
+SUBS1   =   "0011"
+INS1    =   "0100"
+DEL1    =   "0101"
+>>>>>>> c628dec607758af1150d82915d5fc604da520b67
+>>>>>>> origin/sample-placement-alan-backup

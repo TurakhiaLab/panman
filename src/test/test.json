@@ -1,0 +1,316 @@
+{
+    "paths": [
+        {
+            "name": "sample_B",
+            "offset": null,
+            "circular": false,
+            "position": [
+                1,
+                415
+            ],
+            "blocks": [
+                {
+                    "id": "KSHQBIQBTZ",
+                    "name": "sample_B",
+                    "number": 1,
+                    "strand": true
+                }
+            ]
+        },
+        {
+            "name": "sample_C",
+            "offset": null,
+            "circular": false,
+            "position": [
+                1,
+                431
+            ],
+            "blocks": [
+                {
+                    "id": "ELIKMQLHGS",
+                    "name": "sample_C",
+                    "number": 1,
+                    "strand": true
+                }
+            ]
+        },
+        {
+            "name": "sample_E",
+            "offset": null,
+            "circular": false,
+            "position": [
+                1,
+                434
+            ],
+            "blocks": [
+                {
+                    "id": "ELIKMQLHGS",
+                    "name": "sample_E",
+                    "number": 1,
+                    "strand": true
+                }
+            ]
+        },
+        {
+            "name": "sample_A",
+            "offset": null,
+            "circular": false,
+            "position": [
+                1,
+                418
+            ],
+            "blocks": [
+                {
+                    "id": "KSHQBIQBTZ",
+                    "name": "sample_A",
+                    "number": 1,
+                    "strand": true
+                }
+            ]
+        },
+        {
+            "name": "sample_D",
+            "offset": null,
+            "circular": false,
+            "position": [
+                1,
+                434
+            ],
+            "blocks": [
+                {
+                    "id": "ELIKMQLHGS",
+                    "name": "sample_D",
+                    "number": 1,
+                    "strand": true
+                }
+            ]
+        }
+    ],
+    "blocks": [
+        {
+            "id": "ELIKMQLHGS",
+            "sequence": "GAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATATTTTTTTTTTCTTTTTTTTTTGTTTTTTTTTTTTGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATAGAGATATA",
+            "gaps": {},
+            "mutate": [
+                [
+                    {
+                        "name": "sample_E",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ],
+                [
+                    {
+                        "name": "sample_D",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ],
+                [
+                    {
+                        "name": "sample_C",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ]
+            ],
+            "insert": [
+                [
+                    {
+                        "name": "sample_E",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ],
+                [
+                    {
+                        "name": "sample_D",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ],
+                [
+                    {
+                        "name": "sample_C",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ]
+            ],
+            "delete": [
+                [
+                    {
+                        "name": "sample_E",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ],
+                [
+                    {
+                        "name": "sample_D",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ],
+                [
+                    {
+                        "name": "sample_C",
+                        "number": 1,
+                        "strand": true
+                    },
+                    [
+                        [
+                            116,
+                            3
+                        ]
+                    ]
+                ]
+            ],
+            "positions": [
+                [
+                    {
+                        "name": "sample_C",
+                        "number": 1,
+                        "strand": true
+                    },
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                [
+                    {
+                        "name": "sample_D",
+                        "number": 1,
+                        "strand": true
+                    },
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                [
+                    {
+                        "name": "sample_E",
+                        "number": 1,
+                        "strand": true
+                    },
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            ]
+        },
+        {
+            "id": "KSHQBIQBTZ",
+            "sequence": "AACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGTTTTTTTTTTCTTTTTTTTTTTTTTTTTATTAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACGAACG",
+            "gaps": {
+                "115": 3
+            },
+            "mutate": [
+                [
+                    {
+                        "name": "sample_A",
+                        "number": 1,
+                        "strand": true
+                    },
+                    [
+                        [
+                            107,
+                            "A"
+                        ],
+                        [
+                            125,
+                            "T"
+                        ]
+                    ]
+                ],
+                [
+                    {
+                        "name": "sample_B",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ]
+            ],
+            "insert": [
+                [
+                    {
+                        "name": "sample_A",
+                        "number": 1,
+                        "strand": true
+                    },
+                    [
+                        [
+                            [
+                                115,
+                                0
+                            ],
+                            "TTG"
+                        ]
+                    ]
+                ],
+                [
+                    {
+                        "name": "sample_B",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ]
+            ],
+            "delete": [
+                [
+                    {
+                        "name": "sample_A",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ],
+                [
+                    {
+                        "name": "sample_B",
+                        "number": 1,
+                        "strand": true
+                    },
+                    []
+                ]
+            ],
+            "positions": [
+                [
+                    {
+                        "name": "sample_B",
+                        "number": 1,
+                        "strand": true
+                    },
+                    [
+                        1,
+                        0
+                    ]
+                ],
+                [
+                    {
+                        "name": "sample_A",
+                        "number": 1,
+                        "strand": true
+                    },
+                    [
+                        1,
+                        0
+                    ]
+                ]
+            ]
+        }
+    ]
+}

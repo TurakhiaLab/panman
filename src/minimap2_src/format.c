@@ -562,7 +562,6 @@ void mm_write_sam3(kstring_t *s, const mm_idx_t *mi, const mm_bseq1_t *t, int se
 		mm_sprintf_lite(s, "\t%s", t->comment);
 
 	s->s[s->l] = 0; // we always have room for an extra byte (see str_enlarge)
-
 }
 
 void mm_write_sam2(kstring_t *s, const mm_idx_t *mi, const mm_bseq1_t *t, int seg_idx, int reg_idx, int n_seg, const int *n_regss, const mm_reg1_t *const* regss, void *km, int64_t opt_flag)
