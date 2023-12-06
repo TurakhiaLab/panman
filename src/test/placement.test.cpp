@@ -443,24 +443,25 @@ BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
         inptPMATBuffer.push(ptis);
         istream ptinputStream(&inptPMATBuffer);
         Tree *pT = new Tree(ptinputStream);
+        ptis.close();
 
         // index pruned tree
         size_t k = 13;
         size_t s = 7;
-        string pruned_tree_index_path = "./" + pruned_sample + ".index.out";
-        ofstream ptos(pruned_tree_index_path);
-        indexSyncmers(pT, ptos, k, s);
-
-        ptis.close();
-        ptos.close();
+        string pruned_tree_index_path = "../src/test/statsgenotype/indices/" + pruned_sample + ".index.out";
+        if (!filesystem::exists(pruned_tree_index_path)) {
+            ofstream ptos(pruned_tree_index_path);
+            indexSyncmers(pT, ptos, k, s);
+            ptos.close();
+        }
+        
+        
         struct seedIndex index;
         std::ifstream indexFile(pruned_tree_index_path);
         PangenomeMAT::loadIndex(T->root, indexFile, index);
 
         // place index and print SAM
         PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s);
-
-        filesystem::remove(pruned_tree_index_path);
         break;
     }
     

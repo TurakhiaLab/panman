@@ -7511,7 +7511,6 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
 
     std::string ref_seq = T->getStringFromReference(best_match, false);
 
-
     std::vector<kmer_t> ref_syncmers = syncmerize(ref_seq, k, s, false, false, 0);
     
 
