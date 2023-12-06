@@ -16,6 +16,7 @@
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
 #include "kseq.h"
 #include "syncmer.hpp"
+#include "statsgenotype.hpp"
 
 #define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
@@ -114,7 +115,7 @@ namespace PangenomeMAT {
             primaryBlockId = std::get<0>(mutationArray[start]);
             secondaryBlockId = std::get<1>(mutationArray[start]);
 
-            mutInfo = ((end - start) << 4); 
+            mutInfo = ((end - start) << 4);
             // type
             switch(std::get<4>(mutationArray[start])) {
                 case PangenomeMAT::NucMutationType::NSNPS:
@@ -409,6 +410,11 @@ namespace PangenomeMAT {
             Node* transformHelper(Node* node);
             void adjustLevels(Node* node);
 
+            // Read mutation matrices from file. Infer mutation matrices from tree if no input file provided.
+            void fillMutationMats(statsgenotype::mutationMatrices& mutmat, Node* node, std::ifstream* min = nullptr);
+            // Used to get substitutions for inferring mutation matrices
+            std::pair<std::string, std::string> get_substitution(const std::string& nid, const PangenomeMAT::NucMut& nucmut);
+
             std::string newInternalNodeId() {
                 return "node_" + std::to_string(++m_currInternalNode);
             }
@@ -478,7 +484,9 @@ namespace PangenomeMAT {
             void getNodesPreorder(PangenomeMAT::Node* root, PanMAT::tree& treeToWrite);
             void setupGlobalCoordinates();
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
-
+            
+            void printSamplePlacementVCF(std::ifstream& fin, std::ifstream* min = nullptr);
+            
             // Transforms tree such that given node becomes child of new root
             void transform(Node* node);
             void reroot(std::string sequenceName);

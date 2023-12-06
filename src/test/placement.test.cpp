@@ -8,6 +8,7 @@
 #include <iostream>
 #include <json/json.h>
 #include <filesystem>
+#include <regex>
 
 
 
@@ -321,85 +322,151 @@ BOOST_AUTO_TEST_CASE(_discardSyncmers) {
 //     indexSyncmers(T, os, k, s);
 // }
 
-BOOST_AUTO_TEST_CASE(accuracy) {
-    std::vector<std::string> files = {"../fastq/MT821778.1.1kreads.fastq_R1.fastq","../fastq/MT834260.1.1kreads.fastq_R1.fastq","../fastq/MT969389.1.1kreads.fastq_R1.fastq","../fastq/MW211005.1.1kreads.fastq_R1.fastq","../fastq/MW593420.1.1kreads.fastq_R1.fastq","../fastq/MW848017.1.1kreads.fastq_R1.fastq","../fastq/MW848911.1.1kreads.fastq_R1.fastq"};
-    size_t k = 13;
-    size_t s = 7;
+// BOOST_AUTO_TEST_CASE(accuracy) {
+//     std::vector<std::string> files = {"../fastq/MT821778.1.1kreads.fastq_R1.fastq","../fastq/MT834260.1.1kreads.fastq_R1.fastq","../fastq/MT969389.1.1kreads.fastq_R1.fastq","../fastq/MW211005.1.1kreads.fastq_R1.fastq","../fastq/MW593420.1.1kreads.fastq_R1.fastq","../fastq/MW848017.1.1kreads.fastq_R1.fastq","../fastq/MW848911.1.1kreads.fastq_R1.fastq"};
+//     size_t k = 13;
+//     size_t s = 7;
+//     std::ifstream is("../sars2k.pmat");
+//     boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
+//     inPMATBuffer.push(boost::iostreams::gzip_decompressor());
+//     inPMATBuffer.push(is);
+//     std::istream inputStream(&inPMATBuffer);
+//     Tree *T = new Tree(inputStream);
+//     std::ofstream os("./test.out");
+//     indexSyncmers(T, os, k, s);
+    
+//     is.close();
+//     os.close();
+//     PangenomeMAT::Node *root = T->root;
+//     struct seedIndex index;
+//     std::ifstream indexFile("./test.out");
+//     PangenomeMAT::loadIndex(T->root, indexFile, index);
+    
+//     for (std::string f : files) {
+
+//         std::vector<read_t> reads;
+//         auto fastq_start = std::chrono::high_resolution_clock::now();
+//         std::set<kmer_t> readSyncmers = syncmersFromFastq(f, reads, k, s);
+//         auto fastq_end = std::chrono::high_resolution_clock::now();
+
+//         std::cout << "fastq time: " << std::chrono::duration_cast<std::chrono::milliseconds>(fastq_end - fastq_start).count() << "\n";
+
+//         auto place_start = std::chrono::high_resolution_clock::now();
+
+//         std::set<kmer_t> rootSyncmers = std::set<kmer_t>(index.rootSeeds.begin(), index.rootSeeds.end());
+
+//         std::cerr << "\n";
+//         std::cerr << "Placing sample... " << f << "\n";
+
+
+//         struct dynamicJaccard dj;
+    
+//         dj.intersectionSize = intersection_size(rootSyncmers, readSyncmers);
+//         dj.unionSize = rootSyncmers.size() + readSyncmers.size() - dj.intersectionSize;
+//         dj.jaccardIndex = (float)dj.intersectionSize / dj.unionSize;
+        
+        
+//         std::cout << "root seeds: " << rootSyncmers.size() << "\n";
+//         std::cout << "read seeds: " << readSyncmers.size() << "\n";
+//         for (const auto &k : readSyncmers) {
+//             std::cout << k.seq << "\n";
+//         }
+//         std::cout << "initial jaccard: " << dj.jaccardIndex << "\n";
+
+//         std::unordered_map<std::string, float> scores;
+//         std::unordered_map<std::string, bool> readSyncmersMap;
+//         for (const auto &k : readSyncmers) {
+//             readSyncmersMap[k.seq] = true;
+//         }
+
+//         placeDFS(root, index.rootSeeds, readSyncmersMap, index, dj, scores);
+
+//         auto place_end = std::chrono::high_resolution_clock::now();
+
+//         std::cout << "place time: " << std::chrono::duration_cast<std::chrono::milliseconds>(place_end - place_start).count() << "\n";
+
+//         std::vector<std::pair<std::string, float>> v;
+//         for ( const auto &p : scores ) {
+//             v.push_back(std::make_pair(p.first, p.second));
+//         } 
+//         std::sort(v.begin(), v.end(), [] (auto &left, auto &right) {
+//             return left.second > right.second;
+//         });
+
+//         std::string best_match = v[0].first;
+//         for (const auto &s : v) {
+//             std::cerr << s.first << ": " << s.second << "\n";
+//         }
+
+//     }
+// }
+
+vector< pair<string, string> > get_pruned_samples(string path) {
+    vector< pair<string, string> > samples;
+    for (const auto& file : filesystem::directory_iterator("../src/test/statsgenotype/pmat/")) {
+        string pruned_tree_path = file.path().string();
+        vector<string> fields;
+        PangenomeMAT::stringSplit(pruned_tree_path, '/', fields);
+        string pmat_filename = fields.back();
+        fields.clear();
+        PangenomeMAT::stringSplit(pmat_filename, '_', fields);
+        string pruned_sample = fields[0];
+        samples.push_back(make_pair(pruned_sample, pruned_tree_path));
+    }
+
+    return samples;
+}
+
+BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
+    using namespace std;
+
     std::ifstream is("../sars2k.pmat");
     boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
     inPMATBuffer.push(boost::iostreams::gzip_decompressor());
     inPMATBuffer.push(is);
     std::istream inputStream(&inPMATBuffer);
     Tree *T = new Tree(inputStream);
-    std::ofstream os("./test.out");
-    indexSyncmers(T, os, k, s);
-    
-    is.close();
-    os.close();
-    PangenomeMAT::Node *root = T->root;
-    struct seedIndex index;
-    std::ifstream indexFile("./test.out");
-    PangenomeMAT::loadIndex(T->root, indexFile, index);
-    
-    for (std::string f : files) {
 
-        std::vector<read_t> reads;
-        auto fastq_start = std::chrono::high_resolution_clock::now();
-        std::set<kmer_t> readSyncmers = syncmersFromFastq(f, reads, k, s);
-        auto fastq_end = std::chrono::high_resolution_clock::now();
+    vector< pair<string, string> > samples = get_pruned_samples("../src/test/statsgenotype/pmat/");
+    for (const auto& sample : samples) {
+        // get pruned sample name, tree path, and fastq files
+        string pruned_sample = sample.first;
+        string pruned_tree_path = sample.second;
+        string pruned_sample_fastq_1 = "../src/test/statsgenotype/fastq_2k/" + pruned_sample + ".1kreads.fastq_R1.fastq";
+        string pruned_sample_fastq_2 = "../src/test/statsgenotype/fastq_2k/" + pruned_sample + ".1kreads.fastq_R2.fastq";
+        cout << pruned_sample << "\t" << pruned_tree_path << "\t" << pruned_sample_fastq_1 << pruned_sample_fastq_2 << endl;
 
-        std::cout << "fastq time: " << std::chrono::duration_cast<std::chrono::milliseconds>(fastq_end - fastq_start).count() << "\n";
+        // read pruned tree
+        ifstream ptis(pruned_tree_path);
+        boost::iostreams::filtering_streambuf< boost::iostreams::input> inptPMATBuffer;
+        inptPMATBuffer.push(boost::iostreams::gzip_decompressor());
+        inptPMATBuffer.push(ptis);
+        istream ptinputStream(&inptPMATBuffer);
+        Tree *pT = new Tree(ptinputStream);
 
-        auto place_start = std::chrono::high_resolution_clock::now();
+        // index pruned tree
+        size_t k = 13;
+        size_t s = 7;
+        string pruned_tree_index_path = "./" + pruned_sample + ".index.out";
+        ofstream ptos(pruned_tree_index_path);
+        indexSyncmers(pT, ptos, k, s);
 
-        std::set<kmer_t> rootSyncmers = std::set<kmer_t>(index.rootSeeds.begin(), index.rootSeeds.end());
+        ptis.close();
+        ptos.close();
+        struct seedIndex index;
+        std::ifstream indexFile(pruned_tree_index_path);
+        PangenomeMAT::loadIndex(T->root, indexFile, index);
 
-        std::cerr << "\n";
-        std::cerr << "Placing sample... " << f << "\n";
+        // place index and print SAM
+        PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s);
 
-
-        struct dynamicJaccard dj;
-    
-        dj.intersectionSize = intersection_size(rootSyncmers, readSyncmers);
-        dj.unionSize = rootSyncmers.size() + readSyncmers.size() - dj.intersectionSize;
-        dj.jaccardIndex = (float)dj.intersectionSize / dj.unionSize;
-        
-        
-        std::cout << "root seeds: " << rootSyncmers.size() << "\n";
-        std::cout << "read seeds: " << readSyncmers.size() << "\n";
-        for (const auto &k : readSyncmers) {
-            std::cout << k.seq << "\n";
-        }
-        std::cout << "initial jaccard: " << dj.jaccardIndex << "\n";
-
-        std::unordered_map<std::string, float> scores;
-        std::unordered_map<std::string, bool> readSyncmersMap;
-        for (const auto &k : readSyncmers) {
-            readSyncmersMap[k.seq] = true;
-        }
-
-        placeDFS(root, index.rootSeeds, readSyncmersMap, index, dj, scores);
-
-        auto place_end = std::chrono::high_resolution_clock::now();
-
-        std::cout << "place time: " << std::chrono::duration_cast<std::chrono::milliseconds>(place_end - place_start).count() << "\n";
-
-        std::vector<std::pair<std::string, float>> v;
-        for ( const auto &p : scores ) {
-            v.push_back(std::make_pair(p.first, p.second));
-        } 
-        std::sort(v.begin(), v.end(), [] (auto &left, auto &right) {
-            return left.second > right.second;
-        });
-
-        std::string best_match = v[0].first;
-        for (const auto &s : v) {
-            std::cerr << s.first << ": " << s.second << "\n";
-        }
-
+        filesystem::remove(pruned_tree_index_path);
+        break;
     }
-}
+    
 
+    is.close();
+}
 // BOOST_AUTO_TEST_CASE(_indexSyncmers) {
 //     size_t k = 16;
 //     size_t s = 5;

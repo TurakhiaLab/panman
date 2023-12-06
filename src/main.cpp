@@ -58,6 +58,10 @@ po::positional_options_description sequenceExtractPositionArgumentDesc;
 po::options_description groupFastaDesc("Tree Group FASTA writer Command Line Arguments");
 po::positional_options_description groupFastaPositionArgumentDesc;
 
+po::options_description statsGenotypeDesc("Statistical Genotyper Command Line Arguments");
+po::positional_options_description statsGenotypePositionArgumentDesc;
+
+
 void setupOptionDescriptions() {
     // Global option descriptions
     globalDesc.add_options()
@@ -198,6 +202,15 @@ search for")
 
     // Adding output file as positional argument
     groupWritePositionArgumentDesc.add("output-file", -1);
+
+    statsGenotypeDesc.add_options()
+        ("help", "product help message")
+        ("input-file", po::value< std::string >()->required(), "path to SAM alignment file")
+        ("mutmat-file", po::value< std::string >(), "path to mutation matrices file. Inferred from tree if not provided")
+    ;
+
+    statsGenotypePositionArgumentDesc.add("input-file", -1);
+
 }
 
 void parseAndExecute(int argc, char* argv[]) {
@@ -826,6 +839,49 @@ void parseAndExecute(int argc, char* argv[]) {
 
                 std::cout << "Complex Mutations:" << std::endl;
                 TG->printComplexMutations();
+
+            } else if(strcmp(splitCommandArray[0], "genotype") == 0) {
+                // Print genotype posterior. Currently takes samtools mpileup output
+                // as the input. Looking to incorporate mpileup.
+
+                po::variables_map statsGenotypeVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                    .options(statsGenotypeDesc).positional(statsGenotypePositionArgumentDesc).run(),
+                    statsGenotypeVm);
+                
+                if(statsGenotypeVm.count("help")){
+                    std::cout << statsGenotypeDesc;
+                } else {
+                    std::string SAMFileName;
+                    std::string mutmatFileName;
+                    if (statsGenotypeVm.count("input-file")) {
+                        SAMFileName = statsGenotypeVm["input-file"].as< std::string >();
+                    } else {
+                        std::cout << "no sam file input, using default sam file" << endl;
+                        SAMFileName = "/home/azhang/rotations/rotation_2/pangenome-mat/alignments/5k.pileup";
+                    }
+
+                    if (statsGenotypeVm.count("mutmat-file")) {
+                        mutmatFileName = statsGenotypeVm["mutmat-file"].as< std::string >();
+                    }
+                    
+                    std::ifstream fin(SAMFileName);
+
+                    auto genotypeStart = std::chrono::high_resolution_clock::now();
+
+                    if (mutmatFileName.empty()) {
+                        T->printSamplePlacementVCF(fin);
+                    } else {
+                        ifstream min(mutmatFileName);
+                        T->printSamplePlacementVCF(fin, &min);
+                    }
+                    
+
+                    auto genotypeEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds genotypeTime = genotypeEnd - genotypeStart;
+
+                    std::cout << "\nstatistical genotype execution time: " << genotypeTime.count() << " nanoseconds\n";
+                }
 
             } else if(strcmp(splitCommandArray[0], "exit") == 0) {
                 return;
