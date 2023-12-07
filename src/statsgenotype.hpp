@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <vector>
+#include <cmath>
+#include <numeric>
 
 using namespace std;
 
@@ -116,8 +118,8 @@ static double likelihood(
         del_i++;
     }
     
-    double genotype_prob = accumulate(genotype_probs.begin(), genotype_probs.end(), 0.0);
-    double variant_prob = accumulate(variants_probs.begin(), variants_probs.end(), 0.0);
+    double genotype_prob = std::accumulate(genotype_probs.begin(), genotype_probs.end(), 0.0);
+    double variant_prob = std::accumulate(variants_probs.begin(), variants_probs.end(), 0.0);
     
     return genotype_prob + variant_prob;
 
