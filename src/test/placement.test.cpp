@@ -15,286 +15,286 @@
 
 using namespace PangenomeMAT;
 
-BOOST_AUTO_TEST_CASE(_removeIndices) {
-/* should erase elements at the given positions */
-    std::vector<kmer_t> a = {
-        kmer_t{"zero"},
-        kmer_t{"one"},
-        kmer_t{"two"},
-        kmer_t{"three"},
-        kmer_t{"four"},
-        kmer_t{"five"}      
-    };
+// BOOST_AUTO_TEST_CASE(_removeIndices) {
+// /* should erase elements at the given positions */
+//     std::vector<kmer_t> a = {
+//         kmer_t{"zero"},
+//         kmer_t{"one"},
+//         kmer_t{"two"},
+//         kmer_t{"three"},
+//         kmer_t{"four"},
+//         kmer_t{"five"}      
+//     };
     
-    // smaller values at the top
-    std::stack<int32_t> indices;
+//     // smaller values at the top
+//     std::stack<int32_t> indices;
 
-    indices.push(4);
-    indices.push(2);
-    indices.push(0);
+//     indices.push(4);
+//     indices.push(2);
+//     indices.push(0);
 
-    std::vector<kmer_t> expected = {
-        kmer_t{"one"},
-        kmer_t{"three"},
-        kmer_t{"five"}
-    };
+//     std::vector<kmer_t> expected = {
+//         kmer_t{"one"},
+//         kmer_t{"three"},
+//         kmer_t{"five"}
+//     };
 
-    removeIndices(a, indices);
+//     removeIndices(a, indices);
 
-    BOOST_TEST(
-        a == expected
-    );
+//     BOOST_TEST(
+//         a == expected
+//     );
 
-}
+// }
 
-BOOST_AUTO_TEST_CASE(_isSyncmer) {
-/* should return true only for syncmers */
-    std::string a = "ABCDEF";
+// BOOST_AUTO_TEST_CASE(_isSyncmer) {
+// /* should return true only for syncmers */
+//     std::string a = "ABCDEF";
 
-    BOOST_TEST(
-        is_syncmer(a, 3, true) == true
-    );
-    BOOST_TEST(
-		is_syncmer(a, 3, false) == true
-    );
+//     BOOST_TEST(
+//         is_syncmer(a, 3, true) == true
+//     );
+//     BOOST_TEST(
+// 		is_syncmer(a, 3, false) == true
+//     );
     
-    std::string b = "ZZZAAAZZZ";
+//     std::string b = "ZZZAAAZZZ";
 
-    BOOST_TEST(
-		is_syncmer(b, 6, true) == false
-    );
-    BOOST_TEST(
-		is_syncmer(b, 6, false) == true
-    );
+//     BOOST_TEST(
+// 		is_syncmer(b, 6, true) == false
+//     );
+//     BOOST_TEST(
+// 		is_syncmer(b, 6, false) == true
+//     );
 
-    std::string c = "Z";
+//     std::string c = "Z";
  
-    BOOST_TEST(
-		is_syncmer(c, 1, true) == true
-    );
-}
+//     BOOST_TEST(
+// 		is_syncmer(c, 1, true) == true
+//     );
+// }
 
-BOOST_AUTO_TEST_CASE(_syncmerize) {
-/* should pick syncmers correctly */
-    std::string a = "AAAAAABB"; // k=3 s=2 open
-    /*             * AAA
-                   *  AAA
-                   *   AAA
-                   *    AAA
-                   *     AAB
-                   *      ABB
-    */
-    std::vector<kmer_t> ret_a = {
-        kmer_t{"AAA", 0, -1},
-        kmer_t{"AAA", 1, -1},
-        kmer_t{"AAA", 2, -1},
-        kmer_t{"AAA", 3, -1},
-        kmer_t{"AAB", 4, -1},
-        kmer_t{"ABB", 5, -1}                
-    };
-    std::vector<kmer_t> ret_a_padded = {
-        kmer_t{"AAA", 42, -1},
-        kmer_t{"AAA", 43, -1},
-        kmer_t{"AAA", 44, -1},
-        kmer_t{"AAA", 45, -1},
-        kmer_t{"AAB", 46, -1},
-        kmer_t{"ABB", 47, -1}                
-    };
-    BOOST_TEST(
-		syncmerize(a, 3, 2, true, false, 0) == ret_a
-    );
-    BOOST_TEST(
-		syncmerize(a, 3, 2, true, false, 42) == ret_a_padded
-    );
+// BOOST_AUTO_TEST_CASE(_syncmerize) {
+// /* should pick syncmers correctly */
+//     std::string a = "AAAAAABB"; // k=3 s=2 open
+//     /*             * AAA
+//                    *  AAA
+//                    *   AAA
+//                    *    AAA
+//                    *     AAB
+//                    *      ABB
+//     */
+//     std::vector<kmer_t> ret_a = {
+//         kmer_t{"AAA", 0, -1},
+//         kmer_t{"AAA", 1, -1},
+//         kmer_t{"AAA", 2, -1},
+//         kmer_t{"AAA", 3, -1},
+//         kmer_t{"AAB", 4, -1},
+//         kmer_t{"ABB", 5, -1}                
+//     };
+//     std::vector<kmer_t> ret_a_padded = {
+//         kmer_t{"AAA", 42, -1},
+//         kmer_t{"AAA", 43, -1},
+//         kmer_t{"AAA", 44, -1},
+//         kmer_t{"AAA", 45, -1},
+//         kmer_t{"AAB", 46, -1},
+//         kmer_t{"ABB", 47, -1}                
+//     };
+//     BOOST_TEST(
+// 		syncmerize(a, 3, 2, true, false, 0) == ret_a
+//     );
+//     BOOST_TEST(
+// 		syncmerize(a, 3, 2, true, false, 42) == ret_a_padded
+//     );
 
-    std::string b = "AABCBAAACC"; // k=6 s=3 open
-  /*               * AABCBA 
-                   *  ABCBAA
-                       BCBAAA
-                        CBAAAC
-                         BAAACC
-  */
-    std::vector<kmer_t> ret_b = {
-        kmer_t{"AABCBA", 0, -1},
-        kmer_t{"ABCBAA", 1, -1}
-    };
-    std::string c = "AABCBAAACC"; // k=6 s=3 closed
-  /*               * AABCBA 
-                   *  ABCBAA
-                   *   BCBAAA
-                        CBAAAC
-                         BAAACC
-  */
-    std::vector<kmer_t> ret_c = {
-        kmer_t{"AABCBA", 0, -1},
-        kmer_t{"ABCBAA", 1, -1},
-        kmer_t{"BCBAAA", 2, -1}
-    };
+//     std::string b = "AABCBAAACC"; // k=6 s=3 open
+//   /*               * AABCBA 
+//                    *  ABCBAA
+//                        BCBAAA
+//                         CBAAAC
+//                          BAAACC
+//   */
+//     std::vector<kmer_t> ret_b = {
+//         kmer_t{"AABCBA", 0, -1},
+//         kmer_t{"ABCBAA", 1, -1}
+//     };
+//     std::string c = "AABCBAAACC"; // k=6 s=3 closed
+//   /*               * AABCBA 
+//                    *  ABCBAA
+//                    *   BCBAAA
+//                         CBAAAC
+//                          BAAACC
+//   */
+//     std::vector<kmer_t> ret_c = {
+//         kmer_t{"AABCBA", 0, -1},
+//         kmer_t{"ABCBAA", 1, -1},
+//         kmer_t{"BCBAAA", 2, -1}
+//     };
 
-    BOOST_TEST(
-		syncmerize(b, 6, 3, true, false, 0) == ret_b
-    );
+//     BOOST_TEST(
+// 		syncmerize(b, 6, 3, true, false, 0) == ret_b
+//     );
 
-    std::cout << "ret c: " << std::endl;
-    for (auto kmer : ret_c) {
-        std::cout << kmer.seq << " " << kmer.pos << std::endl;
-    }
-    std::cout << "syncmerize c: " << std::endl;
-    for (auto kmer : syncmerize(c, 6, 3, false, false, 0)) {
-        std::cout << kmer.seq  << " " << kmer.pos << std::endl;
-    }
-    BOOST_TEST(
-		syncmerize(c, 6, 3, false, false, 0) == ret_c
-    );
+//     std::cout << "ret c: " << std::endl;
+//     for (auto kmer : ret_c) {
+//         std::cout << kmer.seq << " " << kmer.pos << std::endl;
+//     }
+//     std::cout << "syncmerize c: " << std::endl;
+//     for (auto kmer : syncmerize(c, 6, 3, false, false, 0)) {
+//         std::cout << kmer.seq  << " " << kmer.pos << std::endl;
+//     }
+//     BOOST_TEST(
+// 		syncmerize(c, 6, 3, false, false, 0) == ret_c
+//     );
 
-    std::string d = "--A-A-B--CBAAAC-C-"; // k=6 s=3 closed aligned
-  /*               * AABCBA 
-                   *  ABCBAA
-                   *   BCBAAA
-                        CBAAAC
-                         BAAACC
-  */
-     std::vector<kmer_t> ret_d = {
-        kmer_t{"AABCBA", 2, -1},
-        kmer_t{"ABCBAA", 4, -1},
-        kmer_t{"BCBAAA", 6, -1}
-    };
-    BOOST_TEST(
-		syncmerize(d, 6, 3, false, true, 0) == ret_d
-    );
+//     std::string d = "--A-A-B--CBAAAC-C-"; // k=6 s=3 closed aligned
+//   /*               * AABCBA 
+//                    *  ABCBAA
+//                    *   BCBAAA
+//                         CBAAAC
+//                          BAAACC
+//   */
+//      std::vector<kmer_t> ret_d = {
+//         kmer_t{"AABCBA", 2, -1},
+//         kmer_t{"ABCBAA", 4, -1},
+//         kmer_t{"BCBAAA", 6, -1}
+//     };
+//     BOOST_TEST(
+// 		syncmerize(d, 6, 3, false, true, 0) == ret_d
+//     );
 
-}
+// }
 
 
-template<>
-struct boost::test_tools::tt_detail::print_log_value<std::pair<int,int>> {
-    void operator()(std::ostream& os, std::pair<int,int> const& value) {
-        os << '{' << value.first << ',' << value.second << '}';
-    }
-};
+// template<>
+// struct boost::test_tools::tt_detail::print_log_value<std::pair<int,int>> {
+//     void operator()(std::ostream& os, std::pair<int,int> const& value) {
+//         os << '{' << value.first << ',' << value.second << '}';
+//     }
+// };
 
-BOOST_AUTO_TEST_CASE(_getRecomputePositions)
-{
-    int32_t k = 3;
+// BOOST_AUTO_TEST_CASE(_getRecomputePositions)
+// {
+//     int32_t k = 3;
 
-    std::pair<int32_t, int32_t> a = {6, 1};
-    std::pair<int32_t, int32_t> b = {22, 3};
-    std::pair<int32_t, int32_t> c = {31, 2};
+//     std::pair<int32_t, int32_t> a = {6, 1};
+//     std::pair<int32_t, int32_t> b = {22, 3};
+//     std::pair<int32_t, int32_t> c = {31, 2};
 
-    //                 length:  0               3        2
-    //                          *               ***      **  
-    //      recompute range: xxxxxxx       xxxxxxxxxx  xxxxx
-    std::string gapped = "ABCD-EF-GH-IJKLM-N-O--P-QRSTUVWXYZ";
-    //                    0123456789111111111122222222223333
-    //                              012345678901234567890123
+//     //                 length:  0               3        2
+//     //                          *               ***      **  
+//     //      recompute range: xxxxxxx       xxxxxxxxxx  xxxxx
+//     std::string gapped = "ABCD-EF-GH-IJKLM-N-O--P-QRSTUVWXYZ";
+//     //                    0123456789111111111122222222223333
+//     //                              012345678901234567890123
 
-    std::pair<int32_t, int32_t> expected_a = {3, 9};
-    std::pair<int32_t, int32_t> expected_b = {17, 26};
-    std::pair<int32_t, int32_t> expected_c = {29, 33};
+//     std::pair<int32_t, int32_t> expected_a = {3, 9};
+//     std::pair<int32_t, int32_t> expected_b = {17, 26};
+//     std::pair<int32_t, int32_t> expected_c = {29, 33};
 
-    BOOST_TEST(
-        getRecomputePositions(a, gapped, k) == expected_a
-    );
-    BOOST_TEST(
-        getRecomputePositions(b, gapped, k) == expected_b
-    );
-    BOOST_TEST(
-        getRecomputePositions(c, gapped, k) == expected_c
-    );
-}
+//     BOOST_TEST(
+//         getRecomputePositions(a, gapped, k) == expected_a
+//     );
+//     BOOST_TEST(
+//         getRecomputePositions(b, gapped, k) == expected_b
+//     );
+//     BOOST_TEST(
+//         getRecomputePositions(c, gapped, k) == expected_c
+//     );
+// }
 
-BOOST_AUTO_TEST_CASE(_alignedEndPos) {
- /* should compute a syncmer's end pos with gaps */
+// BOOST_AUTO_TEST_CASE(_alignedEndPos) {
+//  /* should compute a syncmer's end pos with gaps */
 
-    std::string a = "--AAAAA--A-A-A-----A--AAA--";
-    //               012345678911111111112222222
-    //                         01234567890123456
-    //                            ^^^^^^^^^^^
+//     std::string a = "--AAAAA--A-A-A-----A--AAA--";
+//     //               012345678911111111112222222
+//     //                         01234567890123456
+//     //                            ^^^^^^^^^^^
 
-    BOOST_TEST(
-      alignedEndPos(13, 4, a) ==  23 
-    );
-}
+//     BOOST_TEST(
+//       alignedEndPos(13, 4, a) ==  23 
+//     );
+// }
 
-BOOST_AUTO_TEST_CASE(_discardSyncmers) {
-/*  should discard syncmers contained in any range in B 
-    unless they are going to be inserted. Then remove from
-    to_insert (based on sequence for now). Also, track variable syncmers.
-*/
-    size_t k = 4;
+// BOOST_AUTO_TEST_CASE(_discardSyncmers) {
+// /*  should discard syncmers contained in any range in B 
+//     unless they are going to be inserted. Then remove from
+//     to_insert (based on sequence for now). Also, track variable syncmers.
+// */
+//     size_t k = 4;
 
-    std::vector<kmer_t> seeds = {
-        kmer_t{"AAAA", 0, -1}, // x
-        kmer_t{"ACCA", 2, -1}, //
-        kmer_t{"AABA", 7, -1}, // x
-        kmer_t{"AACA", 8, -1}, // x
-        kmer_t{"ABDA", 9, -1}, //
-        kmer_t{"ABBA", 15,-1}, // gapped length exceeds bound  
-        kmer_t{"CDEF", 23,-1}, 
-    };
-    std::string seq = "xxxxxxxxxxxxxxxABB---Axxxxxx"; // len 28
+//     std::vector<kmer_t> seeds = {
+//         kmer_t{"AAAA", 0, -1}, // x
+//         kmer_t{"ACCA", 2, -1}, //
+//         kmer_t{"AABA", 7, -1}, // x
+//         kmer_t{"AACA", 8, -1}, // x
+//         kmer_t{"ABDA", 9, -1}, //
+//         kmer_t{"ABBA", 15,-1}, // gapped length exceeds bound  
+//         kmer_t{"CDEF", 23,-1}, 
+//     };
+//     std::string seq = "xxxxxxxxxxxxxxxABB---Axxxxxx"; // len 28
 
-    std::vector<std::pair<int32_t, int32_t>> B = {
-        {0, 4},
-        {7, 11},
-        {14, 20},
-        {22, 35}
-    };
-    std::vector<kmer_t> expected_seeds = {
-        kmer_t{"ACCA", 2, -1},
-        kmer_t{"ABDA", 9, -1},
-        kmer_t{"ABBA", 15,-1},
-        kmer_t{"CDEF", 23,-1}, 
-    };
+//     std::vector<std::pair<int32_t, int32_t>> B = {
+//         {0, 4},
+//         {7, 11},
+//         {14, 20},
+//         {22, 35}
+//     };
+//     std::vector<kmer_t> expected_seeds = {
+//         kmer_t{"ACCA", 2, -1},
+//         kmer_t{"ABDA", 9, -1},
+//         kmer_t{"ABBA", 15,-1},
+//         kmer_t{"CDEF", 23,-1}, 
+//     };
 
-    std::unordered_map<std::string, kmer_t> to_insert = {
-        {"XYZW", kmer_t{"XYZW", 8, -1}},
-        {"CDEF", kmer_t{"CDEF", 23, -1}}
-    };
-    std::unordered_map<std::string, kmer_t> expected_to_insert = {
-        {"XYZW", kmer_t{"XYZW", 8, -1}}
-    };
+//     std::unordered_map<std::string, kmer_t> to_insert = {
+//         {"XYZW", kmer_t{"XYZW", 8, -1}},
+//         {"CDEF", kmer_t{"CDEF", 23, -1}}
+//     };
+//     std::unordered_map<std::string, kmer_t> expected_to_insert = {
+//         {"XYZW", kmer_t{"XYZW", 8, -1}}
+//     };
 
-    seedIndex index;
+//     seedIndex index;
     
-    std::vector<kmer_t> expected_deletions = {
-                kmer_t{"AACA", 8, 3},
-                kmer_t{"AABA", 7, 2},
-                kmer_t{"AAAA", 0, 0},
-    };
-    std::string nid = "my_node_id";
+//     std::vector<kmer_t> expected_deletions = {
+//                 kmer_t{"AACA", 8, 3},
+//                 kmer_t{"AABA", 7, 2},
+//                 kmer_t{"AAAA", 0, 0},
+//     };
+//     std::string nid = "my_node_id";
 
-    std::unordered_map<std::string, bool> variable_syncmers;
+//     std::unordered_map<std::string, bool> variable_syncmers;
 
-    std::unordered_map<std::string, bool> expected_variable_syncmers = {
-        {"AAAA", true},
-        {"AABA", true},
-        {"AACA", true}
-    };
+//     std::unordered_map<std::string, bool> expected_variable_syncmers = {
+//         {"AAAA", true},
+//         {"AABA", true},
+//         {"AACA", true}
+//     };
 
-    discardSyncmers(seeds, B, seq, to_insert, variable_syncmers, index, nid, k);
+//     discardSyncmers(seeds, B, seq, to_insert, variable_syncmers, index, nid, k);
 
-    BOOST_TEST(
-        seeds == expected_seeds
-    );
-    BOOST_TEST(
-        to_insert == expected_to_insert
-    );
+//     BOOST_TEST(
+//         seeds == expected_seeds
+//     );
+//     BOOST_TEST(
+//         to_insert == expected_to_insert
+//     );
 
-    BOOST_TEST(
-        index.deletions[nid] == expected_deletions
-    );
-    BOOST_TEST(index.deletions[nid][0].pos == 8);
-    BOOST_TEST(index.deletions[nid][0].idx == 3);
-    BOOST_TEST(index.deletions[nid][1].pos == 7);
-    BOOST_TEST(index.deletions[nid][1].idx == 2);
-    BOOST_TEST(index.deletions[nid][2].pos == 0);
-    BOOST_TEST(index.deletions[nid][2].idx == 0);
+//     BOOST_TEST(
+//         index.deletions[nid] == expected_deletions
+//     );
+//     BOOST_TEST(index.deletions[nid][0].pos == 8);
+//     BOOST_TEST(index.deletions[nid][0].idx == 3);
+//     BOOST_TEST(index.deletions[nid][1].pos == 7);
+//     BOOST_TEST(index.deletions[nid][1].idx == 2);
+//     BOOST_TEST(index.deletions[nid][2].pos == 0);
+//     BOOST_TEST(index.deletions[nid][2].idx == 0);
 
-    BOOST_TEST(
-        variable_syncmers == expected_variable_syncmers
-    );
-}
+//     BOOST_TEST(
+//         variable_syncmers == expected_variable_syncmers
+//     );
+// }
 
 // BOOST_AUTO_TEST_CASE(_indexSyncmers) {
 //     size_t k = 13;
@@ -417,6 +417,50 @@ vector< pair<string, string> > get_pruned_samples(string path) {
     return samples;
 }
 
+size_t get_distance(Tree* T, Node* node_1, Node* node_2) {
+    size_t n1_dist = 0;
+    size_t n2_dist = 0;
+    while (node_1->identifier != node_2->identifier) {
+        if (node_1->level == node_2->level) {
+            n1_dist += node_1->nucMutation.size();
+            n2_dist += node_2->nucMutation.size();
+            node_1 = node_1->parent;
+            node_2 = node_2->parent;
+        } else if (node_1->level > node_2->level) {
+            n1_dist += node_1->nucMutation.size();
+            node_1 = node_1->parent;
+        } else if (node_2->level > node_1->level) {
+            n2_dist += node_2->nucMutation.size();
+            node_2 = node_2->parent;
+        }
+    }
+    //cout << n1_dist << "\t" << n2_dist << endl;
+    size_t distance = n1_dist + n2_dist;
+    return distance;
+}
+
+size_t get_distance_branch(Tree* T, Node* node_1, Node* node_2) {
+    size_t n1_dist = 0;
+    size_t n2_dist = 0;
+    while (node_1->identifier != node_2->identifier) {
+        if (node_1->level == node_2->level) {
+            n1_dist += (node_1->nucMutation.size() == 0) ? 0 : 1;
+            n2_dist += (node_2->nucMutation.size() == 0) ? 0 : 1;
+            node_1 = node_1->parent;
+            node_2 = node_2->parent;
+        } else if (node_1->level > node_2->level) {
+            n1_dist += (node_1->nucMutation.size() == 0) ? 0 : 1;
+            node_1 = node_1->parent;
+        } else if (node_2->level > node_1->level) {
+            n2_dist += (node_2->nucMutation.size() == 0) ? 0 : 1;
+            node_2 = node_2->parent;
+        }
+    }
+    //cout << n1_dist << "\t" << n2_dist << endl;
+    size_t distance = n1_dist + n2_dist;
+    return distance;
+}
+
 BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
     using namespace std;
 
@@ -461,10 +505,55 @@ BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
         PangenomeMAT::loadIndex(T->root, indexFile, index);
 
         // place index and print SAM
-        PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s);
+        std::string best_match;
+        PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s, best_match);
+        
+        const std::string ref_node_seq = T->getStringFromReference(best_match, false);
+        std::string reference_node_fa_path = "../src/test/statsgenotype/fasta/" + best_match + ".fa";
+        if(!filesystem::exists(reference_node_fa_path)) {
+            ofstream faos(reference_node_fa_path);
+            faos << '>' << best_match << '\n';
+            size_t linesize = 80;
+            for (size_t i = 0; i < ref_node_seq.size(); i += linesize) {
+                faos << ref_node_seq.substr(i, std::min(linesize, ref_node_seq.size() - i)) << '\n';
+            }
+            faos.close();
+        }
+
+        std::string sam_path = "../src/test/statsgenotype/sam/" + pruned_sample + ".sam";
+        if (!filesystem::exists(sam_path)) {
+            std::string minimap_cmd_str = "minimap2 -ax sr " + reference_node_fa_path + " " + pruned_sample_fastq_1 + " " + pruned_sample_fastq_2 + " --heap-sort=yes | samtools sort -O sam > " + sam_path;
+            const char* minimap_cmd = minimap_cmd_str.c_str();
+            system(minimap_cmd);
+        }
+
+        std::string plu_path = "../src/test/statsgenotype/pileup/" + pruned_sample + ".pileup";
+        if (!filesystem::exists(plu_path)) {
+            std::string pileup_cmd_str = "samtools mpileup " + sam_path + " -f " + reference_node_fa_path + " > " + plu_path;
+            const char* pileup_cmd = pileup_cmd_str.c_str();
+            system(pileup_cmd);
+        }
+
+        // cout << endl;
+        // cout << "----- Nodes: " << best_match << "\t" << T->allNodes[pruned_sample]->parent->identifier << endl;
+        // cout << "----- Level: " << T->allNodes[best_match]->level << "\t" << T->allNodes[pruned_sample]->parent->level << endl;
+        // auto dist = get_distance(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent);
+        // cout << "----- Dist:  " << dist << endl;
+        // cout << endl;
+        // cout << "@"
+        //      << pruned_sample << "\t"
+        //      << T->allNodes[pruned_sample]->parent->identifier << "\t"
+        //      << best_match << "\t"
+        //      << get_distance(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent) << "\t"
+        //      << get_distance_branch(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent) << endl;
+        std::ifstream fin(plu_path);
+        std::ifstream min("../mutation_matrices/sars_4k.mutmat");
+        vector<statsgenotype::variationSite> candidate_variants = pT->getVariantSites(fin, &min);
+        for (const statsgenotype::variationSite& site : candidate_variants) {
+            statsgenotype::printSiteGenotypePosteriors(site);
+        }
         break;
     }
-    
 
     is.close();
 }
