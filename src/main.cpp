@@ -272,6 +272,30 @@ void parseAndExecute(int argc, char* argv[]) {
         std::istream inputStream(&inPMATBuffer);
 
         T = new PangenomeMAT::Tree(inputStream);
+        int tot = 0;
+        int tot4 = 0;
+        for(auto u: T->gaps) {
+            tot += u.nucPosition.size();
+            for(auto v: u.nucGapLength) {
+                tot4+=v;
+            }
+        }
+        std::cout << "Total Gap Length: " << tot4 << std::endl;
+        std::cout << "Root mutations: " << T->root->nucMutation.size() << std::endl;
+        std::cout << "Total Gaps: " << tot << std::endl;
+        tot = 0;
+        int tot2 = 0;
+        int tot3 = 0;
+        for(auto u: T->allNodes) {
+            tot += u.second->nucMutation.size();
+            tot2 += u.second->blockMutation.size();
+        }
+        for(auto u: T->blocks) {
+            tot3 += u.consensusSeq.size();
+        }
+        std::cout << "Nuc mutations: " << tot << std::endl;
+        std::cout << "Block mutations: " << tot2 << std::endl;
+        std::cout << "Total Consensus Sequence length: " << tot3 << std::endl;
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -279,13 +303,18 @@ void parseAndExecute(int argc, char* argv[]) {
         std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
 
         inputFile.close();
+
+        std::ofstream fout("rootSequence_2.fasta");
+        fout << T->getStringFromReference("node_1", false);
+
+        fout.close();
     } else if(globalVm.count("panman-in")) {
         // Load PanMAN file directly into memory
 
         std::string fileName = globalVm["panman-in"].as< std::string >();
         std::ifstream inputFile(fileName);
         boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
-        
+
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
         inPMATBuffer.push(boost::iostreams::gzip_decompressor());
         inPMATBuffer.push(inputFile);

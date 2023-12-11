@@ -368,7 +368,14 @@ void PangenomeMAT::Tree::nucFitchBackwardPass(Node* node,
         if(states[node->identifier] == 0) {
             return;
         }
-        if(parentState & states[node->identifier]) {
+        if(node == root) {
+            // The root sequence should take any of its values and not care about the parent state
+            int currentState = 1;
+            while(!(states[node->identifier] & currentState)) {
+                currentState <<= 1;
+            }
+            states[node->identifier] = currentState;
+        } else if(parentState & states[node->identifier]) {
             states[node->identifier] = parentState;
         } else {
             int currentState = 1;
@@ -712,6 +719,8 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
         tbb::concurrent_unordered_map< std::string,
             std::vector< std::tuple< int,int,int,int,int,int > > > gapMutations;
 
+        tbb::concurrent_vector< GapList > newGapList;
+
         tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
             std::string consensusSeq = pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]];
             std::vector< std::pair< char, std::vector< char > > > sequence(consensusSeq.size()+1,
@@ -748,6 +757,17 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
                 }
                 individualSequences[u.first] = currentSequence;
             });
+
+            // Map to store the state of every node at each position
+            std::map< std::pair< int64_t, int64_t >, std::unordered_map< std::string, int > > globalStates;
+            // Initialize to empty states
+            for(size_t j = 0; j < sequence.size(); j++) {
+                globalStates[std::make_pair(j,-1)];
+                for(size_t k = 0; k < sequence[j].second.size(); k++) {
+                    globalStates[std::make_pair(j,k)];
+                }
+            }
+
             tbb::parallel_for((size_t) 0, sequence.size(), [&](size_t j) {
                 tbb::parallel_for((size_t)0, sequence[j].second.size(), [&](size_t k) {
                     std::unordered_map< std::string, int > states;
@@ -761,12 +781,14 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
                     }
                     nucFitchForwardPass(root, states);
                     nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].second[k])));
-                    nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].second[k])));
-                    for(auto mutation: mutations) {
-                        nodeMutexes[mutation.first].lock();
-                        gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
-                        nodeMutexes[mutation.first].unlock();
-                    }
+                    globalStates[std::make_pair(j,k)] = states;
+
+                    // nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].second[k])));
+                    // for(auto mutation: mutations) {
+                    //     nodeMutexes[mutation.first].lock();
+                    //     gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                    //     nodeMutexes[mutation.first].unlock();
+                    // }
                 });
                 std::unordered_map< std::string, int > states;
                 std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
@@ -779,7 +801,136 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
                 }
                 nucFitchForwardPass(root, states);
                 nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].first)));
-                nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].first)));
+                globalStates[std::make_pair(j,-1)] = states;
+
+                // nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].first)));
+                // for(auto mutation: mutations) {
+                //     nodeMutexes[mutation.first].lock();
+                //     nonGapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                //     nodeMutexes[mutation.first].unlock();
+                // }
+            });
+
+            // Set pseudoroot sequence = root sequence for the current block
+            std::vector< std::pair< char, std::vector< char > > >& rootSequence = sequence;
+            for(auto& u: globalStates) {
+                char nuc = '-';
+                if(u.second[root->identifier] != 1) {
+                    // not gap
+                    int code = 0, currentState = u.second[root->identifier];
+                    while(currentState > 0) {
+                        currentState >>= 1;
+                        code++;
+                    }
+                    code--;
+                    nuc = getNucleotideFromCode(code);
+                }
+                if(u.first.second == -1) {
+                    rootSequence[u.first.first].first = nuc;
+                } else {
+                    rootSequence[u.first.first].second[u.first.second] = nuc;
+                }
+            }
+
+            int64_t currentMain = 0;
+            int64_t currentGap = -1;
+            std::map< std::pair< int64_t, int64_t >, std::pair< int64_t, int64_t > > oldToNew;
+            std::vector< uint32_t > newGapListNucs;
+            std::vector< uint32_t > newGapListLengths;
+            std::string rootConsensusSequence;
+
+            for(size_t j = 0; j < rootSequence.size(); j++) {
+                for(size_t k = 0; k < rootSequence[j].second.size(); k++) {
+                    // gap nuc
+                    if(rootSequence[j].second[k] != '-') {
+                        rootConsensusSequence += rootSequence[j].second[k];
+                        // close the gap (if open)
+                        currentGap = -1;
+                        oldToNew[std::make_pair(j,k)] = std::make_pair(currentMain, currentGap);
+                        // Update next main nucleotide coordinate
+                        currentMain++;
+                    } else {
+                        if(currentGap == -1){
+                            // If gap just opened, start gap
+                            newGapListNucs.push_back(currentMain);
+                            newGapListLengths.push_back(1);
+                        } else {
+                            // If gap is continuing, continue gap
+                            newGapListLengths[newGapListLengths.size()-1]++;
+                        }
+                        currentGap++;
+                        oldToNew[std::make_pair(j,k)] = std::make_pair(currentMain, currentGap);
+                    }
+                }
+                // main nuc
+                if(rootSequence[j].first != '-') {
+                    rootConsensusSequence += rootSequence[j].first;
+                    // close the gap (if open)
+                    currentGap = -1;
+                    oldToNew[std::make_pair(j,-1)] = std::make_pair(currentMain, currentGap);
+                    currentMain++;
+                } else {
+                    if(currentGap == -1){
+                        // If gap just opened, start gap
+                        newGapListNucs.push_back(currentMain);
+                        newGapListLengths.push_back(1);
+                    } else {
+                        // If gap is continuing, continue gap
+                        newGapListLengths[newGapListLengths.size()-1]++;
+                    }
+                    currentGap++;
+                    oldToNew[std::make_pair(j,-1)] = std::make_pair(currentMain, currentGap);
+                }
+            }
+
+            rootSequence.clear();
+            rootSequence.resize(rootConsensusSequence.length()+1, {'-', {}});
+            for(size_t j = 0; j < rootConsensusSequence.length(); j++) {
+                rootSequence[j].first = rootConsensusSequence[j];
+            }
+            rootSequence.push_back({'-', {}});
+            for(size_t j = 0; j < newGapListLengths.size(); j++) {
+                rootSequence[newGapListNucs[j]].second.resize(newGapListLengths[j], '-');
+            }
+
+            // Update gap list
+            if(newGapListNucs.size()) {
+                GapList g;
+                g.primaryBlockId = i;
+                g.secondaryBlockId = -1;
+                g.nucPosition = newGapListNucs;
+                g.nucGapLength = newGapListLengths;
+                newGapList.push_back(g);
+            }
+
+            // Update block to the new consensus sequence
+            blocks[i] = Block(i, rootConsensusSequence);
+
+            std::map< std::pair< int64_t, int64_t >, std::pair< int64_t, int64_t > > newToOld;
+            // Updated coordinates
+            for(auto& u: globalStates) {
+                newToOld[oldToNew[u.first]] = u.first;
+            }
+
+            // Create mutations
+            tbb::parallel_for((size_t) 0, sequence.size(), [&](size_t j) {
+                tbb::parallel_for((size_t)0, sequence[j].second.size(), [&](size_t k) {
+                    if(newToOld.find(std::make_pair(j,k)) == newToOld.end()) {
+                        return;
+                    }
+                    std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
+                    nucFitchAssignMutations(root, globalStates[newToOld[std::make_pair(j,k)]], mutations, 1);
+                    for(auto mutation: mutations) {
+                        nodeMutexes[mutation.first].lock();
+                        gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                        nodeMutexes[mutation.first].unlock();
+                    }
+                });
+                if(newToOld.find(std::make_pair(j,-1)) == newToOld.end()) {
+                    return;
+                }
+                std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
+                nucFitchAssignMutations(root, globalStates[newToOld[std::make_pair(j,-1)]], mutations, (1 << getCodeFromNucleotide(rootConsensusSequence[j])));
                 for(auto mutation: mutations) {
                     nodeMutexes[mutation.first].lock();
                     nonGapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
@@ -787,6 +938,11 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
                 }
             });
         });
+
+        gaps.clear();
+        for(auto& g: newGapList) {
+            gaps.push_back(g);
+        }
 
         tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
             nodeMutexes[u.first].lock();
@@ -3816,7 +3972,7 @@ std::string PangenomeMAT::Tree::getStringFromReference(std::string reference, bo
     Node* referenceNode = nullptr;
 
     for(auto u: allNodes) {
-        if(u.second->children.size() == 0 && u.first == reference) {
+        if(u.first == reference) {
             referenceNode = u.second;
             break;
         }
