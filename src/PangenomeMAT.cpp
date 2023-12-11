@@ -6528,7 +6528,7 @@ void to_upper(string& str) {
 int parse_readbases(
     string readbase_string, const string& readbase_errors,
     char ref_nuc, string& nucs, vector<string>& insertion_seqs,
-    vector<size_t>& deletion_sizes, string& errs 
+    vector<string>& deletion_seqs, string& errs 
 ) {
     int variation_types = 0;
 
@@ -6560,7 +6560,9 @@ int parse_readbases(
             indel_size = stoul(matches.str(1));
             indel_size_len = matches.length(1);
             indel_size_idx = matches.position(1); 
-            deletion_sizes.push_back(indel_size);
+            string seq = readbase_substr.substr(indel_size_idx + indel_size_len, indel_size);
+            to_upper(seq);
+            deletion_seqs.push_back(seq);
             del_errs += readbase_errors[cur_idx];
             cur_start += (indel_size_idx + indel_size_len + indel_size);
             cur_idx++;
@@ -6583,13 +6585,11 @@ int parse_readbases(
     return variation_types;
 }
 
-void PangenomeMAT::Tree::printSamplePlacementVCF(std::ifstream& fin, std::ifstream* min) {
-    
+vector<statsgenotype::variationSite> PangenomeMAT::Tree::getVariantSites(std::ifstream& fin, std::ifstream* min) {
     // Infer mutation matrix
     auto mutmat = statsgenotype::mutationMatrices();
     fillMutationMats(mutmat, this->root, min);
-    printMatrices(mutmat);
-
+    //printMatrices(mutmat);
     regex variant_pattern("[ACGTacgt\\*]+");
 
     // get potential variant sites and compute likelihood.. Currently read from mpileup file
@@ -6608,21 +6608,48 @@ void PangenomeMAT::Tree::printSamplePlacementVCF(std::ifstream& fin, std::ifstre
             string errs;
             string nucs;
             vector<string> insertion_seqs;
-            vector<size_t> deletion_sizes;
+            vector<string> deletion_seqs;
 
-            auto variation_types = parse_readbases(readbases_string, readbases_errors, ref_nuc, nucs, insertion_seqs, deletion_sizes, errs);
+            auto variation_types = parse_readbases(readbases_string, readbases_errors, ref_nuc, nucs, insertion_seqs, deletion_seqs, errs);
             candidate_variants.emplace_back(statsgenotype::variationSite(
                 site_id, ref_nuc, position, variation_types, nucs,
-                insertion_seqs, deletion_sizes, errs, mutmat, readbases_string + "\t" + readbases_errors
+                insertion_seqs, deletion_seqs, errs, mutmat, readbases_string + "\t" + readbases_errors
             ));
             site_id++;
         }
+    }
+    
+    return candidate_variants;
+}
+
+void PangenomeMAT::Tree::printSamplePlacementVCF(std::ifstream& fin, std::ifstream* min) {
+    
+    vector<statsgenotype::variationSite> candidate_variants = getVariantSites(fin, min);
+
+    if (candidate_variants.empty()) {
+        return;
+    }
+
+    cout << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE" << endl;
+    vector<statsgenotype::variationSite> groupSites;
+    for (const auto& cur_site : candidate_variants) {
+        bool skip = true;
+        for (int i = 0; i < cur_site.posteriors.size(); i++) {
+            if (i != (cur_site.site_info >> 3) && cur_site.posteriors[i] != numeric_limits<double>::max()) {
+                skip = false;
+                break;
+            }
+        }
+        if (skip) {
+            continue;
+        }
+
+        statsgenotype::printVCFLine(cur_site);
     }
 
     for (const auto& site : candidate_variants) {
         statsgenotype::printSiteGenotypePosteriors(site);
     }
-
     
 }
 
@@ -7445,7 +7472,7 @@ void PangenomeMAT::placeDFS(Node *currNode, std::vector<kmer_t> &currNodeSyncmer
 
 }
 
-void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, seedIndex &index, size_t k, size_t s){
+void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, seedIndex &index, size_t k, size_t s, string& bestMatch){
     //T->condenseTree(T->root);
     
     PangenomeMAT::Node *root = T->root;
@@ -7501,6 +7528,7 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
     });
 
     std::string best_match = v[0].first;
+    bestMatch = best_match;
     std::cerr << "Best match: " << v[0].first << " " << v[0].second << "\n";
     /*for (const auto &s : v) {
         std::cerr << s.first << ": " << s.second << "\n";
@@ -7606,8 +7634,8 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
         qry_positions[i] = qry_pos_array;
     }
     
-    std::cout << "\n@SQ	SN:reference	LN:" << ref_seq.length() << std::endl;
-    align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions, k);
+    //std::cout << "\n@SQ	SN:reference	LN:" << ref_seq.length() << std::endl;
+    //align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions, k);
 
 
     for(int i = 0; i < n_reads; i++) {

@@ -485,6 +485,7 @@ namespace PangenomeMAT {
             void setupGlobalCoordinates();
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
             
+            vector<statsgenotype::variationSite> getVariantSites(std::ifstream& fin, std::ifstream* min = nullptr);
             void printSamplePlacementVCF(std::ifstream& fin, std::ifstream* min = nullptr);
             
             // Transforms tree such that given node becomes child of new root
@@ -716,7 +717,7 @@ namespace PangenomeMAT {
     std::pair<int32_t, int32_t> getRecomputePositions(std::pair<int32_t, int32_t> p, std::string &gappedSequence, int32_t k);
     int32_t alignedEndPos(int32_t pos, int32_t k, std::string &gappedSequence);
     void loadIndex(Node *root, std::ifstream &indexFile, seedIndex &index);
-    void placeSample(Tree *T, std::string fastqPath, seedIndex &index, size_t k, size_t s);
+    void placeSample(Tree *T, std::string fastqPath, seedIndex &index, size_t k, size_t s, string& best_match);
     std::set<kmer_t> syncmersFromFastq(std::string fastqPath,  std::vector<read_t> &reads, size_t k, size_t s);
     std::string getCurrentFastaSequence(const sequence_t& sequence, const blockExists_t& blockExists, blockStrand_t& blockStrand, bool aligned);
 

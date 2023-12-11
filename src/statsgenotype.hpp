@@ -76,7 +76,7 @@ static double phred_complement(double q) {
 static double likelihood(
     int genotype_idx,
     const vector< vector<double> >& read_errs,
-    const map<size_t, vector<double> >& deletions,
+    const map<string, vector<double> >& deletions,
     const map<string, vector<double> >& insertions,
     int variation_type
 ) {
@@ -118,8 +118,8 @@ static double likelihood(
         del_i++;
     }
     
-    double genotype_prob = std::accumulate(genotype_probs.begin(), genotype_probs.end(), 0.0);
-    double variant_prob = std::accumulate(variants_probs.begin(), variants_probs.end(), 0.0);
+    double genotype_prob = accumulate(genotype_probs.begin(), genotype_probs.end(), 0.0);
+    double variant_prob = accumulate(variants_probs.begin(), variants_probs.end(), 0.0);
     
     return genotype_prob + variant_prob;
 
@@ -127,7 +127,7 @@ static double likelihood(
 
 
 static vector<double> genotype_likelihoods(
-    const vector< vector<double> >& read_errs, const map<size_t, vector<double> >& deletions,
+    const vector< vector<double> >& read_errs, const map<string, vector<double> >& deletions,
     const map<string, vector<double> >& insertions, const int8_t& site_info
 ) {
     vector<double> likelihoods;
@@ -160,7 +160,7 @@ static vector<double> genotype_likelihoods(
 }
 
 static vector<double> genotype_posteriors(
-    const vector<double>& likelihoods, const map<size_t, vector<double> >& deletions,
+    const vector<double>& likelihoods, const map<string, vector<double> >& deletions,
     const map<string, vector<double> >& insertions, const int8_t& site_info, const mutationMatrices& mutmat
 ) {
     vector<double> posteriors;
@@ -184,8 +184,8 @@ static vector<double> genotype_posteriors(
 
     size_t deletion_idx = 0;
     for (const auto& deletion : deletions) {
-        posteriors.push_back(likelihoods[5 + insertion_idx + deletion_idx] + mutmat.insmat[deletion.first]);
-        insertion_idx++; 
+        posteriors.push_back(likelihoods[5 + insertion_idx + deletion_idx] + mutmat.insmat[deletion.first.size()]);
+        insertion_idx++;
     }
 
     double min_score = *min_element(posteriors.begin(), posteriors.end());
@@ -198,7 +198,7 @@ static vector<double> genotype_posteriors(
 struct variationSite {
     variationSite(
         size_t sid, char ref, size_t position, int variation_types, const string& nucs,
-        const vector<string>& insertion_seqs, const vector<size_t>& deletion_lens, const string& errors,
+        const vector<string>& insertion_seqs, const vector<string>& deletion_seqs, const string& errors,
         const mutationMatrices& mutmat, const string& tmp_string
     ) {
         site_id = sid;
@@ -206,7 +206,7 @@ struct variationSite {
         size_t offset = 0;
         site_info = (getIndexFromNucleotide(ref) << 3) + variation_types;
         read_errs.resize(5);
-        assert(errors.size() == nucs.size() + insertion_seqs.size() + deletion_lens.size());
+        assert(errors.size() == nucs.size() + insertion_seqs.size() + deletion_seqs.size());
 
 
         for (auto i = 0; i < nucs.size(); ++i) {
@@ -223,13 +223,31 @@ struct variationSite {
         }
 
         if (variation_types & variationType::DEL) {
-            for (auto i = 0; i < deletion_lens.size(); i++) {
-                deletions[deletion_lens[i]].push_back(double(errors[i + offset] - 33.0));
+            for (auto i = 0; i < deletion_seqs.size(); i++) {
+                deletions[deletion_seqs[i]].push_back(double(errors[i + offset] - 33.0));
             }
         }
 
         likelihoods = genotype_likelihoods(read_errs, deletions, insertions, site_info);
         posteriors = genotype_posteriors(likelihoods, deletions, insertions, site_info, mutmat);
+        
+        for (size_t i = 0; i < 4; i++) {
+            read_depth.push_back(read_errs[i].size());
+        }
+        for (const auto& ins : insertions) {
+            read_depth.push_back(ins.second.size());
+        }
+        for (const auto& del : deletions) {
+            read_depth.push_back(del.second.size());
+        }
+
+        for (size_t i = 0; i < posteriors.size(); i++) {
+            if (posteriors[i] == 0.0) {
+                most_probable_idx = i;
+                break;
+            }
+        }
+
         tmp_readbase_string = tmp_string;
     }
 
@@ -242,17 +260,21 @@ struct variationSite {
 
     // deletion
     // map<size_t, size_t> deletions;
-    map<size_t, vector<double> > deletions;
+    map<string, vector<double> > deletions;
     
     // insertion
     // map<string, size_t> insertions;
     map<string, vector<double> > insertions;
 
+    size_t most_probable_idx;
     vector<double> likelihoods;
     vector<double> posteriors;
+    vector<size_t> read_depth;
 
     string tmp_readbase_string;
 };
+
+
 
 static void printSiteGenotypeLikelihoods(const variationSite& site) {
     cout << site.ref_position << '\t' << getNucleotideFromIndex(site.site_info >> 3) << "\t";
@@ -304,7 +326,7 @@ static void printSiteGenotypePosteriors(const variationSite& site) {
 
     size_t deletion_idx = 0;
     for (const auto& deletion : site.deletions) {
-        cout << "-" << deletion.first << ":" << site.posteriors[4 + site.insertions.size() + deletion_idx] << ";";
+        cout << "-" << deletion.first.size() << deletion.first << ":" << site.posteriors[4 + site.insertions.size() + deletion_idx] << ";";
         deletion_idx++;
     }
     
@@ -312,12 +334,84 @@ static void printSiteGenotypePosteriors(const variationSite& site) {
     // cout << "\t" << site.tmp_readbase_string << endl;
 }
 
-// static void printVCFLine(const variationSite& site) {
-//     cout << "ref" << "\t"
-//          << site.ref_position << "\t"
-//          << "." << "\t"
-//          << 
-// }
+static void printVCFLine(const statsgenotype::variationSite& site) {
+    string refAllele;
+    vector<string> alleles;
+    int gt;
+    vector<size_t> dp;
+    vector<int> pl;
+    size_t position;
+    
+    refAllele += getNucleotideFromIndex(site.site_info >> 3);
+    position = site.ref_position + 1;
+
+    // find longest deletion
+    size_t ldl = 0; // longest deletion length
+    string lds;     // longest deletion string
+    for (const auto& del : site.deletions) {
+        if (del.first.size() > ldl) {
+            ldl = del.first.size();
+            lds = del.first;
+        }
+    }
+
+    if (!lds.empty()) {
+        defAllele += lds;
+    }
+    
+    // string refAllele;
+    // string altAllele;
+    // size_t position;
+
+    // refAllele += getNucleotideFromIndex(site.site_info >> 3);
+    // position = site.ref_position + 1;
+
+    // bool no_print = true;
+    // for (int i = 0; i < site.posteriors.size(); i++) {
+    //     if (i != (site.site_info >> 3) && site.posteriors[i] != numeric_limits<double>::max()) {
+    //         no_print = false;
+    //     }
+    // }
+    // if (no_print || site.most_probable_idx == (site.site_info >> 3)) {
+    //     return;
+    // }
+    
+    // if (site.most_probable_idx <= 3) {
+    //     altAllele += getNucleotideFromIndex(site.most_probable_idx);
+    // } else {
+    //     if (site.most_probable_idx <= 3 + site.insertions.size()) {
+    //         int idx = 0;
+    //         for (const auto& ins : site.insertions) {
+    //             if (idx == site.most_probable_idx - 4) {
+    //                 altAllele += (refAllele + ins.first);
+    //             }
+    //             idx += 1;
+    //         }
+    //     } else {
+    //         int idx = 0;
+    //         for (const auto& del : site.deletions) {
+    //             if (idx == site.most_probable_idx - site.insertions.size() - 4) {
+    //                 altAllele = refAllele;
+    //                 refAllele += del.first;
+    //             }
+    //             idx += 1;
+    //         }
+    //     }
+    // }
+
+
+
+    cout << "ref" << "\t"                // #CHROM
+         << position << "\t"             // POS
+         << "." << "\t"                  // ID
+         << refAllele << "\t"            // REF
+         << altAllele << "\t"            // ALT
+         << "." << "\t"                  // QUAL
+         << "." << "\t"                  // FILTER
+         << "." << "\t"                  // INFO
+         << "GT:DP:PL" << "\t"           // FORMAT
+         << "sample" << endl;            // SAMPLE
+}
 
 }
 

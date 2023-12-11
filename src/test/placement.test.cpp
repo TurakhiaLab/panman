@@ -401,49 +401,6 @@ using namespace PangenomeMAT;
 //     }
 // }
 
-//Nicos testing
-void alignment_fixing(){
-
-    string read_fastq_path = "../src/test/statsgenotype/small.fastq";
-    string pmat_tree_path = "../src/test/statsgenotype/pmat/ON945719.1_pruned.pmat";
-    string index_path = "../src/test/statsgenotype/indices/ON945719.1.index.out";
-
-    //string pruned_sample = sample.first;
-    //string pruned_tree_path = sample.second;
-    //string pruned_sample_fastq_1 = "../src/test/statsgenotype/fastq_2k/" + pruned_sample + ".1kreads.fastq_R1.fastq";
-    //string pruned_sample_fastq_2 = "../src/test/statsgenotype/fastq_2k/" + pruned_sample + ".1kreads.fastq_R2.fastq";
-    //cout << pruned_sample << "\t" << pruned_tree_path << "\t" << pruned_sample_fastq_1 << pruned_sample_fastq_2 << endl;
-
-    // read tree
-    ifstream ptis(pmat_tree_path);
-    boost::iostreams::filtering_streambuf< boost::iostreams::input> inptPMATBuffer;
-    inptPMATBuffer.push(boost::iostreams::gzip_decompressor());
-    inptPMATBuffer.push(ptis);
-    istream ptinputStream(&inptPMATBuffer);
-    Tree *pT = new Tree(ptinputStream);
-    ptis.close();
-
-    // index tree
-    size_t k = 19;
-    size_t s = 5;
-    if (!filesystem::exists(index_path)) {
-        ofstream ptos(index_path);
-        indexSyncmers(pT, ptos, k, s);
-        ptos.close();
-    }
-        
-        
-    struct seedIndex index;
-    std::ifstream indexFile(index_path);
-    PangenomeMAT::loadIndex(pT->root, indexFile, index);
-
-    // place index and print SAM
-
-    PangenomeMAT::placeSample(pT, read_fastq_path, index, k, s);
-
-    exit(0);
-
-}
 
 
 vector< pair<string, string> > get_pruned_samples(string path) {
@@ -509,7 +466,6 @@ size_t get_distance_branch(Tree* T, Node* node_1, Node* node_2) {
 BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
     using namespace std;
 
-    //alignment_fixing(); //TODO remove this.
 
     std::ifstream is("../sars2k.pmat");
     boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
@@ -553,12 +509,12 @@ BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
 
         // place index and print SAM
 
-        PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s);
+        // PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s);
+        // break;
 
 
-        /*
         std::string best_match;
-        PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s);
+        PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s, best_match);
         
         const std::string ref_node_seq = T->getStringFromReference(best_match, false);
         std::string reference_node_fa_path = "../src/test/statsgenotype/fasta/" + best_match + ".fa";
@@ -586,6 +542,9 @@ BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
             system(pileup_cmd);
         }
         
+        std::ifstream fin(plu_path);
+        std::ifstream min("../mutation_matrices/sars_4k.mutmat");
+        pT->printSamplePlacementVCF(fin, &min);
 
         // cout << endl;
         // cout << "----- Nodes: " << best_match << "\t" << T->allNodes[pruned_sample]->parent->identifier << endl;
@@ -599,14 +558,9 @@ BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
         //      << best_match << "\t"
         //      << get_distance(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent) << "\t"
         //      << get_distance_branch(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent) << endl;
-        std::ifstream fin(plu_path);
-        std::ifstream min("../mutation_matrices/sars_4k.mutmat");
-        vector<statsgenotype::variationSite> candidate_variants = pT->getVariantSites(fin, &min);
-        for (const statsgenotype::variationSite& site : candidate_variants) {
-            statsgenotype::printSiteGenotypePosteriors(site);
-        }
+        
         break;
-        */
+        
     }
 
     is.close();
