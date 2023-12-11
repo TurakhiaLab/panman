@@ -14,3 +14,5 @@ src/a.out
 src/chaining_old.cpp
 src/run.sh
 results
+src/minimap2_src/*.o
+src/minimap2_src/*.a

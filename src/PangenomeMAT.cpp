@@ -6148,7 +6148,7 @@ void PangenomeMAT::TreeGroup::printComplexMutations() {
 
 // Read alignment 
 extern "C" {
-    void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions, size_t seed_k, size_t seed_s);
+    void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, unsigned int **qry_positions, size_t seed_k);
 }
 
 void PangenomeMAT::Tree::setupGlobalCoordinates(){
@@ -6644,7 +6644,7 @@ std::set<kmer_t> PangenomeMAT::syncmersFromFastq(std::string fastqPath,  std::ve
         input.push_back(this_seq);
         input_names.push_back(this_name);
     }
-    float est_coverage = 1; //TODO change this to 1
+    float est_coverage = 0; //TODO change this to 1
     bool open = false;
     
     std::set<kmer_t> syncmers;
@@ -7475,7 +7475,7 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
     std::cout << "root seeds: " << rootSyncmers.size() << "\n";
     std::cout << "read seeds: " << readSyncmers.size() << "\n";
     for (const auto &k : readSyncmers) {
-        std::cout << k.seq << "\n";
+        //std::cout << k.seq << "\n";
     }
     std::cout << "initial jaccard: " << dj.jaccardIndex << "\n";
 
@@ -7501,9 +7501,10 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
     });
 
     std::string best_match = v[0].first;
-    for (const auto &s : v) {
+    std::cerr << "Best match: " << v[0].first << " " << v[0].second << "\n";
+    /*for (const auto &s : v) {
         std::cerr << s.first << ": " << s.second << "\n";
-    }
+    }*/
 
     //First in this s vector is the highest scoring node
     //   that will be reference
@@ -7512,23 +7513,30 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
     std::string ref_seq = T->getStringFromReference(best_match, false);
 
     std::vector<kmer_t> ref_syncmers = syncmerize(ref_seq, k, s, false, false, 0);
-    
+
 
     
+    std::sort(ref_syncmers.begin(), ref_syncmers.end());
+
     //Finding syncmer matches
     for(int r = 0; r < reads.size() ; r++){
 
         auto readSyncmer = reads[r].kmers.begin();
         auto refSyncmer = ref_syncmers.begin();
 
+        std::sort(reads[r].kmers.begin(), reads[r].kmers.end());
+
         std::vector<kmer_t> matchingSyncmers;
 
         while(readSyncmer != reads[r].kmers.end() && refSyncmer != ref_syncmers.end()) {
+
+            //std::cerr << (*readSyncmer).seq << "\t" << (*refSyncmer).seq << "\n";
+
             if(*readSyncmer < *refSyncmer){
                 readSyncmer++;
             }else if (*refSyncmer < *readSyncmer){
                 refSyncmer++;
-            }else{
+            }else{ //Matched
 
                 kmer_t matched;
                 matched.seq  = (*readSyncmer).seq;
@@ -7545,10 +7553,25 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
         reads[r].kmers = matchingSyncmers;
     }
 
-//    std::cout << "\n" << ref_seq << std::endl;
+
+    //SEEING INSIDE:
+    /*
+    for(int r = 0; r < reads.size() ; r++){
+        std::cerr << "Read " << r << " " << reads[r].seq << "\n";
+        std::cerr << "kmers " << reads[r].kmers.size() << "\n";
+        for(int k = 0; k < reads[r].kmers.size(); k++) {
+            std::cerr << "\tkmer " << k << " " << reads[r].kmers[k].seq << "\n";
+            std::cerr << "\t" << reads[r].kmers[k].pos << "\t" << reads[r].kmers[k].pos2 << "\t" << reads[r].kmers[k].reversed << "\n";
+        }
+    }
+    */
+    
 
 
-    //Figure out a better way to do this
+    //std::cout << "\n" << ref_seq << std::endl;
+
+
+    
     //C++ to C interface will have to be cleaned up
     const char *reference = ref_seq.c_str();
     int n_reads = reads.size();
@@ -7558,7 +7581,7 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
 
     uint8_t **reversed  = (uint8_t **)malloc(n_reads*sizeof(uint8_t *));
     int **ref_positions = (int **)malloc(n_reads*sizeof(int *));
-    int **qry_positions = (int **)malloc(n_reads*sizeof(int *));
+    unsigned int **qry_positions = (unsigned int **)malloc(n_reads*sizeof(unsigned int *));
 
     for(int i = 0; i < n_reads; i++) {
         int n_seeds = reads[i].kmers.size();
@@ -7568,14 +7591,14 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
 
         uint8_t *reversed_array = (uint8_t *)malloc(n_seeds*sizeof(uint8_t));
         int *ref_pos_array = (int *)malloc(n_seeds*sizeof(int));
-        int *qry_pos_array = (int *)malloc(n_seeds*sizeof(int));
+        unsigned int *qry_pos_array = (unsigned int *)malloc(n_seeds*sizeof(unsigned int));
 
-        int j = 0;
-        for (auto it = reads[i].kmers.begin(); it != reads[i].kmers.end(); it++) {
-            reversed_array[j] = (*it).reversed;
-            qry_pos_array[j] = (*it).pos;
-            ref_pos_array[j] = (*it).pos2;
-            j++;
+        
+        for (int j = 0; j < reads[i].kmers.size(); j++) {
+            reversed_array[j] = reads[i].kmers[j].reversed;
+            qry_pos_array[j] = (unsigned int)reads[i].kmers[j].pos;
+            ref_pos_array[j] = reads[i].kmers[j].pos2;
+
         }
 
         reversed[i]      = reversed_array;
@@ -7584,7 +7607,7 @@ void PangenomeMAT::placeSample(PangenomeMAT::Tree *T, std::string fastqPath, see
     }
     
     std::cout << "\n@SQ	SN:reference	LN:" << ref_seq.length() << std::endl;
-    align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions, k, s);
+    align_reads(reference, n_reads, read_strings, r_lens, seed_counts, reversed, ref_positions, qry_positions, k);
 
 
     for(int i = 0; i < n_reads; i++) {

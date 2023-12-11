@@ -43,7 +43,7 @@ mm_reg1_t *align_regs(const mm_mapopt_t *opt, const mm_idx_t *mi, void *km, int 
 // n_seeds: number of seed hits in this read
 // r_poss: position of seeds in reference coords (the ends of the seed, the last index included in the seed)
 // q_poss: position of seeds in query(read) coords (the ends of the seed, the last index included in the seed)
-void align_read_given_seeds(const mm_idx_t *mi,const int read_length,const char *read_seq, int *n_regs, mm_reg1_t **regs, mm_tbuf_t *b, const mm_mapopt_t *opt, int seed_l, int n_seeds, int *r_poss, int *q_poss, uint8_t *reversed) 
+void align_read_given_seeds(const mm_idx_t *mi,const int read_length,const char *read_seq, int *n_regs, mm_reg1_t **regs, mm_tbuf_t *b, const mm_mapopt_t *opt, int seed_l, int n_seeds, int *r_poss, unsigned int *q_poss, uint8_t *reversed) 
 {
 	
 	int i, j, rep_len = 0, qlen_sum = 0, n_regs0, n_mini_pos = 0;
@@ -86,7 +86,6 @@ void align_read_given_seeds(const mm_idx_t *mi,const int read_length,const char 
 		
 		x = ((uint64_t)reversed[i]<<63) | rpos;
 		y = (uint64_t)span << 32 | qpos;
-
 
 		a[i].x = x;
 		a[i].y = y;
@@ -204,17 +203,17 @@ void align_read_given_seeds(const mm_idx_t *mi,const int read_length,const char 
 
 
 
-void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, int **qry_positions) {
+void align_reads(const char *reference, int n_reads, const char **reads, int *r_lens, int *seed_counts, uint8_t **reversed, int **ref_positions, unsigned int **qry_positions, int seed_l) {
     mm_idxopt_t iopt;
 	mm_mapopt_t mopt;
 	int n_threads = 1;
 
 	mm_verbose = 2;              // disable message output to stderr
-	mm_set_opt(0, &iopt, &mopt); 
+	mm_set_opt(0, &iopt, &mopt);
 	mopt.flag |= MM_F_CIGAR;     // perform alignment
 
 
-	iopt.k = 15; //setting seed length
+	iopt.k = seed_l; //setting seed length
 
 	mm_idx_t *mi = mm_idx_str(10, iopt.k, 0, 14, 1, &reference, NULL); //Read reference into structure
 
@@ -227,10 +226,13 @@ void align_reads(const char *reference, int n_reads, const char **reads, int *r_
 
 		mm_reg1_t *reg;
 		int j, i, n_reg;
+		
 
 		align_read_given_seeds(mi,r_lens[k],reads[k], &n_reg, &reg, tbuf, &mopt, iopt.k, seed_counts[k], ref_positions[k], qry_positions[k], reversed[k]);
 
+
 		
+
 		kstring_t sam = {0,0,0};
 		mm_bseq1_t t;
 		t.l_seq = r_lens[k];
@@ -303,7 +305,7 @@ void test_alignment_null()
 	int *qry_positions[] = {qp_0, qp_1, qp_2};
 
 
-    align_reads(reference, n_reads, reads, r_lens, seed_counts, reversed, ref_positions, qry_positions);
+    //align_reads(reference, n_reads, reads, r_lens, seed_counts, reversed, ref_positions, qry_positions);
     
 	
 	free(reads);
