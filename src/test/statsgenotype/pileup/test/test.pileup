@@ -1,0 +1,6 @@
+test_ref	21	A	5	CccCC	FFFFF
+test_ref	96	G	3	.C,	FFF
+test_ref	100	A	5	,GTC.	FFFFF
+test_ref	169	T	4	.-2TT.-2TT..+1G	FFFF
+test_ref	250	C	5	.-2CG,-2cg.-2CG.-2CG,	FFFFF
+test_ref	420	G	5	.-2TT.-2TT.-1T.,-2TT	FFFFF

@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE Index construction
+ #define BOOST_TEST_MODULE Index construction
 #include <boost/test/included/unit_test.hpp>
 #include "../PangenomeMAT.hpp"
 #include <stack>
@@ -516,6 +516,8 @@ BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
         std::string best_match;
         PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s, best_match);
         
+        cout << pruned_sample << "\t" << T->allNodes[pruned_sample]->parent->identifier << "\t" << best_match << endl;
+        
         const std::string ref_node_seq = T->getStringFromReference(best_match, false);
         std::string reference_node_fa_path = "../src/test/statsgenotype/fasta/" + best_match + ".fa";
         if(!filesystem::exists(reference_node_fa_path)) {
@@ -529,16 +531,20 @@ BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
         }
 
         std::string sam_path = "../src/test/statsgenotype/sam/" + pruned_sample + ".sam";
+        std::string minimap_cmd_str = "minimap2 -ax sr " + reference_node_fa_path + " " + pruned_sample_fastq_1 + " " + pruned_sample_fastq_2 + " --heap-sort=yes | samtools sort -O sam > " + sam_path;
+        cout << minimap_cmd_str << endl;
         if (!filesystem::exists(sam_path)) {
-            std::string minimap_cmd_str = "minimap2 -ax sr " + reference_node_fa_path + " " + pruned_sample_fastq_1 + " " + pruned_sample_fastq_2 + " --heap-sort=yes | samtools sort -O sam > " + sam_path;
             const char* minimap_cmd = minimap_cmd_str.c_str();
+            cout << minimap_cmd_str << endl;
             system(minimap_cmd);
         }
 
         std::string plu_path = "../src/test/statsgenotype/pileup/" + pruned_sample + ".pileup";
+        std::string pileup_cmd_str = "samtools mpileup " + sam_path + " -f " + reference_node_fa_path + " -A > " + plu_path;
+        cout << pileup_cmd_str << endl;
         if (!filesystem::exists(plu_path)) {
-            std::string pileup_cmd_str = "samtools mpileup " + sam_path + " -f " + reference_node_fa_path + " > " + plu_path;
             const char* pileup_cmd = pileup_cmd_str.c_str();
+            cout << pileup_cmd_str << endl;
             system(pileup_cmd);
         }
         
@@ -558,10 +564,27 @@ BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
         //      << best_match << "\t"
         //      << get_distance(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent) << "\t"
         //      << get_distance_branch(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent) << endl;
-        
         break;
-        
     }
+    std::ifstream testplu("../src/test/statsgenotype/pileup/test/test.pileup");
+    std::ifstream min("../mutation_matrices/sars_4k.mutmat");
+    T->printSamplePlacementVCF(testplu, &min);
+
+    // std::ifstream ecis("../ecoli_100.pmat");
+    // boost::iostreams::filtering_streambuf< boost::iostreams::input> ecinPMATBuffer;
+    // ecinPMATBuffer.push(boost::iostreams::gzip_decompressor());
+    // ecinPMATBuffer.push(ecis);
+    // std::istream ecinputStream(&ecinPMATBuffer);
+    // Tree *ecT = new Tree(ecinputStream);
+
+    // cout << "NZ_CP007594.1 -> node_63" << endl;
+    // Node* sampleNode = ecT->allNodes["NZ_CP007594.1"];
+    // cout << sampleNode->parent->identifier << endl;
+    // cout << sampleNode->nucMutation.size() << endl;
+    // cout << sampleNode->blockMutation.size() << endl;
+    // for (const auto& mut : sampleNode->nucMutation) {
+    //     cout << mut.nucPosition << "\t" << (mut.mutInfo >> 4) << "\t" << (mut.mutInfo & 15) << endl;
+    // }
 
     is.close();
 }

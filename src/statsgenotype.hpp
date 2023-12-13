@@ -335,15 +335,21 @@ static void printSiteGenotypePosteriors(const variationSite& site) {
 }
 
 static void printVCFLine(const statsgenotype::variationSite& site) {
-    string refAllele;
-    vector<string> alleles;
-    int gt;
-    vector<size_t> dp;
+    size_t position  = site.ref_position + 1;
+    int ref_nuc_idx  = site.site_info >> 3;
+    size_t readDepth = 0;
+    vector<string> altAlleles;
+    vector<size_t> ad;
     vector<int> pl;
-    size_t position;
+    string refAllele;
+    int gt;
     
-    refAllele += getNucleotideFromIndex(site.site_info >> 3);
-    position = site.ref_position + 1;
+    int quality = site.likelihoods[ref_nuc_idx];
+    for (const auto& depth : site.read_depth) {
+        readDepth += depth;
+    }
+   
+    refAllele += getNucleotideFromIndex(ref_nuc_idx);
 
     // find longest deletion
     size_t ldl = 0; // longest deletion length
@@ -356,61 +362,82 @@ static void printVCFLine(const statsgenotype::variationSite& site) {
     }
 
     if (!lds.empty()) {
-        defAllele += lds;
+        refAllele += lds;
     }
-    
-    // string refAllele;
-    // string altAllele;
-    // size_t position;
 
-    // refAllele += getNucleotideFromIndex(site.site_info >> 3);
-    // position = site.ref_position + 1;
+    // depth and likelihood for reference
+    ad.push_back(site.read_depth[ref_nuc_idx]);
+    pl.push_back(site.posteriors[ref_nuc_idx]);
+    if (pl.back() == 0.0) {
+        gt = 0;
+    }
 
-    // bool no_print = true;
-    // for (int i = 0; i < site.posteriors.size(); i++) {
-    //     if (i != (site.site_info >> 3) && site.posteriors[i] != numeric_limits<double>::max()) {
-    //         no_print = false;
-    //     }
-    // }
-    // if (no_print || site.most_probable_idx == (site.site_info >> 3)) {
-    //     return;
-    // }
-    
-    // if (site.most_probable_idx <= 3) {
-    //     altAllele += getNucleotideFromIndex(site.most_probable_idx);
-    // } else {
-    //     if (site.most_probable_idx <= 3 + site.insertions.size()) {
-    //         int idx = 0;
-    //         for (const auto& ins : site.insertions) {
-    //             if (idx == site.most_probable_idx - 4) {
-    //                 altAllele += (refAllele + ins.first);
-    //             }
-    //             idx += 1;
-    //         }
-    //     } else {
-    //         int idx = 0;
-    //         for (const auto& del : site.deletions) {
-    //             if (idx == site.most_probable_idx - site.insertions.size() - 4) {
-    //                 altAllele = refAllele;
-    //                 refAllele += del.first;
-    //             }
-    //             idx += 1;
-    //         }
-    //     }
-    // }
+    // substitutions
+    for (int i = 0; i < 4; i++) {
+        if (i == ref_nuc_idx) {
+            continue;
+        }
+        if (site.posteriors[i] != numeric_limits<double>::max()) {
+            altAlleles.push_back(getNucleotideFromIndex(i) + lds);
+            ad.push_back(site.read_depth[i]);
+            pl.push_back(site.posteriors[i]);
+            if (pl.back() == 0.0) {
+                gt = altAlleles.size();
+            }
+        }
+    }
+
+    // insertions
+    size_t indelIdx = 0;
+    for (const auto& ins : site.insertions) {
+        altAlleles.push_back(getNucleotideFromIndex(ref_nuc_idx) + ins.first + lds);
+        ad.push_back(site.read_depth[4 + indelIdx]);
+        pl.push_back(site.posteriors[4 + indelIdx]);
+        if (pl.back() == 0.0) {
+            gt = altAlleles.size();
+        }
+        indelIdx += 1;
+    }
+
+    // deletions
+    for (const auto& del : site.deletions) {
+        size_t delSize = del.first.size();
+        if (delSize == ldl) {
+            altAlleles.push_back(refAllele.substr(0, 1));
+        } else {
+            altAlleles.push_back(getNucleotideFromIndex(ref_nuc_idx) + lds.substr(delSize, ldl - delSize));
+        }
+        ad.push_back(site.read_depth[4 + indelIdx]);
+        pl.push_back(site.posteriors[4 + indelIdx]);
+        if (pl.back() == 0.0) {
+            gt = altAlleles.size();
+        }
+        indelIdx += 1;
+    }
 
 
 
-    cout << "ref" << "\t"                // #CHROM
-         << position << "\t"             // POS
-         << "." << "\t"                  // ID
-         << refAllele << "\t"            // REF
-         << altAllele << "\t"            // ALT
-         << "." << "\t"                  // QUAL
-         << "." << "\t"                  // FILTER
-         << "." << "\t"                  // INFO
-         << "GT:DP:PL" << "\t"           // FORMAT
-         << "sample" << endl;            // SAMPLE
+    cout << "ref" << "\t"                              // #CHROM
+         << position << "\t"                           // POS
+         << "." << "\t"                                // ID
+         << refAllele << "\t";                         // REF
+    for (size_t i = 0; i < altAlleles.size() - 1; i++) {
+        cout << altAlleles[i] << ",";
+    }                                    
+    cout << altAlleles[altAlleles.size() - 1] << "\t"; // ALT
+    cout << quality << "\t"                            // QUAL
+         << "." << "\t"                                // FILTER
+         << "DP=" << readDepth << "\t"                 // INFO
+         << "GT:AD:PL" << "\t"                         // FORMAT
+         << gt << ":";                                 // SAMPLE
+    for (size_t i = 0; i < ad.size() - 1; i++) {
+        cout << ad[i] << ",";
+    }
+    cout << ad[ad.size() - 1] << ":";
+    for (size_t i = 0; i < pl.size() - 1; i++) {
+        cout << pl[i] << ",";
+    }
+    cout << pl[pl.size() - 1] << "\t\t" << site.tmp_readbase_string << endl;
 }
 
 }
