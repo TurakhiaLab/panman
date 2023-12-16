@@ -12,11 +12,158 @@
 #include <ctime>
 #include <iomanip>
 #include <mutex>
+#include <cmath>
 #include <chrono>
 #include "chaining.cpp"
 #include "rotation.cpp"
 
 #include "PangenomeMAT.hpp"
+
+#define BLOCK_SIZE 1000
+
+void PangenomeMAT::rate_matrix_calc(const std::map< std::string, std::string >& sequenceIdsToSequences, PangenomeMAT::utility& util)
+{
+    // Calculate Rate Matrix
+    tbb::concurrent_vector<int> freq_vec( STATES, 0);
+    std::vector<double> freq;
+    freq.resize(STATES);
+    double total = 0;
+
+    tbb::parallel_for_each(sequenceIdsToSequences, [&](auto& seq){
+        std::string seq_ = seq.second;
+        tbb::parallel_for((size_t)0, seq_.size(), [&](size_t i){
+            if (seq_[i] == 'A' || seq_[i] == 'a' ) freq_vec[0]++;
+            else if (seq_[i] == 'C' || seq_[i] == 'c' ) freq_vec[1]++;
+            else if (seq_[i] == 'G' || seq_[i] == 'g' ) freq_vec[2]++;
+            else if (seq_[i] == 'T' || seq_[i] == 't' ) freq_vec[3]++;
+            else if (seq_[i] == 'N' || seq_[i] == 'n' ) freq_vec[4]++;
+            else freq_vec[5]++;
+        });
+    });
+
+    for (int i = 0; i < STATES; i++)
+    {
+        total += freq_vec[i];
+        freq[i] = freq_vec[i];
+    }
+    
+    // Handle corner cases: 1) What if freq[i] = 0?
+    double total_pi = 0;
+    for (int i = 0; i < STATES; i++)
+    {
+        freq[i] /= total;
+        total_pi += freq[i];
+        // std::cout << freq[i] << std::endl;
+    }
+
+    util.pi.resize(STATES);
+    util.pi = freq;
+
+    // Normalize Subs Param
+    std::vector<double> subs_param_normalized(util.subs_param.size());
+    for (size_t i = 0; i < util.subs_param.size(); i++)
+    {
+        subs_param_normalized[i] = util.subs_param[i]/util.subs_param[util.subs_param.size() - 1];
+    }
+
+    util.rate_matrix.resize(STATES);
+    for (int i = 0; i < STATES; i++)
+    {   
+        util.rate_matrix[i].resize(STATES);
+        util.rate_matrix[i][i] = 0;
+    }
+
+    int k = 0;
+    for (int i = 0; i < STATES; i++)
+    {
+        for (int j = i+1; j < STATES; j++)
+        {
+            double alpha = subs_param_normalized[k++];
+            util.rate_matrix[i][j] = util.rate_matrix[j][i] = alpha * std::sqrt(util.pi[i] * util.pi[j]);
+            util.rate_matrix[i][i] -= alpha * util.pi[j];
+            util.rate_matrix[j][j] -= alpha * util.pi[i];
+        }
+    }
+
+    double mean = 0;
+    for (int i = 0; i < STATES; ++i) mean += util.pi[i] * (-util.rate_matrix[i][i]);
+    for (int i = 0; i < STATES; ++i)
+        for (int j = 0; j < STATES; ++j)
+            util.rate_matrix[i][j] /= mean;
+
+}
+
+void PangenomeMAT::matrix_exp(double bl, std::vector<std::vector<double>>& mat_out, PangenomeMAT::utility& util)
+{
+    // Approximating e^(l*x) = I + l*x + (l*x)^2/2;
+    mat_out.resize(STATES);
+    for (size_t i = 0; i < util.rate_matrix.size(); i++)
+    {
+        mat_out[i].resize(STATES);
+        for (size_t j = 0; j < util.rate_matrix[i].size(); j++)
+        {
+            mat_out[i][j] = bl*util.rate_matrix[i][j];
+            if (i == j)
+            {
+                mat_out[i][j] += 1;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < util.rate_matrix.size(); i++)
+    { 
+        for (size_t j = 0; j < util.rate_matrix[i].size(); j++)
+        { 
+            double value = 0;
+            for (size_t k = 0; k < util.rate_matrix[i].size(); k++)
+            { 
+                value += util.rate_matrix[i][k] * util.rate_matrix[k][j]; 
+            } 
+            mat_out[i][j] += value*bl*bl*(1/2);
+        }   
+    }
+}
+
+char getNucFromInt(size_t v)
+{
+    switch (v)
+    {
+    case 1:
+        return 'A';
+    case 2:
+        return 'C';
+    case 4:
+        return 'G';
+    case 8:
+        return 'T';
+    case 5:
+        return 'R';
+    case 10:
+        return 'Y';
+    case 6:
+        return 'S';
+    case 9:
+        return 'W';
+    case 12:
+        return 'K';
+    case 3:
+        return 'M';
+    case 14:
+        return 'B';
+    case 13:
+        return 'D';
+    case 11:
+        return 'H';
+    case 7:
+        return 'V';
+    case 15:
+        return 'N';
+    case 32:
+        return '-';
+    default:
+        return 'N';
+    }
+}
 
 char PangenomeMAT::getNucleotideFromCode(int code) {
     switch(code) {
@@ -48,8 +195,10 @@ char PangenomeMAT::getNucleotideFromCode(int code) {
             return 'H';
         case 7:
             return 'V';
-        default:
+        case 15:
             return 'N';
+        default:
+            return '-';
     }
 }
 
@@ -89,6 +238,283 @@ char PangenomeMAT::getCodeFromNucleotide(char nuc) {
             return 0;
     }
 }
+PangenomeMAT::Node* getNode(PangenomeMAT::Node* node, std::string nodeId)
+{
+    if (node->identifier == nodeId) return node;
+    for (auto &child: node->children) return getNode(child, nodeId);
+}
+
+
+void printParentMutations(PangenomeMAT::Node* root, std::string nodeId, std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > >& mutations)
+{
+    PangenomeMAT::Node* node = getNode(root, nodeId);
+    std::cout << node->identifier << "\n";
+    while (true)
+    {
+        if (mutations.find(node->identifier) != mutations.end())
+            std::cout << "NodeID: " << node->identifier << "\t" << mutations[node->identifier].second << "\n";
+        if (node == root) break;
+        node = node->parent;
+    }
+    
+}
+
+void postorder_traversal_resize(PangenomeMAT::Node* node, PangenomeMAT::utility& util, bool isRoot)
+{
+    node->bottom.resize(BLOCK_SIZE);
+    node->up.resize(BLOCK_SIZE);
+    node->inference.resize(BLOCK_SIZE);
+
+    for (size_t i = 0; i < BLOCK_SIZE; i++)
+    {
+        node->bottom[i].resize(STATES);
+        node->up[i].resize(STATES);
+    }
+    for (auto &c: node->children)
+    {
+        postorder_traversal_resize(c, util, false);
+    }
+    // std::cout << node->identifier << ": "<< node->branchLength << "\n";
+    if (!isRoot) //Root branchlength = -1
+    {
+        std::vector<std::vector<double>> mat_out;
+        PangenomeMAT::matrix_exp(node->branchLength, mat_out, util);
+        node->mat_exp = mat_out;
+    }
+}
+
+
+void PangenomeMAT::initialize_lk_vectors(PangenomeMAT::Node* root, PangenomeMAT::utility& util)
+{
+    postorder_traversal_resize(root, util, true);
+    return;
+}
+
+
+void postorder_traversal(PangenomeMAT::Node* node, PangenomeMAT::utility& util, 
+                        std::unordered_map< std::string, char >& states, int index)
+{
+    std::vector<double> bottom;
+    std::string identifier = node->identifier;
+    bottom.resize(BLOCK_SIZE,0);
+    
+    if (node->children.size() == 0)
+    {
+        char c = states[node->identifier];
+        if (c == 'A') bottom[0] = 1;
+        else if (c == 'C') bottom[1] = 1;
+        else if (c == 'G') bottom[2] = 1;
+        else if (c == 'T') bottom[3] = 1;
+        else if (c == 'R') {bottom[0] = 0.5; bottom[2] = 0.5;}
+        else if (c == 'Y') {bottom[1] = 0.5; bottom[3] = 0.5;}
+        else if (c == 'S') {bottom[1] = 0.5; bottom[2] = 0.5;}
+        else if (c == 'W') {bottom[0] = 0.5; bottom[3] = 0.5;}
+        else if (c == 'K') {bottom[2] = 0.5; bottom[3] = 0.5;}
+        else if (c == 'M') {bottom[0] = 0.5; bottom[1] = 0.5;}
+        else if (c == 'B') {bottom[1] = 0.333; bottom[2] = 0.333; bottom[3] = 0.333;}
+        else if (c == 'D') {bottom[0] = 0.333; bottom[2] = 0.333; bottom[3] = 0.333;}
+        else if (c == 'H') {bottom[0] = 0.333; bottom[1] = 0.333; bottom[3] = 0.333;}
+        else if (c == 'V') {bottom[0] = 0.333; bottom[1] = 0.333; bottom[2] = 0.333;}
+        else if (c == 'N') bottom[4] = 1;
+        else bottom[5] = 1;
+            
+        node->bottom[index] = bottom;
+        return;
+    }
+    
+    for (int j= 0; j < STATES; j++) bottom[j] = 1; // Initialize to 1 as child prob are multiplied
+        
+
+    for (auto &child: node->children)
+    {
+        postorder_traversal(child, util, states, index);
+        std::vector<std::vector<double>> mat_out = child->mat_exp;
+
+        // for (int i = 0; i < STATES; i++) {for (int j = 0; j < STATES; j++) { if (mat_out[i][j] < 0) std::cout << "Issue: " << mat_out[i][j] << std::endl;}}
+
+        std::vector<double> child_bottom = child->bottom[index];
+
+        for (size_t j = 0; j < STATES; j++)
+        {
+            double prob = 0;
+            for (size_t k = 0; k < STATES; k++) prob += child_bottom[k]*mat_out[j][k];
+            bottom[j] *= prob;
+        }
+    }
+    
+    node->bottom[index] = bottom;
+    
+}
+
+void PangenomeMAT::bottom_up(PangenomeMAT::Node* root, PangenomeMAT::utility& util, std::unordered_map< std::string, char >& states, int index)
+{
+    postorder_traversal(root, util, states, index);
+    return;
+}
+
+void top_down_preorder_traversal(PangenomeMAT::Node* node, 
+                                 PangenomeMAT::utility& util, int index, std::vector<PangenomeMAT::Node*> siblings, bool isRoot)
+{
+    size_t i,j,k,m,l;
+    std::vector<double> up;
+    std::vector<double> bottom = node->bottom[index];
+
+    for (i=0; i<siblings.size(); i++)
+    {
+        if (siblings[i] == node)
+        {
+            siblings[i] = siblings.back();
+            siblings.pop_back();
+            break;
+        }
+    }
+
+    if (PRINT_CHILDREN)
+    {
+        std::cout << node->identifier << "\t";
+        for (i=0; i<siblings.size(); i++) std::cout << siblings[i]->identifier << " ";
+        std::cout << "\n";
+    }
+
+    up.resize(STATES,1); // Initializing with 1;
+
+    if (!isRoot)
+    {
+        std::vector<std::vector<double>> mat_out_curr = node->mat_exp;
+
+        std::vector<std::vector<std::vector<double>>> mat_out;
+        std::vector<std::vector<double>> sib_bottom;
+        mat_out.resize(siblings.size());
+        sib_bottom.resize(siblings.size());
+        for (i=0; i<siblings.size(); i++)
+        {
+            mat_out[i] = siblings[i]->mat_exp;            
+            sib_bottom[i] = siblings[i]->bottom[index];
+            
+        }
+
+        std::vector<double> parent_up = node->parent->up[index];
+        for (i=0; i<STATES; i++)
+        {
+            double prob = 0;
+            for (j=0; j<STATES; j++)
+            {
+                double prob_sib = 1;
+                int sib_count = 0;
+                for(l=0; l<siblings.size(); l++)
+                {
+                    double prob_sib_local = 0;
+                    for (k=0; k<STATES; k++)
+                    {
+                        prob_sib_local += sib_bottom[sib_count][k]*mat_out[sib_count][j][k];
+                    }
+                    prob_sib *= prob_sib_local;
+                    sib_count++;
+                }
+                prob += parent_up[j]*mat_out_curr[i][j]*prob_sib;
+            }
+            up[i] *= prob;
+        }
+    }
+
+    node->up[index] = up;
+    for (auto &child: node->children)
+    {
+        std::vector<PangenomeMAT::Node*> node_siblings = node->children;
+        top_down_preorder_traversal(child, util, index, node_siblings, false);
+    }
+
+    return;
+}
+
+
+void PangenomeMAT::top_down(PangenomeMAT::Node* root, PangenomeMAT::utility& util, int index)
+{
+
+    std::vector<PangenomeMAT::Node*> siblings;
+    top_down_preorder_traversal(root, util, index, siblings, true);
+
+}
+
+
+void marginal_preorder_traversal(PangenomeMAT::Node* node, PangenomeMAT::utility& util, int index)
+{
+    size_t i,j;
+    std::vector<double> marginal;
+    std::vector<double> up = node->up[index];
+    std::vector<double> bottom = node->bottom[index];
+
+    marginal.resize(STATES,1); // Initializing with 1;
+    
+    // node->inference.resize(utility::length);
+    double total_prob = 0;
+    double max = 0;
+    int charIndex = 0;
+    int ERROR = 0.1;
+    for (j=0; j<STATES; j++) total_prob += util.pi[j]*up[j]*bottom[j];
+    for (j=0; j<STATES; j++) marginal[j] = (util.pi[j]*up[j]*bottom[j])/total_prob;
+    for (j=0; j<STATES; j++) { if (marginal[j] > max) max = marginal[j]; }
+    for (j=0; j<STATES; j++) 
+    { 
+        if (marginal[j] >= (max-ERROR)) 
+        {
+            charIndex += std::pow(2,j);
+        }
+    }
+    node->inference[index] = getNucFromInt(charIndex);
+
+    // node->marginal = marginal;
+    // if (index == 0) std::cout << node->identifier << "\t" << node->inference[index] << "\t" << max << "\n";
+
+    for (auto &child: node->children) marginal_preorder_traversal(child, util, index);
+    
+    // if (node->identifier == "node_1" && index == 0)
+    // {
+    //     std::cout << node->identifier << "\t" << node->inference[index] << "\t" << max << "\n";
+    //     for (j=0; j<STATES; j++) std::cout << "Marginal: " << marginal[j] << "\tup: " << up[j] << "\tBottom: " << bottom[j] << "\t";
+    //     std::cout << "\n";
+    // }
+    return;
+}
+
+
+void PangenomeMAT::marginal(PangenomeMAT::Node* root, PangenomeMAT::utility& util, int index)
+{
+
+    marginal_preorder_traversal(root, util, index);
+
+}
+
+void postorder_lkAssignMutation(PangenomeMAT::Node* node, std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > >& mutations, int& index, char& parentChar)
+{
+    char currentChar = node->inference[index];
+    if( parentChar != currentChar)
+    {
+        if (parentChar == '-') //Insertion
+        {
+            mutations[node->identifier] = std::make_pair(PangenomeMAT::NucMutationType::NI, currentChar);
+        }   
+        else if (currentChar == '-') // Deletion
+        {
+            mutations[node->identifier] = std::make_pair(PangenomeMAT::NucMutationType::ND, '-');
+        }
+        else // Substitution
+        {
+            mutations[node->identifier] = std::make_pair(PangenomeMAT::NucMutationType::NS, currentChar);
+        }
+
+    }
+
+    for (auto &child: node->children) postorder_lkAssignMutation(child, mutations, index, currentChar);    
+    // if (node->children.size() == 0 && index == 0 && (node->identifier == "ON815589.1" || node->identifier == "node_1")) std::cout << node->identifier << "\t" << parentChar << "\t" << currentChar << "\n";
+
+}
+
+void PangenomeMAT::lkAssignMutations(PangenomeMAT::Node* root, std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > >& mutations, int& index, char& parentChar)
+{
+    // std::cout << root->identifier << "\n";
+    postorder_lkAssignMutation(root, mutations, index, parentChar);
+}
 
 // For reverse complement
 char PangenomeMAT::getComplementCharacter(char nuc) {
@@ -121,8 +547,10 @@ char PangenomeMAT::getComplementCharacter(char nuc) {
             return 'D';
         case 'V':
             return 'B';
-        default:
+        case 'N':
             return 'N';
+        default:
+            return '-';
     }
 }
 
@@ -971,6 +1399,600 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
     }
 }
 
+
+PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, std::string mode, FILE_TYPE ftype) {
+
+    if(ftype == PangenomeMAT::FILE_TYPE::GFA) {
+        std::map< std::string, std::string > nodes;
+        std::map< std::string, std::vector< std::string > > paths;
+
+        std::string line;
+        while(getline(fin, line, '\n')) {
+            std::vector< std::string > separatedLine;
+            stringSplit(line, '\t', separatedLine);
+            if(separatedLine[0] == "S") {
+                nodes[separatedLine[1]] = separatedLine[2];
+            } else if(separatedLine[0] == "P") {
+                std::vector< std::string > v;
+                stringSplit(separatedLine[2], ',', v);
+                for(size_t i = 0; i < v.size(); i++) {
+                    v[i].pop_back();
+                }
+                paths[separatedLine[1]] = v;
+            }
+        }
+        std::vector< std::vector< std::string > > stringSequences;
+        std::vector< std::string > sequenceIds;
+        for(auto p: paths) {
+            sequenceIds.push_back(p.first);
+            stringSequences.push_back(p.second);
+        }
+        
+        GFAGraph g(sequenceIds, stringSequences, nodes);
+        std::cout << "Graph without cycles created" << std::endl;
+
+        std::vector< size_t > topoArray = g.getTopologicalSort();
+        std::vector< std::vector< int64_t > > alignedSequences = g.getAlignedSequences(topoArray);
+        std::string newickString;
+        secondFin >> newickString;
+        root = createTreeFromNewickString(newickString);
+
+        std::unordered_map< std::string, std::vector< int64_t > > pathIdToSequence;
+        for(size_t i = 0; i < g.pathIds.size(); i++) {
+            pathIdToSequence[g.pathIds[i]] = alignedSequences[i];
+        }
+
+        for(size_t i = 0; i < topoArray.size(); i++) {
+            blocks.emplace_back(i, g.intNodeToSequence[topoArray[i]]);
+        }
+
+        tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, bool > > globalMutations;
+
+        tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
+            std::unordered_map< std::string, int > states;
+            std::unordered_map< std::string, bool > mutations;
+            for(const auto& u: pathIdToSequence) {
+                states[u.first] = (u.second[i] != -1);
+            }
+            blockFitchForwardPass(root, states);
+            blockFitchBackwardPass(root, states, 1);
+            blockFitchAssignMutations(root, states, mutations, 0);
+            globalMutations[i] = mutations;
+        });
+
+        std::unordered_map< std::string, std::mutex > nodeMutexes;
+
+        for(auto u: allNodes) {
+            nodeMutexes[u.first];
+        }
+
+        tbb::parallel_for_each(globalMutations, [&](auto& pos) {
+            auto& mutations = pos.second;
+            for(const auto& node: allNodes) {
+                if(mutations.find(node.first) != mutations.end()) {
+                    nodeMutexes[node.first].lock();
+                    node.second->blockMutation.emplace_back(pos.first, mutations[node.first]);
+                    nodeMutexes[node.first].unlock();
+                }
+            }
+        });
+
+    } else if(ftype == PangenomeMAT::FILE_TYPE::PANGRAPH) {
+        std::string newickString;
+        secondFin >> newickString;
+        Json::Value pangraphData;
+        fin >> pangraphData;
+
+        auto start = std::chrono::high_resolution_clock::now();
+
+        PangenomeMAT::Pangraph pg(pangraphData);
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds timing = end -start;
+        std::cout << "Psuedo Root Calculated in: " << timing.count() << " nanoseconds \n";
+        
+        circularSequences = pg.circularSequences;
+        sequenceInverted = pg.sequenceInverted;
+        rotationIndexes = pg.rotationIndexes;
+
+        std::vector< size_t > topoArray = pg.getTopologicalSort();
+        std::cout << "Length of Pseudo Root: " << topoArray.size() << endl;
+        std::unordered_map< std::string, std::vector< int > > alignedSequences = pg.getAlignedSequences(topoArray);
+        std::unordered_map< std::string, std::vector< int > > alignedStrandSequences = pg.getAlignedStrandSequences(topoArray);
+        
+        root = createTreeFromNewickString(newickString);
+
+        for(size_t i = 0; i < topoArray.size(); i++) {
+            blocks.emplace_back(i, pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]]);
+        }
+
+        for(size_t i = 0; i < topoArray.size(); i++) {
+            GapList g;
+            g.primaryBlockId = i;
+            g.secondaryBlockId = -1;
+            for(size_t j = 0; j < pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]].size(); j++) {
+                g.nucPosition.push_back(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].first);
+                g.nucGapLength.push_back(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].second);
+            }
+            gaps.push_back(g);
+        }
+
+        tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string, std::pair< BlockMutationType, bool > > > globalBlockMutations;
+
+        tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
+            std::unordered_map< std::string, int > states;
+            std::unordered_map< std::string, std::pair< BlockMutationType, bool > > mutations;
+            for(const auto& u: alignedSequences) {
+                if(u.second[i] == -1) {
+                    states[u.first] = 1;
+                } else if(alignedStrandSequences[u.first][i]) {
+                    // forward strand
+                    states[u.first] = 2;
+                } else {
+                    // reverse strand
+                    states[u.first] = 4;
+                }
+            }
+            
+            blockFitchForwardPassNew(root, states);
+            blockFitchBackwardPassNew(root, states, 1);
+            blockFitchAssignMutationsNew(root, states, mutations, 1);
+            globalBlockMutations[i] = mutations;
+
+        });
+
+        std::unordered_map< std::string, std::mutex > nodeMutexes;
+
+        for(auto u: allNodes) {
+            nodeMutexes[u.first];
+        }
+
+        tbb::parallel_for_each(globalBlockMutations, [&](auto& pos) {
+            auto& mutations = pos.second;
+            for(const auto& node: allNodes) {
+                if(mutations.find(node.first) != mutations.end()) {
+                    nodeMutexes[node.first].lock();
+                    node.second->blockMutation.emplace_back(pos.first, mutations[node.first]);
+                    nodeMutexes[node.first].unlock();
+                }
+            }
+        });
+
+        std::unordered_map< std::string, std::vector< size_t > > blockCounts;
+        for(const auto& u: alignedSequences) {
+            blockCounts[u.first].resize(u.second.size(), 0);
+        }
+
+        tbb::parallel_for_each(alignedSequences, [&](const auto& u) {
+            // std::unordered_map< std::string, size_t > currentCount;
+            int currentPtr = 0;
+            for(size_t i = 0; i < u.second.size(); i++) {
+                if(u.second[i] != -1) {
+                    blockCounts[u.first][i] = pg.blockNumbers[u.first][currentPtr];
+                    currentPtr++;
+                }
+            }
+        });
+
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > gapMutations;
+
+        if (mode == "p")
+        {
+            tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
+                std::string consensusSeq = pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]];
+                std::vector< std::pair< char, std::vector< char > > > sequence(consensusSeq.size()+1, {'-', {}});
+                for(size_t j = 0; j < consensusSeq.length(); j++) {
+                    sequence[j].first = consensusSeq[j];
+                }
+                for(size_t j = 0; j < pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]].size(); j++) {
+                    sequence[pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].first].second.resize(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].second, '-');
+                }
+                tbb::concurrent_unordered_map< std::string, std::vector< std::pair< char, std::vector< char > > > > individualSequences;
+
+                tbb::parallel_for_each(alignedSequences, [&](const auto& u) {
+                    if(u.second[i] == -1) {
+                        return;
+                    }
+                    std::vector< std::pair< char, std::vector< char > > > currentSequence = sequence;
+
+                    for(const auto& v: pg.substitutions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]) {
+                        currentSequence[v.first-1].first = v.second[0];
+                    }
+                    for(const auto& v: pg.insertions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]) {
+                        for(size_t j = 0; j < std::get<2>(v).length(); j++) {
+                            currentSequence[std::get<0>(v)].second[std::get<1>(v)+j] = std::get<2>(v)[j];
+                        }
+                    }
+                    for(const auto& v: pg.deletions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]) {
+                        for(size_t j = v.first; j < v.first + v.second; j++) {
+                            currentSequence[j-1].first = '-';
+                        }
+                    }
+                    individualSequences[u.first] = currentSequence;
+                });
+                tbb::parallel_for((size_t) 0, sequence.size(), [&](size_t j) {
+                    tbb::parallel_for((size_t)0, sequence[j].second.size(), [&](size_t k) {
+                        std::unordered_map< std::string, int > states;
+                        std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
+                        for(const auto& u: individualSequences) {
+                            if(u.second[j].second[k] != '-') {
+                                states[u.first] = (1 << getCodeFromNucleotide(u.second[j].second[k]));
+                            } else {
+                                states[u.first] = 1;
+                            }
+                        }
+                        nucFitchForwardPass(root, states);
+                        nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].second[k])));
+                        nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].second[k])));
+                        for(auto mutation: mutations) {
+                            nodeMutexes[mutation.first].lock();
+                            gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                            nodeMutexes[mutation.first].unlock();
+                        }
+                    });
+                    std::unordered_map< std::string, int > states;
+                    std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
+                    for(const auto& u: individualSequences) {
+                        if(u.second[j].first != '-') {
+                            states[u.first] = (1 << getCodeFromNucleotide(u.second[j].first));
+                        } else {
+                            states[u.first] = 1;
+                        }
+                    }
+                    nucFitchForwardPass(root, states);
+                    nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].first)));
+                    nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].first)));
+                    for(auto mutation: mutations) {
+                        nodeMutexes[mutation.first].lock();
+                        nonGapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                        nodeMutexes[mutation.first].unlock();
+                    }
+                });
+            });
+        }
+        else if (mode == "lk")
+        {
+            // tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
+            for (size_t i=0; i<topoArray.size(); i++) {
+                std::cout << "Block Number: " << i << std::endl;
+                std::string consensusSeq = pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]];
+                std::vector< std::pair< char, std::vector< char > > > sequence(consensusSeq.size()+1, {'-', {}});
+                for(size_t j = 0; j < consensusSeq.length(); j++) {
+                    sequence[j].first = consensusSeq[j];
+                }
+                for(size_t j = 0; j < pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]].size(); j++) {
+                    sequence[pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].first].second.resize(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].second, '-');
+                }
+                tbb::concurrent_unordered_map< std::string, std::vector< std::pair< char, std::vector< char > > > > individualSequences;
+
+                
+                tbb::parallel_for_each(alignedSequences, [&](const auto& u) {
+                    if(u.second[i] == -1) {
+                        return;
+                    }
+                    std::vector< std::pair< char, std::vector< char > > > currentSequence = sequence;
+
+                    for(const auto& v: pg.substitutions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]) {
+                        currentSequence[v.first-1].first = v.second[0];
+
+                    }
+                    for(const auto& v: pg.insertions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]) {
+                        for(size_t j = 0; j < std::get<2>(v).length(); j++) {
+                            currentSequence[std::get<0>(v)].second[std::get<1>(v)+j] = std::get<2>(v)[j];
+                        }
+                    }
+                    for(const auto& v: pg.deletions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]) {
+                        for(size_t j = v.first; j < v.first + v.second; j++) {
+                            currentSequence[j-1].first = '-';
+                        }
+                    }
+                    individualSequences[u.first] = currentSequence;
+                });
+
+                /////// Change Start //////
+                PangenomeMAT::utility util;
+                util.subs_param.resize(10); // Set Subs parameter
+                for (size_t sub_params = 0; sub_params < 10; sub_params++) util.subs_param[sub_params] = 1;
+
+                std::map< std::string, std::string > sequenceIdsToSequences;
+                for(const auto& u: individualSequences)
+                {
+                    std::string seq_string = "";
+                    for (size_t seq_length=0; seq_length<sequence.size(); seq_length++)
+                    {
+                        seq_string += u.second[seq_length].first;
+                        for (size_t seq_gap_length=0; seq_gap_length<sequence[seq_length].second.size(); seq_gap_length++)
+                        {
+                            seq_string += u.second[seq_length].second[seq_gap_length];
+                        }
+                    }
+                    sequenceIdsToSequences[u.first] = seq_string;
+                    util.length = seq_string.size(); 
+                }
+                PangenomeMAT::rate_matrix_calc(sequenceIdsToSequences, util); // Find the rate matrix
+                PangenomeMAT::initialize_lk_vectors(root, util); //Initialize LK vectors
+                /////// Change End //////
+
+                
+                // tbb::parallel_for((size_t) 0, sequence.size(), [&](size_t j) {
+                for (size_t j=0; j<sequence.size(); j++) {
+                    for (size_t z = 0; z < sequence[j].second.size(); z+=BLOCK_SIZE)
+                    {
+                        size_t end_index =  (z+BLOCK_SIZE < sequence[j].second.size()) ? i+BLOCK_SIZE: sequence[j].second.size(); 
+                        tbb::parallel_for((size_t)z, end_index, [&](size_t k) {
+                        // for (size_t k = z; k < end_index; k++) {
+                            std::unordered_map< std::string, char > states;
+                            std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
+                            int index = ((int)k)%BLOCK_SIZE;
+                            for(const auto& u: individualSequences) 
+                            {
+                                states[u.first] = u.second[j].second[k];
+                            }
+                            
+                            char consensusChar = sequence[j].second[k]; 
+                            bottom_up(root, util, states, index);
+                            top_down(root, util, index);
+                            marginal(root, util, index);
+                            lkAssignMutations(root, mutations, index, consensusChar);
+                            
+                            
+                            // nucFitchForwardPass(root, states);
+                            // nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].second[k])));
+                            // nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].second[k])));
+                            for(auto mutation: mutations) {
+                                nodeMutexes[mutation.first].lock();
+                                gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                                nodeMutexes[mutation.first].unlock();
+                            }
+                        });
+                        // }
+                    }
+                    // std::cout << "\n";
+                    std::unordered_map< std::string, char > states;
+                    std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
+                    
+                    for(const auto& u: individualSequences) 
+                    {
+                        states[u.first] = u.second[j].first;
+                    }
+                    char consensusChar = sequence[j].first;
+                    int index = 0;
+                    bottom_up(root, util, states, index);
+                    top_down(root, util, index);
+                    marginal(root, util, index);
+                    lkAssignMutations(root, mutations, index, consensusChar);
+                    // nucFitchForwardPass(root, states);
+                    // nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].first)));
+                    // nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].first)));
+                    for(auto mutation: mutations) {
+                        nodeMutexes[mutation.first].lock();
+                        nonGapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                        nodeMutexes[mutation.first].unlock();
+                    }
+                // });
+                }
+            // });
+            }   
+        }
+
+
+        tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
+            nodeMutexes[u.first].lock();
+            std::sort(u.second.begin(), u.second.end());
+            nodeMutexes[u.first].unlock();
+            size_t currentStart = 0;
+            for(size_t i = 1; i < u.second.size(); i++) {
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
+                    nodeMutexes[u.first].lock();
+                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
+                    nodeMutexes[u.first].unlock();
+                    currentStart = i;
+                    continue;
+                }
+            }
+            nodeMutexes[u.first].lock();
+            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+            nodeMutexes[u.first].unlock();
+        });
+        tbb::parallel_for_each(gapMutations, [&](auto& u) {
+            nodeMutexes[u.first].lock();
+            std::sort(u.second.begin(), u.second.end());
+            nodeMutexes[u.first].unlock();
+            size_t currentStart = 0;
+            for(size_t i = 1; i < u.second.size(); i++) {
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1]) || std::get<3>(u.second[i]) != std::get<3>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
+                    nodeMutexes[u.first].lock();
+                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
+                    nodeMutexes[u.first].unlock();
+                    currentStart = i;
+                    continue;
+                }
+            }
+            nodeMutexes[u.first].lock();
+            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+            nodeMutexes[u.first].unlock();
+        });
+
+    } else if(ftype == PangenomeMAT::FILE_TYPE::MSA) {
+        std::string newickString;
+        secondFin >> newickString;
+        root = createTreeFromNewickString(newickString);
+    
+        PangenomeMAT::utility util;
+
+        std::map< std::string, std::string > sequenceIdsToSequences;
+        std::string line;
+        std::string currentSequence, currentSequenceId;
+        size_t lineLength = 0;
+        std::string consensusSeq;
+        while(getline(fin,line,'\n')) {
+            if(line.length() == 0) {
+                continue;
+            }
+            if(line[0] == '>') {
+                if(currentSequence.length()) {
+                    if(lineLength == 0) {
+                        lineLength = currentSequence.length();
+                    } else if(lineLength != currentSequence.length()) {
+                        std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                        exit(-1);
+                    }
+                    sequenceIdsToSequences[currentSequenceId] = currentSequence;
+                }
+                std::vector< std::string > splitLine;
+                stringSplit(line,' ',splitLine);
+                currentSequenceId = splitLine[0].substr(1);
+                currentSequence = "";
+            } else {
+                currentSequence += line;
+            }
+        }
+        
+        if(currentSequence.length()) {
+            if(lineLength != 0 && lineLength != currentSequence.length()) {
+                std::cerr << "Error: sequence lengths don't match!" << std::endl;
+                exit(-1);
+            } else {
+                lineLength = currentSequence.length();
+                util.length = currentSequence.length();
+            }
+            sequenceIdsToSequences[currentSequenceId] = currentSequence;
+        }
+        std::set< size_t > emptyPositions;
+
+        for(size_t i = 0; i < lineLength; i++) {
+            bool nonGapFound = false;
+            for(auto u: sequenceIdsToSequences) {
+                if(u.second[i] != '-') {
+                    consensusSeq += u.second[i];
+                    nonGapFound = true;
+                    break;
+                }
+            }
+            if(!nonGapFound) {
+                emptyPositions.insert(i);
+            }
+        }
+        for(auto& u: sequenceIdsToSequences) {
+            std::string sequenceString;
+            for(size_t i = 0; i < u.second.length(); i++) {
+                if(emptyPositions.find(i) == emptyPositions.end()) {
+                    sequenceString += u.second[i];
+                }
+            }
+            u.second = sequenceString;
+        }
+        blocks.emplace_back(0, consensusSeq);
+        root->blockMutation.emplace_back(0, true);
+
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
+        std::unordered_map< std::string, std::mutex > nodeMutexes;
+
+        for(auto u: allNodes) {
+            nodeMutexes[u.first];
+        }
+
+        if (mode == "p")
+        {
+            tbb::parallel_for((size_t)0, consensusSeq.length(), [&](size_t i) {
+                std::unordered_map< std::string, int > states;
+                std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
+                for(const auto& u: sequenceIdsToSequences) {
+                    if(u.second[i] != '-') {
+                        states[u.first] = (1 << getCodeFromNucleotide(u.second[i]));
+                    } else {
+                        states[u.first] = 1;
+                    }
+                }
+                nucFitchForwardPass(root, states);
+                nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSeq[i])));
+                nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[i])));
+                for(auto mutation: mutations) {
+                    nodeMutexes[mutation.first].lock();
+                    nonGapMutations[mutation.first].push_back(std::make_tuple(0, -1, i, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                    nodeMutexes[mutation.first].unlock();
+                }
+            });
+        }
+        else if (mode == "lk")
+        {
+            // Likelihood utility
+            util.subs_param.resize(12); // Set Subs parameter
+            for (size_t i = 0; i < 12; i++) util.subs_param[i] = 1;
+            PangenomeMAT::rate_matrix_calc(sequenceIdsToSequences, util); // Find the rate matrix
+            // if (PRINT_RATE_MATRIX) // Print matrix_exp Matrix
+            {
+                for (size_t i = 0; i < util.rate_matrix.size(); i++)
+                {
+                    for (size_t j = 0; j < util.rate_matrix[0].size(); j++) std::cout << util.rate_matrix[i][j] << "\t";
+                    std::cout << "\n";
+                }
+                for (auto &p: util.pi) std::cout << p << "\n";
+            }
+
+            PangenomeMAT::initialize_lk_vectors(root, util); //Initialize LK vectors
+            // std::cout << util.length << std::endl;
+            for (size_t i = 0; i < consensusSeq.size(); i+=BLOCK_SIZE)
+            {
+                size_t end_index =  (i+BLOCK_SIZE < consensusSeq.size()) ? i+BLOCK_SIZE: consensusSeq.size(); 
+                std::cout << "Current: " << i << " " << end_index << "\n";
+                tbb::parallel_for(i, end_index, [&](size_t j){
+                    std::unordered_map< std::string, char > states;
+                    std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
+                    int index = ((int)j)%BLOCK_SIZE;
+                    for(const auto& u: sequenceIdsToSequences) 
+                    {
+                        states[u.first] = u.second[j];
+                        // if (j == 1) std::cout << u.second[j] << "\t";
+                    }
+
+                    char consensusChar = consensusSeq[j]; 
+                    // if (j == 1) std::cout << "\n" << consensusChar << "\n";
+                    
+                    bottom_up(root, util, states, index);
+                    top_down(root, util, index);
+                    marginal(root, util, index);
+                    lkAssignMutations(root, mutations, index, consensusChar);
+                    for(auto mutation: mutations) {
+                        nodeMutexes[mutation.first].lock();
+                        nonGapMutations[mutation.first].push_back(std::make_tuple(0, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                        // if (j == 1) std::cout << mutation.second.second << "\t" << (int)getCodeFromNucleotide(mutation.second.second) <<  "\n";
+                        nodeMutexes[mutation.first].unlock();
+                    }
+                });   
+            }
+
+
+            std::cout << "Root identidier: " << root->identifier << " - " <<  root->branchLength << "\n";
+        }
+
+        tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
+            nodeMutexes[u.first].lock();
+            std::sort(u.second.begin(), u.second.end());
+            nodeMutexes[u.first].unlock();
+            size_t currentStart = 0;
+            for(size_t i = 1; i < u.second.size(); i++) {
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
+                    nodeMutexes[u.first].lock();
+                    // if (currentStart == 0) std::cout << u.first << "\t"<< (int)std::get<5>(u.second[i-1]) << "\t" << i <<  "\n";
+                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
+                    nodeMutexes[u.first].unlock();
+                    currentStart = i;
+                    continue;
+                }
+            }
+            nodeMutexes[u.first].lock();
+            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+            nodeMutexes[u.first].unlock();
+        });
+        
+
+    }
+
+}
+
+
 void PangenomeMAT::Tree::protoMATToTree(const PanMAT::tree& mainTree) {
     // Create tree
     root = createTreeFromNewickString(mainTree.newick());
@@ -1126,6 +2148,46 @@ int PangenomeMAT::Tree::getTotalParsimonyParallel(NucMutationType nucMutType, Bl
 
 }
 
+std::pair<int,int> getRootParsimonyParallelHelper(PangenomeMAT::Node* root) {
+    int totalNucMutations = 0;
+    int totalBlockMutations = 0;
+
+    
+    totalNucMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+        for(int i = r.begin(); i != r.end(); i++) {
+            if(((root->nucMutation[i].mutInfo) & 0x7)) {
+                if(((root->nucMutation[i].mutInfo) & 0x7) == PangenomeMAT::NucMutationType::NS) {
+                    init += ((root->nucMutation[i].mutInfo) >> 4); // Length of contiguous mutation in case of substitution
+                } else {
+                    init++;
+                }
+            }
+        }
+        return init;
+    }, [&](int x, int y) {
+        return x + y;
+    });
+
+    totalBlockMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+        for(int i = r.begin(); i != r.end(); i++) {
+                init++;
+        }
+        return init;
+    }, [&](int x, int y) {
+        return x + y;
+    });
+    
+
+    return std::make_pair(totalNucMutations, totalBlockMutations);
+}
+
+
+std::pair<int,int> PangenomeMAT::Tree::getRootParsimonyParallel()
+{
+    return getRootParsimonyParallelHelper(root);
+}
+
+
 void PangenomeMAT::Tree::printSummary() {
 
     std::cout << "Total Nodes in Tree: " << m_currInternalNode + m_numLeaves << std::endl;
@@ -1137,6 +2199,10 @@ void PangenomeMAT::Tree::printSummary() {
     std::cout << "Total SNP Substitutions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPS) << std::endl;
     std::cout << "Total SNP Insertions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPI) << std::endl;
     std::cout << "Total SNP Deletions: " << getTotalParsimonyParallel(PangenomeMAT::NucMutationType::NSNPD) << std::endl;
+    std::pair<int,int> p = getRootParsimonyParallel();
+    std::cout << "Total Nucleotide Mutations at root: " << p.first << std::endl;
+    std::cout << "Total Block Mutations at root: " << p.second << std::endl;
+    std::cout << "Length of pseudo root: " << blocks.size() << std::endl;
     std::cout << "Max Tree Depth: " << m_maxDepth << std::endl;
     std::cout << "Mean Tree Depth: " << m_meanDepth << std::endl;
 
@@ -1907,11 +2973,11 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
     }
 
 
-    fout << "##maf version=1\n";
+    // fout << "##maf version=1\n";
 
     for(auto& common: blocksWithSameSequences) {
         tbb::concurrent_unordered_map< std::string, std::pair< std::pair< int, int >, std::pair< std::string, bool > > > sequenceIdToSequence;
-        fout << "a\n";
+        // fout << "a\n";
         for(auto& b: common.second) {
             int primaryBlockId = b.first;
             int secondaryBlockId = b.second;
@@ -1944,7 +3010,9 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
             });
 
             for(auto u: sequenceIdToSequence) {
-                fout << "s\t" << u.first << "\t"<< sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)] <<"\t" << u.second.second.first.length() << "\t" << (u.second.second.second? "+\t":"-\t") << sequenceLengths[u.first] << "\t" << u.second.second.first << "\n";
+                // fout << "s\t" << u.first << "\t"<< sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)] <<"\t" << u.second.second.first.length() << "\t" << (u.second.second.second? "+\t":"-\t") << sequenceLengths[u.first] << "\t" << u.second.second.first << "\n";
+                fout << ">" << u.first << "\n";
+                fout << u.second.second.first << "\n";
             }
         }
         fout << "\n";

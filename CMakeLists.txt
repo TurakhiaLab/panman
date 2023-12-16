@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 
 project(panmat-utils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
 if(DEFINED Protobuf_PATH) 
@@ -30,7 +30,7 @@ find_package(jsoncpp CONFIG REQUIRED)
 # FIND_PACKAGE(ZLIB COMPONENTS ZLIB REQUIRED)
 
 
-file(GLOB PANMAT_SRCS "src/main.cpp" "src/PangenomeMAT.cpp" "src/PangenomeMAT.hpp")
+file(GLOB PANMAT_SRCS "src/main.cpp"  "src/PangenomeMAT.cpp" "src/PangenomeMAT.hpp")
 
 if(DEFINED Protobuf_PATH)
 	add_executable(panmat-utils

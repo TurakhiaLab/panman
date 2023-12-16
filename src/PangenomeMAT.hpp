@@ -11,12 +11,19 @@
 #include <atomic>
 #include <tbb/concurrent_unordered_map.h>
 #include <tbb/task_scheduler_init.h>
-
+#include <tbb/concurrent_vector.h>
 #include <json/json.h>
 #include "mutation_annotation_test_proto3_optional_new.pb.h"
 
+
 #define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
+#define NORM 1
+#define STATES 6
+#define DEBUG 0
+#define PRINT_INFERENCE 0
+#define PRINT_RATE_MATRIX 0
+#define PRINT_CHILDREN 0
 
 typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >,
             std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
@@ -32,6 +39,18 @@ namespace PangenomeMAT {
     static inline void printError(std::string e) {
         std::cout << "\033[1;31m" << "Error: " << "\033[0m" << e << std::endl;
     }
+    // Likelihood
+    struct utility {
+        size_t length;
+        std::vector<double> pi;
+        std::vector<double> subs_param;
+        std::vector<std::vector<double>> rate_matrix;
+    };
+    void msa_seq(std::string input_file);
+    void rate_matrix_calc(const std::map< std::string, std::string >& sequenceIdsToSequences,  PangenomeMAT::utility& util);
+    void matrix_exp(double bl, std::vector<std::vector<double>>& mat_out, PangenomeMAT::utility& util);
+
+    
 
     // Get nucleotide character from 4-bit PanMAT code
     char getNucleotideFromCode(int code);
@@ -259,11 +278,18 @@ namespace PangenomeMAT {
 
     // PanMAT tree node
     class Node {
+
     public:
         Node(std::string id, float len);
         Node(std::string id, Node* par, float len);
 
         float branchLength;
+        // For Likelihood
+        std::vector<std::vector<double>> mat_exp;
+        std::vector<std::vector<double>> bottom;
+        std::vector<std::vector<double>> up;
+        // std::vector<std::vector<double>> marginal;
+        std::vector<char> inference; // Currently infer only one character
 
         size_t level;
 
@@ -376,6 +402,7 @@ namespace PangenomeMAT {
             // Get the total number of mutations of given type
             int getTotalParsimonyParallel(NucMutationType nucMutType,
                 BlockMutationType blockMutType = NONE);
+            std::pair<int,int> getRootParsimonyParallel();
 
             // Tree traversal for FASTA writer
             void printFASTAHelper(PangenomeMAT::Node* root, sequence_t& sequence,
@@ -421,6 +448,7 @@ namespace PangenomeMAT {
             Tree(const PanMAT::tree& mainTree);
             Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
             Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
+            Tree(std::ifstream& fin, std::ifstream& secondFin, std::string mode = "p", FILE_TYPE ftype = FILE_TYPE::GFA);
 
             // Copy blocks from current tree into new tree which is rooted at one of the internal nodes of the current tree. Used in split for PanMAN
             Tree(Node* newRoot, const std::vector< Block >& b, const std::vector< GapList >& g, const std::unordered_map< std::string, int >& c, const BlockGapList& bgl);
@@ -674,6 +702,13 @@ namespace PangenomeMAT {
         void printComplexMutations();
     };
 
+    void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
+    std::string stripString(std::string s);
+    void bottom_up(PangenomeMAT::Node* node, PangenomeMAT::utility& util,std::unordered_map< std::string, char >& states, int index);
+    void top_down(PangenomeMAT::Node* node, PangenomeMAT::utility& util, int index);
+    void marginal(PangenomeMAT::Node* root, PangenomeMAT::utility& util, int index);
+    void lkAssignMutations(PangenomeMAT::Node* root, std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > >& mutations, int& index, char& parentChar);
+    void initialize_lk_vectors(PangenomeMAT::Node* root, PangenomeMAT::utility& util);
 };
 
 #endif // PANGENOME_MAT_HPP

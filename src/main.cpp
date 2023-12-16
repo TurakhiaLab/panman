@@ -10,7 +10,10 @@
 
 #include "PangenomeMAT.hpp"
 
+
 #include "spoa/spoa.hpp"
+
+
 
 namespace po = boost::program_options;
 
@@ -58,7 +61,7 @@ po::positional_options_description sequenceExtractPositionArgumentDesc;
 po::options_description groupFastaDesc("Tree Group FASTA writer Command Line Arguments");
 po::positional_options_description groupFastaPositionArgumentDesc;
 
-void setupOptionDescriptions() {
+void setupOptionDescriptions(std::string& mode) {
     // Global option descriptions
     globalDesc.add_options()
         ("help", "produce help message")
@@ -67,6 +70,7 @@ void setupOptionDescriptions() {
         ("pangraph-in", po::value< std::string >(), "create PanMAT from PanGraph at given file \
 path")
         ("msa-in", po::value< std::string >(), "create PanMAT from MSA at given file path")
+        ("mode", po::value< std::string >(&mode), "Likelihood or Parsimony based ancestral reconstruction")
         ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
         ("newick-in", po::value< std::string >(), "Input file path for file containing newick \
 string")
@@ -203,8 +207,8 @@ search for")
 void parseAndExecute(int argc, char* argv[]) {
 
     // Setup boost::program_options
-    setupOptionDescriptions();
-
+    std::string mode = "p";
+    setupOptionDescriptions(mode);
     // Initial command line arguments consisting of input file types
     po::variables_map globalVm;
     po::store(po::command_line_parser(argc, argv).options(globalDesc)
@@ -291,14 +295,15 @@ void parseAndExecute(int argc, char* argv[]) {
         }
         std::string newickFileName = globalVm["newick-in"].as< std::string >();
 
-        std::cout << "Creating PanMAT from PanGraph and Newick" << std::endl;
+        if (mode == "lk") std::cout << "Creating PanMAT from PanGraph and Newick (Likelihood Based)" << std::endl;
+        else std::cout << "Creating PanMAT from PanGraph and Newick (Parsimony Based)" << std::endl;
 
         std::ifstream inputStream(fileName);
         std::ifstream newickInputStream(newickFileName);
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new PangenomeMAT::Tree(inputStream, newickInputStream,
+        T = new PangenomeMAT::Tree(inputStream, newickInputStream, mode,
             PangenomeMAT::FILE_TYPE::PANGRAPH);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
@@ -330,8 +335,7 @@ void parseAndExecute(int argc, char* argv[]) {
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
         if(!optimize) {
-            T = new PangenomeMAT::Tree(inputStream, newickInputStream,
-                PangenomeMAT::FILE_TYPE::MSA);
+            T = new PangenomeMAT::Tree(inputStream, newickInputStream, mode, PangenomeMAT::FILE_TYPE::MSA);
         } else {
             T = new PangenomeMAT::Tree(inputStream, newickInputStream,
                 PangenomeMAT::FILE_TYPE::MSA_OPTIMIZE);

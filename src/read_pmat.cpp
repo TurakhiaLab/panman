@@ -8,7 +8,7 @@
 
 #include "PangenomeMAT.hpp"
 
-#include "mutation_annotation_test_proto3_optional_new.pb.h"
+#include "mutation_annotation_test_proto3_optional.pb.h"
 #include "panman.pb.h"
 bool compare_pair(const std::pair<std::pair<int,int>, int> &a, const std::pair<std::pair<int,int>, int> &b)
 {
@@ -23,7 +23,7 @@ bool compare_pair_pair(const std::pair<std::pair<int,int>, int> &a, std::pair<st
     return (a.first.second < b.first.second);
 }
 
-
+/*
 void old_proto_to_new_proto(MATNew::tree &tree)
 {
     panman::tree panmanTree;
@@ -518,37 +518,37 @@ void old_proto_to_new_proto(MATNew::tree &tree)
         panmanTree.add_nodes();
         *panmanTree.mutable_nodes(panmanTree.nodes_size() - 1) = newNode;
 
-        /*
-        panman::node newNode;
-        for (auto &mut: n.mutations())
-        {
-            panman::mutation mutate;
+        
+        // panman::node newNode;
+        // for (auto &mut: n.mutations())
+        // {
+        //     panman::mutation mutate;
             
-            int64_t value = mut.blockid();
-            int64_t cvalue = (value << 32)|(value >> 32);
-            mutate.set_blockid(value);
-            mutate.set_blockgapexist(mut.blockgapexist());
-            mutate.set_blockmutexist(mut.blockmutexist());
-            mutate.set_blockmutinfo(mut.blockmutinfo());
-            mutate.set_blockinversion(mut.blockinversion());
+        //     int64_t value = mut.blockid();
+        //     int64_t cvalue = (value << 32)|(value >> 32);
+        //     mutate.set_blockid(value);
+        //     mutate.set_blockgapexist(mut.blockgapexist());
+        //     mutate.set_blockmutexist(mut.blockmutexist());
+        //     mutate.set_blockmutinfo(mut.blockmutinfo());
+        //     mutate.set_blockinversion(mut.blockinversion());
 
-            for (auto &nucm: mut.nucmutation())
-            {
-                panman::nucMut nucMutation;
-                nucMutation.set_mutinfo(nucm.mutinfo());
-                nucMutation.set_nucposition(nucm.nucposition());
-                nucMutation.set_nucgapexist(nucm.nucgapexist());
-                nucMutation.set_nucgapposition(nucm.nucgapposition());
+        //     for (auto &nucm: mut.nucmutation())
+        //     {
+        //         panman::nucMut nucMutation;
+        //         nucMutation.set_mutinfo(nucm.mutinfo());
+        //         nucMutation.set_nucposition(nucm.nucposition());
+        //         nucMutation.set_nucgapexist(nucm.nucgapexist());
+        //         nucMutation.set_nucgapposition(nucm.nucgapposition());
 
-                mutate.add_nucmutation();
-                *mutate.mutable_nucmutation(mutate.nucmutation_size() - 1) = nucMutation;
-            }
-            newNode.add_mutations();
-            *newNode.mutable_mutations(newNode.mutations_size() - 1) = mutate;
-        }
-        panmanTree.add_nodes();
-        *panmanTree.mutable_nodes(panmanTree.nodes_size() - 1) = newNode;
-        */
+        //         mutate.add_nucmutation();
+        //         *mutate.mutable_nucmutation(mutate.nucmutation_size() - 1) = nucMutation;
+        //     }
+        //     newNode.add_mutations();
+        //     *newNode.mutable_mutations(newNode.mutations_size() - 1) = mutate;
+        // }
+        // panmanTree.add_nodes();
+        // *panmanTree.mutable_nodes(panmanTree.nodes_size() - 1) = newNode;
+        
     }
 
     for (auto &n: tree.consensusseqmap())
@@ -617,7 +617,7 @@ void old_proto_to_new_proto(MATNew::tree &tree)
 
 
 }
-
+*/
 
 void new_proto_to_old_proto(panman::tree &tree)
 {
@@ -794,7 +794,7 @@ std::vector<int> combine_sorted_array(std::vector<int> &ins)
 
     return ans;
 }
-
+/*
 void checkBlockMuts(MATNew::tree &tree)
 {
     for (auto &n: tree.nodes())
@@ -819,7 +819,7 @@ void checkBlockMuts(MATNew::tree &tree)
     }
 
 }
-
+*/
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -837,7 +837,7 @@ int main(int argc, char* argv[]) {
     // Create a message object of your Protobuf type
     MATNew::tree tree;
     tree.ParseFromIstream(&input); 
-    old_proto_to_new_proto(tree);
+    // old_proto_to_new_proto(tree);
     
     // panman::tree tree;
     // tree.ParseFromIstream(&input);   
@@ -870,11 +870,23 @@ int main(int argc, char* argv[]) {
 
     // Consensus Size
     int consensus_size = 0;
+    int block_id = 0;
+    int cons_seq = 0;
+    int nucgaplen = 0;
+    int cname = 0;
     for (auto &n: tree.consensusseqmap())
     {
         consensus_size += n.ByteSizeLong();
+        block_id += n.blockid().size()*8;
+        cons_seq += n.consensusseq().size()*4;
+        nucgaplen += n.blockgapexist().size();
+        cname += n.chromosomename_size();
     }
     std::cout << "Consensus Map Size (Accurate): " << consensus_size/(1024*1024) << " MB" << std::endl;
+    std::cout << "consensusseq Size (Accurate): " << cons_seq/(1024*1024) << " MB" << std::endl;
+    std::cout << "BlockID size (Accurate): " << block_id/(1024) << " KB" << std::endl;
+    std::cout << "BlockGapExist size (Accurate): " << nucgaplen/(1024) << " KB" << std::endl;
+    std::cout << "CName size (Accurate): " << cname/(1024) << " KB" << std::endl;
 
     // Gaps Size
     int gap_size = 0;
