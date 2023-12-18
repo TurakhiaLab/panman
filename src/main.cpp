@@ -281,7 +281,13 @@ void parseAndExecute(int argc, char* argv[]) {
             }
         }
         std::cout << "Total Gap Length: " << tot4 << std::endl;
+        int totMut = 0;
+        for(const auto& u: T->root->nucMutation) {
+            int len = ((u.mutInfo) >> 4);
+            totMut += len;
+        }
         std::cout << "Root mutations: " << T->root->nucMutation.size() << std::endl;
+        std::cout << "Root mutations split: " << totMut << std::endl;
         std::cout << "Total Gaps: " << tot << std::endl;
         tot = 0;
         int tot2 = 0;
@@ -304,7 +310,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         inputFile.close();
 
-        std::ofstream fout("rootSequence_2.fasta");
+        std::ofstream fout("rootSequence_4.fasta");
         fout << T->getStringFromReference("node_1", false);
 
         fout.close();
