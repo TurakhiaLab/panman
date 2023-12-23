@@ -23,7 +23,7 @@ static int getIndexFromNucleotide(char nucleotide) {
         case '*':
             return 4;
         default:
-            return -1;
+            return 5;
     }
 }
 
@@ -172,7 +172,11 @@ static vector<double> genotype_posteriors(
     auto ref_nuc = site_info >> 3;
     for (auto i = 0; i < 4; ++i) {
         if (likelihoods[i] != numeric_limits<double>::max()) {
-            posteriors[i] = likelihoods[i] + mutmat.submat[ref_nuc][i];
+            if (ref_nuc == 5) {
+                posteriors[i] = likelihoods[i];
+            } else {
+                posteriors[i] = likelihoods[i] + mutmat.submat[ref_nuc][i];
+            }
         }
     }
 
@@ -210,7 +214,11 @@ struct variationSite {
 
 
         for (auto i = 0; i < nucs.size(); ++i) {
-            read_errs[getIndexFromNucleotide(nucs[i])].push_back(double(errors[i]) - 33.0);
+            if (getIndexFromNucleotide(nucs[i]) == 5) {
+                read_errs[4].push_back(double(errors[i]) - 33.0);
+            } else {
+                read_errs[getIndexFromNucleotide(nucs[i])].push_back(double(errors[i]) - 33.0);
+            }
         }
         offset += nucs.size();
 
@@ -344,7 +352,15 @@ static void printVCFLine(const statsgenotype::variationSite& site) {
     string refAllele;
     int gt;
     
-    int quality = site.likelihoods[ref_nuc_idx];
+    // int quality = site.likelihoods[ref_nuc_idx];
+
+    string quality;
+    if (ref_nuc_idx == 5) {
+        quality = ".";
+    } else {
+        quality = to_string(int(site.likelihoods[ref_nuc_idx]));
+    }
+
     for (const auto& depth : site.read_depth) {
         readDepth += depth;
     }
@@ -366,8 +382,13 @@ static void printVCFLine(const statsgenotype::variationSite& site) {
     }
 
     // depth and likelihood for reference
-    ad.push_back(site.read_depth[ref_nuc_idx]);
-    pl.push_back(site.posteriors[ref_nuc_idx]);
+    if (ref_nuc_idx == 5) {
+        ad.push_back(0);
+        pl.push_back(-1);
+    } else {
+        ad.push_back(site.read_depth[ref_nuc_idx]);
+        pl.push_back(site.posteriors[ref_nuc_idx]);
+    }
     if (pl.back() == 0.0) {
         gt = 0;
     }
@@ -428,16 +449,21 @@ static void printVCFLine(const statsgenotype::variationSite& site) {
     cout << quality << "\t"                            // QUAL
          << "." << "\t"                                // FILTER
          << "DP=" << readDepth << "\t"                 // INFO
-         << "GT:AD:PL" << "\t"                         // FORMAT
+         << "GT:AD:GP" << "\t"                         // FORMAT
          << gt << ":";                                 // SAMPLE
     for (size_t i = 0; i < ad.size() - 1; i++) {
         cout << ad[i] << ",";
     }
     cout << ad[ad.size() - 1] << ":";
     for (size_t i = 0; i < pl.size() - 1; i++) {
+        if (pl[i] == -1) {
+            cout << ".,";
+            continue;
+        }
         cout << pl[i] << ",";
     }
-    cout << pl[pl.size() - 1] << "\t\t" << site.tmp_readbase_string << endl;
+    cout << pl[pl.size() - 1] << endl;
+    //cout << pl[pl.size() - 1] << "\t\t" << site.tmp_readbase_string << endl;
 }
 
 }

@@ -864,11 +864,10 @@ void parseAndExecute(int argc, char* argv[]) {
                     if (statsGenotypeVm.count("mutmat-file")) {
                         mutmatFileName = statsGenotypeVm["mutmat-file"].as< std::string >();
                     }
-                    
                     std::ifstream fin(SAMFileName);
 
                     auto genotypeStart = std::chrono::high_resolution_clock::now();
-
+                    
                     if (mutmatFileName.empty()) {
                         T->printSamplePlacementVCF(fin);
                     } else {

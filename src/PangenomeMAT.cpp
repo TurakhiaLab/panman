@@ -6388,6 +6388,65 @@ std::pair<std::string, std::string> PangenomeMAT::Tree::get_substitution(const s
     return substitution;
 }
 
+pair<size_t, size_t> getEdgeCoor(PangenomeMAT::Tree* T, string identifier, size_t maskLen) {
+    const string& seq = T->getStringFromReference(identifier);
+    size_t count = 0;
+    size_t start;
+    size_t end;
+    for (size_t i = 0; i < seq.size(); i++) {
+        if (seq[i] != '-') {
+            count += 1;
+        }
+        if (count >= maskLen) {
+            start = i;
+            break;
+        }
+    }
+    count = 0;
+    for (size_t i = seq.size()-1; i >= 0; i--) {
+        if (seq[i] != '-') {
+            count += 1;
+        }
+        if (count >= maskLen) {
+            end = i;
+            break;
+        }
+    }
+    return make_pair(start, end);
+}
+
+vector<PangenomeMAT::NucMut> maskNucMut(PangenomeMAT::Tree* T, PangenomeMAT::Node* node) {
+    pair<size_t, size_t> edgeCoor = getEdgeCoor(T, node->identifier, 1000);
+
+    vector<PangenomeMAT::NucMut> masked;
+    for (const auto& mut : node->nucMutation) {
+        size_t globalCoor = T->getGlobalCoordinate(mut.primaryBlockId, mut.secondaryBlockId, mut.nucPosition, mut.nucGapPosition);
+        if (globalCoor > edgeCoor.first && globalCoor < edgeCoor.second) {
+            masked.push_back(mut);
+        }
+    }   
+    return masked; 
+}
+
+void printMatrices(const statsgenotype::mutationMatrices& mutmat) {  
+    for (const auto& row : mutmat.submat) {
+        for (const auto& count : row) {
+            cout << count << " ";
+        }
+        cout << endl;
+    }
+    
+    for (const auto& count : mutmat.delmat) {
+        cout << count << " ";
+    }
+    cout << endl;
+
+    for (const auto& count : mutmat.insmat) {
+        cout << count << " ";
+    }
+    cout << endl;
+}
+
 void PangenomeMAT::Tree::fillMutationMats(statsgenotype::mutationMatrices& mutmat, PangenomeMAT::Node* node, ifstream* min_ptr) {
     if (min_ptr != nullptr) {
         string line;
@@ -6415,65 +6474,100 @@ void PangenomeMAT::Tree::fillMutationMats(statsgenotype::mutationMatrices& mutma
         while (!bfs_queue.empty()) {
             Node* current = bfs_queue.front();
             bfs_queue.pop();
+            // Remove later? -------
+            auto postMaskNucMutation = maskNucMut(this, current);
+            // ---------------------
+            // if (!postMaskNucMutation.empty()) {
+            //     for (const auto& nucmut : postMaskNucMutation) {
+            //         auto variant_len = nucmut.mutInfo >> 4;
+            //         auto mut_type    = nucmut.mutInfo & 15;
 
-            if (!current->nucMutation.empty()) {
-                for (const auto& nucmut : current->nucMutation) {
-                    auto variant_len = nucmut.mutInfo >> 4;
-                    auto mut_type    = nucmut.mutInfo & 15;
+            //         if (mut_type == NucMutationType::ND) {
+            //             // deletion
+            //             if (variant_len > mutmat.delmat.size() - 1) {
+            //                 mutmat.delmat.resize(variant_len + 1);
+            //             }
+            //             mutmat.delmat[variant_len] += 1;
+            //             mutmat.total_delmut += 1;
+            //         } else if (mut_type == NucMutationType::NI) {
+            //             // insertion
+            //             if (variant_len > mutmat.insmat.size() - 1) {
+            //                 mutmat.insmat.resize(variant_len + 1);
+            //             }
+            //             mutmat.insmat[variant_len] += 1;
+            //             mutmat.total_insmut += 1;
+            //         } else if (mut_type == NucMutationType::NS) {
+            //             // substitution
+            //             const auto& substitution = get_substitution(current->identifier, nucmut);
+            //             for (size_t i = 0; i < substitution.first.size(); i++) {
+            //                 int ref = statsgenotype::getIndexFromNucleotide(substitution.first[i]);
+            //                 int var = statsgenotype::getIndexFromNucleotide(substitution.second[i]);
+            //                 if (ref == 5 || var == 5) {
+            //                     continue;
+            //                 }
+            //                 mutmat.submat[ref][var] += 1;
+            //                 mutmat.total_submuts[ref] += 1;
+            //             }
+            //         }
 
-                    if (mut_type == NucMutationType::ND) {
+            //     }
+            // }
+
+            if (current->parent != nullptr && !postMaskNucMutation.empty()) {
+                const string& parent_seq_pm  = Tree::getStringFromReference(current->parent->identifier);
+                const string& current_seq_pm = Tree::getStringFromReference(current->identifier);
+                const auto currentEdgeCoor = getEdgeCoor(this, current->identifier, 1000);
+                const auto parentEdgeCoor  = getEdgeCoor(this, current->parent->identifier, 1000);
+                size_t start = max(currentEdgeCoor.first,  parentEdgeCoor.first);
+                size_t end   = max(currentEdgeCoor.second, parentEdgeCoor.second);
+                const string parentSeq = parent_seq_pm.substr(start, parent_seq_pm.size() - (start + end)); 
+                const string currentSeq = current_seq_pm.substr(start, current_seq_pm.size() - (start + end));
+                size_t insLen = 0;
+                size_t delLen = 0;
+                for (size_t i = 0; i < parentSeq.size(); ++i) {
+                    if (parentSeq[i] == '-' and currentSeq[i] == '-') {
+                        continue;
+                    } else if (parentSeq[i] != '-' && currentSeq[i] == '-') {
                         // deletion
-                        if (variant_len > mutmat.delmat.size() - 1) {
-                            mutmat.delmat.resize(variant_len + 1);
-                        }
-                        mutmat.delmat[variant_len] += 1;
-                        mutmat.total_delmut += 1;
-                    } else if (mut_type == NucMutationType::NI) {
-                        // insertion
-                        if (variant_len > mutmat.insmat.size() - 1) {
-                            mutmat.insmat.resize(variant_len + 1);
-                        }
-                        mutmat.insmat[variant_len] += 1;
-                        mutmat.total_insmut += 1;
-                    } else if (mut_type == NucMutationType::NS) {
-                        // substitution
-                        const auto& substitution = get_substitution(current->identifier, nucmut);
-                        for (size_t i = 0; i < substitution.first.size(); i++) {
-                            int ref = statsgenotype::getIndexFromNucleotide(substitution.first[i]);
-                            int var = statsgenotype::getIndexFromNucleotide(substitution.second[i]);
-                            if (ref == -1 || var == -1) {
-                                continue;
+                        delLen++;
+                        if (insLen > 0) {
+                            if (insLen > mutmat.insmat.size() - 1) {
+                                mutmat.insmat.resize(insLen + 1);
                             }
-                            mutmat.submat[ref][var] += 1;
-                            mutmat.total_submuts[ref] += 1;
+                            mutmat.insmat[insLen]++;
+                            mutmat.total_insmut++;
+                            insLen = 0;
                         }
-                    }
-
-                }
-            }
-
-            if (current->parent != nullptr) {
-                const string& parent_seq  = Tree::getStringFromReference(current->parent->identifier);
-                const string& current_seq = Tree::getStringFromReference(current->identifier);
-                for (size_t i = 0; i < parent_seq.size(); ++i) {
-                    if (parent_seq[i] == current_seq[i]) {
-                        int nuc = statsgenotype::getIndexFromNucleotide(parent_seq[i]);
-                        if (nuc == -1) {
-                            continue;
+                    } else if (parentSeq[i] == '-' && currentSeq[i] != '-') {
+                        insLen++;
+                        if (delLen > 0) {
+                            if (delLen > mutmat.delmat.size() - 1) {
+                                mutmat.delmat.resize(delLen + 1);
+                            }
+                            mutmat.delmat[delLen]++;
+                            mutmat.total_delmut++;
+                            delLen = 0;
                         }
-                        mutmat.submat[nuc][nuc] += 1;
-                        mutmat.total_submuts[nuc] += 1;
-                    }
+                    } else {
+                        if (insLen > mutmat.insmat.size() - 1) {
+                            mutmat.insmat.resize(insLen + 1);
+                        }
+                        mutmat.insmat[insLen]++;
+                        mutmat.total_insmut++;
+                        insLen = 0;
+                        if (delLen > mutmat.delmat.size() - 1) {
+                            mutmat.delmat.resize(delLen + 1);
+                        }
+                        mutmat.delmat[delLen]++;
+                        mutmat.total_delmut++;
+                        delLen = 0;
 
-                    if (parent_seq[i] != '-' && current_seq[i+1] != '-' ) {
-                        mutmat.delmat[0] += 1;
-                        mutmat.total_delmut += 1;
-                    }
-
-                    if (parent_seq[i] != '-' && parent_seq[i+1] != '-') {
-                        mutmat.insmat[0] += 1;
-                        mutmat.total_insmut += 1;
-                    }
+                        int parentNucIdx  = statsgenotype::getIndexFromNucleotide(parentSeq[i]);
+                        int currentNucIdx = statsgenotype::getIndexFromNucleotide(currentSeq[i]);
+                        if (parentNucIdx == 5 || currentNucIdx == 5) { continue; }
+                        mutmat.submat[parentNucIdx][currentNucIdx]++;
+                        mutmat.total_submuts[parentNucIdx]++;
+                    } 
                 }
             }
 
@@ -6482,6 +6576,7 @@ void PangenomeMAT::Tree::fillMutationMats(statsgenotype::mutationMatrices& mutma
             }
         }
 
+        // printMatrices(mutmat);
         // Calculate probablities in phred log scale
         // deletion
         for (auto i = 0; i < mutmat.delmat.size(); ++i) {
@@ -6498,25 +6593,6 @@ void PangenomeMAT::Tree::fillMutationMats(statsgenotype::mutationMatrices& mutma
             }
         }
     }
-}
-
-void printMatrices(const statsgenotype::mutationMatrices& mutmat) {  
-    for (const auto& row : mutmat.submat) {
-        for (const auto& count : row) {
-            cout << count << " ";
-        }
-        cout << endl;
-    }
-    
-    for (const auto& count : mutmat.delmat) {
-        cout << count << " ";
-    }
-    cout << endl;
-
-    for (const auto& count : mutmat.insmat) {
-        cout << count << " ";
-    }
-    cout << endl;
 }
 
 void to_upper(string& str) {
@@ -6577,6 +6653,8 @@ int parse_readbases(
             snp_errs += readbase_errors[cur_idx];
             cur_start++;
             cur_idx++;
+        } else {
+            cur_start++;
         }
 
     }
@@ -6585,7 +6663,7 @@ int parse_readbases(
     return variation_types;
 }
 
-vector<statsgenotype::variationSite> PangenomeMAT::Tree::getVariantSites(std::ifstream& fin, std::ifstream* min) {
+pair< vector<statsgenotype::variationSite>, pair<size_t, size_t> > PangenomeMAT::Tree::getVariantSites(std::ifstream& fin, std::ifstream* min) {
     // Infer mutation matrix
     auto mutmat = statsgenotype::mutationMatrices();
     fillMutationMats(mutmat, this->root, min);
@@ -6594,6 +6672,7 @@ vector<statsgenotype::variationSite> PangenomeMAT::Tree::getVariantSites(std::if
 
     // get potential variant sites and compute likelihood.. Currently read from mpileup file
     vector<statsgenotype::variationSite> candidate_variants;
+    pair<size_t, size_t> maskRange(numeric_limits<size_t>::max(), 0);
     size_t site_id = 0;
     std::string line;
     while(getline(fin, line)) {
@@ -6602,9 +6681,11 @@ vector<statsgenotype::variationSite> PangenomeMAT::Tree::getVariantSites(std::if
         string readbases_string = fields[4];
         string readbases_errors = fields[5];
         size_t coverage = stoul(fields[3]);
+        size_t position = stoul(fields[1]) - 1;
+        if (position < maskRange.first)  { maskRange.first  = position; }
+        if (position > maskRange.second) { maskRange.second = position; }
         if ((coverage > 0) && regex_search(readbases_string, variant_pattern)) {
             char ref_nuc = fields[2][0];
-            size_t position = stoul(fields[1]);
             string errs;
             string nucs;
             vector<string> insertion_seqs;
@@ -6619,23 +6700,23 @@ vector<statsgenotype::variationSite> PangenomeMAT::Tree::getVariantSites(std::if
         }
     }
     
-    return candidate_variants;
+    return make_pair(candidate_variants, maskRange);
 }
 
-void PangenomeMAT::Tree::printSamplePlacementVCF(std::ifstream& fin, std::ifstream* min) {
-    
-    vector<statsgenotype::variationSite> candidate_variants = getVariantSites(fin, min);
+int PangenomeMAT::Tree::printSamplePlacementVCF(std::ifstream& fin, std::ifstream* min) {
 
+    auto variant_sites = getVariantSites(fin, min);
+    const auto& candidate_variants = variant_sites.first;
     if (candidate_variants.empty()) {
-        return;
+        return 0;
     }
-
+    int count = 0;
     cout << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE" << endl;
     vector<statsgenotype::variationSite> groupSites;
     for (const auto& cur_site : candidate_variants) {
         bool skip = true;
         for (int i = 0; i < cur_site.posteriors.size(); i++) {
-            if (i != (cur_site.site_info >> 3) && cur_site.posteriors[i] != numeric_limits<double>::max()) {
+            if ((cur_site.site_info >> 3) == 5 || (i != (cur_site.site_info >> 3) && cur_site.posteriors[i] != numeric_limits<double>::max())) {
                 skip = false;
                 break;
             }
@@ -6644,12 +6725,16 @@ void PangenomeMAT::Tree::printSamplePlacementVCF(std::ifstream& fin, std::ifstre
             continue;
         }
 
-        statsgenotype::printVCFLine(cur_site);
-    }
+        // if (cur_site.most_probable_idx == (cur_site.site_info >> 3)) {
+        //     continue;
+        // } // temporary
 
-    for (const auto& site : candidate_variants) {
-        statsgenotype::printSiteGenotypePosteriors(site);
+        if (cur_site.ref_position > variant_sites.second.first + 100 && cur_site.ref_position < variant_sites.second.second - 100) {
+            count++;
+            statsgenotype::printVCFLine(cur_site);
+        }
     }
+    return count;
     
 }
 

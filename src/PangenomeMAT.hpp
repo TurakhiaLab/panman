@@ -485,8 +485,8 @@ namespace PangenomeMAT {
             void setupGlobalCoordinates();
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition, int nucGapPosition);
             
-            vector<statsgenotype::variationSite> getVariantSites(std::ifstream& fin, std::ifstream* min = nullptr);
-            void printSamplePlacementVCF(std::ifstream& fin, std::ifstream* min = nullptr);
+            pair< vector<statsgenotype::variationSite>, pair<size_t, size_t> > getVariantSites(std::ifstream& fin, std::ifstream* min = nullptr);
+            int printSamplePlacementVCF(std::ifstream& fin, std::ifstream* min = nullptr);
             
             // Transforms tree such that given node becomes child of new root
             void transform(Node* node);
