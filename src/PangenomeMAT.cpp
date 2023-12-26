@@ -2104,30 +2104,30 @@ int getTotalParsimonyParallelHelper(PangenomeMAT::Node* root, PangenomeMAT::NucM
         });
     }
 
-    if(blockMutType == PangenomeMAT::BlockMutationType::BIn) {
-        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-            for(int i = r.begin(); i != r.end(); i++) {
-                if(root->blockMutation[i].inversion == true) {
-                    init++;
-                }
-            }
-            return init;
-        }, [&](int x, int y) {
-            return x + y;
-        });
-    } else if(blockMutType != PangenomeMAT::BlockMutationType::NONE) {
-        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-            for(int i = r.begin(); i != r.end(); i++) {
-                // If not an inversion and mut type matches. Inversion is marked by blockMutInfo = deletion and inversion = true
-                if((blockMutType == PangenomeMAT::BlockMutationType::BI || root->blockMutation[i].inversion == false) && root->blockMutation[i].blockMutInfo == blockMutType) {
-                    init++;
-                }
-            }
-            return init;
-        }, [&](int x, int y) {
-            return x + y;
-        });
-    }
+    // if(blockMutType == PangenomeMAT::BlockMutationType::BIn) {
+    //     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+    //         for(int i = r.begin(); i != r.end(); i++) {
+    //             if(root->blockMutation[i].inversion == true) {
+    //                 init++;
+    //             }
+    //         }
+    //         return init;
+    //     }, [&](int x, int y) {
+    //         return x + y;
+    //     });
+    // } else if(blockMutType != PangenomeMAT::BlockMutationType::NONE) {
+    //     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
+    //         for(int i = r.begin(); i != r.end(); i++) {
+    //             // If not an inversion and mut type matches. Inversion is marked by blockMutInfo = deletion and inversion = true
+    //             if((blockMutType == PangenomeMAT::BlockMutationType::BI || root->blockMutation[i].inversion == false) && root->blockMutation[i].blockMutInfo == blockMutType) {
+    //                 init++;
+    //             }
+    //         }
+    //         return init;
+    //     }, [&](int x, int y) {
+    //         return x + y;
+    //     });
+    // }
 
     totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->children.size()), 0, [&](tbb::blocked_range<int>& r, int init) -> int{
         for(int i = r.begin(); i != r.end(); i++) {
@@ -6763,6 +6763,15 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData) {
         }
         
     }
+
+    // for (auto &s: blockSizeMap)
+    // {
+    //     std::cout << s.second << std::endl;
+    // }
+
+    // std::cout << "Before Rotation\n" << std::endl;
+    // exit(0);
+
 
     // Rotation
     // Testing data structure 
