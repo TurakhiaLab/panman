@@ -1,18 +1,13 @@
-name: ci
-
+name: PanMAT Documentation
 on:
   push:
     branches:
-      - master
       - main
-      - final-cleanup
-
+      # - '**'        # matches every branch
 permissions:
   contents: write
-
 jobs:
   deploy:
-    name: Deploy Job
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -24,4 +19,4 @@ jobs:
           key: ${{ github.ref }}
           path: .cache
       - run: pip install mkdocs-material
-      - run: mkdocs gh-deploy --force --config-file ../docs/panman.yml
+      - run: mkdocs gh-deploy --force
