@@ -1,8 +1,8 @@
-name: PanMAT Documentation
+name: PanMAN Documentation
 on:
   push:
     branches:
-      - main
+      - gh-pages-local
       # - '**'        # matches every branch
 permissions:
   contents: write
