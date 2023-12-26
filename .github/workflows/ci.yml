@@ -18,10 +18,8 @@ jobs:
         with:
           key: ${{ github.ref }}
           path: .cache
-    
       - name: Install dependencies for mkdocs
         run: |
           pip install mkdocs-material
           pip install "mkdocs-material[imaging]"
-
       - run: mkdocs gh-deploy --force

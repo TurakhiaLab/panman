@@ -1,4 +1,6 @@
 site_name: PanMAN
+repo_url: https://github.com/TurakhiaLab/PanMAN
+repo_name: TurakhiaLab/pangemome-mat  
 
 theme:
   name: material
@@ -38,7 +40,7 @@ plugins:
   - search
 
 extra_css:
-  # - stylesheets/extra.css
+  - stylesheets/extra.css
 
 extra:
   social:
@@ -68,7 +70,3 @@ markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:materialx.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
-
-repo_url: https://github.com/TurakhiaLab/pangenome-mat
-
-repo_name: TurakhiaLab/pangemome-mat  
