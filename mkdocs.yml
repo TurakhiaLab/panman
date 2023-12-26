@@ -1,5 +1,5 @@
 site_name: PanMAN
-repo_url: https://github.com/TurakhiaLab/PanMAN
+repo_url: https://github.com/TurakhiaLab/pangemome-mat
 repo_name: TurakhiaLab/pangemome-mat  
 
 theme:
@@ -32,8 +32,6 @@ theme:
       primary: custom
       accent: lime
     
-  # favicon: images/panman_logo.png
-  # logo: images/panman_logo.png
 
 plugins:
   - social
@@ -49,10 +47,6 @@ extra:
 
 nav:
   - Home: index.md
-  # - Quick Start: start.md
-  # - Installation: setup.md
-  # - Usage: usage.md
-  # - Contributions: contributions.md
 
 markdown_extensions:
   - pymdownx.highlight:
