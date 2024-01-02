@@ -46,7 +46,7 @@ extra:
 nav:
   - Home: index.md
   - Build PanMAT: build.md
-  - PanMAT Utility: setup.md
+  - PanMAT Utility: utility.md
 
 markdown_extensions:
   - pymdownx.highlight:

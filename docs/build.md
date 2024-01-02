@@ -10,9 +10,8 @@ $ ./panmat-utils --pangraph-in=<path to PanGraph JSON file> --newick-in=<path to
 ```
 If you'd like to give a GFA or an MSA file as an input, you could use the `--gfa-in` or the `--msa-in` options.
 
----
-> **_NOTE:_** Currently, we only support a simple version of the GFAv1.1 consisting of Segments, un-overlapping Links and Paths.
----
+
+> **NOTE:** Currently, we only support a simple version of the GFAv1.1 consisting of Segments, un-overlapping Links and Paths.
 
 This will generate the PanMAT and give you access to the command line interface of the PanMAT utility where you can enter instructions to analyze and manipulate PanMAT files, (see [PanMAT utilities](utilities.md)).
 ```
