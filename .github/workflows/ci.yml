@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - gh-pages-local
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    name: Deploy Job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          key: ${{ github.ref }}
+          path: .cache
+
+      - name: Install dependencies for mkdocs
+        run: |
+          pip install mkdocs-material
+          pip install "mkdocs-material[imaging]"
+
+      - run: mkdocs gh-deploy --force
