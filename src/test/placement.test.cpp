@@ -814,6 +814,112 @@ char subNuc(char ref, const statsgenotype::mutationMatrices& mutmat) {
     return getRandomCharWithWeights(bases, wgts);
 }
 
+void genMut2(
+    const string& seq,  const statsgenotype::mutationMatrices& mutmat,
+    const string& prefix, size_t beg, size_t end, size_t num, size_t len,
+    vector<int> vtp
+){
+    if(filesystem::exists(("../src/test/statsgenotype/validation/muts/" + prefix + ".fa"))) {
+        return;
+    }
+
+    vector<char> bases = {'A', 'C', 'G', 'T'};
+    ofstream faos("../src/test/statsgenotype/validation/muts/" + prefix + ".fa");
+    ofstream vros("../src/test/statsgenotype/validation/muts/" + prefix + ".rf");
+
+    string nseq =  seq;
+    vector< tuple<int, int, int> > muts;
+    vector<string> vref;
+
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> distribPos(beg, seq.size() - end);
+    uniform_int_distribution<> distribLen(1, len);
+    int c = 0;
+    while (muts.size() < num) {
+        int curPos  = distribPos(gen);
+        int varType = vtp[c % vtp.size()];
+        int length = (varType == 1) ? 1 : distribLen(gen);
+        
+        bool posConflict = false;
+        for (const auto& mut : muts) {
+            if (get<1>(mut) == 4 && abs(curPos - get<0>(mut)) < (2 * get<2>(mut))) {
+                posConflict = true;
+                break;
+            } else if (abs(curPos - get<0>(mut)) == 0) {
+                posConflict = true;
+                break;
+            }
+
+        }
+        if (posConflict) {
+            continue;
+        }
+        muts.emplace_back(make_tuple(curPos, varType, length));
+        c++;
+    }
+
+    sort(muts.begin(), muts.end(), 
+        [](const tuple<int, int, int>& a, const tuple<int, int, int>& b) {
+            return get<0>(a) < std::get<0>(b);
+        }
+    );
+
+    int offset = 0;
+    for (size_t i = 0; i < num; i++) {
+        int pos = get<0>(muts[i]);
+        int var = get<1>(muts[i]);
+        
+        switch (var) {
+            case 1:
+                {
+                    vros << to_string(pos + 1) + "\t";
+                    char ref  = seq[pos];
+                    char mut  = subNuc(ref, mutmat);
+                    nseq[pos + offset] = mut;
+                    vros << ref << "\t" << mut << "\n";
+                    break;
+                }
+            case 2:
+                {
+                    vros << to_string(pos + 1) + "\t";
+                    char ref = seq[pos];
+                    string inss;
+                    for (size_t j = 0; j < get<2>(muts[i]); j++) {
+                        inss += getRandomChar(bases);
+                    }
+                    nseq = nseq.substr(0, pos + offset + 1) + inss + nseq.substr(pos + offset + 1, nseq.size() - (pos + offset + 1));
+                    vros << ref << "\t" << ref << inss << "\n";
+                    offset += get<2>(muts[i]);
+                    break;
+                }
+            case 4:
+                {
+                    vros << to_string(pos + 1) + "\t";
+                    string ref = seq.substr(pos, get<2>(muts[i]) + 1);
+                    char   del = seq[pos];
+                    nseq = nseq.substr(0, pos + offset + 1) + nseq.substr(pos + offset + get<2>(muts[i]) + 1, nseq.size() - (pos + offset + get<2>(muts[i]) + 1));
+                    vros << ref << "\t" << del << "\n";
+                    offset -= get<2>(muts[i]);
+                    break;
+                }
+        }
+    }
+    
+    int type = 0;
+    for (auto tp : vtp) { type += tp; }
+
+    string seqName = to_string(num) + to_string(len) + to_string(type);
+    faos << '>' << seqName << '\n';
+    size_t linesize = 80;
+    for (size_t i = 0; i < nseq.size(); i += linesize) {
+        faos << nseq.substr(i, std::min(linesize, nseq.size() - i)) << '\n';
+    }
+    
+    vros.close();
+    faos.close();
+}
+
 void genMut(
     const string& seq,  const statsgenotype::mutationMatrices& mutmat,
     const string& prefix, size_t beg, size_t end, size_t num, size_t len,
@@ -973,10 +1079,56 @@ size_t size_tDiff(size_t a, size_t b) {
     return b - a;
 }
 
-bool visitedPosition(const unordered_set<size_t>& uoset, size_t position) {
+bool isVisited(const unordered_set<size_t>& uoset, size_t position) {
     if (uoset.find(position) != uoset.end()) {
         return true;
     }
+    return false;
+}
+
+bool isoAlignment(
+    const pair<size_t, pair<string, string> >& simVar, 
+    const pair<size_t, pair< vector<string>, vector<int> > >& vcfVar, 
+    const string& refSeq
+){
+    bool ins =  (simVar.second.second.size() > simVar.second.first.size()) ? true : false;
+    
+    size_t gtIdx;
+    for (size_t i = 0; i < vcfVar.second.second.size(); i++) {
+        if (vcfVar.second.second[i] == 0) {
+            gtIdx = i;
+            break;
+        }
+    }
+    
+    size_t varSize = (ins) ? simVar.second.second.size() - 1 : simVar.second.first.size() - 1;
+
+    if (size_tDiff(simVar.first, vcfVar.first) > varSize * 2) {
+        return false;
+    }
+    
+
+
+    size_t beg = min(simVar.first - 1, vcfVar.first - 1);
+    size_t end = max(simVar.first - 1, vcfVar.first - 1);
+
+    string simLocSeq;
+    string varLocSeq;
+    if (ins) {
+        end += simVar.second.second.size();
+        simLocSeq = refSeq.substr(beg, simVar.first - 1 - beg) + simVar.second.second       + refSeq.substr(simVar.first, end - beg - (simVar.first - 1 - beg) - simVar.second.second.size() + 1);
+        varLocSeq = refSeq.substr(beg, vcfVar.first - 1 - beg) + vcfVar.second.first[gtIdx] + refSeq.substr(vcfVar.first, end - beg - (vcfVar.first - 1 - beg) - simVar.second.second.size() + 1);
+    } else {
+        end += simVar.second.first.size();
+        simLocSeq = refSeq.substr(beg, simVar.first - 1 - beg) + simVar.second.second       + refSeq.substr(simVar.first + simVar.second.first.size() - 1, end - beg - (simVar.first - 1 - beg) - simVar.second.first.size() + 1);
+        varLocSeq = refSeq.substr(beg, vcfVar.first - 1 - beg) + vcfVar.second.first[gtIdx] + refSeq.substr(vcfVar.first + simVar.second.first.size() - 1, end - beg - (vcfVar.first - 1 - beg) - simVar.second.first.size() + 1);
+    }
+
+
+    if (simLocSeq == varLocSeq) {
+        return true;
+    }
+
     return false;
 }
 
@@ -1017,7 +1169,10 @@ TestStats runTest(
     string mapCmd = "minimap2 -ax sr " + refPath + " ../src/test/statsgenotype/validation/reads/" +
                     mutPrefix + "_R*.fastq --heap-sort=yes | samtools sort -O sam > " +
                     "../src/test/statsgenotype/validation/sam/" + mutPrefix + ".sam";
-    //cout << mapCmd << endl;
+    // string mapCmd = "bwa mem -t 4 " + refPath + " ../src/test/statsgenotype/validation/reads/" +
+    //                 mutPrefix + "_R*.fastq | samtools sort -O sam > " +
+    //                 "../src/test/statsgenotype/validation/sam/" + mutPrefix + ".sam";
+    // cout << mapCmd << endl;
     if (!filesystem::exists(("../src/test/statsgenotype/validation/sam/" + mutPrefix + ".sam"))) {
         system(mapCmd.c_str());
     }
@@ -1068,22 +1223,29 @@ TestStats runTest(
     int falsePositive = 0;
     int trueNegative  = 0;
     int falseNegative = 0;
-    unordered_set<size_t> counted;
+    unordered_set<size_t> visited;
+
     for (const auto& simVar : simVars) {
         auto pos = simVar.first;
-        bool isSub = false;
-        if (simVar.second.first.size() == simVar.second.second.size()) {
-            isSub = true;
+        if (isVisited(visited, pos)) {
+            continue;
+        } else {
+            visited.insert(pos);
         }
 
-        if (mutPrefix == "10_1_2_10_0" && pos == 14014) {
-            cout << "@" << refSeq.substr(14012, 5) << endl;
+        bool isIndel = true;
+        if (simVar.second.first.size() == simVar.second.second.size()) {
+            isIndel = false;
         }
 
         if (byBaseCoverage.find(depths[pos]) == byBaseCoverage.end()) {
             byBaseCoverage[depths[pos]].resize(4);
         }
+
         if (vcfVars.find(pos) != vcfVars.end()) {
+            /*
+            Same position. Check if variants match as well.
+            */
             size_t gtIdx;
             for (size_t i = 0; i < vcfVars[pos].second.size(); i++) {
                 if (vcfVars[pos].second[i] == 0) {
@@ -1091,6 +1253,7 @@ TestStats runTest(
                     break;
                 }
             }
+
             if ((simVar.second.first == vcfVars[pos].first[0]) && (simVar.second.second == vcfVars[pos].first[gtIdx])) {
                 truePositive++;
                 byBaseCoverage[depths[pos]][0]++;
@@ -1100,31 +1263,60 @@ TestStats runTest(
                 byBaseCoverage[depths[pos]][1]++;
                 byBaseCoverage[depths[pos]][3]++;
             }
+        } else if (isIndel) {
+            /*
+            if no matching position found and is indel, check for near indels that give same alignment.
+            */
+            bool matchFound = false;
+            for (const auto& vcfVar : vcfVars) {
+                if (isVisited(visited, vcfVar.first)) {
+                    continue;
+                }
+                if (isoAlignment(simVar, vcfVar, refSeq)) {
+                    truePositive++;
+                    if (byBaseCoverage.find(depths[vcfVar.first]) == byBaseCoverage.end()) {
+                        byBaseCoverage[depths[vcfVar.first]].resize(4);
+                    }
+                    byBaseCoverage[depths[vcfVar.first]][0]++;
+                    visited.insert(vcfVar.first);
+                    matchFound = true;
+                }
+            }
+            if (!matchFound) {
+                falseNegative++;
+                byBaseCoverage[depths[pos]][3]++;
+            }
         } else {
             falseNegative++;
             byBaseCoverage[depths[pos]][3]++;
         }
+        
     }
 
     for (const auto& vcfVar : vcfVars) {
         auto pos = vcfVar.first;
+        
+        if (isVisited(visited, pos)) {
+            continue;
+        }
         if (byBaseCoverage.find(depths[pos]) == byBaseCoverage.end()) {
             byBaseCoverage[depths[pos]].resize(4);
         }
-        if (simVars.find(pos) == simVars.end()) {
-            if (vcfVar.second.second[0] == 0) {
-                trueNegative++;
-                byBaseCoverage[depths[pos]][2]++;
-            } else {
-                falsePositive++;
-                byBaseCoverage[depths[pos]][1]++;
-            }
-        }
 
+        if (vcfVar.second.second[0] == 0) {
+            trueNegative++;
+            byBaseCoverage[depths[pos]][2]++;
+        } else {
+            falsePositive++;
+            byBaseCoverage[depths[pos]][1]++;
+        }
+        
+        visited.insert(pos);
     }
 
+    
     for(size_t i = 1; i < refSeq.size() + 1; i++) {
-        if (simVars.find(i) == simVars.end() && vcfVars.find(i) == vcfVars.end()) {
+        if (visited.find(i) == visited.end()) {
             if (byBaseCoverage.find(depths[i]) == byBaseCoverage.end()) {
                 byBaseCoverage[depths[i]].resize(4);
             }
@@ -1180,11 +1372,48 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
     string refSeq = T->getStringFromReference(reference, false);
     makeFasta(T, reference, referencePath);
 
-    // SUB only
+    cout << T->root->identifier << endl;
+    // makeFasta(T, T->root->identifier, "../src/test/statsgenotype/validation/root.fa");
+
+    map<size_t, vector<int> > byBaseCoverageTest;
+    string testPrefix = "100_9_7_5";
+    genMut2(refSeq, mutmat, testPrefix, 200, 200, 100, 9, {1, 1, 1, 1, 1, 1, 1, 1, 2, 4});
+    auto testStats = runTest(T, refSeq, testPrefix, referencePath, 5, byBaseCoverageTest);
+    cout << testStats.truePositive  << "\t"
+         << testStats.falsePositive << "\t"
+         << testStats.trueNegative  << "\t"
+         << testStats.falseNegative << endl;
+    
+    // for (size_t depth = 1; depth <= 10; depth++) {
+    //     for (size_t it = 0; it < 10; it++) {
+    //         string prefix = "100_9_7_" + to_string(depth) + "_" + to_string(it);
+    //         genMut2(refSeq, mutmat, prefix, 200, 200, 100, 9, {1, 1, 1, 1, 1, 1, 1, 1, 2, 4});
+    //         auto testStats = runTest(T, refSeq, prefix, referencePath, depth, byBaseCoverageTest);
+    //     }
+    // }
+
+    for (size_t depth = 1; depth <= 10; depth++) {
+        for (size_t it = 0; it < 10; it++) {
+            string prefix = "100_1_1_" + to_string(depth) + "_" + to_string(it);
+            genMut2(refSeq, mutmat, prefix, 200, 200, 100, 1, {1});
+            auto testStats = runTest(T, refSeq, prefix, referencePath, depth, byBaseCoverageTest);
+        }
+    }
+
+    for (size_t depth = 1; depth <= 10; depth++) {
+        for (size_t it = 0; it < 10; it++) {
+            string prefix = "100_9_6_" + to_string(depth) + "_" + to_string(it);
+            genMut2(refSeq, mutmat, prefix, 200, 200, 100, 9, {2, 4});
+            auto testStats = runTest(T, refSeq, prefix, referencePath, depth, byBaseCoverageTest);
+        }
+    }
+
     /*
+
+    // SUB only
     {
     map<size_t, vector<int> > byBaseCoverageSub;
-    for (size_t varLen = 1; varLen <= 9; varLen += 2) {
+    for (size_t varLen = 1; varLen <= 15; varLen += 2) {
         vector< tuple<double, double, double, double, double, double> > byCoverage;
         size_t numIt = 20;
         for (size_t coverage = 1; coverage <= 10; coverage++) {
@@ -1200,23 +1429,20 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
             int sumFP = 0;
             int sumTN = 0;
             int sumFN = 0;
-            double TPRs = 0;
-            double FPRs = 0;
             for (const auto& it : iterations) {
                 sumTP += it.truePositive;
                 sumFP += it.falsePositive;
                 sumTN += it.trueNegative;
                 sumFN += it.falseNegative;
-                TPRs  += it.truePositive  / static_cast<double>(it.truePositive  + it.falseNegative);
-                FPRs  += it.falsePositive / static_cast<double>(it.falsePositive + it.trueNegative);
             }
-            byCoverage.emplace_back(make_tuple(
-                static_cast<double>(sumTP) / iterations.size(),
-                static_cast<double>(sumFP) / iterations.size(),
-                static_cast<double>(sumTN) / iterations.size(),
-                static_cast<double>(sumFN) / iterations.size(),
-                TPRs / iterations.size(),
-                FPRs / iterations.size()));
+            double avgTP = static_cast<double>(sumTP) / iterations.size();
+            double avgFP = static_cast<double>(sumFP) / iterations.size();
+            double avgTN = static_cast<double>(sumTN) / iterations.size();
+            double avgFN = static_cast<double>(sumFN) / iterations.size();
+            double avgTPR = avgTP / (avgTP + avgFN);
+            double avgFPR = avgFP / (avgFP + avgTN);
+            
+            byCoverage.emplace_back(make_tuple(avgTP, avgFP, avgTN, avgFN, avgTPR, avgFPR));
         }
 
         ofstream osf("../src/test/statsgenotype/validation/statsout/1_" + to_string(varLen) + "_" + to_string(numIt) + ".out");
@@ -1231,29 +1457,32 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
                 << get<4>(byCoverage[i]) << "\t"
                 << get<5>(byCoverage[i]) << "\n";
         }
+        osf.close();
     }
     
+    ofstream bcof("../src/test/statsgenotype/validation/statsout/sub_by_coverage.out");
     for (const auto& stats : byBaseCoverageSub) {
-        cout << stats.first << "\t"
+        bcof << stats.first << "\t"
              << stats.second[0] << "\t"
              << stats.second[1] << "\t"
              << stats.second[2] << "\t"
              << stats.second[3] << "\t";
         if (stats.second[0] == 0) {
-            cout << 0 << endl;
+            bcof << 0 << "\n";
         } else if ((stats.second[0] + stats.second[3]) == 0) {
-            cout << 1 << endl;
+            bcof << 1 << "\n";
         } else {
-            cout << static_cast<double>(stats.second[0]) / (stats.second[0] + stats.second[3]) << endl;
+            bcof << static_cast<double>(stats.second[0]) / (stats.second[0] + stats.second[3]) << "\n";
         }
     }
+    bcof.close();
     }
-    */
+    
 
     // INS only
     {
     map<size_t, vector<int> > byBaseCoverageIns;
-    for (size_t varLen = 1; varLen <= 9; varLen += 2) {
+    for (size_t varLen = 1; varLen <= 15; varLen += 2) {
         vector< tuple<double, double, double, double, double, double> > byCoverage;
         size_t numIt = 20;
         for (size_t coverage = 1; coverage <= 10; coverage++) {
@@ -1270,23 +1499,20 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
             int sumFP = 0;
             int sumTN = 0;
             int sumFN = 0;
-            double TPRs = 0;
-            double FPRs = 0;
             for (const auto& it : iterations) {
                 sumTP += it.truePositive;
                 sumFP += it.falsePositive;
                 sumTN += it.trueNegative;
                 sumFN += it.falseNegative;
-                TPRs  += it.truePositive  / static_cast<double>(it.truePositive  + it.falseNegative);
-                FPRs  += it.falsePositive / static_cast<double>(it.falsePositive + it.trueNegative);
             }
-            byCoverage.emplace_back(make_tuple(
-                static_cast<double>(sumTP) / iterations.size(),
-                static_cast<double>(sumFP) / iterations.size(),
-                static_cast<double>(sumTN) / iterations.size(),
-                static_cast<double>(sumFN) / iterations.size(),
-                TPRs / iterations.size(),
-                FPRs / iterations.size()));
+            double avgTP = static_cast<double>(sumTP) / iterations.size();
+            double avgFP = static_cast<double>(sumFP) / iterations.size();
+            double avgTN = static_cast<double>(sumTN) / iterations.size();
+            double avgFN = static_cast<double>(sumFN) / iterations.size();
+            double avgTPR = avgTP / (avgTP + avgFN);
+            double avgFPR = avgFP / (avgFP + avgTN);
+            
+            byCoverage.emplace_back(make_tuple(avgTP, avgFP, avgTN, avgFN, avgTPR, avgFPR));
         }
 
         ofstream osf("../src/test/statsgenotype/validation/statsout/2_" + to_string(varLen) + "_" + to_string(numIt) + ".out");
@@ -1301,28 +1527,31 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
                 << get<4>(byCoverage[i]) << "\t"
                 << get<5>(byCoverage[i]) << "\n";
         }
+        osf.close();
     }
+    ofstream bcof("../src/test/statsgenotype/validation/statsout/ins_by_coverage.out");
     for (const auto& stats : byBaseCoverageIns) {
-        cout << stats.first << "\t"
+        bcof << stats.first << "\t"
              << stats.second[0] << "\t"
              << stats.second[1] << "\t"
              << stats.second[2] << "\t"
              << stats.second[3] << "\t";
         if (stats.second[0] == 0) {
-            cout << 0 << endl;
+            bcof << 0 << "\n";
         } else if ((stats.second[0] + stats.second[3]) == 0) {
-            cout << 1 << endl;
+            bcof << 1 << "\n";
         } else {
-            cout << static_cast<double>(stats.second[0]) / (stats.second[0] + stats.second[3]) << endl;
+            bcof << static_cast<double>(stats.second[0]) / (stats.second[0] + stats.second[3]) << "\n";
         }
     }
+    bcof.close();
     }
 
     // DEl only
-    /*
+
     {
     map<size_t, vector<int> > byBaseCoverageDel;
-    for (size_t varLen = 1; varLen <= 9; varLen += 2) {
+    for (size_t varLen = 1; varLen <= 15; varLen += 2) {
         vector< tuple<double, double, double, double, double, double> > byCoverage;
         size_t numIt = 20;
         for (size_t coverage = 1; coverage <= 10; coverage++) {
@@ -1338,23 +1567,20 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
             int sumFP = 0;
             int sumTN = 0;
             int sumFN = 0;
-            double TPRs = 0;
-            double FPRs = 0;
             for (const auto& it : iterations) {
                 sumTP += it.truePositive;
                 sumFP += it.falsePositive;
                 sumTN += it.trueNegative;
                 sumFN += it.falseNegative;
-                TPRs  += it.truePositive  / static_cast<double>(it.truePositive  + it.falseNegative);
-                FPRs  += it.falsePositive / static_cast<double>(it.falsePositive + it.trueNegative);
             }
-            byCoverage.emplace_back(make_tuple(
-                static_cast<double>(sumTP) / iterations.size(),
-                static_cast<double>(sumFP) / iterations.size(),
-                static_cast<double>(sumTN) / iterations.size(),
-                static_cast<double>(sumFN) / iterations.size(),
-                TPRs / iterations.size(),
-                FPRs / iterations.size()));
+            double avgTP = static_cast<double>(sumTP) / iterations.size();
+            double avgFP = static_cast<double>(sumFP) / iterations.size();
+            double avgTN = static_cast<double>(sumTN) / iterations.size();
+            double avgFN = static_cast<double>(sumFN) / iterations.size();
+            double avgTPR = avgTP / (avgTP + avgFN);
+            double avgFPR = avgFP / (avgFP + avgTN);
+            
+            byCoverage.emplace_back(make_tuple(avgTP, avgFP, avgTN, avgFN, avgTPR, avgFPR));
         }
 
         ofstream osf("../src/test/statsgenotype/validation/statsout/4_" + to_string(varLen) + "_" + to_string(numIt) + ".out");
@@ -1369,22 +1595,26 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
                 << get<4>(byCoverage[i]) << "\t"
                 << get<5>(byCoverage[i]) << "\n";
         }
+        osf.close();
     }
+    ofstream bcof("../src/test/statsgenotype/validation/statsout/del_by_coverage.out");
     for (const auto& stats : byBaseCoverageDel) {
-        cout << stats.first << "\t"
+        bcof << stats.first << "\t"
              << stats.second[0] << "\t"
              << stats.second[1] << "\t"
              << stats.second[2] << "\t"
              << stats.second[3] << "\t";
         if (stats.second[0] == 0) {
-            cout << 0 << endl;
+            bcof << 0 << "\n";
         } else if ((stats.second[0] + stats.second[3]) == 0) {
-            cout << 1 << endl;
+            bcof << 1 << "\n";
         } else {
-            cout << static_cast<double>(stats.second[0]) / (stats.second[0] + stats.second[3]) << endl;
+            bcof << static_cast<double>(stats.second[0]) / (stats.second[0] + stats.second[3]) << "\n";
         }
     }
+    bcof.close();
     }
+    
     */
 }
 

@@ -182,13 +182,23 @@ static vector<double> genotype_posteriors(
 
     size_t insertion_idx = 0;
     for (const auto& insertion : insertions) {
-        posteriors.push_back(likelihoods[5 + insertion_idx] + mutmat.insmat[insertion.first.size()]);
+        if (insertion.first.size() > mutmat.insmat.size() - 1) {
+            posteriors.push_back(likelihoods[5 + insertion_idx] + mutmat.insmat.back());
+        } else {
+            posteriors.push_back(likelihoods[5 + insertion_idx] + mutmat.insmat[insertion.first.size()]);
+        }
+        
         insertion_idx++; 
     }
 
     size_t deletion_idx = 0;
     for (const auto& deletion : deletions) {
-        posteriors.push_back(likelihoods[5 + insertion_idx + deletion_idx] + mutmat.insmat[deletion.first.size()]);
+        if (deletion.first.size() > mutmat.delmat.size() - 1) {
+            posteriors.push_back(likelihoods[5 + insertion_idx + deletion_idx] + mutmat.delmat.back());
+        } else {
+            posteriors.push_back(likelihoods[5 + insertion_idx + deletion_idx] + mutmat.delmat[deletion.first.size()]);
+        }
+
         insertion_idx++;
     }
 
@@ -358,7 +368,7 @@ static void printVCFLine(const statsgenotype::variationSite& site) {
     if (ref_nuc_idx == 5) {
         quality = ".";
     } else {
-        quality = to_string(int(site.likelihoods[ref_nuc_idx]));
+        quality = to_string(int(site.posteriors[ref_nuc_idx]));
     }
 
     for (const auto& depth : site.read_depth) {
