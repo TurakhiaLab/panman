@@ -29,12 +29,13 @@ int main(int argc, char** argv)
     newickTree >> newickString;
     utility::Tree tree(newickString);
 
+    utility::felsenstein_pruning(tree);
 
-    utility::bottom_up(tree);
-    std::cout << "\n";
-    utility::top_down(tree);
-    std::cout << "\n";
-    utility::marginal(tree);
+    // utility::bottom_up(tree);
+    // std::cout << "\n";
+    // utility::top_down(tree);
+    // std::cout << "\n";
+    // utility::marginal(tree);
 
 
     // utility::fitch(tree);

@@ -28,11 +28,14 @@ namespace utility
     std::vector<double> pi;
     std::vector<double> subs_param;
     std::vector<std::vector<double>> rate_matrix;
+    // std::vector<double> scale_vector;
     tbb::concurrent_unordered_map< std::string, std::pair<int, std::string> > seqs;
     void msa_seq(std::string input_file);
     void rate_matrix_calc();
     void matrix_exp(double bl, std::vector<std::vector<double>>& mat_out);
     
+    enum SCALE_TYPE { MAX, SUM1, NONE};
+    static SCALE_TYPE SCALE_TYPE_ASSIGN = MAX;
 
     class Node 
     {
@@ -55,6 +58,9 @@ namespace utility
         std::vector<std::vector<double>> up;
         std::vector<std::vector<double>> marginal;
         std::vector<std::vector<int8_t>> inference;
+
+        // Scaling Factor
+        std::vector<double> scale_vector;
     };
     
     class Tree

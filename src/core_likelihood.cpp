@@ -207,12 +207,35 @@ void utility::matrix_exp(double bl, std::vector<std::vector<double>>& mat_out)
 
 }
 
+void scale(size_t i, std::vector<std::vector<double>>& bottom, utility::SCALE_TYPE SCALE_TYPE_ASSIGN, double max_prob, double sum_prob, utility::Node* node)
+{
+    for (size_t j=0; j<STATES; j++)
+    {
+        if (SCALE_TYPE_ASSIGN == utility::MAX)
+        {
+            bottom[i][j] /= max_prob;
+            node->scale_vector[i] *= max_prob;
+        }
+        else if (SCALE_TYPE_ASSIGN == utility::SUM1)
+        {
+            bottom[i][j] /= sum_prob;
+            node->scale_vector[i] *= sum_prob;
+        }
+        else if (SCALE_TYPE_ASSIGN == utility::NONE)
+        {
+            continue;
+        }
+    }
+}
+
 
 void postorder_traversal(utility::Node* node, utility::Tree& tree)
 {
     std::vector<std::vector<double>> bottom;
     std::string identifier = node->identifier;
     bottom.resize(utility::length);
+
+    node->scale_vector.resize(utility::length, 1.0);
 
     // std::cout << node->identifier << "\t";
     // for (auto &child:node->children)
@@ -279,16 +302,16 @@ void postorder_traversal(utility::Node* node, utility::Tree& tree)
         std::vector<std::vector<double>> mat_out;
         utility::matrix_exp(bl, mat_out);
 
-        for (int i = 0; i < STATES; i++)
-        {
-            for (int j = 0; j < STATES; j++)
-            {
-                if (mat_out[i][j] < 0)
-                {
-                    std::cout << "Issue: " << mat_out[i][j] << std::endl;
-                }
-            }
-        }
+        // for (int i = 0; i < STATES; i++)
+        // {
+        //     for (int j = 0; j < STATES; j++)
+        //     {
+        //         if (mat_out[i][j] < 0)
+        //         {
+        //             std::cout << "Issue: " << mat_out[i][j] << std::endl;
+        //         }
+        //     }
+        // }
 
         std::vector<std::vector<double>> child_bottom = child->bottom;
 
@@ -306,6 +329,19 @@ void postorder_traversal(utility::Node* node, utility::Tree& tree)
             }
         }
     }
+
+    for (size_t i = 0; i < bottom.size(); i++)
+    {
+        double max_prob = 0.;
+        double sum_prob = 0.;
+        for (size_t j = 0; j < STATES; j++)
+        {
+            sum_prob += bottom[i][j];
+            if (max_prob<bottom[i][j]) max_prob = bottom[i][j];
+        }
+        scale(i, bottom, utility::SCALE_TYPE_ASSIGN, max_prob, sum_prob, node);
+    }
+
     
     node->bottom = bottom;
     
@@ -318,8 +354,21 @@ void utility::bottom_up(utility::Tree& tree)
     return;
 }
 
+double postorder_traversal_scaling(utility::Node* node)
+{
+    double lk = 0.0;
+    for (auto &child: node->children) lk += postorder_traversal_scaling(child);
+
+    for (size_t i=0; i<node->scale_vector.size(); i++)
+    {
+        lk += log(node->scale_vector[i]);
+    }
+    return lk;
+}
+
 void utility::felsenstein_pruning(utility::Tree& tree)
 {
+
     utility::bottom_up(tree);
 
     // Multiply conditional prob with stationary prob at root 
@@ -337,10 +386,13 @@ void utility::felsenstein_pruning(utility::Tree& tree)
         }
         // if (lk_node < 0)
         // {
-            // std::cout << log(lk_node) << " " << lk_node << std::endl;
+        //     std::cout << log(lk_node) << " " << lk_node << std::endl;
         // }
         lk += log(lk_node);
     }
+
+    // Adding scaling factor
+    lk += postorder_traversal_scaling(root);
 
     std::cout << "Likelihood Value:" << lk << std::endl;
 
