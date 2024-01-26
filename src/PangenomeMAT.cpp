@@ -719,18 +719,8 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
         tbb::concurrent_unordered_map< std::string,
             std::vector< std::tuple< int,int,int,int,int,int > > > gapMutations;
 
-        tbb::concurrent_vector< GapList > newGapList;
-
-        tbb::concurrent_unordered_map< size_t, std::string > blockIDToNewConsensusSequence;
-        tbb::concurrent_unordered_map< std::string, std::vector< size_t > > oldConsensusSeqToBlockIds;
-        tbb::concurrent_unordered_map< size_t, std::vector< std::pair< size_t, size_t > > > blockIdToNewGaps;
-
-        tbb::concurrent_unordered_map< size_t, tbb::concurrent_unordered_map< std::string,
-                std::vector< std::pair< char, std::vector< char > > > > > blockIdToIndividualSequences;
-
         tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
             std::string consensusSeq = pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]];
-            oldConsensusSeqToBlockIds[consensusSeq].push_back(i);
             std::vector< std::pair< char, std::vector< char > > > sequence(consensusSeq.size()+1,
                 {'-', {}});
             for(size_t j = 0; j < consensusSeq.length(); j++) {
@@ -763,226 +753,6 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
                         currentSequence[j-1].first = '-';
                     }
                 }
-                individualSequences[u.first] = currentSequence;
-            });
-            blockIdToIndividualSequences[i] = individualSequences;
-
-            // Map to store the state of every node at each position
-            std::map< std::pair< int64_t, int64_t >, std::unordered_map< std::string, int > > globalStates;
-            // Initialize to empty states
-            for(size_t j = 0; j < sequence.size(); j++) {
-                globalStates[std::make_pair(j,-1)];
-                for(size_t k = 0; k < sequence[j].second.size(); k++) {
-                    globalStates[std::make_pair(j,k)];
-                }
-            }
-
-            tbb::parallel_for((size_t) 0, sequence.size(), [&](size_t j) {
-                tbb::parallel_for((size_t)0, sequence[j].second.size(), [&](size_t k) {
-                    std::unordered_map< std::string, int > states;
-                    std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
-                    for(const auto& u: individualSequences) {
-                        if(u.second[j].second[k] != '-') {
-                            states[u.first] = (1 << getCodeFromNucleotide(u.second[j].second[k]));
-                        } else {
-                            states[u.first] = 1;
-                        }
-                    }
-                    nucFitchForwardPass(root, states);
-                    nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].second[k])));
-                    globalStates[std::make_pair(j,k)] = states;
-
-                    // nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].second[k])));
-                    // for(auto mutation: mutations) {
-                    //     nodeMutexes[mutation.first].lock();
-                    //     gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, k, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
-                    //     nodeMutexes[mutation.first].unlock();
-                    // }
-                });
-                std::unordered_map< std::string, int > states;
-                std::unordered_map< std::string, std::pair< PangenomeMAT::NucMutationType, char > > mutations;
-                for(const auto& u: individualSequences) {
-                    if(u.second[j].first != '-') {
-                        states[u.first] = (1 << getCodeFromNucleotide(u.second[j].first));
-                    } else {
-                        states[u.first] = 1;
-                    }
-                }
-                nucFitchForwardPass(root, states);
-                nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(sequence[j].first)));
-                globalStates[std::make_pair(j,-1)] = states;
-
-                // nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(sequence[j].first)));
-                // for(auto mutation: mutations) {
-                //     nodeMutexes[mutation.first].lock();
-                //     nonGapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, j, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
-                //     nodeMutexes[mutation.first].unlock();
-                // }
-            });
-
-            // Set pseudoroot sequence = root sequence for the current block
-            std::vector< std::pair< char, std::vector< char > > >& rootSequence = sequence;
-            for(auto& u: globalStates) {
-                char nuc = '-';
-                if(u.second[root->identifier] != 1) {
-                    // not gap
-                    int code = 0, currentState = u.second[root->identifier];
-                    while(currentState > 0) {
-                        currentState >>= 1;
-                        code++;
-                    }
-                    code--;
-                    nuc = getNucleotideFromCode(code);
-                }
-                if(u.first.second == -1) {
-                    rootSequence[u.first.first].first = nuc;
-                } else {
-                    rootSequence[u.first.first].second[u.first.second] = nuc;
-                }
-            }
-
-            std::string rootConsensusSequence;
-
-            for(size_t j = 0; j < rootSequence.size(); j++) {
-                for(size_t k = 0; k < rootSequence[j].second.size(); k++) {
-                    rootConsensusSequence += rootSequence[j].second[k];
-                }
-                // main nuc
-                rootConsensusSequence += rootSequence[j].first;
-            }
-
-            blockIDToNewConsensusSequence[i] = rootConsensusSequence;
-
-            // rootSequence.clear();
-            // rootSequence.resize(rootConsensusSequence.length()+1, {'-', {}});
-            // for(size_t j = 0; j < rootConsensusSequence.length(); j++) {
-            //     rootSequence[j].first = rootConsensusSequence[j];
-            // }
-            // rootSequence.push_back({'-', {}});
-            // for(size_t j = 0; j < newGapListLengths.size(); j++) {
-            //     rootSequence[newGapListNucs[j]].second.resize(newGapListLengths[j], '-');
-            // }
-        });
-
-        tbb::parallel_for_each(oldConsensusSeqToBlockIds, [&](const auto& u) {
-            const std::vector< size_t >& blockIds = u.second;
-
-            std::string currentConsensusSeq = blockIDToNewConsensusSequence[blockIds[0]];
-            std::mutex consensusSeqMutex;
-
-            tbb::parallel_for((size_t) 0, currentConsensusSeq.length(), [&](size_t j) {
-                std::unordered_map< char, size_t > chrCounts;
-                for(size_t i = 0; i < blockIds.size(); i++) {
-                    chrCounts[blockIDToNewConsensusSequence[blockIds[i]][j]]++;
-                }
-                size_t max1 = 0;
-                char maxChr = 'A';
-                for(auto v: chrCounts) {
-                    if(v.second > max1) {
-                        max1 = v.second;
-                        maxChr = v.first;
-                    }
-                }
-                consensusSeqMutex.lock();
-                currentConsensusSeq[j] = maxChr;
-                consensusSeqMutex.unlock();
-            });
-
-            // // Set pseudoroot sequence = root sequence for the current block
-            // std::vector< std::pair< char, std::vector< char > > > rootSequence;
-
-            int64_t currentMain = 0;
-            int64_t currentGap = -1;
-            std::vector< uint32_t > newGapListNucs;
-            std::vector< uint32_t > newGapListLengths;
-            std::string rootConsensusSequence;
-
-            for(size_t j = 0; j < currentConsensusSeq.size(); j++) {
-                // main nuc
-                if(currentConsensusSeq[j] != '-') {
-                    rootConsensusSequence += currentConsensusSeq[j];
-                    // close the gap (if open)
-                    currentGap = -1;
-                    currentMain++;
-                } else {
-                    if(currentGap == -1){
-                        // If gap just opened, start gap
-                        newGapListNucs.push_back(currentMain);
-                        newGapListLengths.push_back(1);
-                    } else {
-                        // If gap is continuing, continue gap
-                        newGapListLengths[newGapListLengths.size()-1]++;
-                    }
-                    currentGap++;
-                }
-            }
-
-            for(auto i: blockIds) {
-                // Update gap list
-                if(newGapListNucs.size()) {
-                    GapList g;
-                    g.primaryBlockId = i;
-                    g.secondaryBlockId = -1;
-                    g.nucPosition = newGapListNucs;
-                    g.nucGapLength = newGapListLengths;
-                    newGapList.push_back(g);
-                    for(size_t k = 0; k < newGapListNucs.size(); k++){
-                        blockIdToNewGaps[i].push_back(std::make_pair(newGapListNucs[k], newGapListLengths[k]));
-                    }
-                }
-            }
-
-            for(auto i: blockIds) {
-                // Update block to the new consensus sequence
-                blockIDToNewConsensusSequence[i] = rootConsensusSequence;
-                blocks[i] = Block(i, rootConsensusSequence);
-            }
-        });
-
-        gaps.clear();
-        for(auto& g: newGapList) {
-            gaps.push_back(g);
-        }
-
-        tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
-            std::string consensusSeq = blockIDToNewConsensusSequence[i];
-            std::vector< std::pair< char, std::vector< char > > > sequence(consensusSeq.size()+1,
-                {'-', {}});
-            for(size_t j = 0; j < consensusSeq.length(); j++) {
-                sequence[j].first = consensusSeq[j];
-            }
-            for(size_t j = 0; j < blockIdToNewGaps[i].size(); j++) {
-                sequence[blockIdToNewGaps[i][j].first]
-                    .second.resize(blockIdToNewGaps[i][j].second, '-');
-            }
-
-            tbb::concurrent_unordered_map< std::string,
-                std::vector< std::pair< char, std::vector< char > > > > individualSequences = blockIdToIndividualSequences[i];
-
-            tbb::parallel_for_each(alignedSequences, [&](const auto& u) {
-                if(u.second[i] == -1) {
-                    return;
-                }
-                std::vector< std::pair< char, std::vector< char > > > currentSequence = sequence;
-                std::vector< std::pair< char, std::vector< char > > > oldSequence = individualSequences[u.first];
-                std::string tempSequence;
-
-                for(size_t j = 0; j < oldSequence.size(); j++) {
-                    for(size_t k = 0; k < oldSequence[j].second.size(); k++) {
-                        tempSequence += oldSequence[j].second[k];
-                    }
-                    tempSequence += oldSequence[j].first;
-                }
-                size_t ctr = 0;
-                for(size_t j = 0; j < currentSequence.size(); j++) {
-                    for(size_t k = 0; k < currentSequence[j].second.size(); k++) {
-                        currentSequence[j].second[k] = tempSequence[ctr];
-                        ctr++;
-                    }
-                    currentSequence[j].first = tempSequence[ctr];
-                    ctr++;
-                }
-
                 individualSequences[u.first] = currentSequence;
             });
 
@@ -1044,6 +814,7 @@ PangenomeMAT::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE
             allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
             nodeMutexes[u.first].unlock();
         });
+
         tbb::parallel_for_each(gapMutations, [&](auto& u) {
             nodeMutexes[u.first].lock();
             std::sort(u.second.begin(), u.second.end());
@@ -2138,7 +1909,7 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
             });
 
             for(auto u: sequenceIdToSequence) {
-                fout << "s\t" << u.first << "\t"<< sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)] <<"\t" << u.second.second.first.length() << "\t" << (u.second.second.second? "+\t":"-\t") << sequenceLengths[u.first] << "\t" << u.second.second.first << "\n";
+                fout << "s\t" << u.first << "\t"<< sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)] <<"\t" << stripGaps(u.second.second.first).length() << "\t" << (u.second.second.second? "+\t":"-\t") << sequenceLengths[u.first] << "\t" << u.second.second.first << "\n";
             }
         }
         fout << "\n";
@@ -5301,18 +5072,22 @@ void PangenomeMAT::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fo
             nodes[separatedLine[1]] = separatedLine[2];
         } else if(separatedLine[0] == "P") {
             std::vector< std::string > v;
-            stringSplit(separatedLine[2], ',', v);
-            for(size_t i = 0; i < v.size(); i++) {
-                v[i].pop_back();
-            }
-            paths[separatedLine[1]] = v;
+            stringSplit(separatedLine[2], ',', paths[separatedLine[1]]);
         }
     }
     for(auto p: paths) {
         fout << ">" << p.first << "\n";
         std::string sequence;
         for(auto s: p.second) {
-            sequence += nodes[s];
+            char strand = s[s.length()-1];
+            s.pop_back();
+            if(strand == '+') {
+                sequence += nodes[s];
+            } else {
+                for (std::string::reverse_iterator rit=nodes[s].rbegin(); rit!=nodes[s].rend(); ++rit) {
+                    sequence += getComplementCharacter(*rit);
+                }
+            }
         }
         for(size_t i = 0; i < sequence.size(); i+=70) {
             fout << sequence.substr(i,std::min((size_t)70, sequence.size() - i)) << '\n';
