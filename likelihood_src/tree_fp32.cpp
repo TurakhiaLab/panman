@@ -1,4 +1,6 @@
-// #include "core_likelihood.hpp"
+// #ifndef CORE_LIKELIHOOD_FP64
+// #include "core_likelihood_fp64.hpp"
+// #endif
 
 utility::Node::Node(std::string id, float len){
     identifier = id;

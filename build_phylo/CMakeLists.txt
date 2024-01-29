@@ -15,15 +15,17 @@ include(${TBB_DIR}/cmake/TBBBuild.cmake)
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
 find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
 
-file(GLOB LIKELIHOOD_SRCS "../src/llk_example.cpp")
 
 
-add_executable(core_likelihood
-	${LIKELIHOOD_SRCS}
-	)
+add_executable(core_likelihood_fp64
+			  ../likelihood_src/llk_fp64.cpp
+			  )
 
 
-TARGET_COMPILE_OPTIONS(core_likelihood PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
+add_executable(core_likelihood_fp32
+			  ../likelihood_src/llk_fp32.cpp
+			  )
 
-TARGET_LINK_LIBRARIES(core_likelihood PRIVATE stdc++ ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
-target_include_directories(core_likelihood PUBLIC "${PROJECT_BINARY_DIR}")
+
+TARGET_LINK_LIBRARIES(core_likelihood_fp64 PRIVATE ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+TARGET_LINK_LIBRARIES(core_likelihood_fp32 PRIVATE ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
