@@ -1,6 +1,7 @@
 #include <iostream>
 #include <chrono>
 #include <filesystem>
+#include <tbb/parallel_for_each.h>
 #include <boost/program_options.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -138,7 +139,7 @@ IDs to extract")
     // Sequence Extract option descriptions
     sequenceExtractDesc.add_options()
         ("help", "produce help message")
-        ("sequence", po::value< std::vector< std::string > >()->required(), "Sequence names")
+        ("list", po::value< std::vector< std::string > >()->multitoken()->required(), "Sequence names")
         ("output-file", po::value< std::string >()->required(), "Output file name")
     ;
 
@@ -917,22 +918,29 @@ void parseAndExecute(int argc, char* argv[]) {
                     po::notify(sequenceExtractVm);
 
                     std::string fileName = sequenceExtractVm["output-file"].as< std::string >();
-                    std::vector< std::string > sequenceNames = sequenceExtractVm["sequence"]
+                    std::vector< std::string > sequenceNames = sequenceExtractVm["list"]
                         .as< std::vector< std::string > >();
 
                     std::filesystem::create_directory("./fasta");
                     std::ofstream fout("./fasta/" + fileName + ".fasta");
 
                     auto sequenceExtractStart = std::chrono::high_resolution_clock::now();
-                    
-                    for(auto sequenceName: sequenceNames) {
+                    std::mutex fastaMutex;
+
+                    tbb::parallel_for_each(sequenceNames, [&](auto sequenceName) {
                         std::string sequenceString = T->getStringFromReference(sequenceName, false);
-                        fout << ">" << sequenceName << '\n';
-                        for(size_t i = 0; i < sequenceString.length(); i+=70) {
-                            fout << sequenceString.substr(i,std::min(sequenceString.length()-i,
-                                (size_t)70)) << '\n';
+                        if(sequenceString.find("Error:") == std::string::npos) {
+                            fastaMutex.lock();
+                            fout << ">" << sequenceName << '\n';
+                            for(size_t i = 0; i < sequenceString.length(); i+=70) {
+                                fout << sequenceString.substr(i,std::min(sequenceString.length()-i,
+                                    (size_t)70)) << '\n';
+                            }
+                            fastaMutex.unlock();
+                        } else {
+                            std::cout << sequenceString << std::endl;
                         }
-                    }
+                    });
 
                     auto sequenceExtractEnd = std::chrono::high_resolution_clock::now();
                     std::chrono::nanoseconds sequenceExtractTime = sequenceExtractEnd

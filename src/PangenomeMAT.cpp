@@ -4117,7 +4117,7 @@ std::string PangenomeMAT::Tree::getStringFromReference(std::string reference, bo
         }
     }
 
-    if(rotationIndexes.find(reference) != rotationIndexes.end()) {
+    if(!aligned && rotationIndexes.find(reference) != rotationIndexes.end() && rotationIndexes[reference] != 0) {
         int ctr = -1, rotInd = 0;
         for(size_t i = 0; i < blockExists.size(); i++) {
             if(blockExists[i].first) {
@@ -4687,11 +4687,11 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
         tbb::concurrent_unordered_map< std::string, std::vector< size_t > > paths;
         tbb::concurrent_unordered_map< std::string, std::vector< bool > > strandPaths;
 
-        for(const auto& u: allNodes) {
-        // tbb::parallel_for_each(allNodes, [&](const auto& u) {
+        // for(const auto& u: allNodes) {
+        tbb::parallel_for_each(allNodes, [&](const auto& u) {
             if(u.second->children.size() != 0) {
-                // return;
-                continue;
+                return;
+                // continue;
             }
 
             sequence_t sequence;
@@ -4867,8 +4867,8 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
 
             paths[u.first] = sequenceNodeIds;
             strandPaths[u.first] = sequenceStrands;
-        // });
-        }
+        });
+        // }
 
         std::map< std::pair< size_t, bool >, std::string > finalNodes;
         for(const auto& u: allSequenceNodes) {
