@@ -74,6 +74,8 @@ void setupOptionDescriptions() {
         ("gfa-in", po::value< std::string >(), "create PanMAT from GFA at given file path")
         ("pangraph-in", po::value< std::string >(), "create PanMAT from PanGraph at given file \
 path")
+        ("reference", po::value< std::string >(), "Identifier of reference sequence"
+            "(Reference sequence inferred if not provided)")
         ("msa-in", po::value< std::string >(), "create PanMAT from MSA at given file path")
         ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
         ("newick-in", po::value< std::string >(), "Input file path for file containing newick \
@@ -204,11 +206,10 @@ search for")
 
     substitutionsDesc.add_options()
         ("help", "produce help message")
-        ("sequence-name", po::value< std::string >()->required(), "Name of sequence to get the "
-            "substitutions for")
+        ("output-file", po::value< std::string >()->required(), "Name of the output file")
     ;
 
-    substitutionsArgumentDesc.add("sequence-name", -1);
+    substitutionsArgumentDesc.add("output-file", -1);
 
     aaTranslationDesc.add_options()
         ("help", "produce help message")
@@ -273,36 +274,36 @@ void parseAndExecute(int argc, char* argv[]) {
         std::istream inputStream(&inPMATBuffer);
 
         T = new PangenomeMAT::Tree(inputStream);
-        int tot = 0;
-        int tot4 = 0;
-        for(auto u: T->gaps) {
-            tot += u.nucPosition.size();
-            for(auto v: u.nucGapLength) {
-                tot4+=v;
-            }
-        }
-        std::cout << "Total Gap Length: " << tot4 << std::endl;
-        int totMut = 0;
-        for(const auto& u: T->root->nucMutation) {
-            int len = ((u.mutInfo) >> 4);
-            totMut += len;
-        }
-        std::cout << "Root mutations: " << T->root->nucMutation.size() << std::endl;
-        std::cout << "Root mutations split: " << totMut << std::endl;
-        std::cout << "Total Gaps: " << tot << std::endl;
-        tot = 0;
-        int tot2 = 0;
-        int tot3 = 0;
-        for(auto u: T->allNodes) {
-            tot += u.second->nucMutation.size();
-            tot2 += u.second->blockMutation.size();
-        }
-        for(auto u: T->blocks) {
-            tot3 += u.consensusSeq.size();
-        }
-        std::cout << "Nuc mutations: " << tot << std::endl;
-        std::cout << "Block mutations: " << tot2 << std::endl;
-        std::cout << "Total Consensus Sequence length: " << tot3 << std::endl;
+        // int tot = 0;
+        // int tot4 = 0;
+        // for(auto u: T->gaps) {
+        //     tot += u.nucPosition.size();
+        //     for(auto v: u.nucGapLength) {
+        //         tot4+=v;
+        //     }
+        // }
+        // std::cout << "Total Gap Length: " << tot4 << std::endl;
+        // int totMut = 0;
+        // for(const auto& u: T->root->nucMutation) {
+        //     int len = ((u.mutInfo) >> 4);
+        //     totMut += len;
+        // }
+        // std::cout << "Root mutations: " << T->root->nucMutation.size() << std::endl;
+        // std::cout << "Root mutations split: " << totMut << std::endl;
+        // std::cout << "Total Gaps: " << tot << std::endl;
+        // tot = 0;
+        // int tot2 = 0;
+        // int tot3 = 0;
+        // for(auto u: T->allNodes) {
+        //     tot += u.second->nucMutation.size();
+        //     tot2 += u.second->blockMutation.size();
+        // }
+        // for(auto u: T->blocks) {
+        //     tot3 += u.consensusSeq.size();
+        // }
+        // std::cout << "Nuc mutations: " << tot << std::endl;
+        // std::cout << "Block mutations: " << tot2 << std::endl;
+        // std::cout << "Total Consensus Sequence length: " << tot3 << std::endl;
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -368,6 +369,10 @@ void parseAndExecute(int argc, char* argv[]) {
             return;
         }
         std::string newickFileName = globalVm["newick-in"].as< std::string >();
+        std::string referenceSequence;
+        if(globalVm.count("reference")) {
+            referenceSequence = globalVm["reference"].as< std::string >();
+        }
 
         std::cout << "Creating PanMAT from PanGraph and Newick" << std::endl;
 
@@ -377,7 +382,7 @@ void parseAndExecute(int argc, char* argv[]) {
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
         T = new PangenomeMAT::Tree(inputStream, newickInputStream,
-            PangenomeMAT::FILE_TYPE::PANGRAPH);
+            PangenomeMAT::FILE_TYPE::PANGRAPH, referenceSequence);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -644,20 +649,22 @@ void parseAndExecute(int argc, char* argv[]) {
 
                     po::notify(substitutionsVm);
 
-                    std::string sequenceName = substitutionsVm["sequence-name"].as< std::string >();
+                    std::string fileName = substitutionsVm["output-file"].as< std::string >();
+                    
+                    std::filesystem::create_directory("./mutations");
+                    std::ofstream fout("./mutations/" + fileName);
+
 
                     auto substitutionsStart = std::chrono::high_resolution_clock::now();
 
-                    std::vector< std::string > subs = T->getSubstitutionsFromReference(sequenceName);
-                    for(auto sub: subs) {
-                        std::cout << sub << " ";
-                    }
-                    std::cout << "\n";
+                    T->printMutations(fout);
 
                     auto substitutionsEnd = std::chrono::high_resolution_clock::now();
                     std::chrono::nanoseconds substitutionsTime = substitutionsEnd - substitutionsStart;
-                    std::cout << "\nSubstitutions extract execution time: "
+                    std::cout << "\nMutation extract execution time: "
                         << substitutionsTime.count() << " nanoseconds\n";
+
+                    fout.close();
                 }
 
             } else if(strcmp(splitCommandArray[0], "aaTranslation") == 0) {
@@ -954,6 +961,8 @@ void parseAndExecute(int argc, char* argv[]) {
 
                 if(T) {
                     std::cout << T->getNewickString(T->root) << std::endl;
+
+                    // std::cout << T->getNewickString(T->root) << std::endl;
                 } else if(TG) {
                     std::cout << "Printing newick string of each PanMAT in the PanMAN" << std::endl;
                     int index = 0;
@@ -1291,7 +1300,7 @@ void parseAndExecute(int argc, char* argv[]) {
 // }
 
 int main(int argc, char* argv[]) {
-    tbb::task_scheduler_init init(32);
+    tbb::task_scheduler_init init(2);
     // debuggingCode();
     parseAndExecute(argc, argv);
 }

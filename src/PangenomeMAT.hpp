@@ -412,7 +412,8 @@ namespace PangenomeMAT {
         public:
             Tree(const PanMAT::tree& mainTree);
             Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
-            Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype = FILE_TYPE::GFA);
+            Tree(std::ifstream& fin, std::ifstream& secondFin,
+                FILE_TYPE ftype = FILE_TYPE::GFA, std::string reference = "");
 
             // Copy blocks from current tree into new tree which is rooted at one of the internal
             // nodes of the current tree. Used in split for PanMAN
@@ -463,10 +464,9 @@ namespace PangenomeMAT {
                 blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false,
                 int* rotIndex = nullptr);
 
-            // Get substitutions in given sequence with respect to the root sequence. Since we are
-            // comparing with the root sequence, only the coordinates where the root sequence is not
-            // '-' are considered
-            std::vector< std::string > getSubstitutionsFromReference(std::string reference);
+            // For each node in the tree, print mutations with respect to the root node to the
+            // output file
+            void printMutations(std::ofstream& fout);
             void getBlockSequenceFromReference(block_t& sequence, bool& blockExists,
                 bool& blockStrand, std::string reference, int64_t primaryBlockId,
                 int64_t secondaryBlockId);

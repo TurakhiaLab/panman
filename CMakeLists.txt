@@ -22,7 +22,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
 include("/home/AD.UCSD.EDU/hmotwani/vcpkg/scripts/buildsystems/vcpkg.cmake")
-tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
+tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_PREVIEW_CONCURRENT_ORDERED_CONTAINERS TBB_DIR MAKE_ARGS tbb_cpf=1)
 find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
 find_package(jsoncpp CONFIG REQUIRED)
 # target_link_libraries(main PRIVATE JsonCpp::JsonCpp)
