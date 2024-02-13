@@ -452,6 +452,8 @@ namespace PangenomeMAT {
             void printFASTA(std::ofstream& fout, bool aligned = false);
             void printFASTAParallel(std::ofstream& fout, bool aligned = false);
             void printMAF(std::ofstream& fout);
+
+            void printMAFNew(std::ofstream& fout);
             void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
             void printVCFParallel(std::string reference, std::ofstream& fout);
             void extractAminoAcidTranslations(std::ofstream& fout, int64_t start, int64_t end);

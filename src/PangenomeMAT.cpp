@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <mutex>
 #include <chrono>
+#include <filesystem>
 #include "chaining.cpp"
 #include "rotation.cpp"
 
@@ -1415,7 +1416,7 @@ void PangenomeMAT::Tree::printFASTAHelper(PangenomeMAT::Node* root, sequence_t& 
                     blockStrand[primaryBlockId].first = !oldStrand;
                 }
                 if(oldMut != true) {
-                    std::cout << "Problem in PanMAT generation" << std::endl;
+                    std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
                 }
                 blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, mutation.secondaryBlockId, oldMut, oldStrand, oldMut, !oldStrand) );
             } else {
@@ -1878,13 +1879,15 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
     std::map< std::tuple< std::string, int32_t, int32_t >, int32_t > sequenceBlockToStartPoint;
     std::map< std::string, int32_t > sequenceLengths;
 
+    int ctr2=0;
+
     for(auto u: allNodes) {
         if(u.second->children.size() == 0) {
             sequenceNames.push_back(u.first);
             sequence_t sequence;
             blockExists_t blockExists;
             blockStrand_t blockStrand;
-            int rotIndex;
+            int rotIndex = 0;
             getSequenceFromReference(sequence, blockExists, blockStrand, u.first, true, &rotIndex);
 
             // List of block IDs to account for rotation and inversion
@@ -1910,10 +1913,12 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
                             if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x') {
                                 ctr++;
                             }
+                            ctr2++;
                         }
                         if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x') {
                             ctr++;
                         }
+                        ctr2++;
                     }
                 }
             }
@@ -1933,24 +1938,28 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
         }
     }
 
+    std::atomic<int> ctr3 = 0;
 
     fout << "##maf version=1\n";
 
     for(auto& common: blocksWithSameSequences) {
-        tbb::concurrent_unordered_map< std::string, std::pair< std::pair< int, int >, std::pair< std::string, bool > > > sequenceIdToSequence;
         fout << "a\n";
         for(auto& b: common.second) {
+            tbb::concurrent_unordered_map< std::string, std::pair< std::pair< int, int >, std::pair< std::string, bool > > > sequenceIdToSequence;
+
             int primaryBlockId = b.first;
             int secondaryBlockId = b.second;
 
             tbb::parallel_for_each(sequenceNames, [&](auto u) {
-                block_t sequence;
-                bool blockExists = false, blockStrand = true;
-                getBlockSequenceFromReference(sequence, blockExists, blockStrand, u, primaryBlockId,
-                    secondaryBlockId);
-                if(!blockExists) {
+                if(sequenceBlockToStartPoint.find(std::make_tuple(u, primaryBlockId, -1)) == sequenceBlockToStartPoint.end()) {
                     return;
                 }
+
+                block_t sequence;
+                bool blockExists = false, blockStrand = true;
+
+                getBlockSequenceFromReference(sequence, blockExists, blockStrand, u, primaryBlockId,
+                    secondaryBlockId);
 
                 std::string stringSequence;
                 for(size_t i = 0; i < sequence.size(); i++) {
@@ -1967,6 +1976,7 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
                         stringSequence += '-';
                     }
                 }
+                ctr3+=stringSequence.length();
                 sequenceIdToSequence[u] = std::make_pair(std::make_pair(primaryBlockId, secondaryBlockId), std::make_pair(stringSequence, blockStrand));
             });
 
@@ -1976,6 +1986,203 @@ void PangenomeMAT::Tree::printMAF(std::ofstream& fout) {
         }
         fout << "\n";
     }
+}
+
+void PangenomeMAT::Tree::printMAFNew(std::ofstream& fout) {
+    std::vector< std::string > sequenceNames;
+    std::map< std::string, int32_t > sequenceLengths;
+
+    std::map< std::vector< uint32_t >, std::vector< std::pair< int,int > > > blocksWithSameSequences;
+
+    for(auto b: blocks) {
+        blocksWithSameSequences[b.consensusSeq].push_back(std::make_pair(b.primaryBlockId, b.secondaryBlockId));
+    }
+
+    std::filesystem::create_directory("maf_workspace");
+
+    std::map< std::string, std::ofstream* > temporaryOutputMap;
+    std::vector< std::ofstream > temporaryOutputArray;
+
+    for(auto u: allNodes) {
+        if(u.second->children.size() == 0) {
+            temporaryOutputArray.emplace_back("maf_workspace/"+u.first);
+            temporaryOutputMap[u.first] = &temporaryOutputArray[temporaryOutputArray.size() - 1];
+            sequenceNames.push_back(u.first);
+        }
+    }
+
+    tbb::parallel_for_each(allNodes, [&](auto u) {
+        if(u.second->children.size() != 0) {
+            return;
+        }
+        sequence_t sequence;
+        blockExists_t blockExists;
+        blockStrand_t blockStrand;
+        int rotIndex = 0;
+        getSequenceFromReference(sequence, blockExists, blockStrand, u.first, true, &rotIndex);
+
+        // List of block IDs to account for rotation and inversion
+        std::vector< int > blockIds(sequence.size());
+        for(size_t i = 0; i < sequence.size(); i++) {
+            blockIds[i] = i;
+        }
+        if(rotationIndexes.find(u.first) != rotationIndexes.end()) {
+            rotate(blockIds.begin(), blockIds.begin() + rotIndex, blockIds.end());
+        }
+        if(sequenceInverted.find(u.first) != sequenceInverted.end()
+            && sequenceInverted[u.first]) {
+            reverse(blockIds.begin(), blockIds.end());
+        }
+        int ctr = 0;
+        std::map< int32_t, int32_t > blockToStartPoint;
+        std::map< int32_t, std::string > blockIdToSequence;
+        std::map< int32_t, bool > blockIdToStrand;
+
+        for(size_t i = 0; i < sequence.size(); i++) {
+            if(blockExists[i].first) {
+                int currentLen = 0;
+                std::string stringSequence;
+                blockIdToStrand[blockIds[i]] = blockStrand[i].first;
+                blockToStartPoint[blockIds[i]] = ctr;
+                for(size_t j = 0; j < sequence[i].first.size(); j++) {
+                    for(size_t k = 0; k < sequence[i].first[j].second.size(); k++) {
+                        if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x') {
+                            stringSequence += sequence[i].first[j].second[k];
+                        }
+                    }
+                    if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x') {
+                        stringSequence += sequence[i].first[j].first;
+                    }
+                }
+                blockIdToSequence[blockIds[i]] = stringSequence;
+                ctr += stringSequence.length();
+            }
+        }
+        sequenceLengths[u.first] = ctr;
+        if(circularSequences.find(u.first) != circularSequences.end()) {
+            int offset = circularSequences[u.first];
+            for(auto& v: blockToStartPoint) {
+                v.second -= offset;
+                if(v.second < 0) {
+                    v.second += ctr;
+                }
+            }
+        }
+    });
+
+
+
+    std::filesystem::remove("maf_workspace");
+
+    // // sequence name, primary bid, secondary bid -> actual sequence offset
+
+    // int ctr2=0;
+
+    // for(auto u: allNodes) {
+    //     if(u.second->children.size() == 0) {
+    //         sequenceNames.push_back(u.first);
+    //         sequence_t sequence;
+    //         blockExists_t blockExists;
+    //         blockStrand_t blockStrand;
+    //         int rotIndex = 0;
+    //         getSequenceFromReference(sequence, blockExists, blockStrand, u.first, true, &rotIndex);
+
+    //         // List of block IDs to account for rotation and inversion
+    //         std::vector< int > blockIds(sequence.size());
+    //         for(size_t i = 0; i < sequence.size(); i++) {
+    //             blockIds[i] = i;
+    //         }
+    //         if(rotationIndexes.find(u.first) != rotationIndexes.end()) {
+    //             rotate(blockIds.begin(), blockIds.begin() + rotIndex, blockIds.end());
+    //         }
+    //         if(sequenceInverted.find(u.first) != sequenceInverted.end()
+    //             && sequenceInverted[u.first]) {
+    //             reverse(blockIds.begin(), blockIds.end());
+    //         }
+
+    //         int ctr = 0;
+
+    //         for(size_t i = 0; i < sequence.size(); i++) {
+    //             if(blockExists[i].first) {
+    //                 sequenceBlockToStartPoint[std::make_tuple(u.first, blockIds[i], -1)] = ctr;
+    //                 for(size_t j = 0; j < sequence[i].first.size(); j++) {
+    //                     for(size_t k = 0; k < sequence[i].first[j].second.size(); k++) {
+    //                         if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x') {
+    //                             ctr++;
+    //                         }
+    //                         ctr2++;
+    //                     }
+    //                     if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x') {
+    //                         ctr++;
+    //                     }
+    //                     ctr2++;
+    //                 }
+    //             }
+    //         }
+    //         sequenceLengths[u.first] = ctr;
+    //         if(circularSequences.find(u.first) != circularSequences.end()) {
+    //             int offset = circularSequences[u.first];
+    //             for(auto& v: sequenceBlockToStartPoint) {
+    //                 if(std::get<0>(v.first) != u.first) {
+    //                     continue;
+    //                 }
+    //                 v.second -= offset;
+    //                 if(v.second < 0) {
+    //                     v.second += ctr;
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    // std::atomic<int> ctr3 = 0;
+
+    // fout << "##maf version=1\n";
+
+    // for(auto& common: blocksWithSameSequences) {
+    //     fout << "a\n";
+    //     for(auto& b: common.second) {
+    //         tbb::concurrent_unordered_map< std::string, std::pair< std::pair< int, int >, std::pair< std::string, bool > > > sequenceIdToSequence;
+
+    //         int primaryBlockId = b.first;
+    //         int secondaryBlockId = b.second;
+
+    //         tbb::parallel_for_each(sequenceNames, [&](auto u) {
+    //             if(sequenceBlockToStartPoint.find(std::make_tuple(u, primaryBlockId, -1)) == sequenceBlockToStartPoint.end()) {
+    //                 return;
+    //             }
+
+    //             block_t sequence;
+    //             bool blockExists = false, blockStrand = true;
+
+    //             getBlockSequenceFromReference(sequence, blockExists, blockStrand, u, primaryBlockId,
+    //                 secondaryBlockId);
+
+    //             std::string stringSequence;
+    //             for(size_t i = 0; i < sequence.size(); i++) {
+    //                 for(size_t j = 0; j < sequence[i].second.size(); j++) {
+    //                     if(sequence[i].second[j] != '-' && sequence[i].second[j] != 'x') {
+    //                         stringSequence += sequence[i].second[j];
+    //                     } else {
+    //                         stringSequence += '-';
+    //                     }
+    //                 }
+    //                 if(sequence[i].first != '-' && sequence[i].first != 'x') {
+    //                     stringSequence += sequence[i].first;
+    //                 } else {
+    //                     stringSequence += '-';
+    //                 }
+    //             }
+    //             ctr3+=stringSequence.length();
+    //             sequenceIdToSequence[u] = std::make_pair(std::make_pair(primaryBlockId, secondaryBlockId), std::make_pair(stringSequence, blockStrand));
+    //         });
+
+    //         for(auto u: sequenceIdToSequence) {
+    //             fout << "s\t" << u.first << "\t"<< sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)] <<"\t" << stripGaps(u.second.second.first).length() << "\t" << (u.second.second.second? "+\t":"-\t") << sequenceLengths[u.first] << "\t" << u.second.second.first << "\n";
+    //         }
+    //     }
+    //     fout << "\n";
+    // }
 }
 
 void PangenomeMAT::Tree::printVCFParallel(std::string reference, std::ofstream& fout) {
@@ -3315,7 +3522,7 @@ void PangenomeMAT::Tree::getBlockSequenceFromReference(block_t& sequence, bool& 
     }
 
     for(size_t i = 0; i < blocks.size(); i++) {
-        
+
         int32_t pBlockId = ((int32_t)blocks[i].primaryBlockId);
         int32_t sBlockId = ((int32_t)blocks[i].secondaryBlockId);
 
@@ -3453,54 +3660,295 @@ void PangenomeMAT::Tree::getBlockSequenceFromReference(block_t& sequence, bool& 
 }
 
 void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
-    std::vector< std::string > substitutions;
+    // std::vector< std::string > substitutions;
 
-    std::string rootSequence = getStringFromReference(root->identifier);
+    // std::string rootSequence = getStringFromReference(root->identifier);
+
+    // tbb::concurrent_unordered_map< std::string,
+    //     std::vector< std::tuple< char, size_t, char, char > > > nodeMutations;
+
+    // nodeMutations[root->identifier];
+
+    // tbb::parallel_for_each(allNodes, [&](auto n) {
+
+    //     if(n.first == root->identifier) {
+    //         return;
+    //     }
+
+    //     // creating an entry for each node
+    //     nodeMutations[n.first];
+
+    //     // sequence for current node
+    //     std::string currentSequence = getStringFromReference(n.first);
+    //     size_t ptr = 0;
+    //     assert(rootSequence.length() == currentSequence.length());
+
+    //     for(size_t i = 0; i < rootSequence.length(); i++) {
+    //         if(rootSequence[i] == currentSequence[i]) {
+    //             if(rootSequence[i] != '-') {
+    //                 ptr++;
+    //             }
+    //             continue;
+    //         } else if(rootSequence[i] == '-') {
+    //             // Insertion
+    //             nodeMutations[n.first].push_back(
+    //                 std::make_tuple('I', ptr, '-', currentSequence[i]));
+    //         } else if(currentSequence[i] == '-') {
+    //             // Deletion
+    //             nodeMutations[n.first].push_back( std::make_tuple('D', ptr, rootSequence[i], '-'));
+    //             ptr++;
+    //         } else {
+    //             // Substitution
+    //             nodeMutations[n.first].push_back(
+    //                 std::make_tuple('S', ptr, rootSequence[i], currentSequence[i]) );
+    //             ptr++;
+    //         }
+    //     }
+    // });
+
+    // for(auto& u: nodeMutations) {
+
+    //     // print all substitutions first
+    //     fout << "Substitutions:\t";
+    //     fout << u.first << '\t';
+    //     for(auto v: u.second) {
+    //         if(std::get<0>(v) == 'S') {
+    //             fout << " > " << std::get<2>(v) << std::get<1>(v)+1 << std::get<3>(v);
+    //         }
+    //     }
+    //     fout << '\n';
+        
+    //     fout << "Insertions:\t";
+    //     fout << u.first << '\t';
+    //     // print insertions
+    //     for(auto v: u.second) {
+    //         if(std::get<0>(v) == 'I') {
+    //             fout << " > " << std::get<1>(v)+1 << std::get<3>(v);
+    //         }
+    //     }
+    //     fout << '\n';
+
+    //     fout << "Deletions:\t";
+    //     fout << u.first << '\t';
+    //     // print deletions
+    //     for(auto v: u.second) {
+    //         if(std::get<0>(v) == 'D') {
+    //             fout << " > " << std::get<1>(v)+1 << std::get<2>(v);
+    //         }
+    //     }
+    //     fout << '\n';
+    // }
+
+
+    sequence_t rootSequence;
+    blockExists_t rootBlockExists;
+    blockStrand_t rootBlockStrand;
+    getSequenceFromReference(rootSequence, rootBlockExists, rootBlockStrand, root->identifier);
+
+    tbb::concurrent_map< std::tuple< int, int, int >, size_t > panMATCoordinateToGlobal;
+    tbb::concurrent_map< std::tuple< int, int, int >, char > rootCurrentCharacter;
 
     tbb::concurrent_unordered_map< std::string,
         std::vector< std::tuple< char, size_t, char, char > > > nodeMutations;
 
+    tbb::concurrent_unordered_map< size_t, bool > rootPresentBlocks;
+
+    // std::set< std::tuple< int64_t, int64_t, int64_t > > validPositions;
+    size_t rootCtr = 0;
+    for(size_t i = 0; i < rootSequence.size(); i++) {
+        if(rootBlockExists[i].first) {
+            rootPresentBlocks[i] = true;
+            if(rootBlockStrand[i].first) {
+                for(size_t j = 0; j < rootSequence[i].first.size(); j++) {
+                    for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
+                        panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
+                        if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
+                            rootCurrentCharacter[std::make_tuple(i,j,k)] = rootSequence[i].first[j].second[k];
+                            rootCtr++;
+                        } else {
+                            rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                        }
+                    }
+                    panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
+                    if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
+                        rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
+                        rootCtr++;
+                    } else {
+                        rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    }
+                }
+            } else {
+                for(size_t j = rootSequence[i].first.size() - 1; j + 1 > 0; j--) {
+                    panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
+                    if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
+                        rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
+                        rootCtr++;
+                    } else {
+                        rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    }
+                    for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
+                        panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
+                        if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
+                            rootCurrentCharacter[std::make_tuple(i,j,k)] = rootSequence[i].first[j].second[k];
+                            rootCtr++;
+                        } else {
+                            rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                        }
+                    }
+                }
+            }
+        } else {
+            rootPresentBlocks[i] = false;
+            if(rootBlockStrand[i].first) {
+                for(size_t j = 0; j < rootSequence[i].first.size(); j++) {
+                    for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
+                        panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
+                        rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                    }
+                    panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
+                    rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                }
+            } else {
+                for(size_t j = rootSequence[i].first.size() - 1; j + 1 > 0; j--) {
+                    panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
+                    rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
+                        panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
+                        rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                    }
+                }
+            }
+        }
+    }
+
     nodeMutations[root->identifier];
 
-    tbb::parallel_for_each(allNodes, [&](auto n) {
-
-        if(n.first == root->identifier) {
+    tbb::parallel_for_each(allNodes, [&](auto u) {
+        if(u.first == root->identifier) {
             return;
         }
 
-        // creating an entry for each node
-        nodeMutations[n.first];
+        tbb::concurrent_map< std::tuple< int, int, int >, char > currentCharacter = rootCurrentCharacter;
+        tbb::concurrent_unordered_map< size_t, bool > presentBlocks = rootPresentBlocks;
 
-        // sequence for current node
-        std::string currentSequence = getStringFromReference(n.first);
-        size_t ptr = 0;
-        assert(rootSequence.length() == currentSequence.length());
+        nodeMutations[u.first];
 
-        for(size_t i = 0; i < rootSequence.length(); i++) {
-            if(rootSequence[i] == currentSequence[i]) {
-                if(rootSequence[i] != '-') {
-                    ptr++;
+        Node* it = u.second;
+        std::vector< PangenomeMAT::Node* > path;
+
+        while(it != root) {
+            path.push_back(it);
+            it = it->parent;
+        }
+
+        std::vector< std::pair< size_t, std::tuple< char, size_t, char, char > > > currentNodeMutations;
+
+        for(auto node = path.rbegin(); node != path.rend(); node++) {
+            for(auto mutation: (*node)->blockMutation) {
+                int32_t primaryBlockId = mutation.primaryBlockId;
+                if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
+                    continue;
                 }
-                continue;
-            } else if(rootSequence[i] == '-') {
-                // Insertion
-                nodeMutations[n.first].push_back(
-                    std::make_tuple('I', ptr, '-', currentSequence[i]));
-            } else if(currentSequence[i] == '-') {
-                // Deletion
-                nodeMutations[n.first].push_back( std::make_tuple('D', ptr, rootSequence[i], '-'));
-                ptr++;
-            } else {
-                // Substitution
-                nodeMutations[n.first].push_back(
-                    std::make_tuple('S', ptr, rootSequence[i], currentSequence[i]) );
-                ptr++;
+
+                bool type = mutation.blockMutInfo;
+                bool inversion = mutation.inversion;
+                if(type == 1) {
+                    // insertion
+                    presentBlocks[primaryBlockId] = true;
+                    if(inversion) {
+                        std::cout << "INVERTED BLOCK FOUND" << std::endl;
+                    }
+                } else {
+                    if(inversion) {
+                        // This means that this is not a deletion, but instead an inversion
+                        std::cout << "INVERSION FOUND" << std::endl;
+                    } else {
+                        // Actually a deletion
+                        presentBlocks[primaryBlockId] = false;
+                    }
+                }
+            }
+
+            for(size_t i = 0; i < (*node)->nucMutation.size(); i++) {
+                int32_t primaryBlockId = (*node)->nucMutation[i].primaryBlockId;
+                if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
+                    continue;
+                }
+
+                int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
+                int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
+                uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
+                char newVal = '-';
+
+                if(type < 3) {
+                    int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+
+                    if(type == PangenomeMAT::NucMutationType::NS) {
+                        if(nucGapPosition != -1) {
+                            for(int j = 0; j < len; j++) {
+                                newVal = PangenomeMAT::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                if(presentBlocks[primaryBlockId]) {
+                                    char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)];
+                                    if(oldVal == '-' || oldVal == 'x') {
+                                        // std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
+                                        continue;
+                                    }
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal)));
+                                    // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal));
+                                }
+                                currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)] = newVal;
+                            }
+                        } else {
+                            for(int j = 0; j < len; j++) {
+                                newVal = PangenomeMAT::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                if(presentBlocks[primaryBlockId]) {
+                                    char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition + j, -1)];
+                                    if(oldVal == '-' || oldVal == 'x') {
+                                        // std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
+                                        continue;
+                                    }
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal)));
+                                    // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal));
+                                }
+                                currentCharacter[std::make_tuple(primaryBlockId, nucPosition + j, -1)] = newVal;
+                            }
+                        }
+                    }
+                } else if(type == PangenomeMAT::NucMutationType::NSNPS) {
+                    newVal = PangenomeMAT::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> 20) & 0xF);
+                    if(nucGapPosition != -1) {
+                        if(presentBlocks[primaryBlockId]) {
+                            char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)];
+                            if(oldVal == '-' || oldVal == 'x') {
+                                std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
+                            }
+                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal)));
+                            // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal));
+                        }
+                        currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)] = newVal;
+                    } else {
+                        if(presentBlocks[primaryBlockId]) {
+                            char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, -1)];
+                            if(oldVal == '-' || oldVal == 'x') {
+                                std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
+                            }
+                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal)));
+                            // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal));
+                        }
+                        currentCharacter[std::make_tuple(primaryBlockId, nucPosition, -1)] = newVal;
+                    }
+                }
+            }
+        }
+
+        for(auto mut: currentNodeMutations) {
+            if(presentBlocks.find(mut.first) != presentBlocks.end()) {
+                nodeMutations[u.first].push_back(mut.second);
             }
         }
     });
 
     for(auto& u: nodeMutations) {
-
         // print all substitutions first
         fout << "Substitutions:\t";
         fout << u.first << '\t';
@@ -3531,23 +3979,6 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
         }
         fout << '\n';
     }
-
-
-    // std::set< std::tuple< int64_t, int64_t, int64_t > > validPositions;
-    // for(size_t i = 0; i < rootSequence.size(); i++) {
-    //     if(rootBlockExists[i].first) {
-    //         for(size_t j = 0; j < rootSequence[i].first.size(); j++) {
-    //             for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
-    //                 if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
-    //                     validPositions.insert(std::make_tuple( i, j, k ));
-    //                 }
-    //             }
-    //             if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
-    //                 validPositions.insert(std::make_tuple( i, j, -1 ));
-    //             }
-    //         }
-    //     }
-    // }
 
     // std::vector< PangenomeMAT::Node* > path;
     // Node* it = referenceNode;
@@ -4798,6 +5229,7 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
             fout << "\t*\n";
         }
     } else {
+        size_t node_len = 32;
         size_t autoIncrId = 0;
         std::map< std::pair< std::tuple< int, size_t, size_t >, std::string >,
             std::pair< size_t, bool > > allSequenceNodes;
@@ -4831,7 +5263,7 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
                                     currentStart = std::make_tuple(i,j,k);
                                 }
                                 currentSequence += sequence[i].first[j].second[k];
-                                if(currentSequence.length() == 32) {
+                                if(currentSequence.length() == node_len) {
                                     currentSequence = stripGaps(currentSequence);
                                     if(currentSequence.length()) {
                                         allSequenceNodeMutex.lock();
@@ -4857,7 +5289,7 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
                                 currentStart = std::make_tuple(i,j,-1);
                             }
                             currentSequence += sequence[i].first[j].first;
-                            if(currentSequence.length() == 32) {
+                            if(currentSequence.length() == node_len) {
                                 currentSequence = stripGaps(currentSequence);
                                 if(currentSequence.length()) {
                                     allSequenceNodeMutex.lock();
@@ -4905,7 +5337,7 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
                         for(size_t j = sequence[i].first.size()-1; j + 1 > 0; j--) {
                             currentSequence += sequence[i].first[j].first;
                             currentStart = std::make_tuple(-1*(int)i-1,j,-1);
-                            if(currentSequence.length() == 32) {
+                            if(currentSequence.length() == node_len) {
                                 currentSequence = stripGaps(currentSequence);
                                 if(currentSequence.length()) {
                                     // Since the GFA stores the strand parameter, the reverse
@@ -4931,7 +5363,7 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
                             for(size_t k = sequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
                                 currentSequence += sequence[i].first[j].second[k];
                                 currentStart = std::make_tuple(-1*(int)i,j,k);
-                                if(currentSequence.length() == 32) {
+                                if(currentSequence.length() == node_len) {
                                     currentSequence = stripGaps(currentSequence);
                                     if(currentSequence.length()) {
                                         // Since the GFA stores the strand parameter, the reverse
