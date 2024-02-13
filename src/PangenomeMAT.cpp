@@ -3740,6 +3740,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
     // }
 
 
+    // Get reference sequence
     sequence_t rootSequence;
     blockExists_t rootBlockExists;
     blockStrand_t rootBlockStrand;
@@ -3753,7 +3754,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
 
     tbb::concurrent_unordered_map< size_t, bool > rootPresentBlocks;
 
-    // std::set< std::tuple< int64_t, int64_t, int64_t > > validPositions;
+    // convert PanMAT coordinate to global reference coordinate
     size_t rootCtr = 0;
     for(size_t i = 0; i < rootSequence.size(); i++) {
         if(rootBlockExists[i].first) {
@@ -3823,6 +3824,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
 
     nodeMutations[root->identifier];
 
+    // Compute mutations for each of the other sequences
     tbb::parallel_for_each(allNodes, [&](auto u) {
         if(u.first == root->identifier) {
             return;
