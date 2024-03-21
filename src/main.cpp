@@ -1,7 +1,8 @@
 #include <iostream>
 #include <chrono>
 #include <filesystem>
-#include <tbb/parallel_for_each.h>
+#include <oneapi/tbb/global_control.h>
+#include <oneapi/tbb/parallel_for_each.h>
 #include <boost/program_options.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -241,7 +242,6 @@ search for")
 }
 
 void parseAndExecute(int argc, char* argv[]) {
-
     // Setup boost::program_options
     setupOptionDescriptions();
 
@@ -1313,7 +1313,7 @@ void debuggingCode(){
 }
 
 int main(int argc, char* argv[]) {
-    tbb::task_scheduler_init init(2);
     // debuggingCode();
+    oneapi::tbb::global_control(tbb::global_control::max_allowed_parallelism, 2);
     parseAndExecute(argc, argv);
 }

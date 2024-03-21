@@ -7,10 +7,9 @@
 #include <utility>
 #include <limits>
 #include <chrono>
-#include <tbb/task_scheduler_init.h>
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_sort.h>
-#include <tbb/concurrent_vector.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_sort.h>
+#include <oneapi/tbb/concurrent_vector.h>
 
 std::pair <int,int> origin (-1,-1);
 std::pair <int,int> base (0,0);

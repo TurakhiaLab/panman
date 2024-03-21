@@ -1,17 +1,16 @@
-#define TBB_PREVIEW_CONCURRENT_ORDERED_CONTAINERS 1
-
+#define TBB_PREVIEW
 #include <iostream>
 #include <string>
 #include <vector>
 #include <stack>
-#include <tbb/parallel_reduce.h>
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_for_each.h>
-#include <tbb/concurrent_vector.h>
-#include <tbb/parallel_invoke.h>
-#include <tbb/concurrent_unordered_map.h>
-#include <tbb/concurrent_unordered_set.h>
-#include <tbb/concurrent_map.h>
+#include <oneapi/tbb/parallel_reduce.h>
+#include <oneapi/tbb/parallel_for.h>
+#include <oneapi/tbb/parallel_for_each.h>
+#include <oneapi/tbb/concurrent_vector.h>
+#include <oneapi/tbb/parallel_invoke.h>
+#include <oneapi/tbb/concurrent_unordered_map.h>
+#include <oneapi/tbb/concurrent_unordered_set.h>
+#include <oneapi/tbb/concurrent_map.h>
 #include <ctime>
 #include <iomanip>
 #include <mutex>
