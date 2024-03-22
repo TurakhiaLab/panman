@@ -64,7 +64,7 @@ message(" ✔️ boost ${Boost_VERSION}")
 
 
 # tbb
-find_package(TBB 2021)
+find_package(TBB 2021.1)
 if(NOT ${TBB_FOUND})
 	message(" ↯ (using fetched tbb)")
 	FetchContent_Declare(
@@ -73,7 +73,6 @@ if(NOT ${TBB_FOUND})
 		GIT_TAG 8b829acc65569019edb896c5150d427f288e8aba # v2021.11.0
 		GIT_SHALLOW FALSE
 	)
-#	cmake_policy(SET CMP0063 NEW) # suppress tbb warning
 	FetchContent_MakeAvailable(TBB)
 	set(TBB_VERSION 2021.11.0)
 endif()
