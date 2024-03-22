@@ -3,6 +3,7 @@
 #include "../PangenomeMAT.hpp"
 #include "../statsgenotype.hpp"
 #include <stack>
+#include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -14,7 +15,7 @@
 #include <random>
 #include <algorithm>
 
-
+namespace fs = boost::filesystem;
 
 
 using namespace PangenomeMAT;
@@ -445,16 +446,18 @@ void makeFasta(Tree* T, string nodeName, string path) {
     }
 }
 
-void simReads(string refFastaPath, string path, string nodeName) {
-    if(!filesystem::exists(path + nodeName + ".1kreads.fastq_R1.fastq")) {
-        string cmd = "iss generate --model NovaSeq --genomes " + refFastaPath + " -n 2000 --output " + path + nodeName + ".1kreads.fastq --cpus 4";
+void simReads(string refFastaPath, string path, size_t numReads) {
+    string numReadsString = to_string(numReads);
+    if(!filesystem::exists(path + "_R1.fastq")) {
+        string cmd = "iss generate --model NovaSeq --genomes " + refFastaPath + " -n " + numReadsString + " --output " + path + " --cpus 4";
+        cout << cmd << endl;
         system(cmd.c_str());
     }
 }
 
 void mapReads(string samPath, string refFastaPath, string nodeName) {
     if(!filesystem::exists(samPath)) {
-        string cmd = "minimap2 -ax sr " + refFastaPath + " ../src/test/statsgenotype/fastq_2k/" + nodeName + ".1kreads.fastq_R* --heap-sort=yes | samtools sort -O sam > " + samPath;
+        string cmd = "minimap2 -ax sr " + refFastaPath + " ../src/test/statsgenotype/fastq_2k/" + nodeName + "*fastq_R* --heap-sort=yes | samtools sort -O sam > " + samPath;
         system(cmd.c_str());
     }
 }
@@ -558,194 +561,6 @@ size_t get_distance_branch(Tree* T, Node* node_1, Node* node_2) {
     return distance;
 }
 
-BOOST_AUTO_TEST_CASE(genotypeUncertainties) {
-    using namespace std;
-
-    std::ifstream is("../sars2k.pmat");
-    boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
-    inPMATBuffer.push(boost::iostreams::gzip_decompressor());
-    inPMATBuffer.push(is);
-    std::istream inputStream(&inPMATBuffer);
-    Tree *T = new Tree(inputStream);
-
-    vector< pair<string, string> > samples = get_pruned_samples("../src/test/statsgenotype/pmat/");
-    for (const auto& sample : samples) {
-        // get pruned sample name, tree path, and fastq files
-        string pruned_sample = sample.first;
-        string pruned_tree_path = sample.second;
-        string pruned_sample_fastq_1 = "../src/test/statsgenotype/fastq_2k/" + pruned_sample + ".1kreads.fastq_R1.fastq";
-        string pruned_sample_fastq_2 = "../src/test/statsgenotype/fastq_2k/" + pruned_sample + ".1kreads.fastq_R2.fastq";
-        cout << pruned_sample << "\t" << pruned_tree_path << "\t" << pruned_sample_fastq_1 << pruned_sample_fastq_2 << endl;
-
-        // read pruned tree
-
-        ifstream ptis(pruned_tree_path);
-        boost::iostreams::filtering_streambuf< boost::iostreams::input> inptPMATBuffer;
-        inptPMATBuffer.push(boost::iostreams::gzip_decompressor());
-        inptPMATBuffer.push(ptis);
-        istream ptinputStream(&inptPMATBuffer);
-        Tree *pT = new Tree(ptinputStream);
-        ptis.close();
-
-        // index pruned tree
-        size_t k = 13;
-        size_t s = 7;
-        string pruned_tree_index_path = "../src/test/statsgenotype/indices/" + pruned_sample + ".index.out";
-        if (!filesystem::exists(pruned_tree_index_path)) {
-            ofstream ptos(pruned_tree_index_path);
-            indexSyncmers(pT, ptos, k, s);
-            ptos.close();
-        }
-        
-        
-        struct seedIndex index;
-        std::ifstream indexFile(pruned_tree_index_path);
-        PangenomeMAT::loadIndex(pT->root, indexFile, index);
-
-        // place index and print SAM
-
-        // PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s);
-        // break;
-
-        makeFasta(T, pruned_sample, "../src/test/statsgenotype/fasta/" + pruned_sample + ".fa");
-        simReads("../src/test/statsgenotype/fasta/" + pruned_sample + ".fa", "../src/test/statsgenotype/fastq_2k/", pruned_sample);
-
-        std::string best_match;
-        PangenomeMAT::placeSample(pT, pruned_sample_fastq_1, index, k, s, best_match);
-        
-        cout << pruned_sample << "\t" << T->allNodes[pruned_sample]->parent->identifier << "\t" << best_match << endl;
-        
-        const std::string ref_node_seq = T->getStringFromReference(best_match, false);
-        std::string reference_node_fa_path = "../src/test/statsgenotype/fasta/" + best_match + ".fa";
-        makeFasta(T, best_match, reference_node_fa_path);
-
-
-        
-
-        std::string sam_path = "../src/test/statsgenotype/sam/" + pruned_sample + "_" + best_match + ".sam";
-        mapReads(sam_path, reference_node_fa_path, pruned_sample);
-
-        std::string plu_path = "../src/test/statsgenotype/pileup/" + pruned_sample + "_" + best_match + ".pileup";
-        pileup(plu_path, reference_node_fa_path, sam_path);
-        
-        std::ifstream fin(plu_path);
-        std::ifstream min("../mutation_matrices/sars_4k.mutmat");
-        
-        pT->printSamplePlacementVCF(fin, &min);
-
-        /*
-        cout << endl;
-        cout << "----- Nodes: " << best_match << "\t" << T->allNodes[pruned_sample]->parent->identifier << endl;
-        cout << "----- Level: " << T->allNodes[best_match]->level << "\t" << T->allNodes[pruned_sample]->parent->level << endl;
-        auto dist = get_distance(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent);
-        cout << "----- Dist:  " << dist << endl;
-        cout << endl;
-        cout << "@"
-             << pruned_sample << "\t"
-             << T->allNodes[pruned_sample]->parent->identifier << "\t"
-             << best_match << "\t"
-             << get_distance(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent) << "\t"
-             << get_distance_branch(T, T->allNodes[best_match], T->allNodes[pruned_sample]->parent) << endl;
-        */
-        break;
-    }
-
-    // cout << "----------------" << endl;
-    // ifstream testplu("../src/test/statsgenotype/pileup/test/test.pileup");
-    // ifstream min("../mutation_matrices/sars_4k.mutmat");
-    // T->printSamplePlacementVCF(testplu, &min);
-    // min.clear();
-    // min.close();
-    // cout << "----------------" << endl;
-    // ifstream OM878109_node_814_plu("../src/test/statsgenotype/OM878109/OM878109.1_node_814.pileup");
-    // min.open("../mutation_matrices/sars_4k.mutmat");
-    // T->printSamplePlacementVCF(OM878109_node_814_plu, &min);
-    // min.clear();
-    // min.close();
-    // testplu.close();
-    // OM878109_node_814_plu.close();
-    // cout << "--------------" << endl;
-    // min.open("../mutation_matrices/sars_4k.mutmat");
-    // ifstream toParent("../src/test/statsgenotype/OP052055_node_813.pileup");
-    // cout << "ref=node_813" << endl;
-    // T->printSamplePlacementVCF(toParent, &min);
-    // min.clear();
-    // min.close();
-    // toParent.close();
-    // cout << "--------------" << endl;
-    // min.open("../mutation_matrices/sars_4k.mutmat");
-    // ifstream toPlacement("../src/test/statsgenotype/OP052055_node_28.pileup");
-    // cout << "ref=node_28" << endl;
-    // T->printSamplePlacementVCF(toPlacement, &min);
-    // min.clear();
-    // min.close();
-    // toPlacement.close();
-
-    string seq1 = T->getStringFromReference("OP052055.1").substr(0, 50);
-    string seq2 = T->getStringFromReference("node_813").substr(0, 50);
-    cout << seq1 << endl;
-    cout << seq2 << endl;
-
-    /*
-    size_t count = 0;
-    vector<string> sampleNames;
-    int totalDifference = 0;
-    for (const auto& sample : samples) {
-        sampleNames.push_back(sample.first);
-    }
-    for (const auto& node : T->allNodes) {
-        if (find(sampleNames.begin(), sampleNames.end(), node.first) == sampleNames.end()) {
-            continue;
-        }
-        if (node.second->nucMutation.size() == 0) {
-            continue;
-        }
-        cout << node.first << endl;
-        string parentIdentifier = node.second->parent->identifier;
-        string nodeFastaPath = "../src/test/statsgenotype/fasta/" + node.first + ".fa";
-        string parentFastaPath = "../src/test/statsgenotype/fasta/" + parentIdentifier + ".fa";
-        string samPath = "../src/test/statsgenotype/sam/" + node.first + "_" + parentIdentifier + ".sam";
-        string pluPath = "../src/test/statsgenotype/pileup/" + node.first + "_" + parentIdentifier + ".pileup";
-        makeFasta(T, node.first, nodeFastaPath);
-        makeFasta(T, node.second->parent->identifier, parentFastaPath);
-        simReads(nodeFastaPath, "../src/test/statsgenotype/fastq_2k/", node.first);
-        mapReads(samPath, parentFastaPath, node.first);
-        pileup(pluPath, parentFastaPath, samPath);
-        ifstream pluIn(pluPath);
-        min.open("../mutation_matrices/sars_4k.mutmat");
-        int observed = T->printSamplePlacementVCF(pluIn, &min);
-        auto edges = getEdgeCoor(T, node.first);
-        int masked = maskedSize(T, node.second->nucMutation, edges);
-        cout << "end of vcf" << endl;
-        cout << edges.first << "\t" << edges.second << endl;
-        cout << "observed: " << observed << "\t" << "afterMask: " << masked << endl;
-        totalDifference += std::max(observed - masked, masked - observed);
-        min.clear();
-        min.close();
-        for (const auto& mut : node.second->nucMutation) {
-            string variantSeq = "";
-            for (auto i = 0; i < (mut.mutInfo >> 4); i++) {
-                char nuc = getNucleotideFromCode((mut.nucs >> (20 - i * 4)) & 15);
-                variantSeq  += nuc;
-            }
-            cout << mut.nucPosition << "\t"
-                 << T->getGlobalCoordinate(mut.primaryBlockId, mut.secondaryBlockId, mut.nucPosition, mut.nucGapPosition) << "\t"
-                 << (mut.mutInfo & 15) << "\t" << (mut.mutInfo >> 4) << "\t"
-                 << mut.primaryBlockId << "\t" << mut.secondaryBlockId << "\t" << variantSeq << endl;;
-        }
-        cout << "----------------------------------------------------------------------------------" << endl;
-        // if (count == 20) {
-        //     break;
-        // }
-        // count++;
-    }
-    cout << "total difference: " << totalDifference << endl;
-    */
-    is.close();
-}
-
-
-
 
 
 char getRandomChar(const std::vector<char>& charList) {
@@ -817,15 +632,15 @@ char subNuc(char ref, const statsgenotype::mutationMatrices& mutmat) {
 void genMut2(
     const string& seq,  const statsgenotype::mutationMatrices& mutmat,
     const string& prefix, size_t beg, size_t end, size_t num, size_t len,
-    vector<int> vtp
+    vector<int> vtp, const string& outDir
 ){
-    if(filesystem::exists(("../src/test/statsgenotype/validation/muts/" + prefix + ".fa"))) {
+    if(filesystem::exists((outDir + prefix + ".fa"))) {
         return;
     }
 
     vector<char> bases = {'A', 'C', 'G', 'T'};
-    ofstream faos("../src/test/statsgenotype/validation/muts/" + prefix + ".fa");
-    ofstream vros("../src/test/statsgenotype/validation/muts/" + prefix + ".rf");
+    ofstream faos(outDir + prefix + ".fa");
+    ofstream vros(outDir + prefix + ".rf");
 
     string nseq =  seq;
     vector< tuple<int, int, int> > muts;
@@ -1150,15 +965,14 @@ struct TestStats {
 
 TestStats runTest(
     Tree* T, const string& refSeq, string mutPrefix, string refPath, size_t coverage,
-    map<size_t, vector<int> >& byBaseCoverage
+    string workingDir, map<size_t, vector<int> >& byBaseCoverage
 ) {
-    string validationDirPath = "../src/test/statsgenotype/validation/";
+    // workingDir = "../src/test/statsgenotype/validation/";
     
     // make reads
     string numReads = to_string(200 * coverage);
-    string readsCmd = "iss generate --model NovaSeq --genomes " +
-                      validationDirPath + "muts/" + mutPrefix + ".fa" +
-                      " -n " + numReads + " --output ../src/test/statsgenotype/validation/reads/" +
+    string readsCmd = "iss generate --model NovaSeq --genomes ../src/test/statsgenotype/validation/muts/" + mutPrefix +
+                      ".fa -n " + numReads + " --output ../src/test/statsgenotype/validation/reads/" +
                       mutPrefix + " --cpus 4";
     //cout << readsCmd << endl;
     if (!filesystem::exists(("../src/test/statsgenotype/validation/reads/" + mutPrefix + "_R1.fastq"))) {
@@ -1168,26 +982,27 @@ TestStats runTest(
     // map reads
     string mapCmd = "minimap2 -ax sr " + refPath + " ../src/test/statsgenotype/validation/reads/" +
                     mutPrefix + "_R*.fastq --heap-sort=yes | samtools sort -O sam > " +
-                    "../src/test/statsgenotype/validation/sam/" + mutPrefix + ".sam";
+                    workingDir + "sam/" + mutPrefix + ".sam";
     // string mapCmd = "bwa mem -t 4 " + refPath + " ../src/test/statsgenotype/validation/reads/" +
     //                 mutPrefix + "_R*.fastq | samtools sort -O sam > " +
     //                 "../src/test/statsgenotype/validation/sam/" + mutPrefix + ".sam";
     // cout << mapCmd << endl;
-    if (!filesystem::exists(("../src/test/statsgenotype/validation/sam/" + mutPrefix + ".sam"))) {
+    if (!filesystem::exists((workingDir + "sam/" + mutPrefix + ".sam"))) {
         system(mapCmd.c_str());
     }
 
     // pile up
-    string pluCmd = "samtools mpileup ../src/test/statsgenotype/validation/sam/"  + mutPrefix + ".sam " +
-                    "-f " + refPath + " -A > ../src/test/statsgenotype/validation/pileup/" + mutPrefix + ".pileup";
+    string pluCmd = "samtools mpileup " + workingDir+ "sam/"  + mutPrefix + ".sam " +
+                    "-f " + refPath + " > " + workingDir + "pileup/" + mutPrefix + ".pileup";
     //cout << pluCmd << endl;
-    if (!filesystem::exists(("../src/test/statsgenotype/validation/pileup/" + mutPrefix + ".pileup"))) {
+    if (!filesystem::exists((workingDir + "pileup/" + mutPrefix + ".pileup"))) {
         system(pluCmd.c_str());
     }
     
     // vcf
-    if (!filesystem::exists(("../src/test/statsgenotype/validation/vcf/" + mutPrefix + ".vcf"))) {
-        ifstream fin(("../src/test/statsgenotype/validation/pileup/" + mutPrefix + ".pileup"));
+    if (!filesystem::exists((workingDir + "vcf/" + mutPrefix + ".vcf"))) {
+        ifstream fin((workingDir + "pileup/" + mutPrefix + ".pileup"));
+        // ifstream mmin("../mutation_matrices/empty.mutmat");
         ifstream mmin("../mutation_matrices/sars_4k.mutmat");
 
         streambuf* originalCoutBuffer = std::cout.rdbuf();
@@ -1200,7 +1015,7 @@ TestStats runTest(
         string capturedVCF = buffer.str();
 
         // save vcf to file
-        ofstream vcfout(("../src/test/statsgenotype/validation/vcf/" + mutPrefix + ".vcf"));
+        ofstream vcfout((workingDir + "vcf/" + mutPrefix + ".vcf"));
         vcfout << capturedVCF;
 
         fin.close();
@@ -1209,9 +1024,9 @@ TestStats runTest(
     }
 
     // compare
-    ifstream simIn(("../src/test/statsgenotype/validation/muts/" + mutPrefix + ".rf"));
-    ifstream vcfIn(("../src/test/statsgenotype/validation/vcf/"  + mutPrefix + ".vcf"));
-    ifstream pluIn(("../src/test/statsgenotype/validation/pileup/"  + mutPrefix + ".pileup"));
+    ifstream simIn((workingDir + "muts/" + mutPrefix + ".rf"));
+    ifstream vcfIn((workingDir + "vcf/"  + mutPrefix + ".vcf"));
+    ifstream pluIn((workingDir + "pileup/"  + mutPrefix + ".pileup"));
     map<size_t, pair<string, string> > simVars = parseSim(simIn);
     map<size_t, pair< vector<string>, vector<int> > > vcfVars = parseVcf(vcfIn);
     vector<size_t> depths = parseDepths(pluIn, refSeq.size());
@@ -1258,7 +1073,6 @@ TestStats runTest(
                 truePositive++;
                 byBaseCoverage[depths[pos]][0]++;
             } else {
-                falsePositive++;
                 falseNegative++;
                 byBaseCoverage[depths[pos]][1]++;
                 byBaseCoverage[depths[pos]][3]++;
@@ -1328,6 +1142,21 @@ TestStats runTest(
     return stats;
 }
 
+int distanceToRoot(Tree* T, Node* node) {
+    int distance = 0;
+    while (true) {
+        // cout << node->identifier << "\t";
+        auto edges = getEdgeCoor(T, node->identifier);
+        int masked = maskedSize(T, node->nucMutation, edges);
+        // cout << masked << endl;
+        distance += masked;
+        if (node->parent->identifier == T->root->identifier) {
+            break;
+        }
+        node = node->parent;
+    }
+    return distance;
+}
 
 /*
 Things to test for:
@@ -1339,14 +1168,14 @@ Things to test for:
 
 BOOST_AUTO_TEST_CASE(validationTesting) {
     using namespace std;
-    std::ifstream is("../sars2k.pmat");
+    std::ifstream is("/home/azhang/rotations/rotation_2/pangenome-mat/sars2k.pmat");
     boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
     inPMATBuffer.push(boost::iostreams::gzip_decompressor());
     inPMATBuffer.push(is);
     std::istream inputStream(&inPMATBuffer);
     Tree *T = new Tree(inputStream);
 
-    std::ifstream mmi("../mutation_matrices/sars_4k.mutmat");
+    std::ifstream mmi("../mutation_matrices/empty.mutmat");
     auto mutmat = statsgenotype::mutationMatrices();
     int idx = 0;
     string line;
@@ -1367,53 +1196,68 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
         idx++;
     }
 
+
+
+    /*
+    vector< pair<string, string> > refsamples = {
+        make_pair("ON824526.1", "20"), make_pair("ON836678.1", "20"), make_pair("ON852975.1", "20"), make_pair("ON875122.1", "20"), make_pair("ON823489.1", "20"),
+        make_pair("ON823489.1", "40"), make_pair("ON870142.1", "40"), make_pair("ON869493.1", "40"), make_pair("ON870165.1", "40"), make_pair("ON870142.1", "40"),
+        make_pair("ON833982.1", "60"), make_pair("ON869964.1", "60"), make_pair("ON811181.1", "60"), make_pair("ON845091.1", "60"), make_pair("ON872856.1", "60"),
+        make_pair("LC603288.1", "80"), make_pair("ON876177.1", "80"), make_pair("OM188340.1", "80"), make_pair("ON831637.1", "80"), make_pair("ON870955.1", "80"),
+        make_pair("ON833626.1", "100"), make_pair("ON872899.1", "100"), make_pair("ON833710.1", "100"), make_pair("ON832661.1", "100"), make_pair("ON833719.1", "100")
+    };
+
+    for (const auto& refsample : refsamples) {
+        string reference = refsample.first;
+        string referencePath = "/home/azhang/rotations/rotation_2/panmap/talk/20ksamples/fasta/" + reference + ".fa";
+        string rootPath = "/home/azhang/rotations/rotation_2/panmap/talk/20kroot.fa";
+        string refSeq = T->getStringFromReference(reference, false);
+        string rootSeq = T->getStringFromReference(T->root->identifier, false);
+        
+        //cout << "20k tree root: " << T->root->identifier << endl;
+        //makeFasta(T, T->root->identifier, "/home/azhang/rotations/rotation_2/panmap/talk/20ksamples/root.fa");
+        filesystem::create_directories("../src/test/statsgenotype/validation/to_root/" + refsample.second + "/" + reference);
+        filesystem::create_directories("../src/test/statsgenotype/validation/to_root/" + refsample.second + "/" + reference + "/pileup");
+        filesystem::create_directories("../src/test/statsgenotype/validation/to_root/" + refsample.second + "/" + reference + "/sam");
+        filesystem::create_directories("../src/test/statsgenotype/validation/to_root/" + refsample.second + "/" + reference + "/vcf");
+        map<size_t, vector<int> > byBaseCoverageTest;
+        vector<size_t> depths = {1, 5, 10, 15, 20};
+        // for (size_t depth : depths) {
+        //     for (size_t it = 0; it < 10; it++) {
+        //         string prefix = reference + "_prior_20_1_1_" + to_string(depth) + "_" + to_string(it);
+        //         genMut2(refSeq, mutmat, prefix, 200, 200, 20, 1, {1});
+        //         auto testStats  = runTest(T, refSeq,  prefix, referencePath, depth, "../src/test/statsgenotype/validation/", byBaseCoverageTest);
+        //         auto testStats2 = runTest(T, rootSeq, prefix, rootPath,      depth, "../src/test/statsgenotype/validation/to_root/" + refsample.second + "/" + reference + "/", byBaseCoverageTest);
+        //     }
+        // }
+        byBaseCoverageTest.clear();
+        for (size_t depth : depths) {
+            for (size_t it = 0; it < 10; it++) {
+                string prefix = reference + "_20_9_6_" + to_string(depth) + "_" + to_string(it);
+                genMut2(refSeq, mutmat, prefix, 200, 200, 20, 9, {2, 4});
+                auto testStats  = runTest(T, refSeq,  prefix, referencePath, depth, "../src/test/statsgenotype/validation/", byBaseCoverageTest);
+                auto testStats2 = runTest(T, rootSeq, prefix, rootPath,      depth, "../src/test/statsgenotype/validation/to_root/" + refsample.second + "/" + reference + "/", byBaseCoverageTest);
+            }
+        }
+    }
+
+    */
+    /*
+    depth of coverage
+    distance from root
+    map to root vs map to reference
+    */
+
+    
+    // SUB only
+    /*
+    {
     string reference = "OM878109.1";
     string referencePath = "../src/test/statsgenotype/validation/OM878109.1.fa";
     string refSeq = T->getStringFromReference(reference, false);
-    makeFasta(T, reference, referencePath);
-
-    cout << T->root->identifier << endl;
-    // makeFasta(T, T->root->identifier, "../src/test/statsgenotype/validation/root.fa");
-
-    map<size_t, vector<int> > byBaseCoverageTest;
-    string testPrefix = "100_9_7_5";
-    genMut2(refSeq, mutmat, testPrefix, 200, 200, 100, 9, {1, 1, 1, 1, 1, 1, 1, 1, 2, 4});
-    auto testStats = runTest(T, refSeq, testPrefix, referencePath, 5, byBaseCoverageTest);
-    cout << testStats.truePositive  << "\t"
-         << testStats.falsePositive << "\t"
-         << testStats.trueNegative  << "\t"
-         << testStats.falseNegative << endl;
-    
-    // for (size_t depth = 1; depth <= 10; depth++) {
-    //     for (size_t it = 0; it < 10; it++) {
-    //         string prefix = "100_9_7_" + to_string(depth) + "_" + to_string(it);
-    //         genMut2(refSeq, mutmat, prefix, 200, 200, 100, 9, {1, 1, 1, 1, 1, 1, 1, 1, 2, 4});
-    //         auto testStats = runTest(T, refSeq, prefix, referencePath, depth, byBaseCoverageTest);
-    //     }
-    // }
-
-    for (size_t depth = 1; depth <= 10; depth++) {
-        for (size_t it = 0; it < 10; it++) {
-            string prefix = "100_1_1_" + to_string(depth) + "_" + to_string(it);
-            genMut2(refSeq, mutmat, prefix, 200, 200, 100, 1, {1});
-            auto testStats = runTest(T, refSeq, prefix, referencePath, depth, byBaseCoverageTest);
-        }
-    }
-
-    for (size_t depth = 1; depth <= 10; depth++) {
-        for (size_t it = 0; it < 10; it++) {
-            string prefix = "100_9_6_" + to_string(depth) + "_" + to_string(it);
-            genMut2(refSeq, mutmat, prefix, 200, 200, 100, 9, {2, 4});
-            auto testStats = runTest(T, refSeq, prefix, referencePath, depth, byBaseCoverageTest);
-        }
-    }
-
-    /*
-
-    // SUB only
-    {
+    // makeFasta(T, reference, referencePath);
     map<size_t, vector<int> > byBaseCoverageSub;
-    for (size_t varLen = 1; varLen <= 15; varLen += 2) {
+    for (size_t varLen = 1; varLen < 2; varLen++) {
         vector< tuple<double, double, double, double, double, double> > byCoverage;
         size_t numIt = 20;
         for (size_t coverage = 1; coverage <= 10; coverage++) {
@@ -1421,7 +1265,7 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
             for (size_t it = 0; it < numIt; it++) {
                 string mutPrefix = "10_" + to_string(varLen) + "_1_" + to_string(coverage) + "_" + to_string(it);
                 genMut(refSeq, mutmat, mutPrefix, 200, 200, 10, varLen, {1});
-                auto curRunStats = runTest(T, refSeq, mutPrefix, referencePath, coverage, byBaseCoverageSub);
+                auto curRunStats = runTest(T, refSeq, mutPrefix, referencePath, coverage, "../src/test/statsgenotype/validation/", byBaseCoverageSub);
                 iterations.push_back(curRunStats);
             }
             
@@ -1459,7 +1303,7 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
         }
         osf.close();
     }
-    
+
     ofstream bcof("../src/test/statsgenotype/validation/statsout/sub_by_coverage.out");
     for (const auto& stats : byBaseCoverageSub) {
         bcof << stats.first << "\t"
@@ -1477,8 +1321,9 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
     }
     bcof.close();
     }
+    */
     
-
+    /*
     // INS only
     {
     map<size_t, vector<int> > byBaseCoverageIns;
@@ -1490,7 +1335,7 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
             for (size_t it = 0; it < numIt; it++) {
                 string mutPrefix = "10_" + to_string(varLen) + "_2_" + to_string(coverage) + "_" + to_string(it);
                 genMut(refSeq, mutmat, mutPrefix, 200, 200, 10, varLen, {2});
-                auto curRunStats = runTest(T, refSeq, mutPrefix, referencePath, coverage, byBaseCoverageIns);
+                auto curRunStats = runTest(T, refSeq, mutPrefix, referencePath, coverage, "../src/test/statsgenotype/validation/", byBaseCoverageIns);
                 //updateBaseCoverageStats(mutPrefix, byBaseCoverageSub);
                 iterations.push_back(curRunStats);
             }
@@ -1559,7 +1404,7 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
             for (size_t it = 0; it < numIt; it++) {
                 string mutPrefix = "10_" + to_string(varLen) + "_4_" + to_string(coverage) + "_" + to_string(it);
                 genMut(refSeq, mutmat, mutPrefix, 200, 200, 10, varLen, {4});
-                auto curRunStats = runTest(T, refSeq, mutPrefix, referencePath, coverage, byBaseCoverageDel);
+                auto curRunStats = runTest(T, refSeq, mutPrefix, referencePath, coverage, "../src/test/statsgenotype/validation/", byBaseCoverageDel);
                 iterations.push_back(curRunStats);
             }
             
@@ -1614,11 +1459,55 @@ BOOST_AUTO_TEST_CASE(validationTesting) {
     }
     bcof.close();
     }
-    
     */
 }
 
+BOOST_AUTO_TEST_CASE(genReadsForTesting) {
+    using namespace std;
+    std::ifstream is("/home/azhang/rotations/rotation_2/pangenome-mat/sars2k.pmat");
+    boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
+    inPMATBuffer.push(boost::iostreams::gzip_decompressor());
+    inPMATBuffer.push(is);
+    std::istream inputStream(&inPMATBuffer);
+    Tree *T = new Tree(inputStream);
 
+    std::ifstream mmi("../mutation_matrices/sars_4k.mutmat");
+    auto mutmat = statsgenotype::mutationMatrices();
+    int idx = 0;
+    string line;
+    while(getline(mmi, line)) {
+        vector<double> probs;
+        vector<string> fields;
+        stringSplit(line, ' ', fields);
+        for (const auto& f : fields) {
+            probs.push_back(stod(f));
+        }
+        if (idx < 4) {
+            mutmat.submat[idx] = move(probs);
+        } else if (idx == 4) {
+            mutmat.insmat = move(probs);
+        } else {
+            mutmat.delmat = move(probs);
+        }
+        idx++;
+    }
+    string reference = "node_3";
+    string refSeq = T->getStringFromReference(reference, false);
+    makeFasta(T, reference, "/home/azhang/rotations/rotation_2/panmap/src/test/data/sim_variants/node_3.fa");
+    for (size_t i = 0; i < 100; i++) {
+        string prefix = "node_3_variant_" + to_string(i);
+        string outDir = "/home/azhang/rotations/rotation_2/panmap/src/test/data/sim_variants/";
+        genMut2(refSeq, mutmat, prefix, 100, 100, 15, 9,
+            {1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 4}, outDir);
+        string faFile = outDir + prefix + ".fa";
+        string rfFile = outDir + prefix + ".rf";
+        fs::rename(fs::path(faFile), fs::path(outDir + "fasta/" + prefix + ".fa"));
+        fs::rename(fs::path(rfFile), fs::path(outDir + "vcftrue/" + prefix + ".rf"));
+        simReads(outDir + "fasta/" + prefix + ".fa", outDir + "reads/" + prefix + "_reads", 2000);
+
+    }
+    
+}
 
 
 // BOOST_AUTO_TEST_CASE(_indexSyncmers) {

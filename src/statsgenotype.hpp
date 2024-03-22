@@ -473,7 +473,6 @@ static void printVCFLine(const statsgenotype::variationSite& site) {
         cout << pl[i] << ",";
     }
     cout << pl[pl.size() - 1] << endl;
-    //cout << pl[pl.size() - 1] << "\t\t" << site.tmp_readbase_string << endl;
 }
 
 }

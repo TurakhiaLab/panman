@@ -6525,7 +6525,7 @@ void PangenomeMAT::Tree::fillMutationMats(statsgenotype::mutationMatrices& mutma
                 size_t insLen = 0;
                 size_t delLen = 0;
                 for (size_t i = 0; i < parentSeq.size(); ++i) {
-                    if (parentSeq[i] == '-' and currentSeq[i] == '-') {
+                    if (parentSeq[i] == '-' && currentSeq[i] == '-') {
                         continue;
                     } else if (parentSeq[i] != '-' && currentSeq[i] == '-') {
                         // deletion
