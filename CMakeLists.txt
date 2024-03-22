@@ -1,20 +1,19 @@
 cmake_minimum_required (VERSION 3.27) 
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
 project(panmat-utils)
 
 include(FetchContent)
-
 
 # zlib
 find_package(ZLIB REQUIRED)
 message(" ✔️ zlib ${ZLIB_VERSION_STRING}")
 
 # protobuf
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 set(ABSL_PROPAGATE_CXX_STD ON)
-find_package(Protobuf QUIET)
+find_package(Protobuf)
 if ("${Protobuf_FOUND}")
 	execute_process(
 		COMMAND ${Protobuf_PROTOC_EXECUTABLE} --version
@@ -33,14 +32,9 @@ if(NOT ${Protobuf_FOUND} OR NOT ${Protobuf_USE_LOCAL})
 		Protobuf
 		GIT_REPOSITORY "https://github.com/protocolbuffers/protobuf.git"
 		GIT_TAG d6511091a0cab1ad13f676a02676ad2a0e5eb9ae # v5.26.0
-		GIT_SHALLOW TRUE
+		GIT_SHALLOW FALSE
 	  )
-	  set(TMP ${CMAKE_EXE_LINKER_FLAGS})
-	  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -w")
-		  FetchContent_MakeAvailable(Protobuf)
-	  set(CMAKE_EXE_LINKER_FLAGS ${TMP})
-	  #FetchContent_GetProperties(Protobuf SOURCE_DIR Protobuf_SOURCE_DIR)
-	  FetchContent_GetProperties(Protobuf INCLUDE_DIR Protobuf_INCLUDE_DIRS)
+	  FetchContent_MakeAvailable(Protobuf)
 	  set(Protobuf_VERSION 26.0)
 endif()
 include_directories(${Protobuf_INCLUDE_DIRS})
@@ -70,43 +64,25 @@ message(" ✔️ boost ${Boost_VERSION}")
 
 
 # tbb
-find_package(TBB COMPONENTS tbbmalloc tbbmalloc_proxy tbb_preview)
-
+find_package(TBB 2021)
 if(NOT ${TBB_FOUND})
 	message(" ↯ (using fetched tbb)")
-	set(TBB_BUILD_SHARED OFF)
-	set(TBB_BUILD_STATIC ON)
-	set(TBB_BUILD_TESTS OFF)
-	set(TBB_TEST OFF)
-	set(TBB_BUILD_TBBMALLOC ON)
 	FetchContent_Declare(
 		TBB
 		GIT_REPOSITORY https://github.com/oneapi-src/oneTBB/
 		GIT_TAG 8b829acc65569019edb896c5150d427f288e8aba # v2021.11.0
-		GIT_SHALLOW TRUE
+		GIT_SHALLOW FALSE
 	)
-	cmake_policy(SET CMP0063 NEW) # suppress tbb warning
+#	cmake_policy(SET CMP0063 NEW) # suppress tbb warning
 	FetchContent_MakeAvailable(TBB)
 	set(TBB_VERSION 2021.11.0)
-	FetchContent_GetProperties(TBB INCLUDE_DIR TBB_INCLUDE_DIRS)
 endif()
-include_directories(${TBB_INCLUDE_DIRS})
+
+include_directories(${TBB_INCLUDE_DIRS} ${TBB_ROOT_DIR}/include)
 
 message(" ✔️ tbb ${TBB_VERSION}")
 
-add_executable(panmat-utils
-	${PROTO_SRCS}
-	${PROTO_HDRS}
-	src/main.cpp
-	src/PangenomeMAT.cpp
-	src/PangenomeMAT.hpp
-)
-add_library(panmat
-	${PROTO_SRCS}
-	${PROTO_HDRS}
-	src/PangenomeMAT.cpp
-	src/PangenomeMAT.hpp
-)
+
 # jsoncpp
 find_package(jsoncpp CONFIG QUIET)
 if (NOT ${jsoncpp_FOUND})
@@ -136,12 +112,33 @@ endif()
 include_directories(${spoa_INCLUDE_DIRS})
 message(" ✔️ spoa ${spoa_VERSION}")
 
+
+# targets
+add_executable(panmat-utils
+	${PROTO_SRCS}
+	${PROTO_HDRS}
+	src/main.cpp
+	src/PangenomeMAT.cpp
+	src/PangenomeMAT.hpp
+)
+add_library(panmat
+	${PROTO_SRCS}
+	${PROTO_HDRS}
+	src/PangenomeMAT.cpp
+	src/PangenomeMAT.hpp
+)
+
+target_compile_features(panmat-utils PUBLIC cxx_std_17)
+set_target_properties(panmat-utils PROPERTIES CXX_EXTENSIONS ON)
+target_compile_features(panmat PUBLIC cxx_std_17)
+set_target_properties(panmat PROPERTIES CXX_EXTENSIONS ON)
+
 target_link_libraries(panmat-utils PUBLIC
 	protobuf::libprotobuf
 	spoa
 	jsoncpp
+	TBB
 	Boost::system Boost::filesystem Boost::program_options Boost::iostreams Boost::date_time
-	TBB::tbb TBB::tbbmalloc TBB::tbbmalloc_proxy
 	z
 )
 set_target_properties(panmat PROPERTIES PUBLIC_HEADER src/PangenomeMAT.hpp)
@@ -151,3 +148,20 @@ install(TARGETS panmat
  	LIBRARY DESTINATION "lib"
  	PUBLIC_HEADER DESTINATION "include"
  )
+
+# Options
+option(protobuf_INSTALL "Install protobuf binaries and files" ON)
+set(protobuf_INSTALL ON)
+set(protobuf_BUILD_TESTS OFF)
+set(protobuf_BUILD_CONFORMANCE OFF)
+set(protobuf_BUILD_EXAMPLES OFF)
+set(protobuf_BUILD_LIBPROTOC OFF)
+set(protobuf_BUILD_SHARED_LIBS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+include_directories(
+  ${protobuf_BINARY_DIR}
+  ${protobuf_SOURCE_DIR}
+  ${protobuf_BINARY_DIR}/src
+  ${protobuf_SOURCE_DIR}/src)
+include(${protobuf_SOURCE_DIR}/cmake/abseil-cpp.cmake)
