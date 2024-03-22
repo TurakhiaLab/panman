@@ -70,7 +70,7 @@ message(" ✔️ boost ${Boost_VERSION}")
 
 
 # tbb
-find_package(TBB COMPONENTS tbbmalloc tbbmalloc_proxy tbb_preview)
+find_package(TBB 2021)
 
 if(NOT ${TBB_FOUND})
 	message(" ↯ (using fetched tbb)")
