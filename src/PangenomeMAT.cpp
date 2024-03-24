@@ -5150,7 +5150,13 @@ void PangenomeMAT::Tree::convertToGFA(std::ofstream& fout) {
             blockExistsGlobal[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
         }
         
-        tbb::concurrent_unordered_set< std::pair< std::pair<int32_t, int32_t>, std::pair<int32_t, int32_t> > > edges;
+        typedef std::pair< std::pair<int32_t, int32_t>, std::pair<int32_t, int32_t> > edge_t;
+        struct edge_hash {
+            std::size_t operator()(const edge_t& k) const {
+                return std::hash<int32_t>()(k.first.first) ^ std::hash<int32_t>()(k.first.second) ^ std::hash<int32_t>()(k.second.first) ^ std::hash<int32_t>()(k.second.second);
+            }
+        };
+        tbb::concurrent_unordered_set<edge_t, edge_hash> edges;
         tbb::concurrent_unordered_map< std::string, std::vector< std::pair<int32_t, int32_t> > > paths;
 
         // get all paths
