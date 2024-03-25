@@ -7,6 +7,8 @@ project(panmat)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(BUILD_TESTING OFF)
+
 include(FetchContent)
 
 # main target
@@ -19,10 +21,16 @@ add_executable(panmat-utils
 find_package(ZLIB REQUIRED)
 message(" ✔︎ found local zlib")
 
-
 # jsoncpp
 find_package(jsoncpp QUIET)
 if (NOT ${jsoncpp_FOUND})
+	set(JSONCPP_WITH_TESTS OFF CACHE INTERNAL "")
+	set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE INTERNAL "")
+	set(JSONCPP_WITH_PKGCONFIG_SUPPORTOFF CACHE INTERNAL "")
+	set(JSONCPP_WITH_STRICT_ISO CACHE INTERNAL "")
+	set(BUILD_STATIC_LIBS ON CACHE INTERNAL "")
+	set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+	set(BUILD_OBJECT_LIBS OFF CACHE INTERNAL "")
 	FetchContent_Declare(
 		jsoncpp
 		GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp
@@ -52,13 +60,12 @@ if (Protobuf_FOUND)
 endif()
 if(NOT Protobuf_USE_LOCAL)
 	set(ABSL_PROPAGATE_CXX_STD ON)
-	set(protobuf_BUILD_TESTS OFF)
-	set(protobuf_BUILD_CONFORMANCE OFF)
-	set(protobuf_BUILD_EXAMPLES OFF)
-	set(protobuf_BUILD_PROTOBUF_BINARIES ON)
-	set(protobuf_BUILD_SHARED_LIBS OFF)
-	set(protobuf_MSVC_STATIC_RUNTIME OFF)
-    FetchContent_Declare(
+	set(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")
+	set(protobuf_BUILD_PROTOBUF_BINARIES ON CACHE INTERNAL "")
+	set(protobuf_BUILD_PROTOC_BINARIES ON CACHE INTERNAL "")
+	set(protobuf_BUILD_LIBPROTOC OFF CACHE INTERNAL "")
+	set(protobuf_BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+	FetchContent_Declare(
         protobuf
         GIT_REPOSITORY https://github.com/protocolbuffers/protobuf
         GIT_TAG d6511091a0cab1ad13f676a02676ad2a0e5eb9ae # Specify the version you need 
@@ -101,7 +108,6 @@ else()
 	message(" ✔︎ found local boost")
 endif()
 
-
 # spoa
 find_package(spoa QUIET)
 if (NOT ${spoa_FOUND})
@@ -120,42 +126,50 @@ else()
 endif()
 
 # tbb
-find_package(TBB 2021.10.0 QUIET)
+find_package(TBB 2021.12.0 QUIET)
 if(NOT ${TBB_FOUND})
-	set(FETCHCONTENT_QUIET FALSE)
-	set(_GLIBCXX_USE_CXX11_ABI FALSE)
 	FetchContent_Declare(
 		TBB
-		GIT_REPOSITORY https://github.com/oneapi-src/oneTBB/
-		GIT_TAG 8b829acc65569019edb896c5150d427f288e8aba # v2021.11.0
+		GIT_REPOSITORY https://github.com/oneapi-src/oneTBB
+		GIT_TAG 8b829acc65569019edb896c5150d427f288e8aba
 		GIT_SHALLOW TRUE
-		OVERRIDE_FIND_PACKAGE TRUE
 	)
+	set(TBB_TEST OFF CACHE INTERNAL "")
+	set(TBB_BENCH OFF CACHE INTERNAL "")
+	set(TBB_BUILD ON CACHE INTERNAL "")
+	set(TBB_FIND_PACKAGE OFF CACHE INTERNAL "")
+	set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
+	set(TBB_EXAMPLES OFF CACHE INTERNAL "")
+	set(TBB_INCLUDE_DIRS ${FETCHCONTENT_BASE_DIR}/tbb-src/include CACHE PATH "" FORCE)
 	FetchContent_MakeAvailable(TBB)
-	find_package(TBB REQUIRED) # just prints version due to override
+	include_directories(${TBB_INCLUDE_DIRS})
+
 	message(" ✔︎ using fetched tbb")
 else()
 	message(" ✔︎ found local tbb")
 endif()
+message($<TARGET_NAME_IF_EXISTS:TBB>)
 
 # targets
 set(DEP_TARGETS
 	Boost::system Boost::filesystem Boost::program_options Boost::iostreams Boost::date_time
-	TBB::tbb
+	# tbb cmake integration is weird, this should cover all names it could have
+	$<TARGET_NAME_IF_EXISTS:TBB> $<TARGET_NAME_IF_EXISTS:tbb> $<TARGET_NAME_IF_EXISTS:TBB::tbb>
+	$<TARGET_NAME_IF_EXISTS:tbbmalloc> $<TARGET_NAME_IF_EXISTS:TBB::tbbmalloc>
+	$<TARGET_NAME_IF_EXISTS:tbbmalloc_proxy> $<TARGET_NAME_IF_EXISTS:TBB::tbbmalloc_proxy>
 	protobuf::libprotobuf
 	spoa
 	jsoncpp_static
 	z)
-
 target_link_libraries(panmat-utils PUBLIC ${DEP_TARGETS})
 
 set_target_properties(panmat-utils PROPERTIES PUBLIC_HEADER src/PangenomeMAT.hpp)
 
 export(TARGETS panmat-utils 
-  FILE "${CMAKE_CURRENT_BINARY_DIR}/panmat-utils-targets.cmake"
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/panmat-utils-config.cmake"
 )	
 install(TARGETS panmat-utils
-	EXPORT panmat-utils-targets
+	EXPORT panmat-utils-config
  	ARCHIVE DESTINATION lib
  	LIBRARY DESTINATION lib
 	RUNTIME DESTINATION bin
