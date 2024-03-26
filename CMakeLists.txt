@@ -161,7 +161,7 @@ set(DEP_TARGETS
 	spoa
 	jsoncpp_static
 	z)
-target_link_libraries(panmat-utils PUBLIC ${DEP_TARGETS})
+target_link_libraries(panmat-utils PRIVATE ${DEP_TARGETS})
 
 set_target_properties(panmat-utils PROPERTIES PUBLIC_HEADER src/PangenomeMAT.hpp)
 
