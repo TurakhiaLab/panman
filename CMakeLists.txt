@@ -175,39 +175,39 @@ target_link_libraries(panmat-utils PUBLIC panmat)
 ## Exporting
 
 # Set up config files
-# include(CMakePackageConfigHelpers)
-# write_basic_package_version_file(
-# 	${CMAKE_CURRENT_BINARY_DIR}/panmat-config-version.cmake
-# 	VERSION ${PROJECT_VERSION}
-# 	COMPATIBILITY AnyNewerVersion
-# )
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+	${CMAKE_CURRENT_BINARY_DIR}/panmat-config-version.cmake
+	VERSION ${PROJECT_VERSION}
+	COMPATIBILITY AnyNewerVersion
+)
 
-# # Include directories
-# target_include_directories(panmat PUBLIC
-# 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-# 	$<INSTALL_INTERFACE:include>
-# )
+# Include directories
+target_include_directories(panmat PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+	$<INSTALL_INTERFACE:include>
+)
 
-# # Install targets (for make install)
-# install(TARGETS panmat spoa
-# 	EXPORT panmat-targets
-# 	LIBRARY DESTINATION lib
-# 	ARCHIVE DESTINATION lib
-# 	INCLUDES DESTINATION include
-# )
-# install(TARGETS panmat-utils
-# 	EXPORT panmat-targets
-# 	RUNTIME DESTINATION bin
-# )
+# Install targets (for make install)
+install(TARGETS panmat spoa
+	EXPORT panmat-targets
+	LIBRARY DESTINATION lib
+	ARCHIVE DESTINATION lib
+	INCLUDES DESTINATION include
+)
+install(TARGETS panmat-utils
+	EXPORT panmat-targets
+	RUNTIME DESTINATION bin
+)
 
-# install(EXPORT panmat-targets
-# 	FILE panmat-targets.cmake
-# 	NAMESPACE panmat::
-# 	DESTINATION lib/cmake/panmat
-# )
+install(EXPORT panmat-targets
+	FILE panmat-targets.cmake
+	NAMESPACE panmat::
+	DESTINATION lib/cmake/panmat
+)
 
-# configure_file(panmat-config.cmake.in panmat-config.cmake @ONLY)
+configure_file(cmake/panmat-config.cmake.in panmat-config.cmake @ONLY)
 
-# install(FILES "${CMAKE_CURRENT_BINARY_DIR}/panmat-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/panmat-config-version.cmake"
-# 	DESTINATION lib/cmake/panmat
-# )
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/panmat-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/panmat-config-version.cmake"
+	DESTINATION lib/cmake/panmat
+)
