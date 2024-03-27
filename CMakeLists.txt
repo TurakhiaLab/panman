@@ -1,21 +1,34 @@
 cmake_minimum_required (VERSION 3.27) 
 
-project(panmat)
+project(panmat
+	VERSION 0.1.0
+	DESCRIPTION "Pangenome mutation-annotated trees"
+	LANGUAGES CXX)
 
-# Installs pan-MAT library to "include/PangenomeMAT.hpp"
-# and panmat-utils executable to "bin/panmat-utils"
+# Installs panmat library to "include/PangenomeMAT.hpp"
+# and panmat executable to "bin/panmat-utils"
 
-set(CMAKE_CXX_STANDARD 17)
+# To consume the panmat library, use 
+# (a) find_package(panmat [HINTS path/to/panmat]) or
+# (b) FetchContent_Declare(panmat GIT_REPOSITORY https://github.com/TurakhiaLab/pagenome-mat)
+# 	  then FetchContent_MakeAvailable(panmat)
+
+set(CMAKE_CXX_STANDARD 17) # could bump to 20
 
 set(BUILD_TESTING OFF)
 
 include(FetchContent)
 
-# main target
+## Main targets
+
+add_library(panmat)
+
 add_executable(panmat-utils
 	src/main.cpp
 	src/PangenomeMAT.cpp
 	src/PangenomeMAT.hpp)
+
+## Dependencies
 
 # zlib
 find_package(ZLIB REQUIRED)
@@ -34,10 +47,8 @@ if (NOT ${jsoncpp_FOUND})
 	FetchContent_Declare(
 		jsoncpp
 		GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp
-		OVERRIDE_FIND_PACKAGE TRUE
 	)
 	FetchContent_MakeAvailable(jsoncpp)
-	find_package(jsoncpp REQUIRED) # just prints version due to override
 	message(" ✔︎ using fetched jsoncpp")
 else()
 	message(" ✔︎ found local jsoncpp")
@@ -45,7 +56,7 @@ endif()
 
 # protobuf
 find_package(Protobuf 5.24.3 QUIET NAMES Protobuf protobuf)
-if (Protobuf_FOUND)
+if (Protobuf_FOUND AND Protobuf_PROTOC_EXECUTABLE)
 	execute_process(
 		COMMAND ${Protobuf_PROTOC_EXECUTABLE} --version
 		OUTPUT_VARIABLE PROTOC_VERSION
@@ -56,9 +67,9 @@ if (Protobuf_FOUND)
 	string(SUBSTRING ${Protobuf_VERSION} 2 -1 Protobuf_VERSION_MINOR)
 	if (Protobuf_VERSION_MINOR EQUAL PROTOC_VERSION)
 		set(Protobuf_USE_LOCAL ON)
-	endif()	
+	endif()
 endif()
-if(NOT Protobuf_USE_LOCAL)
+if(NOT Protobuf_FOUND AND NOT Protobuf_USE_LOCAL)
 	set(ABSL_PROPAGATE_CXX_STD ON)
 	set(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")
 	set(protobuf_BUILD_PROTOBUF_BINARIES ON CACHE INTERNAL "")
@@ -70,14 +81,12 @@ if(NOT Protobuf_USE_LOCAL)
         GIT_REPOSITORY https://github.com/protocolbuffers/protobuf
         GIT_TAG d6511091a0cab1ad13f676a02676ad2a0e5eb9ae # Specify the version you need 
 		GIT_SHALLOW TRUE
-		OVERRIDE_FIND_PACKAGE TRUE
 	)
 	list(APPEND CMAKE_PREFIX_PATH "${protobuf_BINARY_DIR}")
 	FetchContent_MakeAvailable(protobuf)
-	find_package(Protobuf REQUIRED) # just prints version due to override
 	include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 endif()
-protobuf_generate(TARGET panmat-utils
+protobuf_generate(TARGET panmat
                   PROTOS mutation_annotation_test_proto3_optional_new.proto
                   LANGUAGE cpp
                   IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
@@ -89,8 +98,7 @@ else()
 endif()
 
 # boost
-find_package(Boost QUIET COMPONENTS system filesystem program_options iostreams date_time)
-
+find_package(Boost 1.75.0 QUIET COMPONENTS system filesystem program_options iostreams date_time)
 if (NOT ${Boost_FOUND})
 	set(BOOST_INCLUDE_LIBRARIES system filesystem program_options iostreams date_time)
 	set(BOOST_ENABLE_CMAKE ON)
@@ -99,10 +107,8 @@ if (NOT ${Boost_FOUND})
 		GIT_REPOSITORY https://github.com/boostorg/boost
 		GIT_TAG ad09f667e61e18f5c31590941e748ac38e5a81bf # 1.84.0
 		GIT_SHALLOW TRUE
-		OVERRIDE_FIND_PACKAGE TRUE
 	)
 	FetchContent_MakeAvailable(Boost)
-	find_package(Boost REQUIRED) # just prints version due to override
 	message(" ✔︎ using fetched boost")
 else()
 	message(" ✔︎ found local boost")
@@ -116,10 +122,8 @@ if (NOT ${spoa_FOUND})
 		GIT_REPOSITORY https://github.com/rvaser/spoa
 		GIT_TAG f39e67f229168cc305e2d5cc8765cd30c8e308d5 # v4.1.4
 		GIT_SHALLOW TRUE
-		OVERRIDE_FIND_PACKAGE TRUE
 	)
 	FetchContent_MakeAvailable(spoa)
-	find_package(spoa REQUIRED) # just prints version due to override
 	message(" ✔︎ using fetched spoa")
 else()
 	message(" ✔︎ found local spoa")
@@ -128,12 +132,6 @@ endif()
 # tbb
 find_package(TBB 2021.12.0 QUIET)
 if(NOT ${TBB_FOUND})
-	FetchContent_Declare(
-		TBB
-		GIT_REPOSITORY https://github.com/oneapi-src/oneTBB
-		GIT_TAG 8b829acc65569019edb896c5150d427f288e8aba
-		GIT_SHALLOW TRUE
-	)
 	set(TBB_TEST OFF CACHE INTERNAL "")
 	set(TBB_BENCH OFF CACHE INTERNAL "")
 	set(TBB_BUILD ON CACHE INTERNAL "")
@@ -141,16 +139,24 @@ if(NOT ${TBB_FOUND})
 	set(BUILD_SHARED_LIBS ON CACHE INTERNAL "")
 	set(TBB_EXAMPLES OFF CACHE INTERNAL "")
 	set(TBB_INCLUDE_DIRS ${FETCHCONTENT_BASE_DIR}/tbb-src/include CACHE PATH "" FORCE)
-	FetchContent_MakeAvailable(TBB)
+	block()
+		set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE BOOL "" FORCE)
+		FetchContent_Declare(
+			TBB
+			GIT_REPOSITORY https://github.com/oneapi-src/oneTBB
+			GIT_TAG 8b829acc65569019edb896c5150d427f288e8aba
+			GIT_SHALLOW TRUE
+		)
+		FetchContent_MakeAvailable(TBB)
+	endblock()
 	include_directories(${TBB_INCLUDE_DIRS})
-
 	message(" ✔︎ using fetched tbb")
 else()
 	message(" ✔︎ found local tbb")
 endif()
-message($<TARGET_NAME_IF_EXISTS:TBB>)
 
-# targets
+## Linking
+
 set(DEP_TARGETS
 	Boost::system Boost::filesystem Boost::program_options Boost::iostreams Boost::date_time
 	# tbb cmake integration is weird, this should cover all names it could have
@@ -161,17 +167,47 @@ set(DEP_TARGETS
 	spoa
 	jsoncpp_static
 	z)
-target_link_libraries(panmat-utils PRIVATE ${DEP_TARGETS})
 
-set_target_properties(panmat-utils PROPERTIES PUBLIC_HEADER src/PangenomeMAT.hpp)
+target_link_libraries(panmat PUBLIC ${DEP_TARGETS})
 
-export(TARGETS panmat-utils 
-  FILE "${CMAKE_CURRENT_BINARY_DIR}/panmat-utils-config.cmake"
-)	
-install(TARGETS panmat-utils
-	EXPORT panmat-utils-config
- 	ARCHIVE DESTINATION lib
- 	LIBRARY DESTINATION lib
-	RUNTIME DESTINATION bin
- 	PUBLIC_HEADER DESTINATION include
- )
+target_link_libraries(panmat-utils PUBLIC panmat)
+
+## Exporting
+
+# Set up config files
+# include(CMakePackageConfigHelpers)
+# write_basic_package_version_file(
+# 	${CMAKE_CURRENT_BINARY_DIR}/panmat-config-version.cmake
+# 	VERSION ${PROJECT_VERSION}
+# 	COMPATIBILITY AnyNewerVersion
+# )
+
+# # Include directories
+# target_include_directories(panmat PUBLIC
+# 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+# 	$<INSTALL_INTERFACE:include>
+# )
+
+# # Install targets (for make install)
+# install(TARGETS panmat spoa
+# 	EXPORT panmat-targets
+# 	LIBRARY DESTINATION lib
+# 	ARCHIVE DESTINATION lib
+# 	INCLUDES DESTINATION include
+# )
+# install(TARGETS panmat-utils
+# 	EXPORT panmat-targets
+# 	RUNTIME DESTINATION bin
+# )
+
+# install(EXPORT panmat-targets
+# 	FILE panmat-targets.cmake
+# 	NAMESPACE panmat::
+# 	DESTINATION lib/cmake/panmat
+# )
+
+# configure_file(panmat-config.cmake.in panmat-config.cmake @ONLY)
+
+# install(FILES "${CMAKE_CURRENT_BINARY_DIR}/panmat-config.cmake" "${CMAKE_CURRENT_BINARY_DIR}/panmat-config-version.cmake"
+# 	DESTINATION lib/cmake/panmat
+# )
