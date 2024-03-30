@@ -97,7 +97,7 @@ namespace PangenomeMAT {
 
     // Struct for representing Nucleotide Mutation
     struct NucMut {
-        // For creating SNP mutation
+        // Create SNP mutation
         NucMut( const std::tuple< int, int, int, int, int, int >& mutationInfo ) {
             // primaryBlockId, secondaryBlockId, pos, gapPos, type, char
             primaryBlockId = std::get<0>(mutationInfo);
@@ -108,7 +108,7 @@ namespace PangenomeMAT {
             nucs = (std::get<5>(mutationInfo) << 20);
         }
 
-        // For creating non-SNP mutations from SNP mutations at consecutive positions
+        // Create non-SNP mutations from SNP mutations at consecutive positions
         NucMut(const std::vector< std::tuple< int, int, int, int, int, int > >& mutationArray,
             int start, int end) {
             primaryBlockId = std::get<0>(mutationArray[start]);
@@ -146,6 +146,7 @@ namespace PangenomeMAT {
             }
         }
 
+        // Extract mutation from protobuf nucMut object
         NucMut(PanMAT::nucMut mutation, int64_t blockId, bool blockGapExist) {
             nucPosition = mutation.nucposition();
             primaryBlockId = (blockId >> 32);
@@ -184,7 +185,7 @@ namespace PangenomeMAT {
                 secondaryBlockId = -1;
             }
             blockMutInfo = mutation.blockmutinfo();
-            // If the mutation is a block inversion or not. Inversion is marked by
+            // Whether the mutation is a block inversion or not. Inversion is marked by
             // `blockMutInfo = deletion` and `inversion = true`
             inversion = mutation.blockinversion();
         }
@@ -213,11 +214,12 @@ namespace PangenomeMAT {
         int32_t primaryBlockId;
         int32_t secondaryBlockId;
 
-        // If mutation is an insertion or deletion - Strand inversions are marked by
+        // Whether mutation is an insertion or deletion - Strand inversions are marked by
         // `blockMutInfo=false`, but they are not deletions
         bool  blockMutInfo;
 
-        // Whether the block is being inverted or not
+        // Whether the block is being inverted or not. In case of insertion, whether the inserted
+        // block is inverted or not
         bool inversion;
     };
 
@@ -334,7 +336,6 @@ namespace PangenomeMAT {
         std::vector< std::vector< int > > getAlignedStrandSequences(const
             std::vector< size_t >& topoArray);
 
-
         size_t numNodes;
         // Graph adjacency list
         std::vector< std::vector< size_t > > adj;
@@ -369,6 +370,11 @@ namespace PangenomeMAT {
             int getTotalParsimonyParallel(NucMutationType nucMutType,
                 BlockMutationType blockMutType = NONE);
 
+            // Run tree traversal to extract mutations in range
+            PangenomeMAT::Node* extractPanMATSegmentHelper(PangenomeMAT::Node* node,
+                const std::tuple< int, int, int, int >& start,
+                const std::tuple< int, int, int, int >& end, const blockStrand_t& rootBlockStrand);
+
             // Tree traversal for FASTA writer
             void printFASTAHelper(PangenomeMAT::Node* root, sequence_t& sequence,
                 blockExists_t& blockExists, blockStrand_t& blockStrand, std::ofstream& fout,
@@ -398,6 +404,22 @@ namespace PangenomeMAT {
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
             Node* transformHelper(Node* node);
             void adjustLevels(Node* node);
+
+            // Check if tree is a polytomy
+            bool hasPolytomy(Node* node);
+
+            // Check if one PanMAT coordinate is greater than or equal to the other. Only the strand
+            // information of the first block needs to be provided because if the block IDs are
+            // different, the strand information does not change the result
+            bool panMATCoordinateGeq(const std::tuple< int, int, int, int >& coor1,
+                const std::tuple< int, int, int, int >& coor2, bool strand);
+
+            // Check if one PanMAT coordinate is less than or equal to the other. Only the strand
+            // information of the first block needs to be provided because if the block IDs are
+            // different, the strand information does not change the result
+            bool panMATCoordinateLeq(const std::tuple< int, int, int, int >& coor1,
+                const std::tuple< int, int, int, int >& coor2, bool strand);
+
 
             std::string newInternalNodeId() {
                 return "node_" + std::to_string(++m_currInternalNode);
@@ -436,6 +458,17 @@ namespace PangenomeMAT {
                 std::pair< PangenomeMAT::NucMutationType, char > >& mutations,
                 int parentState);
 
+            // Sankoff algorithm on Nucleotide Mutations
+            std::vector< int > nucSankoffForwardPass(Node* node, std::unordered_map< std::string,
+                std::vector< int > >& stateSets);
+            void nucSankoffBackwardPass(Node* node,
+                std::unordered_map< std::string, std::vector< int > >& stateSets,
+                std::unordered_map< std::string, int >& states, int parentPtr,
+                int defaultValue = (1<<28));
+            void nucSankoffAssignMutations(Node* node,
+                std::unordered_map< std::string, int >& states, std::unordered_map< std::string,
+                std::pair< PangenomeMAT::NucMutationType, char > >& mutations, int parentState);
+
             // Fitch algorithm on Block Mutations
             int blockFitchForwardPassNew(Node* node,
                 std::unordered_map< std::string, int >& states);
@@ -445,6 +478,17 @@ namespace PangenomeMAT {
             void blockFitchAssignMutationsNew(Node* node,
                 std::unordered_map< std::string, int >& states,
                 std::unordered_map< std::string,
+                std::pair< PangenomeMAT::BlockMutationType, bool > >& mutations, int parentState);
+
+            // Sankoff algorithm on Block Mutations
+            std::vector< int > blockSankoffForwardPass(Node* node, std::unordered_map< std::string,
+                std::vector< int > >& stateSets);
+            void blockSankoffBackwardPass(Node* node,
+                std::unordered_map< std::string, std::vector< int > >& stateSets,
+                std::unordered_map< std::string, int >& states, int parentPtr,
+                int defaultValue = (1<<28));
+            void blockSankoffAssignMutations(Node* node,
+                std::unordered_map< std::string, int >& states, std::unordered_map< std::string,
                 std::pair< PangenomeMAT::BlockMutationType, bool > >& mutations, int parentState);
 
             void printSummary();
@@ -457,6 +501,13 @@ namespace PangenomeMAT {
             void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
             void printVCFParallel(std::string reference, std::ofstream& fout);
             void extractAminoAcidTranslations(std::ofstream& fout, int64_t start, int64_t end);
+
+            // Extract PanMAT representing a segment of the genome. The start and end coordinates
+            // are with respect to the root sequence. The strands of the terminal blocks in all
+            // sequences are assumed to be the same as their strands in the root sequence for the
+            // purpose of splitting the terminal blocks during extraction
+            void extractPanMATSegment(std::ostream& fout, int64_t start, int64_t end);
+
             Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
             void writeToFile(std::ostream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);

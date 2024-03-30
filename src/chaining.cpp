@@ -163,7 +163,7 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
     int K = 500;
 
     std::vector<std::pair<int,int>>  points;
-    std::cout << "Finding seeds sequencial ";
+    // std::cout << "Finding seeds sequencial ";
     auto start = std::chrono::high_resolution_clock::now();
 
     // Concurrent Vector
@@ -183,25 +183,25 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds time_ = (end-start);
-    std::cout << time_.count() << "\n";
+    // std::cout << time_.count() << "\n";
 
     // Sort points by x-coordinate
     std::vector<std::pair<int,int>> pointsX = points;
-    cout << "Sorting ";
+    // cout << "Sorting ";
     start = std::chrono::high_resolution_clock::now();
     tbb::parallel_sort(points_conc.begin(), points_conc.end(), comparePoint);
     end = std::chrono::high_resolution_clock::now();
     time_ = (end-start);
-    cout << time_.count() << "\n";
+    // cout << time_.count() << "\n";
 
 
     // Constructing the 2D range tree
-    std::cout << "Range Tree Construction Function ";
+    // std::cout << "Range Tree Construction Function ";
     start = std::chrono::high_resolution_clock::now();
     Node* root = constructRangeTree(points_conc, 0, points_conc.size() - 1);
     end = std::chrono::high_resolution_clock::now();
     time_ = (end-start);
-    cout << time_.count() << "\n";
+    // cout << time_.count() << "\n";
 
     if (points_conc.size() == 0)
     {
