@@ -10,10 +10,12 @@ project(panmat
 #   FetchContent_Declare(panmat
 #	   GIT_REPOSITORY https://github.com/TurakhiaLab/pagenome-mat
 #	   GIT_TAG [tag]
-#	   FIND_PACKAGE_ARGS [...]
+#	   FIND_PACKAGE_ARGS [...] # to try to find local install first
 #	)
 #
 #   FetchContent_MakeAvailable(panmat)
+#
+#   target_link_libraries(my_target PRIVATE panmat)
 #
 
 set(CMAKE_CXX_STANDARD 17) # could bump to 20?
@@ -121,6 +123,8 @@ set(ABSL_PROPAGATE_CXX_STD ON CACHE INTERNAL "")
 FetchContent_MakeAvailable(protobuf jsoncpp)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+set(protobuf_INCLUDE_DIRS ${protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} CACHE PATH "" FORCE)
+
 include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 #list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/contrib)
 
