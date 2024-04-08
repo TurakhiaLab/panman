@@ -6776,7 +6776,7 @@ PangenomeMAT::Pangraph::Pangraph(Json::Value& pangraphData) {
     // Rotation
     // Testing data structure 
     std::unordered_map<std::string, std::vector<string>> test;
-    if (circular)
+    if (false)
     {
 
         std::vector<std::string> sample_base = {};
