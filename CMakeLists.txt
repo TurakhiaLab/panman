@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 3.20)
 
+cmake_policy(SET CMP0135 NEW)
+
 project(panmat
 	VERSION 0.1.0
 	DESCRIPTION "Pangenome mutation-annotated trees"
@@ -39,6 +41,7 @@ FetchContent_Declare(ZLIB
         https://github.com/madler/zlib/releases/download/v1.2.13/zlib-1.2.13.tar.gz
     URL_HASH MD5=9b8aa094c4e5765dabf4da391f00d15c
 	FIND_PACKAGE_ARGS
+	DOWNLOAD_EXTRACT_TIMESTAMP
 )
 
 # jsoncpp
@@ -120,7 +123,7 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(ABSL_BUILD_DLL OFF CACHE BOOL "" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE INTERNAL "")
 
-FetchContent_MakeAvailable(protobuf jsoncpp)
+FetchContent_MakeAvailable(jsoncpp protobuf)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set(protobuf_INCLUDE_DIRS ${protobuf_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR} CACHE PATH "" FORCE)
