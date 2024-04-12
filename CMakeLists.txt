@@ -21,6 +21,8 @@ project(panmat
 
 set(CMAKE_CXX_STANDARD 17) # could bump to 20?
 
+set(CMAKE_IGNORE_PREFIX_PATH $ENV{CONDA_PREFIX}/lib/libz.so.1)
+
 # pan-mat library
 add_library(panmat STATIC src/PangenomeMAT.cpp)
 
