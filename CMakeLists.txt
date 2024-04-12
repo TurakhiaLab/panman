@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.20)
+cmake_minimum_required (VERSION 3.22)
 
 #  To consume the panmat library, use:
 #
@@ -12,7 +12,6 @@ cmake_minimum_required (VERSION 3.20)
 #
 #   target_link_libraries(my_target PRIVATE panmat)
 
-# set up targets for dependencies
 include(cmake/dependencies.cmake)
 
 project(panmat
@@ -20,15 +19,13 @@ project(panmat
 	DESCRIPTION "Pangenome mutation-annotated trees"
 	LANGUAGES CXX)
 
-
 set(CMAKE_CXX_STANDARD 17) # could bump to 20?
 
 # pan-mat library
-add_library(panmat src/PangenomeMAT.cpp)
+add_library(panmat STATIC src/PangenomeMAT.cpp)
 
 # application binary 
 add_executable(panmat-utils src/main.cpp src/PangenomeMAT.cpp)
-
 
 # includes
 target_include_directories(panmat PUBLIC
@@ -37,8 +34,11 @@ target_include_directories(panmat PUBLIC
 )
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+# populate dependencies
+FetchContent_MakeAvailable(Boost TBB spoa protobuf jsoncpp)
 
 # run protoc compiler
+include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 set(panmat_SRCS mutation_annotation_test_proto3_optional_new.pb.cc)
 set(panmat_PROTOS mutation_annotation_test_proto3_optional_new.proto)
 target_sources(panmat PRIVATE ${panmat_SRCS} ${panmat_PROTOS})
@@ -47,12 +47,11 @@ protobuf_generate(TARGET panmat)
 
 # linking
 target_link_libraries(panmat PUBLIC
-	Boost::program_options Boost::filesystem Boost::iostreams Boost::date_time Boost::system
+	Boost::program_options Boost::filesystem Boost::iostreams Boost::system
 	protobuf::libprotobuf
 	TBB::tbb
 	$<TARGET_NAME_IF_EXISTS:jsoncpp_static> $<TARGET_NAME_IF_EXISTS:jsoncpp_lib>
 	spoa
-	ZLIB::ZLIB
 )
 target_link_libraries(panmat-utils PRIVATE panmat)
 
