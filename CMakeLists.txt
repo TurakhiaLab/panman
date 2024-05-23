@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.8) 
 
-project(panmat-utils)
+project(panmanUtils)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
@@ -30,34 +30,25 @@ find_package(jsoncpp CONFIG REQUIRED)
 # FIND_PACKAGE(ZLIB COMPONENTS ZLIB REQUIRED)
 
 
-file(GLOB PANMAT_SRCS "src/main.cpp" "src/PangenomeMAT.cpp" "src/PangenomeMAT.hpp")
+file(GLOB PANMAT_SRCS "src/main.cpp" "src/panman.cpp" "src/panman.hpp")
 
 if(DEFINED Protobuf_PATH)
-	add_executable(panmat-utils
+	add_executable(panmanUtils
 		${PANMAT_SRCS}
 		)
 
 	protobuf_generate(
 		LANGUAGE cpp
-		TARGET panmat-utils 
-		PROTOS mutation_annotation_test_proto3_optional_new.proto vg.proto)
-
-	# protobuf_generate(
-	# 	LANGUAGE cpp
-	# 	TARGET panmat-utils 
-	# 	PROTOS mutation_annotation_test_proto3_optional_new.proto)
+		TARGET panmanUtils 
+		PROTOS panman.proto)
 
 
 else()
 	protobuf_generate_cpp(
 		PROTO_SRCS PROTO_HDRS
-		mutation_annotation_test_proto3_optional_new.proto vg.proto)
+		panman.proto)
 	
-	# protobuf_generate_cpp(
-	# 	PROTO_SRCS PROTO_HDRS
-	# 	mutation_annotation_test_proto3_optional_new.proto)
-
-	add_executable(panmat-utils
+	add_executable(panmanUtils
 		${PANMAT_SRCS}
 		${PROTO_SRCS}
 		${PROTO_HDRS}
@@ -65,7 +56,7 @@ else()
 
 endif()
 
-TARGET_COMPILE_OPTIONS(panmat-utils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
+TARGET_COMPILE_OPTIONS(panmanUtils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
-TARGET_LINK_LIBRARIES(panmat-utils PRIVATE stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
-target_include_directories(panmat-utils PUBLIC "${PROJECT_BINARY_DIR}")
+TARGET_LINK_LIBRARIES(panmanUtils PRIVATE stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
