@@ -9,7 +9,7 @@
 
 #include <fstream>
 
-#include "panman.hpp"
+#include "panmanUtils.hpp"
 
 namespace po = boost::program_options;
 
@@ -27,7 +27,7 @@ void stripStringInPlace(std::string& s) {
 }
 
 // program option description for building/loading a PanMAT into memory
-po::options_description globalDesc("panmanUtils Command Line Arguments");
+po::options_description globalDesc("Pangenome MAT Command Line Arguments");
 po::positional_options_description globalPositionArgumentDesc;
 
 // program option descriptions of various command line functions
@@ -271,10 +271,10 @@ void parseAndExecute(int argc, char* argv[]) {
     po::notify(globalVm);
 
     // If the data structure loaded into memory is a PanMAT, it is pointed to by T
-    panman::Tree *T = nullptr;
+    panmanUtils::Tree *T = nullptr;
 
     // If the data structure loaded into memory is a PanMAN, it is pointed to by TG
-    panman::TreeGroup *TG = nullptr;
+    panmanUtils::TreeGroup *TG = nullptr;
 
     if(globalVm.count("help")) {
         std::cout << globalDesc;
@@ -292,7 +292,7 @@ void parseAndExecute(int argc, char* argv[]) {
         inPMATBuffer.push(inputFile);
         std::istream inputStream(&inPMATBuffer);
 
-        T = new panman::Tree(inputStream);
+        T = new panmanUtils::Tree(inputStream);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -313,7 +313,7 @@ void parseAndExecute(int argc, char* argv[]) {
         inPMATBuffer.push(inputFile);
         std::istream inputStream(&inPMATBuffer);
 
-        TG = new panman::TreeGroup(inputStream);
+        TG = new panmanUtils::TreeGroup(inputStream);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -325,7 +325,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         std::string fileName = globalVm["gfa-in"].as< std::string >();
         if(!globalVm.count("newick-in")) {
-            panman::printError("File containing newick string not provided!");
+            panmanUtils::printError("File containing newick string not provided!");
             return;
         }
         std::string newickFileName = globalVm["newick-in"].as< std::string >();
@@ -337,7 +337,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new panman::Tree(inputStream, newickInputStream, panman::FILE_TYPE::GFA);
+        T = new panmanUtils::Tree(inputStream, newickInputStream, panmanUtils::FILE_TYPE::GFA);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -350,7 +350,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         std::string fileName = globalVm["pangraph-in"].as< std::string >();
         if(!globalVm.count("newick-in")) {
-            panman::printError("File containing newick string not provided!");
+            panmanUtils::printError("File containing newick string not provided!");
             return;
         }
         std::string newickFileName = globalVm["newick-in"].as< std::string >();
@@ -366,8 +366,8 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new panman::Tree(inputStream, newickInputStream,
-            panman::FILE_TYPE::PANGRAPH, referenceSequence);
+        T = new panmanUtils::Tree(inputStream, newickInputStream,
+            panmanUtils::FILE_TYPE::PANGRAPH, referenceSequence);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -380,7 +380,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         std::string fileName = globalVm["msa-in"].as< std::string >();
         if(!globalVm.count("newick-in")) {
-            panman::printError("File containing newick string not provided!");
+            panmanUtils::printError("File containing newick string not provided!");
             return;
         }
         bool optimize = false;
@@ -398,11 +398,11 @@ void parseAndExecute(int argc, char* argv[]) {
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
         if(!optimize) {
-            T = new panman::Tree(inputStream, newickInputStream,
-                panman::FILE_TYPE::MSA);
+            T = new panmanUtils::Tree(inputStream, newickInputStream,
+                panmanUtils::FILE_TYPE::MSA);
         } else {
-            T = new panman::Tree(inputStream, newickInputStream,
-                panman::FILE_TYPE::MSA_OPTIMIZE);
+            T = new panmanUtils::Tree(inputStream, newickInputStream,
+                panmanUtils::FILE_TYPE::MSA_OPTIMIZE);
         }
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
@@ -419,7 +419,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         std::string mutationFileName;
         if(!globalVm.count("mutation-file")) {
-            panman::printError("File containing complex mutations not provided!");
+            panmanUtils::printError("File containing complex mutations not provided!");
             return;
         }
 
@@ -435,7 +435,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        TG = new panman::TreeGroup(files, mutationFile);
+        TG = new panmanUtils::TreeGroup(files, mutationFile);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
@@ -446,7 +446,7 @@ void parseAndExecute(int argc, char* argv[]) {
             u.close();
         }
     } else {
-        panman::printError("Incorrect Format");
+        panmanUtils::printError("Incorrect Format");
         std::cout << globalDesc;
         return;
     }
@@ -542,7 +542,7 @@ void parseAndExecute(int argc, char* argv[]) {
             }
             fin.close();
         } else {
-            panman::printError("No source of node ids provided");
+            panmanUtils::printError("No source of node ids provided");
             std::cout << subtreeDesc;
         }
 
@@ -647,7 +647,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         // Split command by spaces
         std::vector< std::string > splitCommand;
-        panman::stringSplit(command, ' ', splitCommand);
+        panmanUtils::stringSplit(command, ' ', splitCommand);
         splitCommandArray = new char*[splitCommand.size()];
         for(size_t i = 0; i < splitCommand.size(); i++) {
             splitCommandArray[i] = new char[splitCommand[i].length() + 1];
@@ -983,7 +983,7 @@ void parseAndExecute(int argc, char* argv[]) {
                     } else if(subtreeVm.count("node-ids")) {
                         nodeIds = subtreeVm["node-ids"].as< std::vector< std::string > >();
                     } else {
-                        panman::printError("No source of node ids provided");
+                        panmanUtils::printError("No source of node ids provided");
                         std::cout << subtreeDesc;
                     }
 
@@ -1511,10 +1511,10 @@ void debuggingCode(){
     //                 //     return;
     //                 // }
     //                 for(int j = seq.length()-1; j>=0; j--) {
-    //                     fout << panman::getComplementCharacter(seq[j]);
+    //                     fout << panmanUtils::getComplementCharacter(seq[j]);
     //                 }
     //                 // for(int j = seq.length()-1; j>=0; j--) {
-    //                 //     fout << panman::getComplementCharacter(seq[j]);
+    //                 //     fout << panmanUtils::getComplementCharacter(seq[j]);
     //                 // }
     //             }
     //         }
@@ -1524,7 +1524,6 @@ void debuggingCode(){
     // fout.close();
     // fin.close();
 }
-
 
 int main(int argc, char* argv[]) {
     tbb::task_scheduler_init init(32);

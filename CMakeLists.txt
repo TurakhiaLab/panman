@@ -20,17 +20,17 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
+# Include TBB
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
-include("/home/AD.UCSD.EDU/hmotwani/vcpkg/scripts/buildsystems/vcpkg.cmake")
+find_package(TBB REQUIRED)
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_PREVIEW_CONCURRENT_ORDERED_CONTAINERS TBB_DIR MAKE_ARGS tbb_cpf=1)
-find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
+
+# Include JSONCPP
+include(${CMAKE_TOOLCHAIN_FILE})
 find_package(jsoncpp CONFIG REQUIRED)
-# target_link_libraries(main PRIVATE JsonCpp::JsonCpp)
-
-# FIND_PACKAGE(ZLIB COMPONENTS ZLIB REQUIRED)
 
 
-file(GLOB PANMAT_SRCS "src/main.cpp" "src/panman.cpp" "src/panman.hpp")
+file(GLOB PANMAT_SRCS "src/main.cpp" "src/panmanUtils.cpp" "src/panmanUtils.hpp")
 
 if(DEFINED Protobuf_PATH)
 	add_executable(panmanUtils
@@ -58,5 +58,5 @@ endif()
 
 TARGET_COMPILE_OPTIONS(panmanUtils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
-TARGET_LINK_LIBRARIES(panmanUtils PRIVATE stdc++  JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+TARGET_LINK_LIBRARIES(panmanUtils PRIVATE stdc++ JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")

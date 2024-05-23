@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package PanMAT;
+package panman;
 
 message nucMut
 {

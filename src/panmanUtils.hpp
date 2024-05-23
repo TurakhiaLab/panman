@@ -1,5 +1,5 @@
-#ifndef PANMAN_HPP
-#define PANMAN_HPP
+#ifndef PANGENOME_MAT_HPP
+#define PANGENOME_MAT_HPP
 
 #pragma once
 
@@ -17,7 +17,7 @@
 #include <json/json.h>
 #include "panman.pb.h"
 
-#define PANMAN_VERSION "2.0-beta"
+#define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
 
 typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >,
@@ -29,7 +29,7 @@ typedef  std::vector< std::pair< bool, std::vector< bool > > > blockExists_t;
 // Forward or reverse strand
 typedef  std::vector< std::pair< bool, std::vector< bool > > > blockStrand_t;
 
-namespace panman {
+namespace panmanUtils {
 
     static inline void printError(std::string e) {
         std::cout << "\033[1;31m" << "Error: " << "\033[0m" << e << std::endl;
@@ -117,23 +117,23 @@ namespace panman {
             mutInfo = ((end - start) << 4);
             // type
             switch(std::get<4>(mutationArray[start])) {
-                case panman::NucMutationType::NSNPS:
-                    mutInfo += panman::NucMutationType::NS;
+                case panmanUtils::NucMutationType::NSNPS:
+                    mutInfo += panmanUtils::NucMutationType::NS;
                     break;
-                case panman::NucMutationType::NSNPI:
-                    mutInfo += panman::NucMutationType::NI;
+                case panmanUtils::NucMutationType::NSNPI:
+                    mutInfo += panmanUtils::NucMutationType::NI;
                     break;
-                case panman::NucMutationType::NSNPD:
-                    mutInfo += panman::NucMutationType::ND;
+                case panmanUtils::NucMutationType::NSNPD:
+                    mutInfo += panmanUtils::NucMutationType::ND;
                     break;
-                case panman::NucMutationType::NS:
-                    mutInfo += panman::NucMutationType::NS;
+                case panmanUtils::NucMutationType::NS:
+                    mutInfo += panmanUtils::NucMutationType::NS;
                     break;
-                case panman::NucMutationType::NI:
-                    mutInfo += panman::NucMutationType::NI;
+                case panmanUtils::NucMutationType::NI:
+                    mutInfo += panmanUtils::NucMutationType::NI;
                     break;
-                case panman::NucMutationType::ND:
-                    mutInfo += panman::NucMutationType::ND;
+                case panmanUtils::NucMutationType::ND:
+                    mutInfo += panmanUtils::NucMutationType::ND;
                     break;
             }
 
@@ -147,7 +147,7 @@ namespace panman {
         }
 
         // Extract mutation from protobuf nucMut object
-        NucMut(PanMAT::nucMut mutation, int64_t blockId, bool blockGapExist) {
+        NucMut(panman::nucMut mutation, int64_t blockId, bool blockGapExist) {
             nucPosition = mutation.nucposition();
             primaryBlockId = (blockId >> 32);
             mutInfo = (mutation.mutinfo() & 0xFF);
@@ -177,7 +177,7 @@ namespace panman {
 
     // Struct for representing Block Mutations
     struct BlockMut {
-        void loadFromProtobuf(PanMAT::mutation mutation) {
+        void loadFromProtobuf(panman::mutation mutation) {
             primaryBlockId = (mutation.blockid() >> 32);
             if(mutation.blockgapexist()) {
                 secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
@@ -355,7 +355,7 @@ namespace panman {
         std::vector< std::string > intNodeToSequence;
     };
 
-    // Data structure to represent a panman
+    // Data structure to represent a PangenomeMAT
     class Tree {
         private:
             Node* createTreeFromNewickString(std::string newick);
@@ -364,19 +364,19 @@ namespace panman {
             // memory, assign mutations from the proto file to the tree nodes using preorder
             // traversal
             void assignMutationsToNodes(Node* root, size_t& currentIndex,
-                std::vector< PanMAT::node >& nodes);
+                std::vector< panman::node >& nodes);
 
             // Get the total number of mutations of given type
             int getTotalParsimonyParallel(NucMutationType nucMutType,
                 BlockMutationType blockMutType = NONE);
 
             // Run tree traversal to extract mutations in range
-            panman::Node* extractPanMATSegmentHelper(panman::Node* node,
+            panmanUtils::Node* extractPanMATSegmentHelper(panmanUtils::Node* node,
                 const std::tuple< int, int, int, int >& start,
                 const std::tuple< int, int, int, int >& end, const blockStrand_t& rootBlockStrand);
 
             // Tree traversal for FASTA writer
-            void printFASTAHelper(panman::Node* root, sequence_t& sequence,
+            void printFASTAHelper(panmanUtils::Node* root, sequence_t& sequence,
                 blockExists_t& blockExists, blockStrand_t& blockStrand, std::ofstream& fout,
                 bool aligned = false);
 
@@ -432,7 +432,7 @@ namespace panman {
 
             std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
         public:
-            Tree(const PanMAT::tree& mainTree);
+            Tree(const panman::tree& mainTree);
             Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
             Tree(std::ifstream& fin, std::ifstream& secondFin,
                 FILE_TYPE ftype = FILE_TYPE::GFA, std::string reference = "");
@@ -445,7 +445,7 @@ namespace panman {
                 std::unordered_map< std::string, bool >& si,
                 const BlockGapList& bgl);
 
-            void protoMATToTree(const PanMAT::tree& mainTree);
+            void protoMATToTree(const panman::tree& mainTree);
 
             // Fitch Algorithm on Nucleotide mutations
             int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
@@ -455,7 +455,7 @@ namespace panman {
                 int parentState, int defaultState = (1<<28));
             void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states,
                 std::unordered_map< std::string,
-                std::pair< panman::NucMutationType, char > >& mutations,
+                std::pair< panmanUtils::NucMutationType, char > >& mutations,
                 int parentState);
 
             // Sankoff algorithm on Nucleotide Mutations
@@ -467,7 +467,7 @@ namespace panman {
                 int defaultValue = (1<<28));
             void nucSankoffAssignMutations(Node* node,
                 std::unordered_map< std::string, int >& states, std::unordered_map< std::string,
-                std::pair< panman::NucMutationType, char > >& mutations, int parentState);
+                std::pair< panmanUtils::NucMutationType, char > >& mutations, int parentState);
 
             // Fitch algorithm on Block Mutations
             int blockFitchForwardPassNew(Node* node,
@@ -478,7 +478,7 @@ namespace panman {
             void blockFitchAssignMutationsNew(Node* node,
                 std::unordered_map< std::string, int >& states,
                 std::unordered_map< std::string,
-                std::pair< panman::BlockMutationType, bool > >& mutations, int parentState);
+                std::pair< panmanUtils::BlockMutationType, bool > >& mutations, int parentState);
 
             // Sankoff algorithm on Block Mutations
             std::vector< int > blockSankoffForwardPass(Node* node, std::unordered_map< std::string,
@@ -489,7 +489,7 @@ namespace panman {
                 int defaultValue = (1<<28));
             void blockSankoffAssignMutations(Node* node,
                 std::unordered_map< std::string, int >& states, std::unordered_map< std::string,
-                std::pair< panman::BlockMutationType, bool > >& mutations, int parentState);
+                std::pair< panmanUtils::BlockMutationType, bool > >& mutations, int parentState);
 
             void printSummary();
             void printBfs(Node* node = nullptr);
@@ -545,7 +545,7 @@ namespace panman {
             std::vector< std::string > searchByAnnotation(std::string annotation);
             void convertToGFA(std::ofstream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
-            void getNodesPreorder(panman::Node* root, PanMAT::tree& treeToWrite);
+            void getNodesPreorder(panmanUtils::Node* root, panman::tree& treeToWrite);
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition,
                 int nucGapPosition);
 
@@ -637,7 +637,7 @@ namespace panman {
             nucGapPositionEnd2 = std::get<3>(t4);
         }
 
-        ComplexMutation(PanMAT::complexMutation cm) {
+        ComplexMutation(panman::complexMutation cm) {
             mutationType = (cm.mutationtype()? 'H': 'R');
             treeIndex1 = cm.treeindex1();
             treeIndex2 = cm.treeindex2();
@@ -669,8 +669,8 @@ namespace panman {
             nucGapPositionEnd2 = (cm.nucgapexistend2()? (cm.nucgappositionend2()) : -1);
         }
 
-        PanMAT::complexMutation toProtobuf() {
-            PanMAT::complexMutation cm;
+        panman::complexMutation toProtobuf() {
+            panman::complexMutation cm;
             cm.set_mutationtype(mutationType == 'H');
             cm.set_treeindex1(treeIndex1);
             cm.set_treeindex2(treeIndex2);
@@ -760,4 +760,4 @@ namespace panman {
 
 };
 
-#endif // PANMAN_HPP
+#endif // PANGENOME_MAT_HPP
