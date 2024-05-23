@@ -1,1 +1,1 @@
-# pangenome-mat
+# PanMAN
