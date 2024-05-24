@@ -1,13 +1,25 @@
 # Welcome to PanMAN Wiki
 
-## What is a PanMAN?
-PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred insertions, deletions, and even structural mutations on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
+## <b>What is a PanMAN?</b>
+PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 1b), and even structural mutations (Fig. 1a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 1c). PanMANs representative power is comparared against existing pangenomic formats in Fig. 1d. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
 
-## panmanUtils
-panmanUtils includes multiple algorithms to construct PanMANs and to support various functionalities to modify and extract useful information from PanMANs. 
+<b>Figure 1: Overview of the PanMAN data structure</b>
+<img src="images/panman.svg" width="1200" height="1200"/>
 
-### Installation
-panmanUtils can be installed using two different options (i) Installation script and (ii) Docker, as described below.
+## <i><b>panmanUtils</b></i>
+<i>panmanUtils</i> includes multiple algorithms to construct PanMANs and to support various functionalities to modify and extract useful information from PanMANs (Fig. 2). 
+
+<b>Figure 2:  Overview of panmanUtils' functionalities</b>
+<img src="images/utility.svg" width="1200" height="1200"/>
+
+### <b><i>panmanUtils</i> Video Tutorial</b>
+TBA
+
+
+### <b>Installation</b>
+panmanUtils can be installed using two different options, as described below: <br>
+1. Installation script <br>
+2. Docker
 
 #### Installation Scripts
 ```
@@ -18,25 +30,25 @@ cd panman/install
 
 #### Docker
 ```
-ToDo
+TBA
 ```
 
-### Construction of PanMANs using panmanUtils
-Since PanMAN can be composed of a single or multiple PanMATs, to construct a PanMAN, we start with a single tree PanMAN (or PanMAT) and then split it up into a network of multiple PanMATs using the inferred complex mutations provided as input. To construct the starting single-tree PanMAN representing a collection of sequences, panmanUtils require two inputs:
-1. Tree topology representing the phylogenetic relationship of the input sequences
+### <b>Construction of PanMANs using <i>panmanUtils</i></b>
+Since PanMAN can be composed of a single or multiple PanMATs, to construct a PanMAN, we start with a single tree PanMAN (or PanMAT) and then split it up into a network of multiple PanMATs using the inferred complex mutations provided as input. To construct the starting single-tree PanMAN representing a collection of sequences, panmanUtils require two inputs:<br>
+1. Tree topology representing the phylogenetic relationship of the input sequences <br>
 2. A pangenomic data structure (PanGraph or GFA or FASTA) representing the multiple-sequence alignment (MSA) corresponding to the sequence collection.
 
-Construct a single tree PanMAN from PanGraph
-
+* Example syntax and Usage 
 ```
-$ ./panmanUtils --pangraph-in=<path to PanGraph JSON file> --newick-in=<path to newick file>
+$ ./panmanUtils --pangraph-in=<path to PanGraph JSON file> --newick-in=<path to newick file> --output-file=<prefix of panman's file name>
+```
+```
+$ ./panmanUtils --pangraph-in=ecoli_10.json --newick-in=ecoli_10.nwk --output-file=ecoli_10
 ```
 Similarly, if you'd like to construct a PanMAN using a GFA or an MSA as an input, use the `--gfa-in` or the `--msa-in` options instead of `--pangraph-in`.
-
-
 > **NOTE:** Currently, we only support GFAv1.1 consisting of Segments, un-overlapping Links and Paths.
 
-### Functionalities in panmanUtils
+### <b>Functionalities in <i>panmanUtils</i></b>
 All panmanUtils functionality commands manipulates input PanMAN file (.panman).
 ```
 $ ./panmanUtils -I <path to PanMAN file> {opt}
@@ -44,80 +56,128 @@ $ ./panmanUtils -I <path to PanMAN file> {opt}
 
 Specific options:
 ```
---summary: Prints summary of a PanMAN.
---fasta: Prints tip/internal sequences (FASTA format)
---fasta-aligned: Prints MSA of sequences for each PanMAT in a PanMAN (FASTA format)
---maf: Prints m-WGA for each PanMAT in a PanMAN (MAF format)
---vcf: Prints variations of all sequences from any PanMAT in a PanMAN (VCF format)
---gfa: Converts any PanMAT in a PanMAN to a GFA file
--o: path to output file
---threads: Number of threads to use when possible (Default: use all available cores).
---help: Print help messages.
+-s [ --summary ]            Print PanMAN summary
+-t [ --newick ]             Print newick string of all trees in a PanMAN
+-f [ --fasta ]              Print tip/internal sequences (FASTA format)
+-m [ --fasta-aligned ]      Print MSA of sequences for each PanMAT in a PanMAN (FASTA format)
+-b [ --subnet ]             Extract subnet of given PanMAN to a new PanMAN file based on the list of nodes provided in the input-file
+-v [ --vcf ]                Print variations of all sequences from any PanMAT in a PanMAN (VCF format)
+-g [ --gfa ]                Convert any PanMAT in a PanMAN to a GFA file
+-w [ --maf ]                Print m-WGA for each PanMAT in a PanMAN (MAF format)
+-a [ --annotate ]           Annotate nodes of the input PanMAN based on the list provided in the input-file
+-r [ --reroot ]             Reroot a PanMAT in a PanMAN based on the input sequence id (--reference)
+-n [ --reference ] arg      Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)
+-s [ --start ] arg          Start coordinate of protein translation
+-e [ --end ] arg            End coordinate of protein translation
+-i [ --input-file ] arg     Path of the input file
+-o [ --output-file ] arg    Prefix of the output file name
 ```
+
+> **NOTE:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
 
 #### Summary extract
 The summary feature extract node and tree level statistics of a PanMAN, which contains a summary of its geometric and parsimony information.
 
 * Example syntax and Usage
 ```
-$ ./panmanUtils -I <path to PanMAN file> --summary
+$ ./panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output file> (optional)
 ```
 ```
-$ ./panmanUtils -I ecoli_10.panman --summary
+$ ./panmanUtils -I ecoli_10.panman --summary --output-file=ecoli_10
+```
+
+#### Newick extract
+Extract newick string of all trees in a PanMAN.
+
+* Example syntax and Usage
+```
+$ ./panmanUtils -I <path to PanMAN file> --newick --output-file=<prefix of output file> (optional)
+```
+```
+$ ./panmanUtils -I ecoli_10.panman --newick --output-file=ecoli_10
 ```
 
 #### Tip/internal node sequences extract
 Extract tip and internal node sequences from a PanMAN in a FASTA format.
+
 * Example syntax and Usage
 ```
-$ ./panmanUtils -I <path to PanMAN file> --fasta -o <path to output file>
+$ ./panmanUtils -I <path to PanMAN file> --fasta --output-file=<prefix of output file> (optional)
 ```
 ```
-$ ./panmanUtils -I ecoli_10.panman --fasta -o ecoli_10.fasta
+$ ./panmanUtils -I ecoli_10.panman --fasta --output-file=ecoli_10
 ```
 
 #### Multiple Sequence Alignment (MSA) extract
 Extract MSA of sequences for each PanMAT in a PanMAN in a FASTA format.
+
 * Example syntax and Usage
 ```
-$ ./panmanUtils -I <path to PanMAN file> --fasta-aligned -o <path to output file>
+$ ./panmanUtils -I <path to PanMAN file> --fasta-aligned --output-file=<prefix of output file> (optional)
 ```
 ```
-$ ./panmanUtils -I ecoli_10.panman --fasta-aligned -o ecoli_10.msa
+$ ./panmanUtils -I ecoli_10.panman --fasta-aligned --output-file=ecoli_10
 ```
 
 #### Multiple Whole Genome Alignment (m-WGA) extract
 Extract m-WGA for each PanMAT in a PanMAN in the form of a UCSC multiple alignment format (MAF).
+
 * Example syntax and Usage
 ```
-$ ./panmanUtils -I <path to PanMAN file> --maf -o <path to output file>
+$ ./panmanUtils -I <path to PanMAN file> --maf --output-file=<prefix of output file> (optional)
 ```
 ```
-$ ./panmanUtils -I ecoli_10.panman --maf -o ecoli_10.maf
+$ ./panmanUtils -I ecoli_10.panman --maf --output-file=ecoli_10
 ```
 
 #### Variant Call Format (VCF) extract
 Extract variations of all sequences from any PanMAT in a PanMAN in the form of a VCF file with respect to <i>any</i> reference sequence (ref) in the PanMAT.
+
 * Example syntax and Usage
 ```
-$ ./panmanUtils -I <path to PanMAN file> --vcf -o <path to output file> -r ref
+$ ./panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix of output file> (optional) 
 ```
 ```
-$ ./panmanUtils -I ecoli_10.panman --vcf -o ecoli_10.vcf -r S5
+$ ./panmanUtils -I ecoli_10.panman --vcf -reference=NC_000913.3 --output-file=ecoli_10 
 ```
 
 #### Graphical fragment assembly (GFA) extract
 Convert any PanMAT in a PanMAN to a Graphical fragment assembly (GFA) file representing the pangenome.
+
 * Example syntax and Usage
 ```
-$ ./panmanUtils -I <path to PanMAN file> --gfa -o <path to output file>
+$ ./panmanUtils -I <path to PanMAN file> --gfa --output-file=<prefix of output file> (optional)
 ```
 ```
-$ ./panmanUtils -I ecoli_10.panman --gfa -o ecoli_10.gfa
+$ ./panmanUtils -I ecoli_10.panman --gfa --output-file=ecoli_10 
+```
+
+#### Subnetwork extract
+Extract subnetwork of given PanMAN and write it to a new PanMAN file based on the list of nodes provided in the input-file.
+
+* Example syntax and Usage
+```
+$ ./panmanUtils -I <path to PanMAN file> --subnet --input-file=<path to a file containing list of nodes> --output-file=<prefix of output file>
+```
+```
+$ ./panmanUtils -I ecoli_10.panman --subnet --input-file=nodes.txt --output-file=ecoli_10_subnet
 ```
 
 #### Annotate
-Annotate any node in a PanMAN with a custom string (nodes can be later searched by these annotations)
+Annotate nodes in a PanMAN with a custom string (nodes can be later searched by these annotations) using a input tsv file containting list of nodes and their corresponding custom annotations. 
+
+* Example syntax and Usage
+```
+$ ./panmanUtils -I <path to PanMAN file> --annotate <path to file containing list of annotations> --output-file=ecoli_10_annotate
+```
+```
+$ ./panmanUtils -I ecoli_10.panman --annotate --input-file=annotations.tsv --output-file=ecoli_10_annotate
+```
+> **NOTE:** If output-file is not provided to <i>panmanUtils</i>, the annotated PanMAN will be written to the same file.
+
+#### Amino Acid Translation
+Annotate any node in a PanMAN with a custom string (nodes can be later searched by these annotations).
+
 * Example syntax and Usage
 ```
 $ ./panmanUtils -I <path to PanMAN file> --annotate <path to file containing list of annotations>
