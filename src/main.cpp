@@ -88,12 +88,13 @@ void setupOptionDescriptions() {
         ("maf,w", "Print m-WGA for each PanMAT in a PanMAN (MAF format)")
         ("annotate,a", "Annotate nodes of the input PanMAN based on the list provided in the input-file")
         ("reroot,r", "Reroot a PanMAT in a PanMAN based on the input sequence id (--reference)")
+        ("aa-translation,v", "Extract amino acid translations in tsv file")
         ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
         ("start,s", po::value< std::string >(), "Start coordinate of protein translation")
         ("end,e", po::value< std::string >(), "End coordinate of protein translation")
 
-        ("input-file", po::value< std::string >(), "Name of the input file")
-        ("output-file,o", po::value< std::string >(), "Name of the input file")
+        ("input-file", po::value< std::string >(), "Path to the input file, required for --subnet and --annotate")
+        ("output-file,o", po::value< std::string >(), "Prefix of the output file name")
     
         ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
         ("mutation-file", po::value< std::string >(), "File path of complex mutation file for tree group")
