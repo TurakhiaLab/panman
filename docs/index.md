@@ -1,16 +1,28 @@
 # Welcome to PanMAN Wiki
 
-## <b>What is a PanMAN?</b>
+## <b>What are PanMANs?</b>
 PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 1b), and even structural mutations (Fig. 1a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 1c). PanMAN's representative power is compared against existing pangenomic formats in Fig. 1d. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
 
-<b>Figure 1: Overview of the PanMAN data structure</b>
-<img src="images/panman.svg" width="1200" height="1200"/>
+<div align="center">
+    <b>Figure 1: Overview of the PanMAN data structure</b>
+    <img src="images/panman.svg" width="1200" height="1200"/>
+</div>
+
+### <b>PanMAN's Protocol Buffer file format</b>
+PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](https://protobuf.dev/)), a binary serialization file format, to compactly store PanMAN's data structure in a file. Fig. 2 provides the .proto file defining the PanMAN’s structure. At the top level, the file format of PanMANs encodes a list (declared as a repeated identifier in the .protof file) of PanMATs. Each PanMAT object stores the following data elements: (a) a unique identifier, (b) a phylogenetic tree stored as a string in Newick format, (c) a list of mutations on each branch ordered according to the pre-order traversal of the tree topology, (d) a block mapping object to record homologous segments identified as duplications and rearrangements, which are mapped against their common consensus sequence; the block-mapping object is also used to derive the pseudo-root, e) a gap list to store the position and length of gaps corresponding to each block's consensus sequence. Each mutation object encodes the node's block and nucleotide mutations that are inferred on the branches leading to that node. If a block mutation exists at a position described by the Block-ID field (int32), the block mutation field (bool) is set to 1, otherwise set to 0, and its type is stored as a substitution to and from a gap in Block mutation type field (bool), encoded as 0 or 1, respectively. In PanMAN, each nucleotide mutation within a block inferred on a branch has four pieces of information, i.e., position (middle coordinate), gap position (last coordinate), mutation type, and mutated characters. To reduce redundancy in the file, consecutive mutations of the same type are packed together and stored as a mutation info (int32) field, where mutation type, mutation length, and mutated characters use 3, 5, and 24 bits, respectively. PanMAN stores each character using one-hot encoding, hence, one "Nucleotide Mutations" object can store up to 6 consecutive mutations of the same type. PanMAN's file also stores the complex mutation object to encode the type of complex mutation and its metadata such as PanMATs' and nodes' identifiers, breakpoint coordinates, etc. The entire file is then compressed using XZ ([https://github.com/tukaani-project/xz](https://github.com/tukaani-project/xz)) to enhance storage efficiency.
+
+<div align="center">
+    <b>Figure 2: PanMAN's file format</b>
+    <img src="images/pb.svg" width="1200" height="1200"/>
+</div>
 
 ## <i><b>panmanUtils</b></i>
-<i>panmanUtils</i> includes multiple algorithms to construct PanMANs and to support various functionalities to modify and extract useful information from PanMANs (Fig. 2). 
+<i>panmanUtils</i> includes multiple algorithms to construct PanMANs and to support various functionalities to modify and extract useful information from PanMANs (Fig. 3). 
 
-<b>Figure 2:  Overview of panmanUtils' functionalities</b>
-<img src="images/utility.svg" width="1200" height="1200"/>
+<div align="center">
+    <b>Figure 3:  Overview of panmanUtils' functionalities</b>
+    <img src="images/utility.svg" width="1200" height="1200"/>
+</div>
 
 ### <b><i>panmanUtils</i> Video Tutorial</b>
 TBA
