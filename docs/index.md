@@ -1,7 +1,7 @@
 # Welcome to PanMAN Wiki
 
 ## <b>What is a PanMAN?</b>
-PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 1b), and even structural mutations (Fig. 1a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 1c). PanMANs representative power is comparared against existing pangenomic formats in Fig. 1d. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
+PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 1b), and even structural mutations (Fig. 1a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 1c). PanMAN's representative power is compared against existing pangenomic formats in Fig. 1d. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
 
 <b>Figure 1: Overview of the PanMAN data structure</b>
 <img src="images/panman.svg" width="1200" height="1200"/>
@@ -49,7 +49,7 @@ Similarly, if you'd like to construct a PanMAN using a GFA or an MSA as an input
 > **NOTE:** Currently, we only support GFAv1.1 consisting of Segments, un-overlapping Links and Paths.
 
 ### <b>Functionalities in <i>panmanUtils</i></b>
-All panmanUtils functionality commands manipulates input PanMAN file (.panman).
+All panmanUtils functionality commands manipulate the input PanMAN file.
 ```
 $ ./panmanUtils -I <path to PanMAN file> {opt}
 ```
@@ -66,17 +66,18 @@ Specific options:
 -w [ --maf ]                Print m-WGA for each PanMAT in a PanMAN (MAF format)
 -a [ --annotate ]           Annotate nodes of the input PanMAN based on the list provided in the input-file
 -r [ --reroot ]             Reroot a PanMAT in a PanMAN based on the input sequence id (--reference)
+-v [ --aa-translation ]     Extract amino acid translations in tsv file
 -n [ --reference ] arg      Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)
 -s [ --start ] arg          Start coordinate of protein translation
 -e [ --end ] arg            End coordinate of protein translation
--i [ --input-file ] arg     Path of the input file
+-i [ --input-file ] arg     Path to the input file, required for --subnet and --annotate
 -o [ --output-file ] arg    Prefix of the output file name
 ```
 
 > **NOTE:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
 
 #### Summary extract
-The summary feature extract node and tree level statistics of a PanMAN, which contains a summary of its geometric and parsimony information.
+The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.
 
 * Example syntax and Usage
 ```
@@ -87,7 +88,7 @@ $ ./panmanUtils -I ecoli_10.panman --summary --output-file=ecoli_10
 ```
 
 #### Newick extract
-Extract newick string of all trees in a PanMAN.
+Extract Newick string of all trees in a PanMAN.
 
 * Example syntax and Usage
 ```
@@ -153,7 +154,7 @@ $ ./panmanUtils -I ecoli_10.panman --gfa --output-file=ecoli_10
 ```
 
 #### Subnetwork extract
-Extract subnetwork of given PanMAN and write it to a new PanMAN file based on the list of nodes provided in the input-file.
+Extract a subnetwork from given PanMAN and write it to a new PanMAN file based on the list of nodes provided in the input-file.
 
 * Example syntax and Usage
 ```
@@ -164,7 +165,7 @@ $ ./panmanUtils -I ecoli_10.panman --subnet --input-file=nodes.txt --output-file
 ```
 
 #### Annotate
-Annotate nodes in a PanMAN with a custom string (nodes can be later searched by these annotations) using a input tsv file containting list of nodes and their corresponding custom annotations. 
+Annotate nodes in a PanMAN with a custom string, later searched by these annotations, using a input tsv file containting list of nodes and their corresponding custom annotations. 
 
 * Example syntax and Usage
 ```
@@ -176,15 +177,18 @@ $ ./panmanUtils -I ecoli_10.panman --annotate --input-file=annotations.tsv --out
 > **NOTE:** If output-file is not provided to <i>panmanUtils</i>, the annotated PanMAN will be written to the same file.
 
 #### Amino Acid Translation
-Annotate any node in a PanMAN with a custom string (nodes can be later searched by these annotations).
+Extract amino acid translations from a PanMAN in tsv file.
 
 * Example syntax and Usage
 ```
-$ ./panmanUtils -I <path to PanMAN file> --annotate <path to file containing list of annotations>
+$ ./panmanUtils -I <path to PanMAN file> --aa-translations --output-file=<prefix of output file> (optional)
 ```
 ```
-$ ./panmanUtils -I ecoli_10.panman --annotate info.txt
+$ ./panmanUtils -I ecoli_10.panman --aa-translations --output_file=ecoli_10
 ```
 
+## <b>Contributions</b>
+We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
 
-
+## <b>Citing PanMAN</b>
+If you use the PanMANs or panmanUtils in your research or publications, we kindly request that you cite the following paper: XXX
