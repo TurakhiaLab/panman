@@ -20,6 +20,8 @@
 #define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"
 
+static const int SANKOFF_INF = 100000001;
+
 typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >,
             std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
 // Individual block
@@ -49,7 +51,7 @@ namespace panmanUtils {
     // where each line has length lineSize
     void printSequenceLines(const sequence_t& sequence,
         const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize,
-        bool aligned, std::ofstream& fout, int offset = 0, bool debug = false);
+        bool aligned, std::ostream& fout, int offset = 0, bool debug = false);
 
     // Remove '-' character from sequence string
     std::string stripGaps(std::string sequenceString);
@@ -377,7 +379,7 @@ namespace panmanUtils {
 
             // Tree traversal for FASTA writer
             void printFASTAHelper(panmanUtils::Node* root, sequence_t& sequence,
-                blockExists_t& blockExists, blockStrand_t& blockStrand, std::ofstream& fout,
+                blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout,
                 bool aligned = false);
 
             // Merge parent and child nodes when compressing subtree
@@ -491,16 +493,17 @@ namespace panmanUtils {
                 std::unordered_map< std::string, int >& states, std::unordered_map< std::string,
                 std::pair< panmanUtils::BlockMutationType, bool > >& mutations, int parentState);
 
-            void printSummary();
+            // void printSummary();
+            void printSummary(std::ostream &out);
             void printBfs(Node* node = nullptr);
-            void printFASTA(std::ofstream& fout, bool aligned = false);
+            void printFASTA(std::ostream& fout, bool aligned = false);
             void printFASTAParallel(std::ofstream& fout, bool aligned = false);
-            void printMAF(std::ofstream& fout);
+            void printMAF(std::ostream& fout);
 
-            void printMAFNew(std::ofstream& fout);
+            void printMAFNew(std::ostream& fout);
             void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
-            void printVCFParallel(std::string reference, std::ofstream& fout);
-            void extractAminoAcidTranslations(std::ofstream& fout, int64_t start, int64_t end);
+            void printVCFParallel(std::string reference, std::ostream& fout);
+            void extractAminoAcidTranslations(std::ostream& fout, int64_t start, int64_t end);
 
             // Extract PanMAT representing a segment of the genome. The start and end coordinates
             // are with respect to the root sequence. The strands of the terminal blocks in all
@@ -543,7 +546,7 @@ namespace panmanUtils {
             void vcfToFASTA(std::ifstream& fin, std::ofstream& fout);
             void annotate(std::ifstream& fin);
             std::vector< std::string > searchByAnnotation(std::string annotation);
-            void convertToGFA(std::ofstream& fout);
+            void convertToGFA(std::ostream& fout);
             void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
             void getNodesPreorder(panmanUtils::Node* root, panman::tree& treeToWrite);
             size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition,
