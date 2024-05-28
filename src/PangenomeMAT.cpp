@@ -3599,10 +3599,15 @@ std::vector< PangenomeMAT::NucMut > PangenomeMAT::Tree::consolidateNucMutations(
     return consolidatedMutationArray;
 }
 
-void PangenomeMAT::Tree::compressTreeParallel(PangenomeMAT::Node* node, size_t level) {
+void PangenomeMAT::Tree::compressTreeParallel(PangenomeMAT::Node* node, size_t level, const std::set< std::string >& nodeIdsToDefinitelyInclude) {
     node->level = level;
 
     while(node->children.size() == 1) {
+        if(nodeIdsToDefinitelyInclude.find(node->identifier) != nodeIdsToDefinitelyInclude.end() ||
+            nodeIdsToDefinitelyInclude.find(node->children[0]->identifier)
+                != nodeIdsToDefinitelyInclude.end()) {
+            break;
+        }
         mergeNodes(node, node->children[0]);
         auto oldVector = node->nucMutation;
         node->nucMutation = consolidateNucMutations(oldVector);
@@ -3619,12 +3624,20 @@ void PangenomeMAT::Tree::compressTreeParallel(PangenomeMAT::Node* node, size_t l
     tbb::parallel_for(tbb::blocked_range<int>(0, (int)node->children.size()), [&](tbb::blocked_range<int> r) {
         for(int i = r.begin(); i < r.end(); i++) {
             while(node->children[i]->children.size() == 1) {
+                if(nodeIdsToDefinitelyInclude.find(node->children[i]->identifier) != nodeIdsToDefinitelyInclude.end() ||
+                    nodeIdsToDefinitelyInclude.find(node->children[i]->children[0]->identifier) != nodeIdsToDefinitelyInclude.end()) {
+                    break;
+                }
                 mergeNodes(node->children[i], node->children[i]->children[0]);
             }
             // consolidate mutations of parent
             auto oldVector = node->children[i]->nucMutation;
 
-            node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
+            if(nodeIdsToDefinitelyInclude.find(node->children[i]->identifier) != nodeIdsToDefinitelyInclude.end() ||
+                (node->children[i]->children.size() == 1 &&
+                nodeIdsToDefinitelyInclude.find(node->children[i]->children[0]->identifier) != nodeIdsToDefinitelyInclude.end())) {
+                node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
+            }
 
             if(!debugSimilarity(oldVector, node->children[i]->nucMutation)) {
                 printError("Inaccuracy observed in subtree extract. Please report to the"
@@ -3632,7 +3645,7 @@ void PangenomeMAT::Tree::compressTreeParallel(PangenomeMAT::Node* node, size_t l
                 return;
             }
 
-            compressTreeParallel(node->children[i], level + 1);
+            compressTreeParallel(node->children[i], level + 1, nodeIdsToDefinitelyInclude);
         }
     });
 
@@ -3679,12 +3692,12 @@ PangenomeMAT::Node* subtreeExtractParallelHelper(PangenomeMAT::Node* node, const
         j++;
     }
     newNode->children.resize(i);
-    
+
     return newNode;
 
 }
 
-PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtractParallel(std::vector< std::string > nodeIds) {
+PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtractParallel(std::vector< std::string > nodeIds, const std::set< std::string >& nodeIdsToDefinitelyInclude) {
     tbb::concurrent_vector< PangenomeMAT::Node* > requiredNodes;
 
     std::atomic<bool> idDoesntExist = false;
@@ -3715,7 +3728,7 @@ PangenomeMAT::Node* PangenomeMAT::Tree::subtreeExtractParallel(std::vector< std:
 
     PangenomeMAT::Node* newTreeRoot = subtreeExtractParallelHelper(root, ticks);
 
-    compressTreeParallel(newTreeRoot, 1);
+    compressTreeParallel(newTreeRoot, 1, nodeIdsToDefinitelyInclude);
 
     return newTreeRoot;
 }
@@ -4295,7 +4308,7 @@ void PangenomeMAT::Tree::writeToFile(std::ostream& fout, PangenomeMAT::Node* nod
     }
 
     if (!treeToWrite.SerializeToOstream(&fout)) {
-		std::cerr << "Failed to write to output file." << std::endl;
+        std::cerr << "Failed to write to output file." << std::endl;
     }
 }
 
@@ -4962,9 +4975,11 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
     tbb::concurrent_map< std::tuple< int, int, int >, char > rootCurrentCharacter;
 
     tbb::concurrent_unordered_map< std::string,
-        std::vector< std::tuple< char, size_t, char, char > > > nodeMutations;
+        std::vector< std::tuple< char, size_t, char, char, bool > > > nodeMutations;
 
     tbb::concurrent_unordered_map< size_t, bool > rootPresentBlocks;
+
+    tbb::concurrent_map< std::tuple< int, int, int >, bool > isGapCoordinate;
 
     // convert PanMAT coordinate to global reference coordinate
     size_t rootCtr = 0;
@@ -4977,23 +4992,21 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                         panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
                         if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
                             rootCurrentCharacter[std::make_tuple(i,j,k)] = rootSequence[i].first[j].second[k];
-                            // if(rootCtr == 240) {
-                            //     std::cout << rootSequence[i].first[j].second[k] << " " << i << " " << j << " " << k << std::endl;
-                            // }
+                            isGapCoordinate[std::make_tuple(i,j,k)] = false;
                             rootCtr++;
                         } else {
                             rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                            isGapCoordinate[std::make_tuple(i,j,k)] = true;
                         }
                     }
                     panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
                     if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
                         rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
-                        // if(rootCtr == 240) {
-                        //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-                        //     }
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = false;
                         rootCtr++;
                     } else {
                         rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = true;
                     }
                 }
             } else {
@@ -5001,12 +5014,11 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                     panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
                     if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
                         rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
-                        // if(rootCtr == 240) {
-                        //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-                        //     }
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = false;
                         rootCtr++;
                     } else {
                         rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = true;
                     }
                     for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
                         panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
@@ -5015,9 +5027,11 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                             // if(rootCtr == 240) {
                             //     std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << k << std::endl;
                             // }
+                            isGapCoordinate[std::make_tuple(i,j,k)] = false;
                             rootCtr++;
                         } else {
                             rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                            isGapCoordinate[std::make_tuple(i,j,k)] = true;
                         }
                     }
                 }
@@ -5029,17 +5043,21 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                     for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
                         panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
                         rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,k)] = false;
                     }
                     panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
                     rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    isGapCoordinate[std::make_tuple(i,j,-1)] = false;
                 }
             } else {
                 for(size_t j = rootSequence[i].first.size() - 1; j + 1 > 0; j--) {
                     panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
                     rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    isGapCoordinate[std::make_tuple(i,j,-1)] = false;
                     for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
                         panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
                         rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,k)] = false;
                     }
                 }
             }
@@ -5060,18 +5078,12 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                     for(size_t k = 0; k < st[i].first[j].second.size(); k++) {
                         if(st[i].first[j].second[k] != '-' && st[i].first[j].second[k] != 'x') {
                             seqChar[std::make_tuple(u.first,i,j,k)] = st[i].first[j].second[k];
-                            // if(rootCtr == 240) {
-                            //     std::cout << rootSequence[i].first[j].second[k] << " " << i << " " << j << " " << k << std::endl;
-                            // }
                         } else {
                             seqChar[std::make_tuple(u.first,i,j,k)] = '-';
                         }
                     }
                     if(st[i].first[j].first != '-' && st[i].first[j].first != 'x' && bt[i].first) {
                         seqChar[std::make_tuple(u.first,i,j,-1)] = st[i].first[j].first;
-                        // if(rootCtr == 240) {
-                        //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-                        //     }
                     } else {
                         seqChar[std::make_tuple(u.first,i,j,-1)] = '-';
                     }
@@ -5080,18 +5092,12 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                 for(size_t j = st[i].first.size() - 1; j + 1 > 0; j--) {
                     if(st[i].first[j].first != '-' && st[i].first[j].first != 'x') {
                         seqChar[std::make_tuple(u.first,i,j,-1)] = rootSequence[i].first[j].first;
-                        // if(rootCtr == 240) {
-                        //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-                        //     }
                     } else {
                         seqChar[std::make_tuple(u.first,i,j,-1)] = '-';
                     }
                     for(size_t k = st[i].first[j].second.size() - 1; k + 1 > 0; k--) {
                         if(st[i].first[j].second[k] != '-' && st[i].first[j].second[k] != 'x') {
                             seqChar[std::make_tuple(u.first,i,j,k)] = st[i].first[j].second[k];
-                            // if(rootCtr == 240) {
-                            //     std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << k << std::endl;
-                            // }
                         } else {
                             seqChar[std::make_tuple(u.first,i,j,k)] = '-';
                         }
@@ -5099,7 +5105,6 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                 }
             }
         }
-
     });
 
     nodeMutations[root->identifier];
@@ -5123,7 +5128,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
             it = it->parent;
         }
 
-        std::vector< std::pair< size_t, std::tuple< char, size_t, char, char > > > currentNodeMutations;
+        std::vector< std::pair< size_t, std::tuple< char, size_t, char, char, bool > > > currentNodeMutations;
 
         for(auto node = path.rbegin(); node != path.rend(); node++) {
             for(auto mutation: (*node)->blockMutation) {
@@ -5153,31 +5158,6 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
         }
 
         for(auto node = path.rend()-1; node != path.rend(); node++) {
-            // for(auto mutation: (*node)->blockMutation) {
-            //     int32_t primaryBlockId = mutation.primaryBlockId;
-            //     if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
-            //         continue;
-            //     }
-
-            //     bool type = mutation.blockMutInfo;
-            //     bool inversion = mutation.inversion;
-            //     if(type == 1) {
-            //         // insertion
-            //         presentBlocks[primaryBlockId] = true;
-            //         if(inversion) {
-            //             std::cout << "INVERTED BLOCK FOUND" << std::endl;
-            //         }
-            //     } else {
-            //         if(inversion) {
-            //             // This means that this is not a deletion, but instead an inversion
-            //             std::cout << "INVERSION FOUND" << std::endl;
-            //         } else {
-            //             // Actually a deletion
-            //             presentBlocks[primaryBlockId] = false;
-            //         }
-            //     }
-            // }
-
             for(size_t i = 0; i < (*node)->nucMutation.size(); i++) {
                 int32_t primaryBlockId = (*node)->nucMutation[i].primaryBlockId;
                 if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
@@ -5199,16 +5179,11 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                                 if(presentBlocks[primaryBlockId]) {
                                     // char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)];
                                     char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition, nucGapPosition+j)];
-                                    // char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)];
                                     if(oldVal == '-' || oldVal == 'x') {
-                                        // std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
                                         continue;
                                     }
-                                    // if(oldVal == newVal) {
-                                    //     std::cout << primaryBlockId << " " << nucPosition << " " << nucGapPosition+j << " " << oldVal << " " << newVal << std::endl;
-                                    // }
                                     if(node == path.rend()-1)
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal)));
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)])));
                                     // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal));
                                 }
                                 currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)] = newVal;
@@ -5230,7 +5205,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                                     //     std::cout << primaryBlockId << " " << nucPosition << " " << nucGapPosition+j << " " << oldVal << " " << newVal << std::endl;
                                     // }
                                     if(node == path.rend()-1)
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal)));
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition+j, -1)])));
                                     // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal));
                                 }
                                 currentCharacter[std::make_tuple(primaryBlockId, nucPosition + j, -1)] = newVal;
@@ -5241,13 +5216,13 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                             for(int j = 0; j < len; j++) {
                                 newVal = PangenomeMAT::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 if(node == path.rend()-1)
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], '-', newVal)));
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], '-', newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)])));
                             }
                         } else {
                             for(int j = 0; j < len; j++) {
                                 newVal = PangenomeMAT::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
                                 if(node == path.rend()-1)
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], '-', newVal)));
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], '-', newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition + j, -1)])));
 
                             }
                         }
@@ -5256,14 +5231,14 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition, nucGapPosition + j)];
                                 if(node == path.rend()-1){
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], oldVal, '-')));
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], oldVal, '-', isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)])));
                                 }
                             }
                         } else {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition + j, nucGapPosition)];
                                 if(node == path.rend()-1){
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, '-')));
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, '-', isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition + j, -1)])));
                                 }
                             }
                         }
@@ -5278,7 +5253,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                                 std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
                             }
                             if(node == path.rend()-1)
-                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal)));
+                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)])));
                             // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal));
                         }
                         currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)] = newVal;
@@ -5290,7 +5265,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
                                 std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
                             }
                             if(node == path.rend()-1)
-                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal)));
+                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, -1)])));
                             // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal));
                         }
                         currentCharacter[std::make_tuple(primaryBlockId, nucPosition, -1)] = newVal;
@@ -5312,7 +5287,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
         fout << u.first << '\t';
         for(auto v: u.second) {
             if(std::get<0>(v) == 'S') {
-                fout << " > " << std::get<2>(v) << std::get<1>(v)+1 << std::get<3>(v);
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<2>(v) << std::get<1>(v)+1 << std::get<3>(v);
             }
         }
         fout << '\n';
@@ -5322,7 +5297,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
         // print insertions
         for(auto v: u.second) {
             if(std::get<0>(v) == 'I') {
-                fout << " > " << std::get<1>(v)+1 << std::get<3>(v);
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<1>(v)+1 << std::get<3>(v);
             }
         }
         fout << '\n';
@@ -5332,7 +5307,7 @@ void PangenomeMAT::Tree::printMutations(std::ofstream& fout) {
         // print deletions
         for(auto v: u.second) {
             if(std::get<0>(v) == 'D') {
-                fout << " > " << std::get<1>(v)+1 << std::get<2>(v);
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<1>(v)+1 << std::get<2>(v);
             }
         }
         fout << '\n';
@@ -8261,4 +8236,109 @@ void PangenomeMAT::TreeGroup::printComplexMutations() {
                     str2, co2)
                 << " " << u.treeIndex3 << " " << u.sequenceId3 << "\n";
     }
+}
+
+void PangenomeMAT::TreeGroup::printComplexMutations(std::ofstream& fout) {
+    for(const auto& u: complexMutations) {
+        sequence_t s1, s2;
+        blockExists_t b1, b2;
+        blockStrand_t str1, str2;
+
+        // Circular Offsets
+        int co1 = 0, co2 = 0;
+
+        trees[u.treeIndex1].getSequenceFromReference(s1, b1, str1, u.sequenceId1, true);
+        trees[u.treeIndex2].getSequenceFromReference(s2, b2, str2, u.sequenceId2, true);
+
+        if(trees[u.treeIndex1].circularSequences.find(u.sequenceId1) != trees[u.treeIndex1].circularSequences.end()) {
+            co1 = trees[u.treeIndex1].circularSequences[u.sequenceId1];
+        }
+
+        if(trees[u.treeIndex2].circularSequences.find(u.sequenceId2) != trees[u.treeIndex2].circularSequences.end()) {
+            co2 = trees[u.treeIndex2].circularSequences[u.sequenceId2];
+        }
+
+        fout << u.mutationType
+                << " " << u.treeIndex1
+                << " " << u.sequenceId1
+                << " " << u.treeIndex2
+                << " " << u.sequenceId2
+                << " " << trees[u.treeIndex1].getUnalignedGlobalCoordinate(u.primaryBlockIdStart1,
+                    u.secondaryBlockIdStart1, u.nucPositionStart1, u.nucGapPositionStart1, s1, b1,
+                    str1, co1)
+                << " " << trees[u.treeIndex1].getUnalignedGlobalCoordinate(u.primaryBlockIdEnd1,
+                    u.secondaryBlockIdEnd1, u.nucPositionEnd1, u.nucGapPositionEnd1, s1, b1,
+                    str1, co1)
+                << " " << trees[u.treeIndex2].getUnalignedGlobalCoordinate(u.primaryBlockIdStart2,
+                    u.secondaryBlockIdStart2, u.nucPositionStart2, u.nucGapPositionStart2, s2, b2,
+                    str2, co2)
+                << " " << trees[u.treeIndex2].getUnalignedGlobalCoordinate(u.primaryBlockIdEnd2,
+                    u.secondaryBlockIdEnd2, u.nucPositionEnd2, u.nucGapPositionEnd2, s2, b2,
+                    str2, co2)
+                << " " << u.treeIndex3 << " " << u.sequenceId3 << "\n";
+    }
+}
+
+PangenomeMAT::TreeGroup* PangenomeMAT::TreeGroup::subnetworkExtract(std::unordered_map< int, std::vector< std::string > >& nodeIds) {
+    // Temporary directory to store subtrees
+    std::filesystem::create_directory("./tmp_pmat");
+    std::vector< std::string > fileNames;
+    for (size_t i = 0; i < trees.size(); i++) {
+        std::vector< std::string > subtreeNodeIds = nodeIds[i];
+        std::set< std::string > cplxMutationNodeIds;
+        for (auto mutation: complexMutations) {
+            if (mutation.treeIndex1 == i) {
+                cplxMutationNodeIds.insert(mutation.sequenceId1);
+            } else if(mutation.treeIndex2 == i) {
+                cplxMutationNodeIds.insert(mutation.sequenceId2);
+            } else if(mutation.treeIndex3 == i) {
+                cplxMutationNodeIds.insert(mutation.sequenceId3);
+            }
+        }
+
+        std::set< std::string > subtreeNodeIdSet(subtreeNodeIds.begin(), subtreeNodeIds.end());
+        for (auto id: cplxMutationNodeIds) {
+            subtreeNodeIdSet.insert(id);
+        }
+
+        subtreeNodeIds = std::vector< std::string >(subtreeNodeIdSet.begin(), subtreeNodeIdSet.end());
+
+        std::string fileName = "./tmp_pmat/pmat_" + std::to_string(i) + ".pmat";
+
+        std::ofstream outputFile(fileName);
+        fileNames.push_back(fileName);
+
+        boost::iostreams::filtering_streambuf< boost::iostreams::output>
+            outPMATBuffer;
+        outPMATBuffer.push(boost::iostreams::gzip_compressor());
+        outPMATBuffer.push(outputFile);
+        std::ostream outstream(&outPMATBuffer);
+
+        trees[i].writeToFile(outstream, trees[i].subtreeExtractParallel(subtreeNodeIds, cplxMutationNodeIds));
+
+        boost::iostreams::close(outPMATBuffer);
+        outputFile.close();
+    }
+
+    std::ofstream fout("./tmp_pmat/cplx");
+
+    printComplexMutations(fout);
+
+    fout.close();
+
+    std::ifstream cplxMutationFile("./tmp_pmat/cplx");
+
+    std::vector< std::ifstream > files;
+    for(auto f: fileNames) {
+        files.emplace_back(f);
+    }
+
+    TreeGroup* subnetwork = new TreeGroup(files, cplxMutationFile);
+
+    cplxMutationFile.close();
+
+    // Delete temporary directory
+    std::filesystem::remove_all("./tmp_pmat");
+
+    return subnetwork;
 }

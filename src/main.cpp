@@ -65,6 +65,8 @@ po::options_description sequenceExtractDesc("Sequence Extract Command Line Argum
 po::positional_options_description sequenceExtractPositionArgumentDesc;
 po::options_description groupFastaDesc("Tree Group FASTA writer Command Line Arguments");
 po::positional_options_description groupFastaPositionArgumentDesc;
+po::options_description subnetworkDesc("Subnetwork extract Command Line Arguments");
+po::positional_options_description subnetworkPositionArgumentDesc;
 
 void setupOptionDescriptions() {
     // Global option descriptions
@@ -257,6 +259,16 @@ search for")
 
     // Adding output file as positional argument
     groupWritePositionArgumentDesc.add("output-file", -1);
+
+    // Subnetwork Extract option descriptions
+    subnetworkDesc.add_options()
+        ("help", "produce help message")
+        ("input-file", po::value< std::string >(), "Name of input file containing tree and node ids")
+        ("output-file", po::value< std::string >()->required(), "Output file name")
+    ;
+
+    // Adding output file as positional argument
+    subtreePositionArgumentDesc.add("output-file", -1);
 }
 
 void parseAndExecute(int argc, char* argv[]) {
@@ -1307,6 +1319,76 @@ void parseAndExecute(int argc, char* argv[]) {
                 std::cout << "Complex Mutations:" << std::endl;
                 TG->printComplexMutations();
 
+            } else if(strcmp(splitCommandArray[0], "subnetwork") == 0) {
+                // Extract the subnetwork consisting of given node IDs from PanMAN
+                po::variables_map subnetworkVm;
+                po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                    .options(subnetworkDesc).positional(subnetworkPositionArgumentDesc).run(), subnetworkVm);
+
+                if(subnetworkVm.count("help")) {
+                    std::cout << subnetworkDesc;
+                } else {
+                    po::notify(subnetworkVm);
+                    std::string outputFileName = subnetworkVm["output-file"].as< std::string >();
+
+                    // List of node identifiers that need to be extracted from the tree
+                    std::unordered_map< int, std::vector< std::string > > nodeIds;
+                    std::string nodeId;
+
+                    if(subnetworkVm.count("input-file")) {
+                        std::string inputFileName = subnetworkVm["input-file"].as< std::string >();
+                        std::ifstream fin(inputFileName);
+                        std::string line;
+                        int treeId;
+                        while(std::getline(fin, line)) {
+                            std::stringstream ss(line);
+                            ss >> treeId;
+                            while(ss >> nodeId) {
+                                nodeIds[treeId].push_back(nodeId);
+                            }
+                        }
+                        fin.close();
+                    } else {
+                        PangenomeMAT::printError("No source file for node IDs provided.");
+                        std::cout << subtreeDesc;
+                    }
+
+                    if(nodeIds.size() == 0) {
+                        std::cout << "No node identifiers selected!" << std::endl;
+                    }
+
+                    std::filesystem::create_directory("./pman");
+                    std::ofstream outputFile("./pman/" + outputFileName + ".pman");
+                    boost::iostreams::filtering_streambuf< boost::iostreams::output>
+                        outPMATBuffer;
+
+                    auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+                    outPMATBuffer.push(boost::iostreams::gzip_compressor());
+                    outPMATBuffer.push(outputFile);
+                    std::ostream outstream(&outPMATBuffer);
+
+                    PangenomeMAT::TreeGroup* subnetwork = TG->subnetworkExtract(nodeIds);
+                    subnetwork->writeToFile(outstream);
+
+                    boost::iostreams::close(outPMATBuffer);
+                    outputFile.close();
+
+                    auto subtreeEnd = std::chrono::high_resolution_clock::now();
+                    std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+                    std::cout << "\nParallel Subnetwork Extract execution time: "
+                        << subtreeTime.count() << " nanoseconds\n";
+                }
+            } else if(strcmp(splitCommandArray[0], "extended-newick") == 0) {
+                if (TG == nullptr) {
+                    std::cout << "No PanMAN loaded" << std::endl;
+                } else {
+                    for (auto& tree: TG->trees) {
+                        std::cout << tree.getNewickString(tree.root) << std::endl;
+                    }
+                    TG->printComplexMutations();
+                }
             } else if(strcmp(splitCommandArray[0], "exit") == 0) {
                 return;
             }
