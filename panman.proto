@@ -16,7 +16,7 @@ message mutation
     bool  blockGapExist = 2;
     bool  blockMutExist = 3;
     bool  blockMutInfo = 4;
-    optional bool  blockInversion = 5;
+    bool  blockInversion = 5;
     repeated nucMut nucMutation = 6;
 }
 

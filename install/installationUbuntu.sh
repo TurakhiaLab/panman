@@ -6,6 +6,7 @@ cd $(dirname "$0")
 mkdir -p ../build
 cd ../build
 git clone https://github.com/microsoft/vcpkg.git
+ ./vcpkg/bootstrap-vcpkg.sh
 ./vcpkg/vcpkg install jsoncpp
 wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
 tar -xvzf 2019_U9.tar.gz
