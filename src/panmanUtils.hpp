@@ -400,7 +400,8 @@ namespace panmanUtils {
 
             // Compress extracted subtree by combining parent and child nodes where parent has only
             // one child
-            void compressTreeParallel(Node* node, size_t level);
+            // void compressTreeParallel(Node* node, size_t level);
+            void compressTreeParallel(Node* node, size_t level, const std::set< std::string >& nodeIdsToDefinitelyInclude);
 
             // Used in rerooting
             void dfsExpansion(Node* node, std::vector< Node* >& vec);
@@ -511,7 +512,8 @@ namespace panmanUtils {
             // purpose of splitting the terminal blocks during extraction
             void extractPanMATSegment(std::ostream& fout, int64_t start, int64_t end);
 
-            Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
+            Node* subtreeExtractParallel(std::vector< std::string > nodeIds, const std::set< std::string >& nodeIdsToDefinitelyInclude = {});
+            // Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
             void writeToFile(std::ostream& fout, Node* node = nullptr);
             std::string getNewickString(Node* node);
             std::string getStringFromReference(std::string reference, bool aligned = true,
@@ -756,9 +758,11 @@ namespace panmanUtils {
         TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile);
         TreeGroup(const std::vector< Tree >& t);
 
+        TreeGroup* subnetworkExtract(std::unordered_map< int, std::vector< std::string > >& nodeIds);
+
         void printFASTA(std::ofstream& fout);
         void writeToFile(std::ostream& fout);
-        void printComplexMutations();
+        void printComplexMutations(std::ostream& fout);
     };
 
 };

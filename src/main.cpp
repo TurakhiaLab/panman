@@ -645,10 +645,9 @@ void parseAndExecute(int argc, char* argv[]) {
         }
 
         std::string outputFileName = globalVm["output-file"].as< std::string >();
-        std::filesystem::create_directory("./pmat");
-        std::ofstream outputFile("./pmat/" + outputFileName + ".pmat");
-        boost::iostreams::filtering_streambuf< boost::iostreams::output>
-            outPMATBuffer;
+        std::filesystem::create_directory("./panman");
+        std::ofstream outputFile("./panman/" + outputFileName + ".panman");
+        boost::iostreams::filtering_streambuf< boost::iostreams::output> outPMATBuffer;
 
         auto subtreeStart = std::chrono::high_resolution_clock::now();
 
@@ -665,6 +664,65 @@ void parseAndExecute(int argc, char* argv[]) {
         std::cout << "\nParallel Subtree Extract execution time: "
             << subtreeTime.count() << " nanoseconds\n";
         return;
+    } else if(globalVm.count("subnetwork")) {
+        // Extract the subnetwork consisting of given node IDs from PanMAN
+
+        std::string outputFileName;
+        if(!globalVm.count("output-file")) {
+            panmanUtils::printError("Output file not provided!");
+            std::cout << globalDesc;
+            return;
+        } else outputFileName = globalVm["output-file"].as< std::string >();
+
+        // List of node identifiers that need to be extracted from the tree
+        std::unordered_map< int, std::vector< std::string > > nodeIds;
+        std::string nodeId;
+
+        if(globalVm.count("input-file")) {
+            std::string inputFileName = globalVm["input-file"].as< std::string >();
+            std::ifstream fin(inputFileName);
+            std::string line;
+            int treeId;
+            while(std::getline(fin, line)) {
+                std::stringstream ss(line);
+                ss >> treeId;
+                while(ss >> nodeId) {
+                    nodeIds[treeId].push_back(nodeId);
+                }
+            }
+            fin.close();
+        } else {
+            panmanUtils::printError("Input file not provided!");
+            std::cout << subtreeDesc;
+            return;
+        }
+
+        if(nodeIds.size() == 0) {
+            std::cout << "No node identifiers selected!" << std::endl;
+        }
+
+        std::filesystem::create_directory("./panman");
+        std::ofstream outputFile("./panman/" + outputFileName + ".panman");
+        boost::iostreams::filtering_streambuf< boost::iostreams::output>
+            outPMATBuffer;
+
+        auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+        outPMATBuffer.push(boost::iostreams::gzip_compressor());
+        outPMATBuffer.push(outputFile);
+        std::ostream outstream(&outPMATBuffer);
+
+        panmanUtils::TreeGroup* subnetwork = TG->subnetworkExtract(nodeIds);
+        subnetwork->writeToFile(outstream);
+
+        boost::iostreams::close(outPMATBuffer);
+        outputFile.close();
+
+        auto subtreeEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+        std::cout << "\nParallel Subnetwork Extract execution time: "
+            << subtreeTime.count() << " nanoseconds\n";
     } else if(globalVm.count("vcf")) {
         if(T == nullptr) {
             std::cout << "No PanMAN selected" << std::endl;
@@ -767,22 +825,66 @@ void parseAndExecute(int argc, char* argv[]) {
         return;
     } else if(globalVm.count("newick")) {
         // Print newick string of the PanMAT or PanMAN loaded into memory
-
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + ".extended-newick");
+            buf = outputFile.rdbuf();    
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+        
         if(T) {
-            std::cout << T->getNewickString(T->root) << std::endl;
+            fout << T->getNewickString(T->root) << std::endl;
 
             // std::cout << T->getNewickString(T->root) << std::endl;
         } else if(TG) {
-            std::cout << "Printing newick string of each PanMAT in the PanMAN" << std::endl;
+            fout << "Printing newick string of each PanMAT in the PanMAN" << std::endl;
             int index = 0;
             for(auto& t: TG->trees) {
-                std::cout << index++ << ": " << t.getNewickString(t.root) << std::endl;
+                fout << index++ << ": " << t.getNewickString(t.root) << std::endl;
             }
         } else {
             std::cout << "No PanMAN selected. Try groupFasta for FASTA of the whole PanMAN" << std::endl;
             return;
         }
-    } else if (globalVm.count("anotate")) {
+
+        if(globalVm.count("output-file")) outputFile.close();
+        return;
+
+    } else if("extended-newick") {
+        // Print Extended Newick String
+
+        if(TG == nullptr) {
+            std::cout << "No PanMAN selected" << std::endl;
+            return;
+        }
+
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + ".extended-newick");
+            buf = outputFile.rdbuf();    
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+
+        auto writeStart = std::chrono::high_resolution_clock::now();
+
+        for (auto& tree: TG->trees) {
+            fout << tree.getNewickString(tree.root) << std::endl;
+        }
+
+        TG->printComplexMutations(fout);
+
+        if(globalVm.count("output-file")) outputFile.close();
+
+        auto writeEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds writeTime = writeEnd - writeStart;
+        std::cout << "\nExtended Newick execution time: " << writeTime.count()
+            << " nanoseconds\n";
+    } else if (globalVm.count("annotate")) {
         // Annotate nodes of PanMAT
 
         
@@ -1128,8 +1230,8 @@ void parseAndExecute(int argc, char* argv[]) {
                     int64_t startCoordinate = segmentExtractVm["start"].as< int64_t >();
                     int64_t endCoordinate = segmentExtractVm["end"].as< int64_t >();
 
-                    std::filesystem::create_directory("./pmat");
-                    std::ofstream fout("./pmat/" + fileName + ".pmat");
+                    std::filesystem::create_directory("./panman");
+                    std::ofstream fout("./panman/" + fileName + ".panman");
                     boost::iostreams::filtering_streambuf< boost::iostreams::output> outPMATBuffer;
 
                     auto segmentExtractStart = std::chrono::high_resolution_clock::now();
@@ -1232,7 +1334,7 @@ void parseAndExecute(int argc, char* argv[]) {
                     if(subtreeVm["newick"].as< bool >()) {
                         // Only write newick string
 
-                        std::filesystem::create_directory("./pmat");
+                        std::filesystem::create_directory("./panman");
                         std::ofstream fout("./newick/" + outputFileName + ".newick");
 
                         auto subtreeStart = std::chrono::high_resolution_clock::now();
@@ -1245,8 +1347,8 @@ void parseAndExecute(int argc, char* argv[]) {
                             << subtreeTime.count() << " nanoseconds\n";
                         fout.close();
                     } else {
-                        std::filesystem::create_directory("./pmat");
-                        std::ofstream outputFile("./pmat/" + outputFileName + ".pmat");
+                        std::filesystem::create_directory("./panman");
+                        std::ofstream outputFile("./panman/" + outputFileName + ".panman");
                         boost::iostreams::filtering_streambuf< boost::iostreams::output>
                             outPMATBuffer;
 
@@ -1283,9 +1385,9 @@ void parseAndExecute(int argc, char* argv[]) {
 
                     po::notify(writeVm);
                     std::string fileName = writeVm["output-file"].as< std::string >();
-                    std::filesystem::create_directory("./pmat");
+                    std::filesystem::create_directory("./panman");
 
-                    std::ofstream outputFile("./pmat/" + fileName + ".pmat");
+                    std::ofstream outputFile("./panman/" + fileName + ".panman");
                     boost::iostreams::filtering_streambuf< boost::iostreams::output> outPMATBuffer;
 
                     auto writeStart = std::chrono::high_resolution_clock::now();
@@ -1518,9 +1620,9 @@ void parseAndExecute(int argc, char* argv[]) {
                 if(groupWriteVM.count("help")) {
                     std::cout << groupWriteDesc;
                 } else {
-                    std::filesystem::create_directory("./pman");
+                    std::filesystem::create_directory("./panman");
                     std::string outputFileName = groupWriteVM["output-file"].as< std::string >();
-                    std::ofstream outputFile("./pman/" + outputFileName + ".pman");
+                    std::ofstream outputFile("./panman/" + outputFileName + ".panman");
                     boost::iostreams::filtering_streambuf< boost::iostreams::output> outPMATBuffer;
 
                     auto groupWriteStart = std::chrono::high_resolution_clock::now();

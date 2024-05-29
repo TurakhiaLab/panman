@@ -1645,45 +1645,6 @@ std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(co
     return consolidatedMutationArray;
 }
 
-void panmanUtils::Tree::compressTreeParallel(panmanUtils::Node* node, size_t level) {
-    node->level = level;
-
-    while(node->children.size() == 1) {
-        mergeNodes(node, node->children[0]);
-        auto oldVector = node->nucMutation;
-        node->nucMutation = consolidateNucMutations(oldVector);
-        if(!debugSimilarity(oldVector, node->nucMutation)) {
-            printError("Inaccuracy observed in subtree extract. Please report to creators");
-            return;
-        }
-    }
-
-    if(node->children.size() == 0) {
-        return;
-    }
-
-    tbb::parallel_for(tbb::blocked_range<int>(0, (int)node->children.size()), [&](tbb::blocked_range<int> r) {
-        for(int i = r.begin(); i < r.end(); i++) {
-            while(node->children[i]->children.size() == 1) {
-                mergeNodes(node->children[i], node->children[i]->children[0]);
-            }
-            // consolidate mutations of parent
-            auto oldVector = node->children[i]->nucMutation;
-
-            node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
-
-            if(!debugSimilarity(oldVector, node->children[i]->nucMutation)) {
-                printError("Inaccuracy observed in subtree extract. Please report to the"
-                    "creators.");
-                return;
-            }
-
-            compressTreeParallel(node->children[i], level + 1);
-        }
-    });
-
-}
-
 
 bool panmanUtils::Tree::panMATCoordinateGeq(const std::tuple< int, int, int, int >& coor1,
     const std::tuple< int, int, int, int >& coor2, bool strand) {
@@ -5360,7 +5321,7 @@ void panmanUtils::TreeGroup::writeToFile(std::ostream& fout) {
     }
 }
 
-void panmanUtils::TreeGroup::printComplexMutations() {
+void panmanUtils::TreeGroup::printComplexMutations(std::ostream& fout) {
     for(const auto& u: complexMutations) {
         sequence_t s1, s2;
         blockExists_t b1, b2;
@@ -5380,7 +5341,7 @@ void panmanUtils::TreeGroup::printComplexMutations() {
             co2 = trees[u.treeIndex2].circularSequences[u.sequenceId2];
         }
 
-        std::cout << u.mutationType
+        fout << u.mutationType
                 << " " << u.treeIndex1
                 << " " << u.sequenceId1
                 << " " << u.treeIndex2
