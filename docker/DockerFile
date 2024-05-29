@@ -1,0 +1,12 @@
+FROM ubuntu:20.04
+
+RUN apt update 
+RUN apt install -y git build-essential cmake wget curl zip unzip tar protobuf-compiler libboost-all-dev pkg-config
+
+WORKDIR /HOME
+
+RUN git clonne https://github.com/TurakhiaLab/panman.git
+cd panman/install
+RUN ./installUbuntu.sh
+
+
