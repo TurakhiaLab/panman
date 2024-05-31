@@ -5122,9 +5122,89 @@ std::vector< size_t > panmanUtils::Pangraph::getTopologicalSort() {
     return topoArray;
 }
 
-panmanUtils::TreeGroup::TreeGroup(const std::vector< Tree >& t) {
-    trees = t;
+panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg) {
+    for (auto& t: tg)
+    {
+        trees.push_back(*t);
+    }
 }
+
+panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutationFile) {
+
+    for (auto& t: tg)
+    {
+        trees.push_back(*t);
+    }
+
+    // mutation file format: mutation type (H or R), tree_1 index, sequence_1 name, tree_2 index, sequence_2 name, start_point_1, end_point_1, start_point_2, end_point_2, tree_3 index (child tree), sequence_3 (child sequence) name
+    std::string line;
+    while(getline(mutationFile, line, '\n')) {
+        std::vector< std::string > tokens;
+        stringSplit(line, ' ', tokens);
+        char mutationType = tokens[0][0];
+        size_t treeIndex1 = std::stoll(tokens[1]);
+        std::string sequenceId1 = tokens[2];
+        size_t treeIndex2 = std::stoll(tokens[3]);
+        std::string sequenceId2 = tokens[4];
+        size_t startPoint1 = std::stoll(tokens[5]);
+        size_t endPoint1 = std::stoll(tokens[6]);
+        size_t startPoint2 = std::stoll(tokens[7]);
+        size_t endPoint2 = std::stoll(tokens[8]);
+        size_t treeIndex3 = std::stoll(tokens[9]);
+        std::string sequenceId3 = tokens[10];
+        bool splitOccurred = false;
+
+        if(treeIndex3 == treeIndex1 && treeIndex3 == treeIndex2) {
+            // If all three sequences are from the same tree, split this tree
+            std::cout << "Performing Split" << std::endl;
+            std::pair< panmanUtils::Tree, panmanUtils::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
+            splitOccurred = true;
+            trees[treeIndex1] = parentAndChild.first;
+            trees.push_back(parentAndChild.second);
+            treeIndex3 = trees.size()-1;
+        } else if(treeIndex3 == treeIndex1) {
+            // If child belongs to one parent's tree, split this tree
+            std::pair< panmanUtils::Tree, panmanUtils::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
+            splitOccurred = true;
+            trees[treeIndex1] = parentAndChild.first;
+            trees.push_back(parentAndChild.second);
+            treeIndex3 = trees.size()-1;
+        } else if(treeIndex3 == treeIndex2) {
+            // If child belongs to one parent's tree, split this tree
+            std::pair< panmanUtils::Tree, panmanUtils::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
+            splitOccurred = true;
+            trees[treeIndex2] = parentAndChild.first;
+            trees.push_back(parentAndChild.second);
+            treeIndex3 = trees.size()-1;
+        }
+
+        sequence_t sequence1, sequence2;
+        blockExists_t blockExists1, blockExists2;
+        blockStrand_t blockStrand1, blockStrand2;
+        trees[treeIndex1].getSequenceFromReference(sequence1, blockExists1, blockStrand1, sequenceId1, true);
+        trees[treeIndex2].getSequenceFromReference(sequence2, blockExists2, blockStrand2, sequenceId2, true);
+
+        int64_t co1 = 0, co2 = 0;
+        if(trees[treeIndex1].circularSequences.find(sequenceId1) != trees[treeIndex1].circularSequences.end()) {
+            co1 = trees[treeIndex1].circularSequences[sequenceId1];
+        }
+        if(trees[treeIndex2].circularSequences.find(sequenceId2) != trees[treeIndex2].circularSequences.end()) {
+            co2 = trees[treeIndex2].circularSequences[sequenceId2];
+        }
+
+        if(!splitOccurred) {
+            trees[treeIndex3].reroot(sequenceId3);
+        }
+
+        std::tuple< int,int,int,int > t_start1 = trees[treeIndex1].globalCoordinateToBlockCoordinate(startPoint1, sequence1, blockExists1, blockStrand1, co1);
+        std::tuple< int,int,int,int > t_end1 = trees[treeIndex1].globalCoordinateToBlockCoordinate(endPoint1, sequence1, blockExists1, blockStrand1, co1);
+        std::tuple< int,int,int,int > t_start2 = trees[treeIndex2].globalCoordinateToBlockCoordinate(startPoint2, sequence2, blockExists2, blockStrand2, co2);
+        std::tuple< int,int,int,int > t_end2 = trees[treeIndex2].globalCoordinateToBlockCoordinate(endPoint2, sequence2, blockExists2, blockStrand2, co2);
+
+        complexMutations.emplace_back(mutationType, treeIndex1, treeIndex2, treeIndex3, sequenceId1, sequenceId2, sequenceId3, t_start1, t_end1, t_start2, t_end2);
+    }
+}
+
 
 panmanUtils::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile) {
     for(size_t i = 0; i < treeFiles.size(); i++) {

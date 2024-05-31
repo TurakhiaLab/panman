@@ -23,7 +23,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 # Include TBB
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
-find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
+find_package(TBB REQUIRED)
 
 # Include JSONCPP
 include(${CMAKE_TOOLCHAIN_FILE})

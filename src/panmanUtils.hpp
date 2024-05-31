@@ -756,7 +756,8 @@ namespace panmanUtils {
         TreeGroup(std::istream& fin);
         // List of PanMAT files and a file with all the complex mutations relating these files
         TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile);
-        TreeGroup(const std::vector< Tree >& t);
+        TreeGroup(std::vector< Tree* >& t);
+        TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutationFile);
 
         TreeGroup* subnetworkExtract(std::unordered_map< int, std::vector< std::string > >& nodeIds);
 
