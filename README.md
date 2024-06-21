@@ -8,7 +8,7 @@
 - [Overview of PanMANs and panmanUtils](#overview)
 - [Installation and Usgae](#install)
 - [Contribute](#contributions)
-- [Citing RIVET](#cite_panman)
+- [Citing PanMAN](#cite_panman)
 
 ## <a name="overview"></a> Overview of PanMANs and panmanUtils <br>
 ### What is a PanMAN?
