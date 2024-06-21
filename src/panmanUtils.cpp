@@ -34,6 +34,7 @@
 
 
 
+
 char panmanUtils::getNucleotideFromCode(int code) {
     switch(code) {
         case 1:
@@ -104,6 +105,61 @@ char panmanUtils::getCodeFromNucleotide(char nuc) {
         default:
             return 0;
     }
+}
+
+std::vector<int> getSankoffVector(char nuc){
+    std::vector<int> sankoffVector(5,SANKOFF_INF);
+    switch(nuc) {
+        case 'A':
+            sankoffVector[1]=0;
+        case 'C':
+            sankoffVector[2]=0;
+        case 'G':
+            sankoffVector[3]=0;
+        case 'T':
+            sankoffVector[4]=0;
+        case 'R':
+            sankoffVector[1]=0;
+            sankoffVector[4]=0;
+        case 'Y':
+            sankoffVector[2]=0;
+            sankoffVector[4]=0;
+        case 'S':
+            sankoffVector[2]=0;
+            sankoffVector[3]=0;
+        case 'W':
+            sankoffVector[1]=0;
+            sankoffVector[4]=0;
+        case 'K':
+            sankoffVector[3]=0;
+            sankoffVector[4]=0;
+        case 'M':
+            sankoffVector[1]=0;
+            sankoffVector[2]=0;
+        case 'B':
+            sankoffVector[3]=0;
+            sankoffVector[4]=0;
+        case 'D':
+            sankoffVector[1]=0;
+            sankoffVector[3]=0;
+            sankoffVector[4]=0;
+        case 'H':
+            sankoffVector[1]=0;
+            sankoffVector[2]=0;
+            sankoffVector[4]=0;
+        case 'V':
+            sankoffVector[1]=0;
+            sankoffVector[2]=0;
+            sankoffVector[3]=0;
+        case 'N':
+            sankoffVector[1]=0;
+            sankoffVector[2]=0;
+            sankoffVector[3]=0;
+            sankoffVector[4]=0;
+        default:
+            sankoffVector[0]=0;
+    }
+    return sankoffVector;
 }
 
 // For reverse complement
@@ -2229,6 +2285,8 @@ void panmanUtils::Tree::getBlockSequenceFromReference(block_t& sequence, bool& b
     Node* referenceNode = nullptr;
 
     for(auto u: allNodes) {
+        // printf("%s\n", u.first);
+        // std::cerr << u.first << std::endl;
         if(u.second->children.size() == 0 && u.first == reference) {
             referenceNode = u.second;
             break;
@@ -2421,456 +2479,413 @@ void panmanUtils::Tree::getBlockSequenceFromReference(block_t& sequence, bool& b
     }
 }
 
-void panmanUtils::Tree::printMutations(std::ofstream& fout) {
-    // std::vector< std::string > substitutions;
+void panmanUtils::Tree::printMutations(std::ostream& fout) {
 
-    // std::string rootSequence = getStringFromReference(root->identifier);
+    // Get reference sequence
+    sequence_t rootSequence;
+    blockExists_t rootBlockExists;
+    blockStrand_t rootBlockStrand;
 
-    // tbb::concurrent_unordered_map< std::string,
-    //     std::vector< std::tuple< char, size_t, char, char > > > nodeMutations;
+    getSequenceFromReference(rootSequence, rootBlockExists, rootBlockStrand, root->identifier);
 
-    // nodeMutations[root->identifier];
+    // sequence_t st;
+    // blockExists_t bt;
+    // blockStrand_t bst;
+    // getSequenceFromReference(st, bt, bst, "USA/CA-CDC-QDX21497008/2021|MW666944.1|2021-01-27");
 
-    // tbb::parallel_for_each(allNodes, [&](auto n) {
+    // std::cout << st[55].first[132].second[40] << std::endl;
 
-    //     if(n.first == root->identifier) {
-    //         return;
-    //     }
 
-    //     // creating an entry for each node
-    //     nodeMutations[n.first];
+    tbb::concurrent_map< std::tuple< int, int, int >, size_t > panMATCoordinateToGlobal;
+    tbb::concurrent_map< std::tuple< int, int, int >, char > rootCurrentCharacter;
 
-    //     // sequence for current node
-    //     std::string currentSequence = getStringFromReference(n.first);
-    //     size_t ptr = 0;
-    //     assert(rootSequence.length() == currentSequence.length());
+    tbb::concurrent_unordered_map< std::string,
+        std::vector< std::tuple< char, size_t, char, char, bool > > > nodeMutations;
 
-    //     for(size_t i = 0; i < rootSequence.length(); i++) {
-    //         if(rootSequence[i] == currentSequence[i]) {
-    //             if(rootSequence[i] != '-') {
-    //                 ptr++;
-    //             }
-    //             continue;
-    //         } else if(rootSequence[i] == '-') {
-    //             // Insertion
-    //             nodeMutations[n.first].push_back(
-    //                 std::make_tuple('I', ptr, '-', currentSequence[i]));
-    //         } else if(currentSequence[i] == '-') {
-    //             // Deletion
-    //             nodeMutations[n.first].push_back( std::make_tuple('D', ptr, rootSequence[i], '-'));
-    //             ptr++;
-    //         } else {
-    //             // Substitution
-    //             nodeMutations[n.first].push_back(
-    //                 std::make_tuple('S', ptr, rootSequence[i], currentSequence[i]) );
-    //             ptr++;
-    //         }
-    //     }
+    tbb::concurrent_unordered_map< size_t, bool > rootPresentBlocks;
+
+    tbb::concurrent_map< std::tuple< int, int, int >, bool > isGapCoordinate;
+
+    // convert PanMAT coordinate to global reference coordinate
+    size_t rootCtr = 0;
+    for(size_t i = 0; i < rootSequence.size(); i++) {
+        if(rootBlockExists[i].first) {
+            rootPresentBlocks[i] = true;
+            if(rootBlockStrand[i].first) {
+                for(size_t j = 0; j < rootSequence[i].first.size(); j++) {
+                    for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
+                        panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
+                        if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
+                            rootCurrentCharacter[std::make_tuple(i,j,k)] = rootSequence[i].first[j].second[k];
+                            isGapCoordinate[std::make_tuple(i,j,k)] = false;
+                            rootCtr++;
+                        } else {
+                            rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                            isGapCoordinate[std::make_tuple(i,j,k)] = true;
+                        }
+                    }
+                    panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
+                    if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
+                        rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = false;
+                        rootCtr++;
+                    } else {
+                        rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = true;
+                    }
+                }
+            } else {
+                for(size_t j = rootSequence[i].first.size() - 1; j + 1 > 0; j--) {
+                    panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
+                    if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
+                        rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = false;
+                        rootCtr++;
+                    } else {
+                        rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = true;
+                    }
+                    for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
+                        panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
+                        if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
+                            rootCurrentCharacter[std::make_tuple(i,j,k)] = rootSequence[i].first[j].second[k];
+                            // if(rootCtr == 240) {
+                            //     std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << k << std::endl;
+                            // }
+                            isGapCoordinate[std::make_tuple(i,j,k)] = false;
+                            rootCtr++;
+                        } else {
+                            rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                            isGapCoordinate[std::make_tuple(i,j,k)] = true;
+                        }
+                    }
+                }
+            }
+        } else {
+            rootPresentBlocks[i] = false;
+            if(rootBlockStrand[i].first) {
+                for(size_t j = 0; j < rootSequence[i].first.size(); j++) {
+                    for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
+                        panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
+                        rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,k)] = false;
+                    }
+                    panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
+                    rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    isGapCoordinate[std::make_tuple(i,j,-1)] = false;
+                }
+            } else {
+                for(size_t j = rootSequence[i].first.size() - 1; j + 1 > 0; j--) {
+                    panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
+                    rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    isGapCoordinate[std::make_tuple(i,j,-1)] = false;
+                    for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
+                        panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
+                        rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,k)] = false;
+                    }
+                }
+            }
+        }
+    }
+
+    // tbb::concurrent_map< std::tuple< std::string, int, int, int >, char > seqChar;
+
+    nodeMutations[root->identifier];
+    int countNodeID = 0;
+    tbb::parallel_for_each(allNodes, [&](auto u) {
+    // for (auto &u: allNodes) {
+        std::map< std::tuple< std::string, int, int, int >, char > seqChar;
+        std::cout << u.first << "\t" << "\t" << countNodeID++;
+        sequence_t st;
+        blockExists_t bt;
+        blockStrand_t bst;
+        getSequenceFromReference(st, bt, bst, u.first);
+
+        printf("\t%s", "seqChar");
+
+        for(size_t i = 0; i < st.size(); i++) {
+            if(bst[i].first) {
+                for(size_t j = 0; j < st[i].first.size(); j++) {
+                    for(size_t k = 0; k < st[i].first[j].second.size(); k++) {
+                        if(st[i].first[j].second[k] != '-' && st[i].first[j].second[k] != 'x') {
+                            seqChar[std::make_tuple(u.first,i,j,k)] = st[i].first[j].second[k];
+                        } else {
+                            seqChar[std::make_tuple(u.first,i,j,k)] = '-';
+                        }
+                    }
+                    if(st[i].first[j].first != '-' && st[i].first[j].first != 'x' && bt[i].first) {
+                        seqChar[std::make_tuple(u.first,i,j,-1)] = st[i].first[j].first;
+                    } else {
+                        seqChar[std::make_tuple(u.first,i,j,-1)] = '-';
+                    }
+                }
+            } else {
+                for(size_t j = st[i].first.size() - 1; j + 1 > 0; j--) {
+                    if(st[i].first[j].first != '-' && st[i].first[j].first != 'x') {
+                        seqChar[std::make_tuple(u.first,i,j,-1)] = rootSequence[i].first[j].first;
+                    } else {
+                        seqChar[std::make_tuple(u.first,i,j,-1)] = '-';
+                    }
+                    for(size_t k = st[i].first[j].second.size() - 1; k + 1 > 0; k--) {
+                        if(st[i].first[j].second[k] != '-' && st[i].first[j].second[k] != 'x') {
+                            seqChar[std::make_tuple(u.first,i,j,k)] = st[i].first[j].second[k];
+                        } else {
+                            seqChar[std::make_tuple(u.first,i,j,k)] = '-';
+                        }
+                    }
+                }
+            }
+        }
     // });
-
-    // for(auto& u: nodeMutations) {
-
-    //     // print all substitutions first
-    //     fout << "Substitutions:\t";
-    //     fout << u.first << '\t';
-    //     for(auto v: u.second) {
-    //         if(std::get<0>(v) == 'S') {
-    //             fout << " > " << std::get<2>(v) << std::get<1>(v)+1 << std::get<3>(v);
-    //         }
-    //     }
-    //     fout << '\n';
-        
-    //     fout << "Insertions:\t";
-    //     fout << u.first << '\t';
-    //     // print insertions
-    //     for(auto v: u.second) {
-    //         if(std::get<0>(v) == 'I') {
-    //             fout << " > " << std::get<1>(v)+1 << std::get<3>(v);
-    //         }
-    //     }
-    //     fout << '\n';
-
-    //     fout << "Deletions:\t";
-    //     fout << u.first << '\t';
-    //     // print deletions
-    //     for(auto v: u.second) {
-    //         if(std::get<0>(v) == 'D') {
-    //             fout << " > " << std::get<1>(v)+1 << std::get<2>(v);
-    //         }
-    //     }
-    //     fout << '\n';
     // }
 
 
-    // // Get reference sequence
-    // sequence_t rootSequence;
-    // blockExists_t rootBlockExists;
-    // blockStrand_t rootBlockStrand;
-    // getSequenceFromReference(rootSequence, rootBlockExists, rootBlockStrand, root->identifier);
+        // Compute mutations for each of the other sequences
+        // tbb::parallel_for_each(allNodes, [&](auto u) {
+        // countNodeID = 0;
+    // for (auto &u: allNodes) {
+        // std::cout << "Iteration 1: " << countNodeID++ << std::endl;
 
-    // // sequence_t st;
-    // // blockExists_t bt;
-    // // blockStrand_t bst;
-    // // getSequenceFromReference(st, bt, bst, "USA/CA-CDC-QDX21497008/2021|MW666944.1|2021-01-27");
+        if(u.first == root->identifier) {
+            return;
+        }
 
-    // // std::cout << st[55].first[132].second[40] << std::endl;
+        tbb::concurrent_map< std::tuple< int, int, int >, char > currentCharacter = rootCurrentCharacter;
+        tbb::concurrent_unordered_map< size_t, bool > presentBlocks = rootPresentBlocks;
 
+        nodeMutations[u.first];
 
-    // tbb::concurrent_map< std::tuple< int, int, int >, size_t > panMATCoordinateToGlobal;
-    // tbb::concurrent_map< std::tuple< int, int, int >, char > rootCurrentCharacter;
+        Node* it = u.second;
+        std::vector< panmanUtils::Node* > pathBlock;
+        std::vector< panmanUtils::Node* > path;
 
-    // tbb::concurrent_unordered_map< std::string,
-    //     std::vector< std::tuple< char, size_t, char, char > > > nodeMutations;
+        // while(it != root) {
+        path.push_back(it);
+            // it = it->parent;
+        // }
 
-    // tbb::concurrent_unordered_map< size_t, bool > rootPresentBlocks;
+        while(it != root) {
+            pathBlock.push_back(it);
+            it = it->parent;
+        }
 
-    // // convert PanMAT coordinate to global reference coordinate
-    // size_t rootCtr = 0;
-    // for(size_t i = 0; i < rootSequence.size(); i++) {
-    //     if(rootBlockExists[i].first) {
-    //         rootPresentBlocks[i] = true;
-    //         if(rootBlockStrand[i].first) {
-    //             for(size_t j = 0; j < rootSequence[i].first.size(); j++) {
-    //                 for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
-    //                     panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
-    //                     if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
-    //                         rootCurrentCharacter[std::make_tuple(i,j,k)] = rootSequence[i].first[j].second[k];
-    //                         // if(rootCtr == 240) {
-    //                         //     std::cout << rootSequence[i].first[j].second[k] << " " << i << " " << j << " " << k << std::endl;
-    //                         // }
-    //                         rootCtr++;
-    //                     } else {
-    //                         rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
-    //                     }
-    //                 }
-    //                 panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
-    //                 if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
-    //                     rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
-    //                     // if(rootCtr == 240) {
-    //                     //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-    //                     //     }
-    //                     rootCtr++;
-    //                 } else {
-    //                     rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
-    //                 }
-    //             }
-    //         } else {
-    //             for(size_t j = rootSequence[i].first.size() - 1; j + 1 > 0; j--) {
-    //                 panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
-    //                 if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
-    //                     rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
-    //                     // if(rootCtr == 240) {
-    //                     //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-    //                     //     }
-    //                     rootCtr++;
-    //                 } else {
-    //                     rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
-    //                 }
-    //                 for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
-    //                     panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
-    //                     if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
-    //                         rootCurrentCharacter[std::make_tuple(i,j,k)] = rootSequence[i].first[j].second[k];
-    //                         // if(rootCtr == 240) {
-    //                         //     std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << k << std::endl;
-    //                         // }
-    //                         rootCtr++;
-    //                     } else {
-    //                         rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     } else {
-    //         rootPresentBlocks[i] = false;
-    //         if(rootBlockStrand[i].first) {
-    //             for(size_t j = 0; j < rootSequence[i].first.size(); j++) {
-    //                 for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
-    //                     panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
-    //                     rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
-    //                 }
-    //                 panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
-    //                 rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
-    //             }
-    //         } else {
-    //             for(size_t j = rootSequence[i].first.size() - 1; j + 1 > 0; j--) {
-    //                 panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
-    //                 rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
-    //                 for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
-    //                     panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
-    //                     rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
-    //                 }
-    //             }
-    //         }
-    //     }
+        std::vector< std::pair< size_t, std::tuple< char, size_t, char, char, bool > > > currentNodeMutations;
+
+        printf("\t%s", "blockMut");
+        for(auto node = pathBlock.rbegin(); node != pathBlock.rend(); node++) {
+            for(auto mutation: (*node)->blockMutation) {
+                int32_t primaryBlockId = mutation.primaryBlockId;
+                if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
+                    continue;
+                }
+
+                bool type = mutation.blockMutInfo;
+                bool inversion = mutation.inversion;
+                if(type == 1) {
+                    // insertion
+                    presentBlocks[primaryBlockId] = true;
+                    if(inversion) {
+                        std::cout << "INVERTED BLOCK FOUND" << std::endl;
+                    }
+                } else {
+                    if(inversion) {
+                        // This means that this is not a deletion, but instead an inversion
+                        std::cout << "INVERSION FOUND" << std::endl;
+                    } else {
+                        // Actually a deletion
+                        presentBlocks[primaryBlockId] = false;
+                    }
+                }
+            }
+        }
+
+        printf("\t%s", "nucMut");
+        for(auto node = path.rend()-1; node != path.rend(); node++) {
+            for(size_t i = 0; i < (*node)->nucMutation.size(); i++) {
+                int32_t primaryBlockId = (*node)->nucMutation[i].primaryBlockId;
+                if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
+                    continue;
+                }
+
+                int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
+                int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
+                uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
+                char newVal = '-';
+
+                if(type < 3) {
+                    int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+
+                    if(type == panmanUtils::NucMutationType::NS) {
+                        if(nucGapPosition != -1) {
+                            for(int j = 0; j < len; j++) {
+                                newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                if(presentBlocks[primaryBlockId]) {
+                                    // char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)];
+                                    char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition, nucGapPosition+j)];
+                                    if(oldVal == '-' || oldVal == 'x') {
+                                        continue;
+                                    }
+                                    if(node == path.rend()-1)
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)])));
+                                    // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal));
+                                }
+                                currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)] = newVal;
+                            }
+                        } else {
+                            for(int j = 0; j < len; j++) {
+                                newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                if(presentBlocks[primaryBlockId]) {
+                                    char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition+j, -1)];
+                                    // char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition + j, -1)];
+                                    // if(u.first == "Denmark/DCGC-504971/2022|OX187739.1|2022-04-28" && panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)] == 185) {
+                                    //     std::cout << oldVal << " " << newVal << " " << primaryBlockId << " " << nucPosition+j << " " << -1 << std::endl;
+                                    // }
+                                    if(oldVal == '-' || oldVal == 'x') {
+                                        // std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
+                                        continue;
+                                    }
+                                    // if(oldVal == newVal) {
+                                    //     std::cout << primaryBlockId << " " << nucPosition << " " << nucGapPosition+j << " " << oldVal << " " << newVal << std::endl;
+                                    // }
+                                    if(node == path.rend()-1)
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition+j, -1)])));
+                                    // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal));
+                                }
+                                currentCharacter[std::make_tuple(primaryBlockId, nucPosition + j, -1)] = newVal;
+                            }
+                        }
+                    } else if(type == panmanUtils::NucMutationType::NI) {
+                        if(nucGapPosition != -1) {
+                            for(int j = 0; j < len; j++) {
+                                newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                if(node == path.rend()-1)
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], '-', newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)])));
+                            }
+                        } else {
+                            for(int j = 0; j < len; j++) {
+                                newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                if(node == path.rend()-1)
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], '-', newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition + j, -1)])));
+
+                            }
+                        }
+                    } else if(type == panmanUtils::NucMutationType::ND) {
+                        if(nucGapPosition != -1) {
+                            for(int j = 0; j < len; j++) {
+                                char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition, nucGapPosition + j)];
+                                if(node == path.rend()-1){
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], oldVal, '-', isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)])));
+                                }
+                            }
+                        } else {
+                            for(int j = 0; j < len; j++) {
+                                char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition + j, nucGapPosition)];
+                                if(node == path.rend()-1){
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, '-', isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition + j, -1)])));
+                                }
+                            }
+                        }
+                    }
+                } else if(type == panmanUtils::NucMutationType::NSNPS) {
+                    newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> 20) & 0xF);
+                    if(nucGapPosition != -1) {
+                        if(presentBlocks[primaryBlockId]) {
+                            char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition, nucGapPosition)];
+                            // char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)];
+                            if(oldVal == '-' || oldVal == 'x') {
+                                std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
+                            }
+                            if(node == path.rend()-1)
+                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)])));
+                            // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal));
+                        }
+                        currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)] = newVal;
+                    } else {
+                        if(presentBlocks[primaryBlockId]) {
+                            char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition, -1)];
+                            // char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, -1)];
+                            if(oldVal == '-' || oldVal == 'x') {
+                                std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
+                            }
+                            if(node == path.rend()-1)
+                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, -1)])));
+                            // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal));
+                        }
+                        currentCharacter[std::make_tuple(primaryBlockId, nucPosition, -1)] = newVal;
+                    }
+                }
+            }
+        }
+
+        printf("\t%s\n", "Adding");
+        for(auto mut: currentNodeMutations) {
+            if(presentBlocks.find(mut.first) != presentBlocks.end()) {
+                nodeMutations[u.first].push_back(mut.second);
+            }
+        }
+    });
     // }
 
-    // nodeMutations[root->identifier];
+    printf("%s\n", "Printting mutations");
 
-    // // Compute mutations for each of the other sequences
-    // tbb::parallel_for_each(allNodes, [&](auto u) {
-    //     if(u.first == root->identifier) {
-    //         return;
-    //     }
+    for(auto& u: nodeMutations) {
+        // print all substitutions first
+        fout << "Substitutions:\t";
+        // fout << u.first << '\t';
+        for(auto v: u.second) {
+            if(std::get<0>(v) == 'S') {
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<2>(v) << std::get<1>(v)+1 << std::get<3>(v);
+            }
+        }
+        fout << '\n';
 
-    //     tbb::concurrent_map< std::tuple< int, int, int >, char > currentCharacter = rootCurrentCharacter;
-    //     tbb::concurrent_unordered_map< size_t, bool > presentBlocks = rootPresentBlocks;
+        fout << "Insertions:\t";
+        // fout << u.first << '\t';
+        // print insertions
+        for(auto v: u.second) {
+            if(std::get<0>(v) == 'I') {
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<1>(v)+1 << std::get<3>(v);
+            }
+        }
+        fout << '\n';
 
-    //     nodeMutations[u.first];
+        fout << "Deletions:\t";
+        // fout << u.first << '\t';
+        // print deletions
+        for(auto v: u.second) {
+            if(std::get<0>(v) == 'D') {
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<1>(v)+1 << std::get<2>(v);
+            }
+        }
+        fout << '\n';
+    }
 
-    //     Node* it = u.second;
-    //     std::vector< panmanUtils::Node* > path;
+}
 
-    //     while(it != root) {
-    //         path.push_back(it);
-    //         it = it->parent;
-    //     }
 
-    //     std::vector< std::pair< size_t, std::tuple< char, size_t, char, char > > > currentNodeMutations;
 
-    //     for(auto node = path.rbegin(); node != path.rend(); node++) {
-    //         for(auto mutation: (*node)->blockMutation) {
-    //             int32_t primaryBlockId = mutation.primaryBlockId;
-    //             if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
-    //                 continue;
-    //             }
+void panmanUtils::Tree::printNodePaths(std::ostream& fout) {
 
-    //             bool type = mutation.blockMutInfo;
-    //             bool inversion = mutation.inversion;
-    //             if(type == 1) {
-    //                 // insertion
-    //                 presentBlocks[primaryBlockId] = true;
-    //                 if(inversion) {
-    //                     std::cout << "INVERTED BLOCK FOUND" << std::endl;
-    //                 }
-    //             } else {
-    //                 if(inversion) {
-    //                     // This means that this is not a deletion, but instead an inversion
-    //                     std::cout << "INVERSION FOUND" << std::endl;
-    //                 } else {
-    //                     // Actually a deletion
-    //                     presentBlocks[primaryBlockId] = false;
-    //                 }
-    //             }
-    //         }
-    //     }
+    for (auto &u: allNodes)
+    {
+        Node* it = u.second;
 
-    //     for(auto node = path.rbegin(); node != path.rend(); node++) {
-    //         // for(auto mutation: (*node)->blockMutation) {
-    //         //     int32_t primaryBlockId = mutation.primaryBlockId;
-    //         //     if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
-    //         //         continue;
-    //         //     }
+        while(it != root) {
+            std::cout << it->identifier << "\t";
+            it = it->parent;
+            if (it != root) std::cout << "<\t";
+            else std::cout << "\n";
+        }
 
-    //         //     bool type = mutation.blockMutInfo;
-    //         //     bool inversion = mutation.inversion;
-    //         //     if(type == 1) {
-    //         //         // insertion
-    //         //         presentBlocks[primaryBlockId] = true;
-    //         //         if(inversion) {
-    //         //             std::cout << "INVERTED BLOCK FOUND" << std::endl;
-    //         //         }
-    //         //     } else {
-    //         //         if(inversion) {
-    //         //             // This means that this is not a deletion, but instead an inversion
-    //         //             std::cout << "INVERSION FOUND" << std::endl;
-    //         //         } else {
-    //         //             // Actually a deletion
-    //         //             presentBlocks[primaryBlockId] = false;
-    //         //         }
-    //         //     }
-    //         // }
+    }
 
-    //         for(size_t i = 0; i < (*node)->nucMutation.size(); i++) {
-    //             int32_t primaryBlockId = (*node)->nucMutation[i].primaryBlockId;
-    //             if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
-    //                 continue;
-    //             }
+}
 
-    //             int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
-    //             int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
-    //             uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
-    //             char newVal = '-';
 
-    //             if(type < 3) {
-    //                 int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+void panmanUtils::Tree::printMutationsNew(std::ostream& fout) {
 
-    //                 if(type == panmanUtils::NucMutationType::NS) {
-    //                     if(nucGapPosition != -1) {
-    //                         for(int j = 0; j < len; j++) {
-    //                             newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
-    //                             if(presentBlocks[primaryBlockId]) {
-    //                                 char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)];
-    //                                 if(u.first == "Denmark/DCGC-504971/2022|OX187739.1|2022-04-28" && panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)] == 185) {
-    //                                     std::cout << oldVal << " " << newVal << " " << primaryBlockId << " " << nucPosition << " " << nucGapPosition+j << std::endl;
-    //                                 }
-    //                                 if(oldVal == '-' || oldVal == 'x') {
-    //                                     // std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
-    //                                     continue;
-    //                                 }
-    //                                 // if(oldVal == newVal) {
-    //                                 //     std::cout << primaryBlockId << " " << nucPosition << " " << nucGapPosition+j << " " << oldVal << " " << newVal << std::endl;
-    //                                 // }
-    //                                 if(node == path.rend()-1)
-    //                                 currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal)));
-    //                                 // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal));
-    //                             }
-    //                             currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)] = newVal;
-    //                         }
-    //                     } else {
-    //                         for(int j = 0; j < len; j++) {
-    //                             newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
-    //                             if(presentBlocks[primaryBlockId]) {
-    //                                 char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition + j, -1)];
-    //                                 if(u.first == "Denmark/DCGC-504971/2022|OX187739.1|2022-04-28" && panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition+j, -1)] == 185) {
-    //                                     std::cout << oldVal << " " << newVal << " " << primaryBlockId << " " << nucPosition + j << " " << -1 << std::endl;
-    //                                 }
-    //                                 if(oldVal == '-' || oldVal == 'x') {
-    //                                     // std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
-    //                                     continue;
-    //                                 }
-    //                                 // if(oldVal == newVal) {
-    //                                 //     std::cout << primaryBlockId << " " << nucPosition << " " << nucGapPosition+j << " " << oldVal << " " << newVal << std::endl;
-    //                                 // }
-    //                                 if(node == path.rend()-1)
-    //                                 currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal)));
-    //                                 // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal));
-    //                             }
-    //                             currentCharacter[std::make_tuple(primaryBlockId, nucPosition + j, -1)] = newVal;
-    //                         }
-    //                     }
-    //                 }
-    //             } else if(type == panmanUtils::NucMutationType::NSNPS) {
-    //                 newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> 20) & 0xF);
-    //                 if(nucGapPosition != -1) {
-    //                     if(presentBlocks[primaryBlockId]) {
-    //                         char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)];
-    //                         if(oldVal == '-' || oldVal == 'x') {
-    //                             std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
-    //                         }
-    //                         currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal)));
-    //                         // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal));
-    //                     }
-    //                     currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)] = newVal;
-    //                 } else {
-    //                     if(presentBlocks[primaryBlockId]) {
-    //                         char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, -1)];
-    //                         if(oldVal == '-' || oldVal == 'x') {
-    //                             std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
-    //                         }
-    //                         currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal)));
-    //                         // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal));
-    //                     }
-    //                     currentCharacter[std::make_tuple(primaryBlockId, nucPosition, -1)] = newVal;
-    //                 }
-    //             }
-    //         }
-    //     }
-
-    //     for(auto mut: currentNodeMutations) {
-    //         if(presentBlocks.find(mut.first) != presentBlocks.end()) {
-    //             nodeMutations[u.first].push_back(mut.second);
-    //         }
-    //     }
-    // });
-
-    // for(auto& u: nodeMutations) {
-    //     // print all substitutions first
-    //     fout << "Substitutions:\t";
-    //     fout << u.first << '\t';
-    //     for(auto v: u.second) {
-    //         if(std::get<0>(v) == 'S') {
-    //             fout << " > " << std::get<2>(v) << std::get<1>(v)+1 << std::get<3>(v);
-    //         }
-    //     }
-    //     fout << '\n';
-
-    //     // fout << "Insertions:\t";
-    //     // fout << u.first << '\t';
-    //     // // print insertions
-    //     // for(auto v: u.second) {
-    //     //     if(std::get<0>(v) == 'I') {
-    //     //         fout << " > " << std::get<1>(v)+1 << std::get<3>(v);
-    //     //     }
-    //     // }
-    //     // fout << '\n';
-
-    //     // fout << "Deletions:\t";
-    //     // fout << u.first << '\t';
-    //     // // print deletions
-    //     // for(auto v: u.second) {
-    //     //     if(std::get<0>(v) == 'D') {
-    //     //         fout << " > " << std::get<1>(v)+1 << std::get<2>(v);
-    //     //     }
-    //     // }
-    //     // fout << '\n';
-    // }
-
-    // std::vector< panmanUtils::Node* > path;
-    // Node* it = referenceNode;
-
-    // while(it != root) {
-    //     path.push_back(it);
-    //     it = it->parent;
-    // }
-    // path.push_back(root);
-
-    // for(auto node = path.rbegin(); node != path.rend(); node++) {
-    //     for(size_t i = 0; i < (*node)->nucMutation.size(); i++) {
-
-    //         int32_t primaryBlockId = (*node)->nucMutation[i].primaryBlockId;
-
-    //         int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
-    //         int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
-    //         uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
-    //         char newVal = '-';
-
-    //         if(type < 3) {
-    //             int len = (((*node)->nucMutation[i].mutInfo) >> 4);
-
-    //             if(type == panmanUtils::NucMutationType::NS) {
-    //                 if(nucGapPosition != -1) {
-    //                     for(int j = 0; j < len; j++) {
-    //                         newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
-    //                         if(validPositions.find(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)) != validPositions.end()) {
-    //                             std::string substitutionString = std::to_string(primaryBlockId) + ";" + std::to_string(nucPosition) + ";" + std::to_string(nucGapPosition+j) + ";";
-    //                             substitutionString += newVal;
-    //                             substitutions.push_back(substitutionString);
-    //                         }
-    //                     }
-    //                 } else {
-    //                     for(int j = 0; j < len; j++) {
-    //                         newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
-    //                         if(validPositions.find(std::make_tuple(primaryBlockId, nucPosition + j, -1)) != validPositions.end()) {
-    //                             std::string substitutionString = std::to_string(primaryBlockId) + ";" + std::to_string(nucPosition + j) + ";" + std::to_string(-1) + ";";
-    //                             substitutionString += newVal;
-    //                             substitutions.push_back(substitutionString);
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         } else if(type == panmanUtils::NucMutationType::NSNPS) {
-    //             newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> 20) & 0xF);
-    //             if(nucGapPosition != -1) {
-    //                 if(validPositions.find(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)) != validPositions.end()) {
-    //                     std::string substitutionString = std::to_string(primaryBlockId) + ";" + std::to_string(nucPosition) + ";" + std::to_string(nucGapPosition) + ";";
-    //                     substitutionString += newVal;
-    //                     substitutions.push_back(substitutionString);
-    //                 }
-    //             } else {
-    //                 if(validPositions.find(std::make_tuple(primaryBlockId, nucPosition, -1)) != validPositions.end()) {
-    //                     std::string substitutionString = std::to_string(primaryBlockId) + ";" + std::to_string(nucPosition) + ";" + std::to_string(-1) + ";";
-    //                     substitutionString += newVal;
-    //                     substitutions.push_back(substitutionString);
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-    // return substitutions;
-
-// HERE IS THE UPDATED CODE
-
-        // Get reference sequence
+    // Get reference sequence
     sequence_t rootSequence;
     blockExists_t rootBlockExists;
     blockStrand_t rootBlockStrand;
@@ -2888,9 +2903,11 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
     tbb::concurrent_map< std::tuple< int, int, int >, char > rootCurrentCharacter;
 
     tbb::concurrent_unordered_map< std::string,
-        std::vector< std::tuple< char, size_t, char, char > > > nodeMutations;
+        std::vector< std::tuple< char, size_t, char, char, bool > > > nodeMutations;
 
     tbb::concurrent_unordered_map< size_t, bool > rootPresentBlocks;
+
+    tbb::concurrent_map< std::tuple< int, int, int >, bool > isGapCoordinate;
 
     // convert PanMAT coordinate to global reference coordinate
     size_t rootCtr = 0;
@@ -2903,23 +2920,21 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                         panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
                         if(rootSequence[i].first[j].second[k] != '-' && rootSequence[i].first[j].second[k] != 'x') {
                             rootCurrentCharacter[std::make_tuple(i,j,k)] = rootSequence[i].first[j].second[k];
-                            // if(rootCtr == 240) {
-                            //     std::cout << rootSequence[i].first[j].second[k] << " " << i << " " << j << " " << k << std::endl;
-                            // }
+                            isGapCoordinate[std::make_tuple(i,j,k)] = false;
                             rootCtr++;
                         } else {
                             rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                            isGapCoordinate[std::make_tuple(i,j,k)] = true;
                         }
                     }
                     panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
                     if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
                         rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
-                        // if(rootCtr == 240) {
-                        //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-                        //     }
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = false;
                         rootCtr++;
                     } else {
                         rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = true;
                     }
                 }
             } else {
@@ -2927,12 +2942,11 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                     panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
                     if(rootSequence[i].first[j].first != '-' && rootSequence[i].first[j].first != 'x') {
                         rootCurrentCharacter[std::make_tuple(i,j,-1)] = rootSequence[i].first[j].first;
-                        // if(rootCtr == 240) {
-                        //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-                        //     }
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = false;
                         rootCtr++;
                     } else {
                         rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,-1)] = true;
                     }
                     for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
                         panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
@@ -2941,9 +2955,11 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                             // if(rootCtr == 240) {
                             //     std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << k << std::endl;
                             // }
+                            isGapCoordinate[std::make_tuple(i,j,k)] = false;
                             rootCtr++;
                         } else {
                             rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                            isGapCoordinate[std::make_tuple(i,j,k)] = true;
                         }
                     }
                 }
@@ -2955,17 +2971,21 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                     for(size_t k = 0; k < rootSequence[i].first[j].second.size(); k++) {
                         panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
                         rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,k)] = false;
                     }
                     panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
                     rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    isGapCoordinate[std::make_tuple(i,j,-1)] = false;
                 }
             } else {
                 for(size_t j = rootSequence[i].first.size() - 1; j + 1 > 0; j--) {
                     panMATCoordinateToGlobal[std::make_tuple(i,j,-1)] = rootCtr;
                     rootCurrentCharacter[std::make_tuple(i,j,-1)] = '-';
+                    isGapCoordinate[std::make_tuple(i,j,-1)] = false;
                     for(size_t k = rootSequence[i].first[j].second.size() - 1; k + 1 > 0; k--) {
                         panMATCoordinateToGlobal[std::make_tuple(i,j,k)] = rootCtr;
                         rootCurrentCharacter[std::make_tuple(i,j,k)] = '-';
+                        isGapCoordinate[std::make_tuple(i,j,k)] = false;
                     }
                 }
             }
@@ -2986,18 +3006,12 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                     for(size_t k = 0; k < st[i].first[j].second.size(); k++) {
                         if(st[i].first[j].second[k] != '-' && st[i].first[j].second[k] != 'x') {
                             seqChar[std::make_tuple(u.first,i,j,k)] = st[i].first[j].second[k];
-                            // if(rootCtr == 240) {
-                            //     std::cout << rootSequence[i].first[j].second[k] << " " << i << " " << j << " " << k << std::endl;
-                            // }
                         } else {
                             seqChar[std::make_tuple(u.first,i,j,k)] = '-';
                         }
                     }
                     if(st[i].first[j].first != '-' && st[i].first[j].first != 'x' && bt[i].first) {
                         seqChar[std::make_tuple(u.first,i,j,-1)] = st[i].first[j].first;
-                        // if(rootCtr == 240) {
-                        //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-                        //     }
                     } else {
                         seqChar[std::make_tuple(u.first,i,j,-1)] = '-';
                     }
@@ -3006,18 +3020,12 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                 for(size_t j = st[i].first.size() - 1; j + 1 > 0; j--) {
                     if(st[i].first[j].first != '-' && st[i].first[j].first != 'x') {
                         seqChar[std::make_tuple(u.first,i,j,-1)] = rootSequence[i].first[j].first;
-                        // if(rootCtr == 240) {
-                        //         std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << -1 << std::endl;
-                        //     }
                     } else {
                         seqChar[std::make_tuple(u.first,i,j,-1)] = '-';
                     }
                     for(size_t k = st[i].first[j].second.size() - 1; k + 1 > 0; k--) {
                         if(st[i].first[j].second[k] != '-' && st[i].first[j].second[k] != 'x') {
                             seqChar[std::make_tuple(u.first,i,j,k)] = st[i].first[j].second[k];
-                            // if(rootCtr == 240) {
-                            //     std::cout << rootSequence[i].first[j].first << " " << i << " " << j << " " << k << std::endl;
-                            // }
                         } else {
                             seqChar[std::make_tuple(u.first,i,j,k)] = '-';
                         }
@@ -3025,7 +3033,6 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                 }
             }
         }
-
     });
 
     nodeMutations[root->identifier];
@@ -3049,7 +3056,7 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
             it = it->parent;
         }
 
-        std::vector< std::pair< size_t, std::tuple< char, size_t, char, char > > > currentNodeMutations;
+        std::vector< std::pair< size_t, std::tuple< char, size_t, char, char, bool > > > currentNodeMutations;
 
         for(auto node = path.rbegin(); node != path.rend(); node++) {
             for(auto mutation: (*node)->blockMutation) {
@@ -3079,31 +3086,6 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
         }
 
         for(auto node = path.rend()-1; node != path.rend(); node++) {
-            // for(auto mutation: (*node)->blockMutation) {
-            //     int32_t primaryBlockId = mutation.primaryBlockId;
-            //     if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
-            //         continue;
-            //     }
-
-            //     bool type = mutation.blockMutInfo;
-            //     bool inversion = mutation.inversion;
-            //     if(type == 1) {
-            //         // insertion
-            //         presentBlocks[primaryBlockId] = true;
-            //         if(inversion) {
-            //             std::cout << "INVERTED BLOCK FOUND" << std::endl;
-            //         }
-            //     } else {
-            //         if(inversion) {
-            //             // This means that this is not a deletion, but instead an inversion
-            //             std::cout << "INVERSION FOUND" << std::endl;
-            //         } else {
-            //             // Actually a deletion
-            //             presentBlocks[primaryBlockId] = false;
-            //         }
-            //     }
-            // }
-
             for(size_t i = 0; i < (*node)->nucMutation.size(); i++) {
                 int32_t primaryBlockId = (*node)->nucMutation[i].primaryBlockId;
                 if(rootPresentBlocks.find(primaryBlockId) == rootPresentBlocks.end()) {
@@ -3125,16 +3107,11 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                                 if(presentBlocks[primaryBlockId]) {
                                     // char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)];
                                     char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition, nucGapPosition+j)];
-                                    // char oldVal = currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)];
                                     if(oldVal == '-' || oldVal == 'x') {
-                                        // std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
                                         continue;
                                     }
-                                    // if(oldVal == newVal) {
-                                    //     std::cout << primaryBlockId << " " << nucPosition << " " << nucGapPosition+j << " " << oldVal << " " << newVal << std::endl;
-                                    // }
-                                    if(node == path.rend()-1)
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal)));
+                                    // if(node == path.rend()-1)
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)])));
                                     // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)], oldVal, newVal));
                                 }
                                 currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j)] = newVal;
@@ -3155,8 +3132,8 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                                     // if(oldVal == newVal) {
                                     //     std::cout << primaryBlockId << " " << nucPosition << " " << nucGapPosition+j << " " << oldVal << " " << newVal << std::endl;
                                     // }
-                                    if(node == path.rend()-1)
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal)));
+                                    // if(node == path.rend()-1)
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition+j, -1)])));
                                     // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, newVal));
                                 }
                                 currentCharacter[std::make_tuple(primaryBlockId, nucPosition + j, -1)] = newVal;
@@ -3166,14 +3143,14 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                         if(nucGapPosition != -1) {
                             for(int j = 0; j < len; j++) {
                                 newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
-                                if(node == path.rend()-1)
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], '-', newVal)));
+                                // if(node == path.rend()-1)
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], '-', newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)])));
                             }
                         } else {
                             for(int j = 0; j < len; j++) {
                                 newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
-                                if(node == path.rend()-1)
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], '-', newVal)));
+                                // if(node == path.rend()-1)
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('I', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], '-', newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition + j, -1)])));
 
                             }
                         }
@@ -3181,16 +3158,16 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                         if(nucGapPosition != -1) {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition, nucGapPosition + j)];
-                                if(node == path.rend()-1){
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], oldVal, '-')));
-                                }
+                                // if(node == path.rend()-1){
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)], oldVal, '-', isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition + j)])));
+                                // }
                             }
                         } else {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = seqChar[std::make_tuple((*node)->parent->identifier,primaryBlockId, nucPosition + j, nucGapPosition)];
-                                if(node == path.rend()-1){
-                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, '-')));
-                                }
+                                // if(node == path.rend()-1){
+                                    currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('D', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition + j, -1)], oldVal, '-', isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition + j, -1)])));
+                                // }
                             }
                         }
                     }
@@ -3203,8 +3180,8 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                             if(oldVal == '-' || oldVal == 'x') {
                                 std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
                             }
-                            if(node == path.rend()-1)
-                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal)));
+                            // if(node == path.rend()-1)
+                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)])));
                             // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)], oldVal, newVal));
                         }
                         currentCharacter[std::make_tuple(primaryBlockId, nucPosition, nucGapPosition)] = newVal;
@@ -3215,8 +3192,8 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
                             if(oldVal == '-' || oldVal == 'x') {
                                 std::cout << "NOT ACTUALLY A SUBSTITUTION" << std::endl;
                             }
-                            if(node == path.rend()-1)
-                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal)));
+                            // if(node == path.rend()-1)
+                            currentNodeMutations.push_back(std::make_pair(primaryBlockId, std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal, isGapCoordinate[std::make_tuple(primaryBlockId, nucPosition, -1)])));
                             // nodeMutations[u.first].push_back(std::make_tuple('S', panMATCoordinateToGlobal[std::make_tuple(primaryBlockId, nucPosition, -1)], oldVal, newVal));
                         }
                         currentCharacter[std::make_tuple(primaryBlockId, nucPosition, -1)] = newVal;
@@ -3238,7 +3215,7 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
         fout << u.first << '\t';
         for(auto v: u.second) {
             if(std::get<0>(v) == 'S') {
-                fout << " > " << std::get<2>(v) << std::get<1>(v)+1 << std::get<3>(v);
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<2>(v) << std::get<1>(v)+1 << std::get<3>(v);
             }
         }
         fout << '\n';
@@ -3248,7 +3225,7 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
         // print insertions
         for(auto v: u.second) {
             if(std::get<0>(v) == 'I') {
-                fout << " > " << std::get<1>(v)+1 << std::get<3>(v);
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<1>(v)+1 << std::get<3>(v);
             }
         }
         fout << '\n';
@@ -3258,7 +3235,7 @@ void panmanUtils::Tree::printMutations(std::ofstream& fout) {
         // print deletions
         for(auto v: u.second) {
             if(std::get<0>(v) == 'D') {
-                fout << " > " << std::get<1>(v)+1 << std::get<2>(v);
+                fout << " > " << (std::get<4>(v) ? "g" : "") << std::get<1>(v)+1 << std::get<2>(v);
             }
         }
         fout << '\n';
@@ -3270,11 +3247,15 @@ void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExis
     Node* referenceNode = nullptr;
 
     for(auto u: allNodes) {
+        // printf("%s\n",u.first);
+        // std::cerr << u.first << std::endl;
         if(u.first == reference) {
             referenceNode = u.second;
             break;
         }
     }
+
+    // printf(reference)
 
     if(referenceNode == nullptr) {
         std::cerr << "Error: Reference sequence with matching name not found: " << reference << std::endl;
@@ -3596,6 +3577,8 @@ std::string panmanUtils::Tree::getStringFromReference(std::string reference, boo
     Node* referenceNode = nullptr;
 
     for(auto u: allNodes) {
+        // printf("%s\n", u.first);
+        // std::cerr << u.first << std::endl;
         if(u.first == reference) {
             referenceNode = u.second;
             break;

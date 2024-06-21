@@ -452,23 +452,37 @@ namespace panmanUtils {
 
             // Fitch Algorithm on Nucleotide mutations
             int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
+            int nucFitchForwardPassOpt(Node* node, std::unordered_map< std::string, int >& states);
             // Default state is used in rerooting to a tip sequence. It is used to fix the state at
             // the root
             void nucFitchBackwardPass(Node* node, std::unordered_map< std::string, int >& states,
+                int parentState, int defaultState = (1<<28));
+            void nucFitchBackwardPassOpt(Node* node, std::unordered_map< std::string, int >& states,
                 int parentState, int defaultState = (1<<28));
             void nucFitchAssignMutations(Node* node, std::unordered_map< std::string, int >& states,
                 std::unordered_map< std::string,
                 std::pair< panmanUtils::NucMutationType, char > >& mutations,
                 int parentState);
+            void nucFitchAssignMutationsOpt(Node* node, std::unordered_map< std::string, int >& states,
+                std::unordered_map< std::string,
+                std::pair< panmanUtils::NucMutationType, char > >& mutations,
+                int parentState);
 
             // Sankoff algorithm on Nucleotide Mutations
-            std::vector< int > nucSankoffForwardPass(Node* node, std::unordered_map< std::string,
-                std::vector< int > >& stateSets);
+            std::vector< int > nucSankoffForwardPass(Node* node, std::unordered_map< std::string, std::vector< int > >& stateSets);
+            std::vector< int > nucSankoffForwardPassOpt(Node* node, std::unordered_map< std::string, std::vector< int > >& stateSets);
             void nucSankoffBackwardPass(Node* node,
                 std::unordered_map< std::string, std::vector< int > >& stateSets,
                 std::unordered_map< std::string, int >& states, int parentPtr,
                 int defaultValue = (1<<28));
+            void nucSankoffBackwardPassOpt(Node* node,
+                std::unordered_map< std::string, std::vector< int > >& stateSets,
+                std::unordered_map< std::string, int >& states, int parentPtr,
+                int defaultValue = (1<<28));
             void nucSankoffAssignMutations(Node* node,
+                std::unordered_map< std::string, int >& states, std::unordered_map< std::string,
+                std::pair< panmanUtils::NucMutationType, char > >& mutations, int parentState);
+            void nucSankoffAssignMutationsOpt(Node* node,
                 std::unordered_map< std::string, int >& states, std::unordered_map< std::string,
                 std::pair< panmanUtils::NucMutationType, char > >& mutations, int parentState);
 
@@ -524,7 +538,10 @@ namespace panmanUtils {
 
             // For each node in the tree, print mutations with respect to the root node to the
             // output file
-            void printMutations(std::ofstream& fout);
+            void printMutations(std::ostream& fout);
+            void printMutationsNew(std::ostream& fout);
+            void printNodePaths(std::ostream& fout);
+            
             void getBlockSequenceFromReference(block_t& sequence, bool& blockExists,
                 bool& blockStrand, std::string reference, int64_t primaryBlockId,
                 int64_t secondaryBlockId);

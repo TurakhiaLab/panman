@@ -71,6 +71,7 @@ void setupOptionDescriptions() {
     globalDesc.add_options()
         ("help,h", "Print help messages")
         ("input-panman,I", po::value< std::string >(), "Input PanMAN file path")
+        ("input-panmat,T", po::value< std::string >(), "Input PanMAT file path")
         ("input-pangraph,P", po::value< std::string >(), "Input PanGraph JSON file to build a PanMAN")
         ("input-gfa,G", po::value< std::string >(), "Input GFA file to build a PanMAN")
         ("input-msa,M", po::value< std::string >(), "Input MSA file (FASTA format) to build a PanMAN")
@@ -90,7 +91,9 @@ void setupOptionDescriptions() {
         ("reroot,r", "Reroot a PanMAT in a PanMAN based on the input sequence id (--reference)")
         ("aa-translation,v", "Extract amino acid translations in tsv file")
         ("extended-newick,e", "Print PanMAN's network in extended-newick format")
-        ("create-network,e", "Create PanMAN with network of trees from single or multiple PanMAN files")
+        ("create-network,k", "Create PanMAN with network of trees from single or multiple PanMAN files")
+        ("printMutations,p", "Create PanMAN with network of trees from single or multiple PanMAN files")
+        //("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
         
         ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
         ("start,s", po::value< std::string >(), "Start coordinate of protein translation")
@@ -355,6 +358,11 @@ void parseAndExecute(int argc, char* argv[]) {
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
 
         std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+	
+        std::vector<panmanUtils::Tree*> tg;
+        tg.push_back(T);
+
+        TG = new panmanUtils::TreeGroup(tg);
 
         inputFile.close();    
 
@@ -495,13 +503,13 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        if(!optimize) {
-            T = new panmanUtils::Tree(inputStream, newickInputStream,
+        // if(!optimize) {
+        T = new panmanUtils::Tree(inputStream, newickInputStream,
                 panmanUtils::FILE_TYPE::MSA);
-        } else {
-            T = new panmanUtils::Tree(inputStream, newickInputStream,
-                panmanUtils::FILE_TYPE::MSA_OPTIMIZE);
-        }
+        // } else {
+            // T = new panmanUtils::Tree(inputStream, newickInputStream,
+                // panmanUtils::FILE_TYPE::MSA_OPTIMIZE);
+        // }
 
         std::vector<panmanUtils::Tree*> tg;
         tg.push_back(T);
@@ -976,6 +984,13 @@ void parseAndExecute(int argc, char* argv[]) {
         std::chrono::nanoseconds rerootTime = rerootEnd - rerootStart;
         std::cout << "\nReroot execution time: " << rerootTime.count()
             << " nanoseconds\n";
+
+        TG->trees[treeID] = *T;
+        
+
+        writePanMAN(globalVm, TG);
+        return;
+
     } else if (globalVm.count("aa-mutations")) {
         // Extract amino acid translations in tsv file
         
@@ -1056,6 +1071,88 @@ void parseAndExecute(int argc, char* argv[]) {
         for(auto& u: files) {
             u.close();
         }
+    } else if(globalVm.count("printMutations")) {
+        
+        
+        if(TG == nullptr) 
+        {
+            std::cout << "No PanMAN selected" << std::endl;
+            return;
+        }
+
+        
+        int treeID = 0;
+        if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+        panmanUtils::TreeGroup tg = *TG;
+        T = &TG->trees[treeID];
+        // T = &tg.trees[treeID];
+
+
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + ".mutations");
+            buf = outputFile.rdbuf();    
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+
+        auto substitutionsStart = std::chrono::high_resolution_clock::now();
+
+        std::cout << T->root->identifier << std::endl;
+        
+        // T->printMutations(fout);
+        T->printMutationsNew(fout);
+
+        auto substitutionsEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds substitutionsTime = substitutionsEnd - substitutionsStart;
+        std::cout << "\nMutation extract execution time: "
+            << substitutionsTime.count() << " nanoseconds\n";
+
+        if(globalVm.count("output-file")) outputFile.close();
+    } else if(globalVm.count("printNodePaths")) {
+        
+        
+        if(TG == nullptr) 
+        {
+            std::cout << "No PanMAN selected" << std::endl;
+            return;
+        }
+
+        
+        int treeID = 0;
+        if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+        panmanUtils::TreeGroup tg = *TG;
+        T = &TG->trees[treeID];
+        // T = &tg.trees[treeID];
+
+
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + ".mutations");
+            buf = outputFile.rdbuf();    
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+
+        auto substitutionsStart = std::chrono::high_resolution_clock::now();
+
+        std::cout << T->root->identifier << std::endl;
+        
+        // T->printMutations(fout);
+        T->printNodePaths(fout);
+
+        auto substitutionsEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds substitutionsTime = substitutionsEnd - substitutionsStart;
+        std::cout << "\nMutation extract execution time: "
+            << substitutionsTime.count() << " nanoseconds\n";
+
+        if(globalVm.count("output-file")) outputFile.close();
     } else {
         return;
     }
