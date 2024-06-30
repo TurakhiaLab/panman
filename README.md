@@ -2,11 +2,11 @@
 [license-link]: https://github.com/TurakhiaLab/panman/LICENSE
 [![License][license-badge]][license-link]
 <!-- [![DOI](https://zenodo.org/badge/1.svg)](https://zenodo.org/badge/latestdoi/1) -->
-# Pangenome Mutation Annotated Newtork (PanMAN) and <i>panmanUtils</i>
+# Pangenome Mutation Annotated Network (PanMAN)
 
 ## Table of Contents
 - [Overview of PanMANs and panmanUtils](#overview)
-- [Installation and Usgae](#install)
+- [Installation and Usage](#install)
 - [Contribute](#contributions)
 - [Citing PanMAN](#cite_panman)
 
@@ -38,7 +38,7 @@ PanMAN or Pangenome Mutation-Annotated Network is a novel data representation fo
 For information on pnamanUtils installation and usage, please see our documentation page available [here](https://turakhia.ucsd.edu/panman/)
 
 ## <a name="contri"></a> Contribute <br>
-We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
+We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). 
 
 ## <a name="cite_panman"></a> Citing PanMAN <br>
 If you use the PanMANs or panmanUtils in your research or publications, we kindly request that you cite the following paper: XXX
