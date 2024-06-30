@@ -36,7 +36,7 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
-  # favicon: images/panman-icon.png
+  favicon: images/icon.png
   # logo: images/panman-icon.png
 
   icon:

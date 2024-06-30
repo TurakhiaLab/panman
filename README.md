@@ -2,7 +2,12 @@
 [license-link]: https://github.com/TurakhiaLab/panman/LICENSE
 [![License][license-badge]][license-link]
 <!-- [![DOI](https://zenodo.org/badge/1.svg)](https://zenodo.org/badge/latestdoi/1) -->
-# Pangenome Mutation Annotated Newtork (PanMAN) and <i>panmanUtils</i>
+
+# Pangenome Mutation Annotated Newtork (PanMAN)
+<div align="center">
+  <img src="docs/images/logo.svg" width="300"/>
+</div>
+<div align="center">
 
 ## Table of Contents
 - [Overview of PanMANs and panmanUtils](#overview)
