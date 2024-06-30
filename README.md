@@ -5,7 +5,7 @@
 
 # Pangenome Mutation Annotated Network (PanMAN)
 <div align="center">
-  <img src="docs/images/logo.svg" width="300"/>
+  <img src="docs/images/logo.svg"/>
 </div>
 
 ## Table of Contents
