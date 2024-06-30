@@ -3,18 +3,18 @@
 [![License][license-badge]][license-link]
 <!-- [![DOI](https://zenodo.org/badge/1.svg)](https://zenodo.org/badge/latestdoi/1) -->
 
-# Pangenome Mutation Annotated Newtork (PanMAN)
+# Pangenome Mutation Annotated Network (PanMAN)
 <div align="center">
   <img src="docs/images/logo.svg" width="300"/>
 </div>
 
 ## Table of Contents
 - [Overview of PanMANs and panmanUtils](#overview)
-- [Installation and Usgae](#install)
+- [Installation and Usage](#install) ([Documentation](https://turakhia.ucsd.edu/panman/))
 - [Contribute](#contributions)
 - [Citing PanMAN](#cite_panman)
 
-## <a name="overview"></a> Overview of PanMANs and panmanUtils <br>
+## <a name="overview"></a> Overview of PanMAN and <i>panmanUtils</i> <br>
 ### What is a PanMAN?
 PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 1b), and even structural mutations (Fig. 1a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 1c). PanMAN's representative power is compared against existing pangenomic formats in Fig. 1d. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
 <div align="center">
@@ -28,8 +28,8 @@ PanMAN or Pangenome Mutation-Annotated Network is a novel data representation fo
 <!-- #### PanMAN constrution
 
 <div align="center">
-    <div><b>Figure 2: PanMAN construction pipeline using panmanUtils</b></div>
-    <img src="docs/images/construct.svg" width="500"/>
+ <div><b>Figure 2: PanMAN construction pipeline using panmanUtils</b></div>
+ <img src="docs/images/construct.svg" width="500"/>
 </div> -->
 
 <div align="center">
@@ -46,4 +46,3 @@ We welcome contributions from the community to enhance the capabilities of PanMA
 
 ## <a name="cite_panman"></a> Citing PanMAN <br>
 If you use the PanMANs or panmanUtils in your research or publications, we kindly request that you cite the following paper: XXX
-
