@@ -7,7 +7,6 @@
 <div align="center">
   <img src="docs/images/logo.svg" width="300"/>
 </div>
-<div align="center">
 
 ## Table of Contents
 - [Overview of PanMANs and panmanUtils](#overview)
