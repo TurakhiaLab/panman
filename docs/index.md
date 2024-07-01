@@ -62,9 +62,17 @@ cd panman/install
 ### <b>Construction of PanMANs using <i>panmanUtils</i></b>
 Since PanMAN can be composed of a single or multiple PanMATs, to construct a PanMAN, we start with a single tree PanMAN (or PanMAT) and then split it up into a network of multiple PanMATs using the inferred complex mutations provided as input. To construct the starting single-tree PanMAN representing a collection of sequences, panmanUtils require two inputs:<br>
 1. Tree topology representing the phylogenetic relationship of the input sequences <br>
-2. A pangenomic data structure (PanGraph or GFA or FASTA) representing the multiple-sequence alignment (MSA) corresponding to the sequence collection.
+2. A pangenomic data structure - PanGraph(Recommended, see below)/GFA/FASTA, representing the multiple-sequence alignment (MSA) corresponding to the sequence collection.
 
-* Example syntax and Usage 
+* Example syntax and Usage<br>
+Construct PanGraph (JSON format) and tree topology (Newick format) from raw genome sequences using PanGraph tool
+```
+$ ./pangraph build -k mmseqs -a α -b β <path to input raw sequences in FASTA format> | ./pangraph polish
+```
+```
+$ ./pangraph build -k mmseqs -a α -b β ecoli_10.fa | ./pangraph polish
+```
+Construct single tree PanMAN using PanGraph as input
 ```
 $ ./panmanUtils --pangraph-in=<path to PanGraph JSON file> --newick-in=<path to newick file> --output-file=<prefix of panman's file name>
 ```
@@ -82,22 +90,47 @@ $ ./panmanUtils -I <path to PanMAN file> {opt}
 
 Specific options:
 ```
--s [ --summary ]            Print PanMAN summary
--t [ --newick ]             Print newick string of all trees in a PanMAN
--f [ --fasta ]              Print tip/internal sequences (FASTA format)
--m [ --fasta-aligned ]      Print MSA of sequences for each PanMAT in a PanMAN (FASTA format)
--b [ --subnet ]             Extract subnet of given PanMAN to a new PanMAN file based on the list of nodes provided in the input-file
--v [ --vcf ]                Print variations of all sequences from any PanMAT in a PanMAN (VCF format)
--g [ --gfa ]                Convert any PanMAT in a PanMAN to a GFA file
--w [ --maf ]                Print m-WGA for each PanMAT in a PanMAN (MAF format)
--a [ --annotate ]           Annotate nodes of the input PanMAN based on the list provided in the input-file
--r [ --reroot ]             Reroot a PanMAT in a PanMAN based on the input sequence id (--reference)
--v [ --aa-translation ]     Extract amino acid translations in TSV file
--n [ --reference ] arg      Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)
--s [ --start ] arg          Start coordinate of protein translation
--e [ --end ] arg            End coordinate of protein translation
--i [ --input-file ] arg     Path to the input file, required for --subnet and --annotate
--o [ --output-file ] arg    Prefix of the output file name
+  -I [ --input-panman ] arg   Input PanMAN file path
+  -P [ --input-pangraph ] arg Input PanGraph JSON file to build a PanMAN
+  -G [ --input-gfa ] arg      Input GFA file to build a PanMAN
+  -M [ --input-msa ] arg      Input MSA file (FASTA format) to build a PanMAN
+  -N [ --input-newick ] arg   Input tree topology as Newick string
+
+  -s [ --summary ]            Print PanMAN summary
+  -t [ --newick ]             Print newick string of all trees in a PanMAN
+  -f [ --fasta ]              Print tip/internal sequences (FASTA format)
+  -m [ --fasta-aligned ]      Print MSA of sequences for each PanMAT in a PanMAN (FASTA format)
+  -b [ --subnet ]             Extract subnet of given PanMAN to a new PanMAN 
+                              file based on the list of nodes provided in the 
+                              input-file
+  -v [ --vcf ]                Print variations of all sequences from any PanMAT
+                              in a PanMAN (VCF format)
+  -g [ --gfa ]                Convert any PanMAT in a PanMAN to a GFA file
+  -w [ --maf ]                Print m-WGA for each PanMAT in a PanMAN (MAF 
+                              format)
+  -a [ --annotate ]           Annotate nodes of the input PanMAN based on the 
+                              list provided in the input-file
+  -r [ --reroot ]             Reroot a PanMAT in a PanMAN based on the input 
+                              sequence id (--reference)
+  -v [ --aa-translation ]     Extract amino acid translations in tsv file
+  -e [ --extended-newick ]    Print PanMAN's network in extended-newick format
+  -k [ --create-network ]     Create PanMAN with network of trees from single 
+                              or multiple PanMAN files
+  -p [ --printMutations ]     Create PanMAN with network of trees from single 
+                              or multiple PanMAN files
+  
+  -q [ --acr ]                ACR method [fitch(default), mppa]
+  -n [ --reference ] arg      Identifier of reference sequence for PanMAN 
+                              construction (optional), VCF extract (required), 
+                              or reroot (required)
+  -s [ --start ] arg          Start coordinate of protein translation
+  -e [ --end ] arg            End coordinate of protein translation
+  -d [ --treeID ] arg         Tree ID, required for --vcf
+  -i [ --input-file ] arg     Path to the input file, required for --subnet, 
+                              --annotate, and --create-network
+  -o [ --output-file ] arg    Prefix of the output file name
+
+
 ```
 
 > **NOTE:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
@@ -124,6 +157,17 @@ $ ./panmanUtils -I <path to PanMAN file> --newick --output-file=<prefix of outpu
 $ ./panmanUtils -I ecoli_10.panman --newick --output-file=ecoli_10
 ```
 
+#### Extended Newick extract
+Extract network in Extended Newick format.
+
+* Example syntax and Usage
+```
+$ ./panmanUtils -I <path to PanMAN file> ----extended-newick --output-file=<prefix of output file> (optional)
+```
+```
+$ ./panmanUtils -I ecoli_10.panman ----extended-newick --output-file=ecoli_10
+```
+
 #### Tip/internal node sequences extract
 Extract tip and internal node sequences from a PanMAN in a FASTA format.
 
@@ -136,7 +180,7 @@ $ ./panmanUtils -I ecoli_10.panman --fasta --output-file=ecoli_10
 ```
 
 #### Multiple Sequence Alignment (MSA) extract
-Extract MSA of sequences for each PanMAT in a PanMAN in a FASTA format.
+Extract MSA of sequences for each PanMAT (with pseduo-root coordinates) in a PanMAN in a FASTA format.
 
 * Example syntax and Usage
 ```
