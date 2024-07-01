@@ -298,53 +298,6 @@ void panmanUtils::Tree::blockFitchAssignMutationsNew(Node* node,
     }
 }
 
-// std::vector< int > panmanUtils::Tree::nucSankoffForwardPassOpt(Node* node, 
-//                                                                std::unordered_map< std::string, std::vector< int > >& stateSets) {
-
-//     if(node->children.size() == 0) {
-//         if(stateSets.find(node->identifier) == stateSets.end()) {
-//             std::vector< int > blankState(5, SANKOFF_INF);
-//             stateSets[node->identifier] = blankState;
-//         }
-//         return stateSets[node->identifier];
-//     }
-
-
-//     std::vector< std::vector< int > > childStates;
-//     for(auto child: node->children) {
-//         childStates.push_back(nucSankoffForwardPassOpt(child, stateSets));
-//     }
-
-//     bool minExists = false;
-//     for(size_t j = 0; j < childStates.size(); j++) {
-//         for(int k = 0; k < 5; k++) {
-//             if(childStates[j][k] < SANKOFF_INF) {
-//                 minExists = true;
-//                 break;
-//             }
-//         }
-//     }
-
-//     if(!minExists) {
-//         std::vector< int > currentState(5, SANKOFF_INF);
-//         return stateSets[node->identifier] = currentState;
-//     }
-
-//     std::vector< int > currentState(5, 0);
-//     for(int i = 0; i < 5; i++) {
-//         for(size_t j = 0; j < childStates.size(); j++) {
-//             int minVal = SANKOFF_INF;
-//             for(int k = 0; k < 5; k++) {
-//                 minVal = std::min(minVal, (i != k) + childStates[j][k]);
-//             }
-//             if(minVal < SANKOFF_INF) {
-//                 currentState[i] += minVal;
-//             }
-//         }
-//     }
-
-//     return stateSets[node->identifier] = currentState;
-// }
 
 std::vector< int > panmanUtils::Tree::nucSankoffForwardPassOpt(Node* node,
     std::unordered_map< std::string, std::vector< int > >& stateSets) {
@@ -594,9 +547,6 @@ void panmanUtils::Tree::nucSankoffAssignMutations(Node* node,
         nucSankoffAssignMutations(child, states, mutations, states[node->identifier]);
     }
 }
-
-
-
 
 
 

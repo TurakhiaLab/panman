@@ -5,6 +5,8 @@
 #include <boost/program_options.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+// #include <boost/iostreams/filter/xz.hpp>
+#include <boost/iostreams/filter/lzma.hpp>
 #include <json/json.h>
 
 #include <fstream>
@@ -93,6 +95,7 @@ void setupOptionDescriptions() {
         ("extended-newick,e", "Print PanMAN's network in extended-newick format")
         ("create-network,k", "Create PanMAN with network of trees from single or multiple PanMAN files")
         ("printMutations,p", "Create PanMAN with network of trees from single or multiple PanMAN files")
+        ("acr,q", "ACR method [fitch(default), mppa]")
         //("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
         
         ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
@@ -281,7 +284,10 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::TreeGroup *TG)
 
     auto writeStart = std::chrono::high_resolution_clock::now();
 
-    outPMATBuffer.push(boost::iostreams::gzip_compressor());
+    // outPMATBuffer.push(boost::iostreams::gzip_compressor());
+    boost::iostreams::lzma_params params;
+    params.level = 9; // Highest compression level
+    outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
     outPMATBuffer.push(outputFile);
     std::ostream outstream(&outPMATBuffer);
     TG->writeToFile(outstream);
@@ -305,7 +311,10 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::Tree *T)
 
     auto writeStart = std::chrono::high_resolution_clock::now();
 
-    outPMATBuffer.push(boost::iostreams::gzip_compressor());
+    // outPMATBuffer.push(boost::iostreams::gzip_compressor());
+    boost::iostreams::lzma_params params;
+    params.level = 9; // Highest compression level
+    outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
     outPMATBuffer.push(outputFile);
     std::ostream outstream(&outPMATBuffer);
     T->writeToFile(outstream);
@@ -348,7 +357,7 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        inPMATBuffer.push(boost::iostreams::gzip_decompressor());
+        inPMATBuffer.push(boost::iostreams::lzma_decompressor());
         inPMATBuffer.push(inputFile);
         std::istream inputStream(&inPMATBuffer);
 
@@ -377,7 +386,8 @@ void parseAndExecute(int argc, char* argv[]) {
         boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
-        inPMATBuffer.push(boost::iostreams::gzip_decompressor());
+        inPMATBuffer.push(boost::iostreams::lzma_decompressor());
+        // inPMATBuffer.push(boost::iostreams::gzip_decompressor());
         inPMATBuffer.push(inputFile);
         std::istream inputStream(&inPMATBuffer);
 
@@ -676,7 +686,10 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto subtreeStart = std::chrono::high_resolution_clock::now();
 
-        outPMATBuffer.push(boost::iostreams::gzip_compressor());
+        // outPMATBuffer.push(boost::iostreams::gzip_compressor());
+        boost::iostreams::lzma_params params;
+        params.level = 9; // Highest compression level
+        outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
         outPMATBuffer.push(outputFile);
         std::ostream outstream(&outPMATBuffer);
         T->writeToFile(outstream, T->subtreeExtractParallel(nodeIds));
@@ -738,7 +751,10 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto subtreeStart = std::chrono::high_resolution_clock::now();
 
-        outPMATBuffer.push(boost::iostreams::gzip_compressor());
+        // outPMATBuffer.push(boost::iostreams::gzip_compressor());
+        boost::iostreams::lzma_params params;
+        params.level = 9; // Highest compression level
+        outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
         outPMATBuffer.push(outputFile);
         std::ostream outstream(&outPMATBuffer);
 
