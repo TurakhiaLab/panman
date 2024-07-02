@@ -11,6 +11,7 @@
 ## Table of Contents
 - [Overview of PanMANs and <i>panmanUtils</i>](#overview)
 - [Installation and Usage](#install) ([Documentation](https://turakhia.ucsd.edu/panman/))
+
 - [Contribute](#contributions)
 - [Citing PanMAN](#cite_panman)
 
