@@ -1,3 +1,18 @@
+#include <vector>
+#include <string>
+#include <fstream>
+#include <unordered_map>
+#include <queue>
+#include <atomic>
+#include <tbb/concurrent_unordered_map.h>
+#include <tbb/task_scheduler_init.h>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+
+#include <json/json.h>
+#include "panman.pb.h"
+#include "common.hpp"
+
 
 namespace panmanUtils {
 

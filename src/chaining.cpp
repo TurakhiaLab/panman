@@ -20,7 +20,7 @@ using namespace std;
 
 
 
-struct hash_pair {
+struct hashPair {
     template <class T1, class T2>
     size_t operator()(const pair<T1, T2>& p) const {
         auto hash1 = hash<T1> {}(p.first);
@@ -101,7 +101,7 @@ void queryRange(Node* root, std::pair<int,int> rangeStart, std::pair<int,int> ra
         queryRange(root->right, rangeStart, rangeEnd, result);
 }
 
-void find_chain(Node* root, std::pair<int,int> point, std::unordered_map<std::pair<int,int>, std::pair<int, std::pair<int,int>>,hash_pair>&map, int K, pair<int,int> &curr_base,pair<int,int> &max_score_point) {
+void find_chain(Node* root, std::pair<int,int> point, std::unordered_map<std::pair<int,int>, std::pair<int, std::pair<int,int>>,hashPair>&map, int K, pair<int,int> &curr_base,pair<int,int> &max_score_point) {
 
     std::vector<std::pair<int,int>> result;
     std::pair<int,int> new_base ((point.first - K > 0 ? point.first - K: 0), (point.second - K > 0 ? point.second - K: 0));
@@ -195,7 +195,7 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
         return chain;
     }
 
-    std::unordered_map<std::pair<int,int>, std::pair<int,std::pair<int,int>>, hash_pair> map;
+    std::unordered_map<std::pair<int,int>, std::pair<int,std::pair<int,int>>, hashPair> map;
     for (auto point: points_conc) {
         std::pair<int,std::pair<int,int>> h (-1, origin);
         map[point] = h;

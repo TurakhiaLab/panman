@@ -1,6 +1,3 @@
-#ifndef PANGENOME_MAT_HPP
-#define PANGENOME_MAT_HPP
-
 #pragma once
 
 #include <vector>
@@ -17,19 +14,7 @@
 #include <json/json.h>
 #include "panman.pb.h"
 
-#define PMAT_VERSION "2.0-beta"
-#define VCF_VERSION "4.2"
-
-static const int SANKOFF_INF = 100000001;
-
-typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >,
-        std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
-// Individual block
-typedef std::vector< std::pair< char, std::vector< char > > > block_t;
-
-typedef  std::vector< std::pair< bool, std::vector< bool > > > blockExists_t;
-// Forward or reverse strand
-typedef  std::vector< std::pair< bool, std::vector< bool > > > blockStrand_t;
+#include "panman.hpp"
 
 namespace panmanUtils {
 
@@ -57,17 +42,6 @@ void printSequenceLines(const sequence_t& sequence,
 std::string stripGaps(std::string sequenceString);
 std::string getDate();
 std::string stripString(std::string s);
-
-enum FILE_TYPE {
-    PANMAT = 0,
-    GFA = 1,
-    PANGRAPH=2,
-    MSA = 3,
-    MSA_OPTIMIZE = 4,
-    // FASTA = 5
-};
-
-
 
 void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
@@ -166,5 +140,3 @@ class GfaGraph {
 
 
 };
-
-#endif // PANGENOME_MAT_HPP

@@ -17,20 +17,21 @@ if(Protobuf_FOUND)
 endif()
 include_directories(${Protobuf_INCLUDE_DIRS})
 
-FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
-
 # Include TBB
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
 tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
-find_package(TBB REQUIRED)
+find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
+
+FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 
 # Include JSONCPP
 include(${CMAKE_TOOLCHAIN_FILE})
 find_package(jsoncpp CONFIG REQUIRED)
 
 
-file(GLOB PANMAT_SRCS "src/main.cpp" "src/panmanUtils.cpp" "src/panmanUtils.hpp")
+file(GLOB PANMAT_SRCS "src/main.cpp" "src/panmanUtils.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
 
 if(DEFINED Protobuf_PATH)
 	add_executable(panmanUtils
