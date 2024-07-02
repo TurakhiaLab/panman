@@ -31,7 +31,7 @@ include(${CMAKE_TOOLCHAIN_FILE})
 find_package(jsoncpp CONFIG REQUIRED)
 
 
-file(GLOB PANMAT_SRCS "src/main.cpp" "src/panmanUtils.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
+file(GLOB PANMAT_SRCS "src/panmanUtils.cpp" "src/panman.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
 
 if(DEFINED Protobuf_PATH)
 	add_executable(panmanUtils
