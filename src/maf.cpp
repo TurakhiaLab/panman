@@ -98,7 +98,7 @@ void panmanUtils::Tree::printMAF(std::ostream& fout) {
                 rotate(blockIds.begin(), blockIds.begin() + rotIndex, blockIds.end());
             }
             if(sequenceInverted.find(u.first) != sequenceInverted.end()
-                && sequenceInverted[u.first]) {
+                    && sequenceInverted[u.first]) {
                 reverse(blockIds.begin(), blockIds.end());
             }
 
@@ -158,7 +158,7 @@ void panmanUtils::Tree::printMAF(std::ostream& fout) {
                 bool blockExists = false, blockStrand = true;
 
                 getBlockSequenceFromReference(sequence, blockExists, blockStrand, u, primaryBlockId,
-                    secondaryBlockId);
+                                              secondaryBlockId);
 
                 std::string stringSequence;
                 for(size_t i = 0; i < sequence.size(); i++) {
@@ -229,7 +229,7 @@ void panmanUtils::Tree::printMAFNew(std::ostream& fout) {
             rotate(blockIds.begin(), blockIds.begin() + rotIndex, blockIds.end());
         }
         if(sequenceInverted.find(u.first) != sequenceInverted.end()
-            && sequenceInverted[u.first]) {
+                && sequenceInverted[u.first]) {
             reverse(blockIds.begin(), blockIds.end());
         }
         int ctr = 0;

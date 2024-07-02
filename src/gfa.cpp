@@ -36,7 +36,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
         for(size_t i = 0; i < blockGaps.blockPosition.size(); i++) {
             blockExistsGlobal[blockGaps.blockPosition[i]].second.resize(blockGaps.blockGapLength[i], false);
         }
-        
+
         tbb::concurrent_unordered_set< std::pair< std::pair<int32_t, int32_t>, std::pair<int32_t, int32_t> > > edges;
         tbb::concurrent_unordered_map< std::string, std::vector< std::pair<int32_t, int32_t> > > paths;
 
@@ -62,7 +62,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                     int primaryBlockId = mutation.primaryBlockId;
                     int secondaryBlockId = mutation.secondaryBlockId;
                     int type = (mutation.blockMutInfo);
-                    
+
                     if(type == panmanUtils::BlockMutationType::BI) {
                         if(secondaryBlockId != -1) {
                             blockExists[primaryBlockId].second[secondaryBlockId] = true;
@@ -156,16 +156,16 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                                     if(currentSequence.length()) {
                                         allSequenceNodeMutex.lock();
                                         if(allSequenceNodes.find(std::make_pair(currentStart,
-                                            currentSequence)) == allSequenceNodes.end()) {
+                                                                                currentSequence)) == allSequenceNodes.end()) {
                                             allSequenceNodes[std::make_pair(currentStart,
-                                                currentSequence)] = std::make_pair(autoIncrId, true);
+                                                                            currentSequence)] = std::make_pair(autoIncrId, true);
                                             sequenceNodeIds.push_back(autoIncrId);
                                             sequenceStrands.push_back(true);
                                             autoIncrId++;
                                         } else {
                                             sequenceNodeIds.push_back(
                                                 allSequenceNodes[std::make_pair(currentStart,
-                                                currentSequence)].first);
+                                                                                currentSequence)].first);
                                             sequenceStrands.push_back(true);
                                         }
                                         allSequenceNodeMutex.unlock();
@@ -182,16 +182,16 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                                 if(currentSequence.length()) {
                                     allSequenceNodeMutex.lock();
                                     if(allSequenceNodes.find(std::make_pair(currentStart,
-                                        currentSequence)) == allSequenceNodes.end())  {
+                                                                            currentSequence)) == allSequenceNodes.end())  {
                                         allSequenceNodes[std::make_pair(currentStart,
-                                            currentSequence)] = std::make_pair(autoIncrId, true);
+                                                                        currentSequence)] = std::make_pair(autoIncrId, true);
                                         sequenceNodeIds.push_back(autoIncrId);
                                         sequenceStrands.push_back(true);
                                         autoIncrId++;
                                     } else {
                                         sequenceNodeIds.push_back(
                                             allSequenceNodes[std::make_pair(currentStart,
-                                            currentSequence)].first);
+                                                                            currentSequence)].first);
                                         sequenceStrands.push_back(true);
                                     }
                                     allSequenceNodeMutex.unlock();
@@ -204,7 +204,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                             if(currentSequence.length()) {
                                 allSequenceNodeMutex.lock();
                                 if(allSequenceNodes.find(std::make_pair(currentStart,
-                                    currentSequence)) == allSequenceNodes.end()) {
+                                                                        currentSequence)) == allSequenceNodes.end()) {
                                     allSequenceNodes[std::make_pair(currentStart, currentSequence)]
                                         = std::make_pair(autoIncrId, true);
                                     sequenceNodeIds.push_back(autoIncrId);
@@ -213,7 +213,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                                 } else {
                                     sequenceNodeIds.push_back(
                                         allSequenceNodes[std::make_pair(currentStart,
-                                        currentSequence)].first);
+                                                                        currentSequence)].first);
                                     sequenceStrands.push_back(true);
                                 }
                                 allSequenceNodeMutex.unlock();
@@ -233,7 +233,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                                     std::reverse(currentSequence.begin(), currentSequence.end());
                                     allSequenceNodeMutex.lock();
                                     if(allSequenceNodes.find(std::make_pair(currentStart,
-                                        currentSequence)) == allSequenceNodes.end()) {
+                                                                            currentSequence)) == allSequenceNodes.end()) {
                                         allSequenceNodes[std::make_pair(currentStart, currentSequence)]
                                             = std::make_pair(autoIncrId, false);
                                         sequenceNodeIds.push_back(autoIncrId);
@@ -241,7 +241,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                                         autoIncrId++;
                                     } else {
                                         sequenceNodeIds.push_back(allSequenceNodes[
-                                            std::make_pair(currentStart, currentSequence)].first);
+                                                                      std::make_pair(currentStart, currentSequence)].first);
                                         sequenceStrands.push_back(false);
                                     }
                                     allSequenceNodeMutex.unlock();
@@ -259,15 +259,15 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                                         std::reverse(currentSequence.begin(), currentSequence.end());
                                         allSequenceNodeMutex.lock();
                                         if(allSequenceNodes.find(std::make_pair(currentStart,
-                                            currentSequence)) == allSequenceNodes.end()) {
+                                                                                currentSequence)) == allSequenceNodes.end()) {
                                             allSequenceNodes[std::make_pair(currentStart,
-                                                currentSequence)] = std::make_pair(autoIncrId, false);
+                                                                            currentSequence)] = std::make_pair(autoIncrId, false);
                                             sequenceNodeIds.push_back(autoIncrId);
                                             sequenceStrands.push_back(false);
                                             autoIncrId++;
                                         } else {
                                             sequenceNodeIds.push_back(allSequenceNodes[
-                                                std::make_pair(currentStart, currentSequence)].first);
+                                                                          std::make_pair(currentStart, currentSequence)].first);
                                             sequenceStrands.push_back(false);
                                         }
                                         allSequenceNodeMutex.unlock();
@@ -284,7 +284,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                                 std::reverse(currentSequence.begin(), currentSequence.end());
                                 allSequenceNodeMutex.lock();
                                 if(allSequenceNodes.find(std::make_pair(currentStart, currentSequence))
-                                    == allSequenceNodes.end()) {
+                                        == allSequenceNodes.end()) {
                                     allSequenceNodes[std::make_pair(currentStart, currentSequence)]
                                         = std::make_pair(autoIncrId, false);
                                     sequenceNodeIds.push_back(autoIncrId);
@@ -292,7 +292,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                                     autoIncrId++;
                                 } else {
                                     sequenceNodeIds.push_back(allSequenceNodes[
-                                        std::make_pair(currentStart, currentSequence)].first);
+                                                                  std::make_pair(currentStart, currentSequence)].first);
                                     sequenceStrands.push_back(false);
                                 }
                                 allSequenceNodeMutex.unlock();
@@ -327,7 +327,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                     std::make_pair(u.first, std::make_pair(u.second[i], strandPaths[u.first][i])));
                 GT[std::make_pair(u.second[i], strandPaths[u.first][i])].push_back(
                     std::make_pair(u.first, std::make_pair(u.second[i-1],
-                    strandPaths[u.first][i-1])));
+                                   strandPaths[u.first][i-1])));
             }
         }
 
@@ -395,7 +395,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                 }
 
                 // combine src and dest
-                if(u.first.second){
+                if(u.first.second) {
                     // forward strand
                     finalNodes[u.first] += finalNodes[dest];
                 } else {
@@ -434,8 +434,8 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
                     continue;
                 }
                 edges.insert(std::make_pair(std::make_pair(oldToNew[u.first.first],
-                    u.first.second), std::make_pair(oldToNew[edge.second.first],
-                    edge.second.second)));
+                                            u.first.second), std::make_pair(oldToNew[edge.second.first],
+                                                    edge.second.second)));
             }
         }
 
@@ -444,7 +444,7 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
             std::vector< bool > newStrandPath;
             for(size_t j = 0; j < p.second.size(); j++) {
                 if(finalNodes.find(std::make_pair(p.second[j], strandPaths[p.first][j]))
-                    != finalNodes.end()) {
+                        != finalNodes.end()) {
                     newPath.push_back(p.second[j]);
                     newStrandPath.push_back(strandPaths[p.first][j]);
                 }
@@ -482,8 +482,8 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
 
         for(auto u: edges) {
             fout << "L\t" << sequentialIds[u.first.first] << "\t" << (u.first.second? "+":"-")
-                << "\t" << sequentialIds[u.second.first] << "\t" << (u.second.second? "+":"-")
-                << "\t0M\n";
+                 << "\t" << sequentialIds[u.second.first] << "\t" << (u.second.second? "+":"-")
+                 << "\t0M\n";
         }
 
         for(auto u: paths) {

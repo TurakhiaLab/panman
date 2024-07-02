@@ -5,7 +5,7 @@ void panmanUtils::Tree::compressTreeParallel(panmanUtils::Node* node, size_t lev
 
     while(node->children.size() == 1) {
         if(nodeIdsToDefinitelyInclude.find(node->identifier) != nodeIdsToDefinitelyInclude.end() ||
-            nodeIdsToDefinitelyInclude.find(node->children[0]->identifier)
+                nodeIdsToDefinitelyInclude.find(node->children[0]->identifier)
                 != nodeIdsToDefinitelyInclude.end()) {
             break;
         }
@@ -26,7 +26,7 @@ void panmanUtils::Tree::compressTreeParallel(panmanUtils::Node* node, size_t lev
         for(int i = r.begin(); i < r.end(); i++) {
             while(node->children[i]->children.size() == 1) {
                 if(nodeIdsToDefinitelyInclude.find(node->children[i]->identifier) != nodeIdsToDefinitelyInclude.end() ||
-                    nodeIdsToDefinitelyInclude.find(node->children[i]->children[0]->identifier) != nodeIdsToDefinitelyInclude.end()) {
+                        nodeIdsToDefinitelyInclude.find(node->children[i]->children[0]->identifier) != nodeIdsToDefinitelyInclude.end()) {
                     break;
                 }
                 mergeNodes(node->children[i], node->children[i]->children[0]);
@@ -35,14 +35,14 @@ void panmanUtils::Tree::compressTreeParallel(panmanUtils::Node* node, size_t lev
             auto oldVector = node->children[i]->nucMutation;
 
             if(nodeIdsToDefinitelyInclude.find(node->children[i]->identifier) != nodeIdsToDefinitelyInclude.end() ||
-                (node->children[i]->children.size() == 1 &&
-                nodeIdsToDefinitelyInclude.find(node->children[i]->children[0]->identifier) != nodeIdsToDefinitelyInclude.end())) {
+                    (node->children[i]->children.size() == 1 &&
+                     nodeIdsToDefinitelyInclude.find(node->children[i]->children[0]->identifier) != nodeIdsToDefinitelyInclude.end())) {
                 node->children[i]->nucMutation = consolidateNucMutations(node->children[i]->nucMutation);
             }
 
             if(!debugSimilarity(oldVector, node->children[i]->nucMutation)) {
                 printError("Inaccuracy observed in subtree extract. Please report to the"
-                    "creators.");
+                           "creators.");
                 return;
             }
 
@@ -165,7 +165,7 @@ panmanUtils::TreeGroup* panmanUtils::TreeGroup::subnetworkExtract(std::unordered
         fileNames.push_back(fileName);
 
         boost::iostreams::filtering_streambuf< boost::iostreams::output>
-            outPMATBuffer;
+        outPMATBuffer;
         outPMATBuffer.push(boost::iostreams::gzip_compressor());
         outPMATBuffer.push(outputFile);
         std::ostream outstream(&outPMATBuffer);
@@ -179,8 +179,8 @@ panmanUtils::TreeGroup* panmanUtils::TreeGroup::subnetworkExtract(std::unordered
     std::ofstream outputFile;
     std::streambuf * buf;
     outputFile.open("./temp_panman/cplx");
-    buf = outputFile.rdbuf();  
-        
+    buf = outputFile.rdbuf();
+
     std::ostream fout (buf);
 
     printComplexMutations(fout);
