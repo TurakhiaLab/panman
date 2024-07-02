@@ -145,7 +145,7 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
                             break;
                         }
                         const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
-                        
+
                         consensusSeq.push_back(nucleotide);
                     }
                     if(endFlag) {
@@ -188,7 +188,7 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
                 nucFitchForwardPass(root, states);
                 nucFitchBackwardPass(root, states, nucleotideCode, nucleotideCode);
                 nucFitchAssignMutations(root, states, mutations, 1);
-                
+
                 for(auto mutation: mutations) {
                     nodeMutexes[mutation.first].lock();
                     gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, k, w, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));

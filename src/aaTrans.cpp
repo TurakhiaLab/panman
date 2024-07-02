@@ -1,8 +1,8 @@
 #include "panmanUtils.hpp"
 
 std::string getNucleotideSequenceFromBlockCoordinates(std::tuple< int, int, int, int > start,
-    std::tuple< int, int, int, int > end, const sequence_t& sequence,
-    const blockExists_t& blockExists, const blockStrand_t& blockStrand) {
+        std::tuple< int, int, int, int > end, const sequence_t& sequence,
+        const blockExists_t& blockExists, const blockStrand_t& blockStrand) {
 
     std::string ntSequence;
 
@@ -12,10 +12,10 @@ std::string getNucleotideSequenceFromBlockCoordinates(std::tuple< int, int, int,
 
             for(size_t j = startMainNuc; j < sequence[i].first.size(); j++) {
                 int startGapNuc = (i == (size_t)std::get<0>(start) && j == (size_t)startMainNuc)?
-                    std::get<3>(start): 0;
+                                  std::get<3>(start): 0;
                 if(startGapNuc != -1) {
                     for(size_t k = (size_t)std::get<3>(start);
-                        k < sequence[i].first[j].second.size(); k++) {
+                            k < sequence[i].first[j].second.size(); k++) {
                         if(std::make_tuple((int)i, -1, (int)j, (int)k) == end) {
                             return ntSequence;
                         }
@@ -37,7 +37,7 @@ std::string getNucleotideSequenceFromBlockCoordinates(std::tuple< int, int, int,
             }
         } else {
             size_t startMainNuc = (i == (size_t)std::get<0>(start))? (size_t)std::get<2>(start):
-                sequence[0].first.size()-1;
+                                  sequence[0].first.size()-1;
             for(size_t j = startMainNuc; j+1 > 0; j--) {
                 if(std::make_tuple((int)i, -1, (int)j, -1) == end) {
                     return ntSequence;
@@ -48,7 +48,7 @@ std::string getNucleotideSequenceFromBlockCoordinates(std::tuple< int, int, int,
                     ntSequence += '-';
                 }
                 size_t startGapNuc = (i == (size_t)(std::get<0>(start)) && j == startMainNuc) ?
-                    (size_t)std::get<3>(start): sequence[i].first[j].second.size() - 1;
+                                     (size_t)std::get<3>(start): sequence[i].first[j].second.size() - 1;
                 for(size_t k = startGapNuc; k+1 > 0; k--) {
                     if(std::make_tuple((int)i, -1, (int)j, k) == end) {
                         return ntSequence;
@@ -67,24 +67,24 @@ std::string getNucleotideSequenceFromBlockCoordinates(std::tuple< int, int, int,
 }
 
 std::tuple< std::vector< std::string >, std::vector< size_t >, std::vector< size_t > >
-    getAminoAcidSequence(std::tuple< int, int, int, int > start,
-    std::tuple< int, int, int, int > end, const sequence_t& sequence,
-    const blockExists_t& blockExists,
-    const blockStrand_t& blockStrand) {
+getAminoAcidSequence(std::tuple< int, int, int, int > start,
+                     std::tuple< int, int, int, int > end, const sequence_t& sequence,
+                     const blockExists_t& blockExists,
+                     const blockStrand_t& blockStrand) {
 
     std::string ntSequence = getNucleotideSequenceFromBlockCoordinates(start, end, sequence,
-        blockExists, blockStrand);
+                             blockExists, blockStrand);
 
     if(ntSequence == "ERROR") {
         panmanUtils::printError("Error in translating input coordinates to PanMAT coordinates."
-            " Coordinates may be out of range.");
+                                " Coordinates may be out of range.");
         return std::make_tuple(std::vector< std::string >({"ERROR"}), std::vector<size_t>(),
-            std::vector<size_t>());
+                               std::vector<size_t>());
     }
 
     for(size_t i = 0; i < ntSequence.size(); i++) {
         if(ntSequence[i] != 'A' && ntSequence[i] != 'G' && ntSequence[i] != 'T'
-            && ntSequence[i] != 'C') {
+                && ntSequence[i] != 'C') {
             ntSequence[i] = '-';
         }
     }
@@ -183,7 +183,7 @@ std::tuple< std::vector< std::string >, std::vector< size_t >, std::vector< size
 }
 
 void panmanUtils::Tree::extractAminoAcidTranslations(std::ostream& fout,
-    int64_t start, int64_t end) {
+        int64_t start, int64_t end) {
     sequence_t referenceSequence;
     blockExists_t referenceBlockExists;
     blockStrand_t referenceBlockStrand;
@@ -195,22 +195,22 @@ void panmanUtils::Tree::extractAminoAcidTranslations(std::ostream& fout,
 
     // Get reference sequence in the PanMAT coordinate system
     getSequenceFromReference(referenceSequence, referenceBlockExists, referenceBlockStrand,
-        root->identifier);
+                             root->identifier);
 
     // get PanMAT coordinates from global coordinates
     std::tuple< int, int, int, int > panMATStart = globalCoordinateToBlockCoordinate(start,
-        referenceSequence, referenceBlockExists, referenceBlockStrand);
+            referenceSequence, referenceBlockExists, referenceBlockStrand);
     std::tuple< int, int, int, int > panMATEnd = globalCoordinateToBlockCoordinate(end,
-        referenceSequence, referenceBlockExists, referenceBlockStrand);
+            referenceSequence, referenceBlockExists, referenceBlockStrand);
 
     if(std::get<0>(panMATStart) == -1 || std::get<0>(panMATEnd) == -1) {
         printError("Error in translating input coordinates to PanMAT coordinates in reference"
-            " sequence. Coordinates may be out of range");
+                   " sequence. Coordinates may be out of range");
         return;
     }
 
     auto aaSeq = getAminoAcidSequence(panMATStart, panMATEnd, referenceSequence,
-        referenceBlockExists, referenceBlockStrand);
+                                      referenceBlockExists, referenceBlockStrand);
 
     std::cout << std::get<0>(aaSeq).size() << " " << std::get<1>(aaSeq).size() << " " << std::get<2>(aaSeq).size() << std::endl;
 
@@ -231,22 +231,22 @@ void panmanUtils::Tree::extractAminoAcidTranslations(std::ostream& fout,
 
         // Get alternate sequence in the PanMAT coordinate system
         getSequenceFromReference(altSequence, altBlockExists, altBlockStrand,
-            u.first);
+                                 u.first);
 
         // get PanMAT coordinates from global coordinates
         std::tuple< int, int, int, int > altPanMATStart = globalCoordinateToBlockCoordinate(start,
-            altSequence, altBlockExists, altBlockStrand);
+                altSequence, altBlockExists, altBlockStrand);
         std::tuple< int, int, int, int > altPanMATEnd = globalCoordinateToBlockCoordinate(end,
-            altSequence, altBlockExists, altBlockStrand);
+                altSequence, altBlockExists, altBlockStrand);
 
         if(std::get<0>(altPanMATStart) == -1 || std::get<0>(altPanMATEnd) == -1) {
             printError("Error in translating input coordinates to PanMAT coordinates in sequence "
-                + u.first + ". Coordinates may be out of range");
+                       + u.first + ". Coordinates may be out of range");
             return;
         }
 
         auto aaSeq = getAminoAcidSequence(altPanMATStart, altPanMATEnd, altSequence,
-            altBlockExists, altBlockStrand);
+                                          altBlockExists, altBlockStrand);
 
         std::vector< std::string > altAASequence = std::get<0>(aaSeq);
         std::vector< size_t > altStarts = std::get<1>(aaSeq);

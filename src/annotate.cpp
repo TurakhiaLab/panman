@@ -8,7 +8,7 @@ void panmanUtils::Tree::annotate(std::ifstream& fin) {
 
         // Extract node ID
         size_t i = 0;
-        for(;i < line.length() && line[i]!=','; i++) {
+        for(; i < line.length() && line[i]!=','; i++) {
             word+=line[i];
         }
 
@@ -36,7 +36,7 @@ void panmanUtils::Tree::annotate(std::ifstream& fin) {
         Node* nodeToAnnotate = allNodes[nodeId];
 
         // Extract annotations
-        for(;i < line.length(); i++) {
+        for(; i < line.length(); i++) {
             if(line[i] != ',') {
                 word += line[i];
             } else {

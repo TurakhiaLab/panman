@@ -121,7 +121,7 @@ void panmanUtils::Tree::printVCFParallel(std::string reference, std::ostream& fo
     fout << "##source=PanMATv" << PMAT_VERSION << '\n';
     fout << "##reference=" << reference << '\n';
     fout << "#CHROM\t" << "POS\t" << "ID\t" << "REF\t" << "ALT\t" << "QUAL\t" << "FILTER\t" << "INFO\t" << "FORMAT\t";
-    
+
     // fout << std::left << std::setw(20) << "#CHROM " << std::setw(20) << "POS " << std::setw(20) << "ID " << std::setw(20) << "REF " << std::setw(20) << "ALT " << std::setw(20) << "QUAL " << std::setw(20) << "FILTER " << std::setw(20) << "INFO " << std::setw(20) << "FORMAT ";
     for(auto u: sequenceIds) {
         if(u.first != sequenceIds.rbegin()->first) {
@@ -139,7 +139,7 @@ void panmanUtils::Tree::printVCFParallel(std::string reference, std::ostream& fo
             } else {
                 fout << reference << "\t" << u.first << "\t" << recordID++ << "\t" << v.first << "\t";
             }
-            
+
             std::map< std::string, size_t > tempSequenceIds = sequenceIds;
 
             int ctr = 1;
