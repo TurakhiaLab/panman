@@ -459,7 +459,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             stringSequences.push_back(p.second);
         }
 
-        GFAGraph g(sequenceIds, stringSequences, nodes);
+        GfaGraph g(sequenceIds, stringSequences, nodes);
         std::cout << "Graph without cycles created" << std::endl;
 
         std::vector< size_t > topoArray = g.getTopologicalSort();
@@ -4653,7 +4653,7 @@ std::pair< panmanUtils::Tree, panmanUtils::Tree > panmanUtils::Tree::splitByComp
 
 }
 
-panmanUtils::GFAGraph::GFAGraph(const std::vector< std::string >& pathNames, const std::vector< std::vector< std::pair< std::string, bool > > >& sequences, std::map< std::string, std::string >& nodes) {
+panmanUtils::GfaGraph::GfaGraph(const std::vector< std::string >& pathNames, const std::vector< std::vector< std::pair< std::string, bool > > >& sequences, std::map< std::string, std::string >& nodes) {
     pathIds = pathNames;
 
     // New integer Node ID to old string Node ID
@@ -4737,7 +4737,7 @@ panmanUtils::GFAGraph::GFAGraph(const std::vector< std::string >& pathNames, con
     }
 }
 
-std::vector< std::vector< int64_t > > panmanUtils::GFAGraph::getAlignedSequences(const std::vector< size_t >& topoArray) {
+std::vector< std::vector< int64_t > > panmanUtils::GfaGraph::getAlignedSequences(const std::vector< size_t >& topoArray) {
     std::vector< std::vector< int64_t > > newSequences;
 
     for(auto sequence: intSequences) {
@@ -4761,7 +4761,7 @@ std::vector< std::vector< int64_t > > panmanUtils::GFAGraph::getAlignedSequences
     return newSequences;
 }
 
-std::vector< std::vector< int > > panmanUtils::GFAGraph::getAlignedStrandSequences(
+std::vector< std::vector< int > > panmanUtils::GfaGraph::getAlignedStrandSequences(
     const std::vector< size_t >& topoArray) {
     std::vector< std::vector< int > > alignedStrandSequences;
 
@@ -4788,7 +4788,7 @@ std::vector< std::vector< int > > panmanUtils::GFAGraph::getAlignedStrandSequenc
     return alignedStrandSequences;
 }
 
-std::vector< size_t > panmanUtils::GFAGraph::getTopologicalSort() {
+std::vector< size_t > panmanUtils::GfaGraph::getTopologicalSort() {
     return topoSortedIntSequences;
 }
 
