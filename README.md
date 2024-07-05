@@ -47,4 +47,4 @@ We welcome contributions from the community to enhance the capabilities of PanMA
 
 ## <a name="cite_panman"></a> Citing PanMAN <br>
 If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper: 
-* Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: https://doi.org/10.1101/2024.07.02.601807
+* Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: [10.1101/2024.07.02.601807](https://doi.org/10.1101/2024.07.02.601807)
