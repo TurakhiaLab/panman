@@ -1,7 +1,7 @@
 [license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg 
 [license-link]: https://github.com/TurakhiaLab/panman/LICENSE
 [![License][license-badge]][license-link]
-<!-- [![DOI](https://zenodo.org/badge/1.svg)](https://zenodo.org/badge/latestdoi/1) -->
+[![DOI](https://img.shields.io/badge/DOI-10.1101/2024.07.02.601807-blue)](https://doi.org/10.1101/2024.07.02.601807)
 
 # Pangenome Mutation Annotated Network (PanMAN)
 <div align="center">
@@ -46,4 +46,5 @@ For information on pnamanUtils installation and usage, please see our documentat
 We welcome contributions from the community to enhance the capabilities of PanMAN and <i>panmanUtils</i>. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
 
 ## <a name="cite_panman"></a> Citing PanMAN <br>
-If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper: XXX
+If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper: 
+* Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: https://doi.org/10.1101/2024.07.02.601807
