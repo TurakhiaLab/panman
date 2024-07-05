@@ -73,7 +73,7 @@ void setupOptionDescriptions() {
     globalDesc.add_options()
     ("help,h", "Print help messages")
     ("input-panman,I", po::value< std::string >(), "Input PanMAN file path")
-    // ("input-panmat,T", po::value< std::string >(), "Input PanMAT file path")
+    ("input-panmat,T", po::value< std::string >(), "Input PanMAT file path")
     ("input-pangraph,P", po::value< std::string >(), "Input PanGraph JSON file to build a PanMAN")
     ("input-gfa,G", po::value< std::string >(), "Input GFA file to build a PanMAN")
     ("input-msa,M", po::value< std::string >(), "Input MSA file (FASTA format) to build a PanMAN")
@@ -372,6 +372,9 @@ void parseAndExecute(int argc, char* argv[]) {
         TG = new panmanUtils::TreeGroup(tg);
 
         inputFile.close();
+
+
+        writePanMAN(globalVm, TG);
 
         std::filesystem::create_directory("./info");
 
