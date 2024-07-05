@@ -1,5 +1,5 @@
 [license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg 
-[license-link]: https://github.com/TurakhiaLab/panman/LICENSE
+[license-link]: [https://github.com/TurakhiaLab/panman/LICENSE](https://github.com/TurakhiaLab/panman/blob/main/LICENSE)
 [![License][license-badge]][license-link]
 <!-- [![DOI](https://zenodo.org/badge/1.svg)](https://zenodo.org/badge/latestdoi/1) -->
 
