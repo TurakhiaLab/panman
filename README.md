@@ -1,5 +1,5 @@
 [license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg 
-[license-link]: https://github.com/TurakhiaLab/panman/LICENSE
+[license-link]: [https://github.com/TurakhiaLab/panman/LICENSE](https://github.com/TurakhiaLab/panman/blob/main/LICENSE)
 [![License][license-badge]][license-link]
 [![DOI](https://img.shields.io/badge/DOI-10.1101/2024.07.02.601807-blue)](https://doi.org/10.1101/2024.07.02.601807)
 
@@ -47,4 +47,9 @@ We welcome contributions from the community to enhance the capabilities of PanMA
 
 ## <a name="cite_panman"></a> Citing PanMAN <br>
 If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper: 
+<<<<<<< HEAD
 * Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: [10.1101/2024.07.02.601807](https://doi.org/10.1101/2024.07.02.601807)
+=======
+* Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: https://doi.org/10.1101/2024.07.02.601807
+
+>>>>>>> 271f89db03002a16f4c0c27d980a53c057d6cb59
