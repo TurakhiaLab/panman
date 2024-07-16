@@ -18,5 +18,19 @@ jobs:
         with:
           key: ${{ github.ref }}
           path: .cache
-      - run: pip install mkdocs-material
-      - run: mkdocs gh-deploy --force
+          
+      - name: build docs
+        run: pip install mkdocs-material
+        run: mkdocs gh-deploy --force
+ 
+      - name: install pre-reqs and build
+        run: sudo ./install/installUbuntu.sh
+      - name: test
+        run: |
+          mkdir build
+          cd build
+          wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
+          tar -xvzf 2019_U9.tar.gz
+          cmake  -DTBB_DIR=${PWD}/oneTBB-2019_U9  -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake ..
+          make -j2
+          ./panmat-utils --help
