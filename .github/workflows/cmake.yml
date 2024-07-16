@@ -20,11 +20,11 @@ jobs:
         with:
           python-version: 3.x
 
-      - name: Cache dependencies
-        uses: actions/cache@v2
-        with:
-          key: ${{ github.ref }}
-          path: .cache
+      # - name: Cache dependencies
+      #   uses: actions/cache@v2
+      #   with:
+      #     key: ${{ github.ref }}
+      #     path: .cache
 
       - name: build docs
         run: |
