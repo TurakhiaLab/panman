@@ -32,7 +32,9 @@ jobs:
           mkdocs gh-deploy --force
  
       - name: install pre-reqs and build
-        run: sudo install/installUbuntu.sh
+        run: |
+          chmod +x install/installUbuntu.sh
+          sudo ./install/installUbuntu.sh
       - name: test
         run: |
           mkdir build
