@@ -33,7 +33,7 @@ jobs:
  
       - name: install pre-reqs and build
         run: |
-          chmod +x install/installUbuntu.sh
+          chmod +x install/installationUbuntu.sh
           sudo ./install/installationUbuntu.sh
       - name: test
         run: |
