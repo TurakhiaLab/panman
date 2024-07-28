@@ -37,7 +37,7 @@ jobs:
           sudo ./install/installationUbuntu.sh
       - name: test
         run: |
-          mkdir build
+          mkdir -p build
           cd build
           wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
           tar -xvzf 2019_U9.tar.gz
