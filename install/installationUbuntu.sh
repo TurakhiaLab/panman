@@ -7,6 +7,7 @@ mkdir -p ../build
 cd ../build
 
 git clone https://github.com/microsoft/vcpkg.git
+apt-get install pkg-config
 ./vcpkg/bootstrap-vcpkg.sh
 ./vcpkg/vcpkg install jsoncpp
 
