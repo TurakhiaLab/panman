@@ -37,4 +37,5 @@ jobs:
           sudo ./install/installationUbuntu.sh
       - name: test
         run: |
+          cd build
           ./panmanUtils --help
