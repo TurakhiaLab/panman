@@ -47,7 +47,7 @@ panmanUtils can be installed using two different options, as described below: <b
 ```
 git clone https://github.com/TurakhiaLab/panman.git
 cd panman/install
-./installUbuntu.sh
+./installationUbuntu.sh
 ```
 
 #### Docker
@@ -56,7 +56,7 @@ docker run -it swalia14/panman:latest
 # Inside the docker container
 git clone https://github.com/TurakhiaLab/panman.git
 cd panman/install
-./installUbuntu.sh
+./installationUbuntu.sh
 ```
 
 ### <b>Construction of PanMANs using <i>panmanUtils</i></b>
