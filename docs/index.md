@@ -53,10 +53,6 @@ cd panman/install
 #### Docker
 ```
 docker run -it swalia14/panman:latest
-# Inside the docker container
-git clone https://github.com/TurakhiaLab/panman.git
-cd panman/install
-./installationUbuntu.sh
 ```
 
 ### <b>Construction of PanMANs using <i>panmanUtils</i></b>
