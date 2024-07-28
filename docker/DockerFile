@@ -5,8 +5,5 @@ RUN apt install -y git build-essential cmake wget curl zip unzip tar protobuf-co
 
 WORKDIR /HOME
 
-RUN git clonne https://github.com/TurakhiaLab/panman.git
-cd panman/install
-RUN ./installUbuntu.sh
-
-
+RUN git clone https://github.com/TurakhiaLab/panman.git
+RUN panman/install/installationUbuntu.sh

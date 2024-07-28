@@ -1,11 +1,13 @@
-name: Documentation
+name: ci
 on:
   push:
     branches:
       - base
-      - main        
+      - main       
+ 
 permissions:
   contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -17,7 +19,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.x
-          
+
       - name: Cache dependencies
         uses: actions/cache@v2
         with:
@@ -30,13 +32,11 @@ jobs:
           mkdocs gh-deploy --force
  
       - name: install pre-reqs and build
-        run: sudo ./install/installUbuntu.sh
+        run: |
+          sudo apt install -y git build-essential cmake wget curl zip unzip tar protobuf-compiler libboost-all-dev pkg-config
+          chmod +x install/installationUbuntu.sh
+          sudo ./install/installationUbuntu.sh
       - name: test
         run: |
-          mkdir build
           cd build
-          wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
-          tar -xvzf 2019_U9.tar.gz
-          cmake  -DTBB_DIR=${PWD}/oneTBB-2019_U9  -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake ..
-          make -j2
-          ./panmat-utils --help
+          ./panmanUtils --help
