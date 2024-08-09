@@ -28,7 +28,7 @@ find_package(jsoncpp CONFIG REQUIRED)
 file(GLOB PANMAT_SRCS "src/panmanUtils.cpp" "src/panman.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
 
 if(DEFINED Protobuf_PATH)
-	add_executable(panmanUtils
+	add_library(panmanUtils STATIC
 		${PANMAT_SRCS}
 		)
 
@@ -43,7 +43,7 @@ else()
 		PROTO_SRCS PROTO_HDRS
 		panman.proto)
 	
-	add_executable(panmanUtils
+	add_library(panmanUtils STATIC
 		${PANMAT_SRCS}
 		${PROTO_SRCS}
 		${PROTO_HDRS}
@@ -53,5 +53,44 @@ endif()
 
 TARGET_COMPILE_OPTIONS(panmanUtils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
-TARGET_LINK_LIBRARIES(panmanUtils PRIVATE stdc++ JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+TARGET_LINK_LIBRARIES(panmanUtils PRIVATE stdc++ JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES})
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
+
+# Add installation rules
+install(TARGETS panmanUtils
+        EXPORT panmanUtilsTargets
+        ARCHIVE DESTINATION lib)
+
+install(DIRECTORY src/
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.hpp")
+
+# Export the targets to a script
+install(EXPORT panmanUtilsTargets
+        FILE panmanUtilsTargets.cmake
+        NAMESPACE panmanUtils::
+        DESTINATION lib/cmake/panmanUtils)
+
+# Create a Config file for find_package
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/panmanUtilsConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+configure_file(panmanUtilsConfig.cmake.in
+               "${CMAKE_CURRENT_BINARY_DIR}/panmanUtilsConfig.cmake"
+               @ONLY)
+
+install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/panmanUtilsConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/panmanUtilsConfigVersion.cmake"
+        DESTINATION lib/cmake/panmanUtils)
+
+# Export from the build tree
+export(EXPORT panmanUtilsTargets
+       FILE "${CMAKE_CURRENT_BINARY_DIR}/panmanUtilsTargets.cmake"
+       NAMESPACE panmanUtils::)
+
+export(PACKAGE panmanUtils)
