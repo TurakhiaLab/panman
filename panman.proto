@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package panman;
+
+message nucMut
+{
+    int32 nucPosition = 1; 
+    int32 nucGapPosition = 2;  
+    bool  nucGapExist = 3;
+    uint32 mutInfo = 4; 
+}
+
+message mutation
+{
+    int64 blockId = 1;
+    bool  blockGapExist = 2;
+    bool  blockMutExist = 3;
+    bool  blockMutInfo = 4;
+    bool  blockInversion = 5;
+    repeated nucMut nucMutation = 6;
+}
+
+message node
+{
+    repeated mutation mutations = 1;
+    repeated string   annotations = 2;
+}
+
+message consensusSeqToBlockIds
+{
+    repeated    int64   blockId = 1;
+    repeated    uint32  consensusSeq = 2;
+    repeated    bool    blockGapExist = 3;
+    repeated    string  chromosomeName = 4;
+}
+
+message gapList
+{
+    int64          blockId = 1;
+    bool           blockGapExist = 2;
+    repeated int32 nucGapLength = 3;
+    repeated int32 nucPosition = 4;
+}
+
+message blockGapList
+{
+    repeated int32  blockPosition = 1;
+    repeated int32  blockGapLength = 2;
+}
+
+message circularOffset
+{
+    string          sequenceId = 1;
+    int32           offset = 2;
+}
+
+message rotationIndex
+{
+    string          sequenceId = 1;
+    int32           blockOffset = 2;
+}
+
+message sequenceInverted
+{
+    string          sequenceId = 1;
+    bool            inverted = 2;
+}
+
+message tree
+{
+    string           newick = 1;
+    repeated node    nodes = 2;
+    repeated consensusSeqToBlockIds consensusSeqMap = 4;
+    repeated gapList gaps = 5;
+    blockGapList     blockGaps = 6;
+    repeated circularOffset circularSequences = 7;
+    repeated rotationIndex rotationIndexes = 8;
+    repeated sequenceInverted sequencesInverted = 9;
+}
+
+message complexMutation {
+    bool            mutationType = 1;
+    int32           treeIndex1 = 2;
+    int32           treeIndex2 = 3;
+    int32           treeIndex3 = 4;
+    string          sequenceId1 = 5;
+    string          sequenceId2 = 6;
+
+    int64           blockIdStart1 = 7;
+    bool            blockGapExistStart1 = 8;
+    int32           nucPositionStart1 = 9;
+    int32           nucGapPositionStart1 = 10;
+    bool            nucGapExistStart1 = 11;
+
+    int64           blockIdEnd1 = 12;
+    bool            blockGapExistEnd1 = 13;
+    int32           nucPositionEnd1 = 14;
+    int32           nucGapPositionEnd1 = 15;
+    bool            nucGapExistEnd1 = 16;
+
+    int64           blockIdStart2 = 17;
+    bool            blockGapExistStart2 = 18;
+    int32           nucPositionStart2 = 19;
+    int32           nucGapPositionStart2 = 20;
+    bool            nucGapExistStart2 = 21;
+
+    int64           blockIdEnd2 = 22;
+    bool            blockGapExistEnd2 = 23;
+    int32           nucPositionEnd2 = 24;
+    int32           nucGapPositionEnd2 = 25;
+    bool            nucGapExistEnd2 = 26;
+
+    string          sequenceId3 = 27;
+}
+
+message treeGroup
+{
+    repeated tree   trees = 1;
+    repeated complexMutation complexMutations = 2;
+}

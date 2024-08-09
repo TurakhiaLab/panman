@@ -1,28 +1,42 @@
-name: build
-
-on: 
-  pull_request:
+name: ci
+on:
   push:
-    branches: 
-      - main
-      - '*'
-
-env:
-  BUILD_TYPE: Release
+    branches:
+      - base
+      - main       
+ 
+permissions:
+  contents: write
 
 jobs:
-  ubuntu-22-04:
-    runs-on: ubuntu-22.04
+  deploy:
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
-    - name: install pre-reqs and build
-      run: sudo ./install/installUbuntu.sh
-    - name: test
-      run: |
-        mkdir build
-        cd build
-        wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
-        tar -xvzf 2019_U9.tar.gz
-        cmake  -DTBB_DIR=${PWD}/oneTBB-2019_U9  -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake ..
-        make -j2
-        ./panmat-utils --help
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          key: ${{ github.ref }}
+          path: .cache
+
+      - name: build docs
+        run: |
+          pip install mkdocs-material
+          mkdocs gh-deploy --force
+ 
+      - name: install pre-reqs and build
+        run: |
+          sudo apt install -y git build-essential cmake wget curl zip unzip tar protobuf-compiler libboost-all-dev pkg-config
+          chmod +x install/installationUbuntu.sh
+          sudo ./install/installationUbuntu.sh
+      - name: test
+        run: |
+          cd build
+          ./panmanUtils --help
