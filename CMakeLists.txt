@@ -5,11 +5,18 @@ project(panmanUtils)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
-find_package(Protobuf REQUIRED CONFIG) 
-include_directories(${Protobuf_INCLUDE_DIRS})
-if(Protobuf_FOUND)
-	message(STATUS "Found Protocol Buffers: ${Protobuf_VERSION}")
-endif()
+include(FetchContent)
+
+FetchContent_Declare(
+  protobuf
+  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+  GIT_TAG v3.20.1
+)
+
+FetchContent_MakeAvailable(protobuf)
+
+include_directories(${protobuf_SOURCE_DIR}/src)
+message(STATUS "Using Protocol Buffers from FetchContent")
 
 # Include TBB
 include(${TBB_DIR}/cmake/TBBBuild.cmake)
