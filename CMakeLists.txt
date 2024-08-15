@@ -28,7 +28,7 @@ set(CMAKE_IGNORE_PREFIX_PATH $ENV{CONDA_PREFIX}/lib/libz.so.1 /usr/lib/tbb)
 
 
 
-include(dependencies.cmake)
+include(cmake/dependencies.cmake)
 
 FetchContent_MakeAvailable(Boost TBB spoa protobuf jsoncpp)
 
@@ -96,7 +96,7 @@ include(GNUInstallDirs)
 set(INCLUDE_INSTALL_DIR 
     CACHE PATH "Location of header files" )
 
-configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/panmanConfig.cmake.in
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/panmanConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/panman-config.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/panman
     PATH_VARS INCLUDE_INSTALL_DIR
