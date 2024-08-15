@@ -19,15 +19,21 @@ project(panman
 	DESCRIPTION "Pangenome mutation-annotated trees"
 	LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17) # could bump to 20?
+set(CMAKE_CXX_STANDARD 17) 
+
+# Set the include directories for the downloaded TBB
+set(TBB_INCLUDE_DIR ${TBB_DIR})
 
 set(CMAKE_IGNORE_PREFIX_PATH $ENV{CONDA_PREFIX}/lib/libz.so.1 /usr/lib/tbb)
 
 
 
-include(cmake/dependencies.cmake)
+include(dependencies.cmake)
 
 FetchContent_MakeAvailable(Boost TBB spoa protobuf jsoncpp)
+
+# Add include directories for TBB
+include_directories(${TBB_DIR}/include)
 
 # pan-mat library
 add_library(panman STATIC src/panmanUtils.cpp)
@@ -75,7 +81,7 @@ set_target_properties(
   OUTPUT_NAME panman  # optional: makes the file libTarget.so on disk
 )
 
-install(TARGETS panman-utils EXPORT panman-targets)
+install(TARGETS panman EXPORT panman-targets)
 
 install(EXPORT panman-targets
     FILE panman-targets.cmake
@@ -90,10 +96,10 @@ include(GNUInstallDirs)
 set(INCLUDE_INSTALL_DIR 
     CACHE PATH "Location of header files" )
 
-configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/panmanConfig.cmake.in
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/panmanConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/panman-config.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/panman
-	PATH_VARS INCLUDE_INSTALL_DIR
+    PATH_VARS INCLUDE_INSTALL_DIR
 )
 
 install(
