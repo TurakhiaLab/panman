@@ -1,63 +1,102 @@
-cmake_minimum_required (VERSION 3.8) 
+cmake_minimum_required (VERSION 3.22)
 
-project(panmanUtils)
+#  To consume the panman library, use:
+#
+#   FetchContent_Declare(panman
+#	   GIT_REPOSITORY https://github.com/TurakhiaLab/pagenome-mat
+#	   GIT_TAG [tag]
+#	   FIND_PACKAGE_ARGS [...] # to try to find local install first	
+#	)
+#
+#   FetchContent_MakeAvailable(panman)
+#
+#   target_link_libraries(my_target PRIVATE panman)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
-set(CMAKE_INCLUDE_CURRENT_DIR ON) 
+include(FetchContent)
 
-if(DEFINED Protobuf_PATH) 
-	find_package(Protobuf REQUIRED HINTS ${Protobuf_PATH}) 
-else()
-	find_package(Protobuf REQUIRED) 
-endif()
+project(panman
+	VERSION 0.1.0
+	DESCRIPTION "Pangenome mutation-annotated trees"
+	LANGUAGES CXX)
 
-# Print version messages
-if(Protobuf_FOUND)
-	message(STATUS "Using Protocol Buffers ${Protobuf_VERSION}")
-endif()
-include_directories(${Protobuf_INCLUDE_DIRS})
+set(CMAKE_CXX_STANDARD 17) # could bump to 20?
 
-# Include TBB
-include(${TBB_DIR}/cmake/TBBBuild.cmake)
-tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
-find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
-
-FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
+set(CMAKE_IGNORE_PREFIX_PATH $ENV{CONDA_PREFIX}/lib/libz.so.1 /usr/lib/tbb)
 
 
-# Include JSONCPP
-include(${CMAKE_TOOLCHAIN_FILE})
-find_package(jsoncpp CONFIG REQUIRED)
+
+include(dependencies.cmake)
+
+FetchContent_MakeAvailable(Boost TBB spoa protobuf jsoncpp)
+
+# pan-mat library
+add_library(panman STATIC src/panmanUtils.cpp)
+
+# application binary 
+add_executable(panman-utils src/panmanUtils.cpp)
 
 
-file(GLOB PANMAT_SRCS "src/panmanUtils.cpp" "src/panman.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
+# includes
+target_include_directories(panman PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-if(DEFINED Protobuf_PATH)
-	add_executable(panmanUtils
-		${PANMAT_SRCS}
-		)
+# populate dependencies
 
-	protobuf_generate(
-		LANGUAGE cpp
-		TARGET panmanUtils 
-		PROTOS panman.proto)
+# run protoc compiler
+include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
+set(panman_SRCS panman.pb.cc)
+set(panman_PROTOS panman.proto)
+target_sources(panman PRIVATE ${panman_SRCS} ${panman_PROTOS})
+
+protobuf_generate(TARGET panman)
+
+# linking
+target_link_libraries(panman PUBLIC
+	Boost::program_options Boost::filesystem Boost::iostreams Boost::system
+	protobuf::libprotobuf
+	${TBB_IMPORTED_TARGETS}
+	$<TARGET_NAME_IF_EXISTS:jsoncpp_static> $<TARGET_NAME_IF_EXISTS:jsoncpp_lib>
+	spoa
+)
+target_link_libraries(panman-utils PRIVATE panman)
 
 
-else()
-	protobuf_generate_cpp(
-		PROTO_SRCS PROTO_HDRS
-		panman.proto)
-	
-	add_executable(panmanUtils
-		${PANMAT_SRCS}
-		${PROTO_SRCS}
-		${PROTO_HDRS}
-		)
+# exporting:
+#   - `make` will create build/panman-config.cmake (if make is run)
+#   - {install path}/cmake/panman-config.cmake (if make install is run)
 
-endif()
+set_target_properties(
+  panman
+  PROPERTIES
+  EXPORT_NAME panman-targets
+  OUTPUT_NAME panman  # optional: makes the file libTarget.so on disk
+)
 
-TARGET_COMPILE_OPTIONS(panmanUtils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
+install(TARGETS panman-utils EXPORT panman-targets)
 
-TARGET_LINK_LIBRARIES(panmanUtils PRIVATE stdc++ JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES}) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
-target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
+install(EXPORT panman-targets
+    FILE panman-targets.cmake
+    NAMESPACE panman::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/panman
+)
+
+include(CMakePackageConfigHelpers)
+
+include(GNUInstallDirs)
+
+set(INCLUDE_INSTALL_DIR 
+    CACHE PATH "Location of header files" )
+
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/panmanConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/panman-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/panman
+	PATH_VARS INCLUDE_INSTALL_DIR
+)
+
+install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/panman-config.cmake"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/panman"
+)
