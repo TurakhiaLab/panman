@@ -59,17 +59,26 @@ target_sources(panman PRIVATE ${panman_SRCS} ${panman_PROTOS})
 
 protobuf_generate(TARGET panman)
 
-# linking
-target_link_libraries(panman PUBLIC
-	Boost::program_options Boost::filesystem Boost::iostreams Boost::system
-	protobuf::libprotobuf
-	${TBB_IMPORTED_TARGETS}
-	$<TARGET_NAME_IF_EXISTS:jsoncpp_static> $<TARGET_NAME_IF_EXISTS:jsoncpp_lib>
-	spoa
-)
 target_link_libraries(panman-utils PRIVATE panman)
 
+find_package(Boost REQUIRED COMPONENTS program_options filesystem iostreams system)
 
+# Now explicitly use Boost's targets
+target_link_libraries(panman PUBLIC
+    Boost::program_options Boost::filesystem Boost::iostreams Boost::system
+    protobuf::libprotobuf
+    ${TBB_IMPORTED_TARGETS}
+    $<TARGET_NAME_IF_EXISTS:jsoncpp_static> $<TARGET_NAME_IF_EXISTS:jsoncpp_lib>
+    spoa
+)
+
+# Export boost targets
+install(EXPORT panman-targets
+    FILE panman-targets.cmake
+    NAMESPACE panman::
+    DESTINATION lib/cmake/panman
+    EXPORT_LINK_INTERFACE_LIBRARIES
+)
 # exporting:
 #   - `make` will create build/panman-config.cmake (if make is run)
 #   - {install path}/cmake/panman-config.cmake (if make install is run)
@@ -81,12 +90,12 @@ set_target_properties(
   OUTPUT_NAME panman  # optional: makes the file libTarget.so on disk
 )
 
-install(TARGETS panman EXPORT panman-targets)
-
-install(EXPORT panman-targets
-    FILE panman-targets.cmake
-    NAMESPACE panman::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/panman
+# Include Boost components in the export set
+install(TARGETS panman EXPORT panman-targets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+    INCLUDES DESTINATION include
 )
 
 include(CMakePackageConfigHelpers)
