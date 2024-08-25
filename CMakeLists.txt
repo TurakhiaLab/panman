@@ -72,7 +72,7 @@ target_include_directories(panmanUtils PUBLIC ${TBB_DIR}/include)
 
 TARGET_COMPILE_OPTIONS(panmanUtils PUBLIC -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
-TARGET_LINK_LIBRARIES(panmanUtils PUBLIC JsonCpp::JsonCpp ${Boost_LIBRARIES} TBB::tbb ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} stdc++) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+TARGET_LINK_LIBRARIES(panmanUtils PUBLIC JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} stdc++) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
 
 
@@ -80,4 +80,4 @@ add_library(panman STATIC ${PANMAT_SRCS})
 target_include_directories(panman PUBLIC "${PROJECT_BINARY_DIR}")
 target_include_directories(panman PUBLIC ${TBB_DIR}/include)
 
-target_link_libraries(panman PUBLIC JsonCpp::JsonCpp ${Boost_LIBRARIES} TBB::tbb ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} stdc++)
+target_link_libraries(panman PUBLIC JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} stdc++)
