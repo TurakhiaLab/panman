@@ -44,18 +44,7 @@ find_package(jsoncpp CONFIG REQUIRED)
 
 file(GLOB PANMAT_SRCS "src/panmanUtils.cpp" "src/panman.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
 
-if(DEFINED Protobuf_PATH)
-	add_executable(panmanUtils
-		${PANMAT_SRCS}
-		)
 
-	protobuf_generate(
-		LANGUAGE cpp
-		TARGET panmanUtils 
-		PROTOS panman.proto)
-
-
-else()
 	protobuf_generate_cpp(
 		PROTO_SRCS PROTO_HDRS
 		panman.proto)
@@ -66,8 +55,6 @@ else()
 		${PROTO_HDRS}
 		)
 
-endif()
-
 target_include_directories(panmanUtils PUBLIC ${TBB_DIR}/include)
 
 TARGET_COMPILE_OPTIONS(panmanUtils PUBLIC -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
@@ -76,7 +63,7 @@ TARGET_LINK_LIBRARIES(panmanUtils PUBLIC JsonCpp::JsonCpp ${Boost_LIBRARIES} ${T
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
 
 
-add_library(panman STATIC ${PANMAT_SRCS})
+add_library(panman STATIC ${PANMAT_SRCS} ${PROTO_SRCS} ${PROTO_HDRS})
 target_include_directories(panman PUBLIC "${PROJECT_BINARY_DIR}")
 target_include_directories(panman PUBLIC ${TBB_DIR}/include)
 
