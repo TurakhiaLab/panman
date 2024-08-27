@@ -2,9 +2,8 @@ cmake_minimum_required (VERSION 3.8)
 
 project(panmanUtils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
-set(BUILD_SHARED_LIBS ON)
 
 if(DEFINED Protobuf_PATH) 
 	find_package(Protobuf REQUIRED HINTS ${Protobuf_PATH}) 
@@ -36,11 +35,24 @@ find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview HINTS ${TBB_DIR}
 FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
+set(BUILD_STATIC_LIBS ON)
+set(BUILD_SHARED_LIBS OFF)
+set(JSONCPP_WITH_TESTS OFF)
+set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF)
+set(JSONCPP_WITH_CMAKE_PACKAGE ON)
+set(ARCHIVE_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/lib)
+find_package(PkgConfig REQUIRED)
 
-# Include JSONCPP
-include(${CMAKE_TOOLCHAIN_FILE})
-find_package(jsoncpp CONFIG REQUIRED)
+FetchContent_Declare(
+	jsoncpp
+	GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp.git
+	GIT_TAG	1.9.5
+	GIT_SHALLOW	TRUE
+)
 
+FetchContent_MakeAvailable(jsoncpp)
+
+# pkg_check_modules(JSONCPP jsoncpp_static IMPORTED_TARGET GLOBAL)
 
 file(GLOB PANMAT_SRCS "src/panmanUtils.cpp" "src/panman.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
 
@@ -59,7 +71,7 @@ target_include_directories(panmanUtils PUBLIC ${TBB_DIR}/include)
 
 TARGET_COMPILE_OPTIONS(panmanUtils PUBLIC -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
-TARGET_LINK_LIBRARIES(panmanUtils PUBLIC JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} stdc++) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+TARGET_LINK_LIBRARIES(panmanUtils PUBLIC  ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} jsoncpp_static stdc++) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
 
 
@@ -67,4 +79,4 @@ add_library(panman STATIC ${PANMAT_SRCS} ${PROTO_SRCS} ${PROTO_HDRS})
 target_include_directories(panman PUBLIC "${PROJECT_BINARY_DIR}")
 target_include_directories(panman PUBLIC ${TBB_DIR}/include)
 
-target_link_libraries(panman PUBLIC JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} stdc++)
+target_link_libraries(panman PUBLIC ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} jsoncpp_static stdc++)
