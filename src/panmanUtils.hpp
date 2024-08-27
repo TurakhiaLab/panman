@@ -12,7 +12,7 @@
 #include <boost/iostreams/filter/gzip.hpp>
 
 #include <json/json.h>
-#include "panman.pb.h"
+#include "panman.capnp.h"
 
 #include "panman.hpp"
 

@@ -169,8 +169,9 @@ panmanUtils::TreeGroup* panmanUtils::TreeGroup::subnetworkExtract(std::unordered
         outPMATBuffer.push(boost::iostreams::gzip_compressor());
         outPMATBuffer.push(outputFile);
         std::ostream outstream(&outPMATBuffer);
-
-        trees[i].writeToFile(outstream, trees[i].subtreeExtractParallel(subtreeNodeIds, cplxMutationNodeIds));
+        kj::std::StdOutputStream outputStream(outstream);
+        
+        trees[i].writeToFile(outputStream, trees[i].subtreeExtractParallel(subtreeNodeIds, cplxMutationNodeIds));
 
         boost::iostreams::close(outPMATBuffer);
         outputFile.close();

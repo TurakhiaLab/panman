@@ -17,6 +17,8 @@
 #include <mutex>
 #include <chrono>
 #include <filesystem>
+#include <set>
+
 #include "chaining.cpp"
 #include "rotation.cpp"
 #include "fitchSankoff.cpp"
@@ -31,9 +33,6 @@
 #include "aaTrans.cpp"
 
 #include "panmanUtils.hpp"
-
-
-
 
 char panmanUtils::getNucleotideFromCode(int code) {
     switch(code) {
@@ -380,29 +379,29 @@ panmanUtils::Node* panmanUtils::Tree::createTreeFromNewickString(std::string new
 }
 
 void panmanUtils::Tree::assignMutationsToNodes(Node* root, size_t& currentIndex,
-        std::vector< panman::node >& nodes) {
+        std::vector< panman::Node::Reader >& nodes) {
     std::vector< panmanUtils::NucMut > storedNucMutation;
 
-    for(int i = 0; i < nodes[currentIndex].mutations_size(); i++) {
-        for(auto nucMut: nodes[currentIndex].mutations(i).nucmutation()) {
+    for (auto nodeMutations: nodes[currentIndex].getMutations()){
+        for (auto nucMut: nodeMutations.getNucMutation()){
             storedNucMutation.push_back( panmanUtils::NucMut(nucMut,
-                                         nodes[currentIndex].mutations(i).blockid(),
-                                         nodes[currentIndex].mutations(i).blockgapexist()));
+                                         nodeMutations.getBlockId(),
+                                         nodeMutations.getBlockGapExist()));
         }
     }
 
     std::vector< panmanUtils::BlockMut > storedBlockMutation;
-    for(int i = 0; i < nodes[currentIndex].mutations_size(); i++) {
+    for (auto nodeMutations: nodes[currentIndex].getMutations()){
         panmanUtils::BlockMut tempBlockMut;
-        if(nodes[currentIndex].mutations(i).blockmutexist()) {
-            tempBlockMut.loadFromProtobuf(nodes[currentIndex].mutations(i));
+        if (nodeMutations.getBlockMutExist()){
+            tempBlockMut.loadFromProtobuf(nodeMutations);
             storedBlockMutation.push_back(tempBlockMut);
         }
     }
 
-    for(int i = 0; i < nodes[currentIndex].annotations_size(); i++) {
-        root->annotations.push_back(nodes[currentIndex].annotations(i));
-        annotationsToNodes[nodes[currentIndex].annotations(i)].push_back(root->identifier);
+    for (auto nodeAnnotations: nodes[currentIndex].getAnnotations()){
+        root->annotations.push_back(nodeAnnotations);
+        annotationsToNodes[nodeAnnotations].push_back(root->identifier);
     }
 
     root->nucMutation = storedNucMutation;
@@ -412,10 +411,7 @@ void panmanUtils::Tree::assignMutationsToNodes(Node* root, size_t& currentIndex,
         currentIndex++;
         assignMutationsToNodes(child, currentIndex, nodes);
     }
-
 }
-
-
 
 
 bool panmanUtils::Tree::hasPolytomy(Node* node) {
@@ -1031,13 +1027,19 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         }
         blocks.emplace_back(0, consensusSeq);
         root->blockMutation.emplace_back(0, std::make_pair(BlockMutationType::BI, false));
-
-        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
+                                                                        // pos, start, end
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int8_t,int8_t > > > nonGapMutationsMSA;
         std::unordered_map< std::string, std::mutex > nodeMutexes;
+        std::unordered_map< size_t, std::mutex > posMutexes;
 
         for(auto u: allNodes) {
             nodeMutexes[u.first];
         }
+
+        for (auto i=0; i<consensusSeq.length(); i++) {
+            posMutexes[i];
+        }
+    	int positionCount = 0;
 
         tbb::parallel_for((size_t)0, consensusSeq.length(), [&](size_t i) {
             std::unordered_map< std::string, int > states;
@@ -1054,18 +1056,26 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[i])));
             for(auto mutation: mutations) {
                 nodeMutexes[mutation.first].lock();
-                nonGapMutations[mutation.first].push_back(std::make_tuple(0, -1, i, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                nonGapMutationsMSA[mutation.first].push_back(std::make_tuple(i, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
                 nodeMutexes[mutation.first].unlock();
             }
+            // posMutexes[i].lock();
+            // std::cout << positionCount++ << std::endl;
+            // posMutexes[i].unlock();
         });
 
-        tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
+        std::cout << "Mutations computed" << std::endl;
+        sequenceIdsToSequences.clear(); // saving memory
+        std::cout << "MSA deleted for saving memory" << std::endl;
+
+        std::cout << "Building PanMAN...";
+        tbb::parallel_for_each(nonGapMutationsMSA, [&](auto& u) {
             nodeMutexes[u.first].lock();
             std::sort(u.second.begin(), u.second.end());
             nodeMutexes[u.first].unlock();
             size_t currentStart = 0;
             for(size_t i = 1; i < u.second.size(); i++) {
-                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1])+1 || std::get<1>(u.second[i]) != std::get<1>(u.second[i-1])) {
                     nodeMutexes[u.first].lock();
                     allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
                     nodeMutexes[u.first].unlock();
@@ -1077,37 +1087,41 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
             nodeMutexes[u.first].unlock();
         });
+        std::cout << "Finished" << std::endl;
 
 
     }
 }
 
-void panmanUtils::Tree::protoMATToTree(const panman::tree& mainTree) {
+void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
     // Create tree
-    root = createTreeFromNewickString(mainTree.newick());
-
+    root = createTreeFromNewickString(mainTree.getNewick().cStr());
+    std::cout << root << std::endl;
     std::map< std::pair<int32_t, int32_t>, std::vector< uint32_t > > blockIdToConsensusSeq;
 
-    for(int i = 0; i < mainTree.consensusseqmap_size(); i++) {
+    for (auto consensusMapElement: mainTree.getConsensusSeqMap()){
         std::vector< uint32_t > seq;
-        for(int j = 0; j < mainTree.consensusseqmap(i).consensusseq_size(); j++) {
-            seq.push_back(mainTree.consensusseqmap(i).consensusseq(j));
-        }
-        for(int j = 0; j < mainTree.consensusseqmap(i).blockid_size(); j++) {
+        for (auto consensusSequenceToBlockIds: consensusMapElement.getConsensusSeq()){
+            seq.push_back(consensusSequenceToBlockIds);
+        }  
+
+        auto blockIdList = consensusMapElement.getBlockId();
+        auto blockGapExistList = consensusMapElement.getBlockGapExist();
+        for (auto j=0;j<blockIdList.size();j++){
             std::pair< int32_t, int32_t > blockId;
-            blockId.first = (mainTree.consensusseqmap(i).blockid(j) >> 32);
-            if(mainTree.consensusseqmap(i).blockgapexist(j)) {
-                blockId.second = (mainTree.consensusseqmap(i).blockid(j) & 0xFFFFFFFF);
+            blockId.first = (blockIdList[j] >> 32);
+            if(blockGapExistList[j]) {
+                blockId.second = (blockIdList[j] & 0xFFFFFFFF);
             } else {
                 blockId.second = -1;
             }
             blockIdToConsensusSeq[blockId] = seq;
-        }
+        }  
     }
 
-    std::vector< panman::node > storedNodes;
-    for(int i = 0; i < mainTree.nodes_size(); i++) {
-        storedNodes.push_back(mainTree.nodes(i));
+    std::vector< panman::Node::Reader> storedNodes;
+    for (auto nodesFromTree: mainTree.getNodes()){
+        storedNodes.push_back(nodesFromTree);
     }
 
     size_t initialIndex = 0;
@@ -1120,54 +1134,56 @@ void panmanUtils::Tree::protoMATToTree(const panman::tree& mainTree) {
     }
 
     // Gap List
-    for(int i = 0; i < mainTree.gaps_size(); i++) {
+    for (auto gapsFromTree: mainTree.getGaps()){
         panmanUtils::GapList tempGaps;
-        tempGaps.primaryBlockId = (mainTree.gaps(i).blockid() >> 32);
-        tempGaps.secondaryBlockId = (mainTree.gaps(i).blockgapexist() ? (mainTree.gaps(i).blockid() & 0xFFFF): -1);
-        for(int j = 0; j < mainTree.gaps(i).nucposition_size(); j++) {
-            tempGaps.nucPosition.push_back(mainTree.gaps(i).nucposition(j));
-            tempGaps.nucGapLength.push_back(mainTree.gaps(i).nucgaplength(j));
+        tempGaps.primaryBlockId = (gapsFromTree.getBlockId() >> 32);
+        tempGaps.secondaryBlockId = (gapsFromTree.getBlockGapExist() ? (gapsFromTree.getBlockId() & 0xFFFF): -1);
+        for (auto j=0; gapsFromTree.getNucPosition().size(); j++){
+            tempGaps.nucPosition.push_back(gapsFromTree.getNucPosition()[j]);
+            tempGaps.nucGapLength.push_back(gapsFromTree.getNucGapLength()[j]);
         }
         gaps.push_back(tempGaps);
     }
 
+
     // Circular offsets
-    for(int i = 0; i < mainTree.circularsequences_size(); i++) {
-        circularSequences[mainTree.circularsequences(i).sequenceid()] = mainTree.circularsequences(i).offset();
+    for(auto circularSeqFromTree: mainTree.getCircularSequences()) {
+        circularSequences[circularSeqFromTree.getSequenceId()] = circularSeqFromTree.getOffset();
     }
 
     // Rotation Indexes
-    for(int i = 0; i < mainTree.rotationindexes_size(); i++) {
-        rotationIndexes[mainTree.rotationindexes(i).sequenceid()] = mainTree
-                .rotationindexes(i).blockoffset();
+    for (auto rotationIndexFromTree: mainTree.getRotationIndexes()){
+        rotationIndexes[rotationIndexFromTree.getSequenceId()] = rotationIndexFromTree.getBlockOffset();
     }
 
     // Sequence inverted
-    for(int i = 0; i < mainTree.sequencesinverted_size(); i++) {
-        sequenceInverted[mainTree.sequencesinverted(i).sequenceid()] = mainTree
-                .sequencesinverted(i).inverted();
+    for(auto seqInvertedFromTree: mainTree.getSequencesInverted()){
+        sequenceInverted[seqInvertedFromTree.getSequenceId()] = seqInvertedFromTree.getInverted();
     }
 
     // Block gap list
-    for(int i = 0; i < mainTree.blockgaps().blockposition_size(); i++) {
-        blockGaps.blockPosition.push_back(mainTree.blockgaps().blockposition(i));
-        blockGaps.blockGapLength.push_back(mainTree.blockgaps().blockgaplength(i));
+    for(int i = 0; i < mainTree.getBlockGaps().getBlockPosition().size(); i++) {
+        blockGaps.blockPosition.push_back(mainTree.getBlockGaps().getBlockPosition()[i]);
+        blockGaps.blockGapLength.push_back(mainTree.getBlockGaps().getBlockGapLength()[i]);
     }
 
 }
 
-panmanUtils::Tree::Tree(const panman::tree& mainTree) {
+panmanUtils::Tree::Tree(const panman::Tree::Reader& mainTree) {
     protoMATToTree(mainTree);
 }
 
 panmanUtils::Tree::Tree(std::istream& fin, FILE_TYPE ftype) {
 
     if(ftype == panmanUtils::FILE_TYPE::PANMAT) {
-        panman::tree mainTree;
-        if(!mainTree.ParseFromIstream(&fin)) {
-            throw std::invalid_argument("Could not read tree from input file.");
-        }
+        kj::std::StdInputStream kjInputStream(fin);
+        capnp::InputStreamMessageReader messageReader(kjInputStream);
 
+        panman::Tree::Reader mainTree = messageReader.getRoot<panman::Tree>();
+        // Todo: Check if above statment returns true?
+        // if(!mainTree.ParseFromIstream(&fin)) {
+        //     throw std::invalid_argument("Could not read tree from input file.");
+        // }
         protoMATToTree(mainTree);
     }
 }
@@ -1891,7 +1907,7 @@ panmanUtils::Node* panmanUtils::Tree::extractPanMATSegmentHelper(panmanUtils::No
 
 }
 
-void panmanUtils::Tree::extractPanMATSegment(std::ostream& fout, int64_t start, int64_t end) {
+void panmanUtils::Tree::extractPanMATSegment(kj::std::StdOutputStream& fout, int64_t start, int64_t end) {
     sequence_t rootSequence;
     blockExists_t rootBlockExists;
     blockStrand_t rootBlockStrand;
@@ -2038,13 +2054,18 @@ void panmanUtils::Tree::extractPanMATSegment(std::ostream& fout, int64_t start, 
         }
     }
 
-    panman::tree treeToWrite;
-    getNodesPreorder(newRoot, treeToWrite);
+    capnp::MallocMessageBuilder message;
+    panman::Tree::Builder treeToWrite = message.initRoot<panman::Tree>();
+
+    capnp::List<panman::Node>::Builder nodesBuilder = treeToWrite.initNodes(allNodes.size());
+    size_t nodeIndex=0;
+    getNodesPreorder(newRoot, nodesBuilder, nodeIndex);
+    assert(nodeIndex==allNodes.size());
 
     std::string newick = getNewickString(newRoot);
     std::string newick2 = getNewickString(root);
 
-    treeToWrite.set_newick(newick);
+    treeToWrite.setNewick(newick);
 
     std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > >
     consensusSeqToBlockIds;
@@ -2062,59 +2083,72 @@ void panmanUtils::Tree::extractPanMATSegment(std::ostream& fout, int64_t start, 
             std::make_pair(blockId, blockGapExists));
     }
 
+    ::capnp::List<panman::ConsensusSeqToBlockIds>::Builder consensusSeqMapBuilder = treeToWrite.initConsensusSeqMap(consensusSeqToBlockIds.size());
+    int consensusSeqMapBuilderCount = 0;
     for(auto u: consensusSeqToBlockIds) {
-        panman::consensusSeqToBlockIds c;
-        for(auto v: u.first) {
-            c.add_consensusseq(v);
-        }
-        for(auto v: u.second) {
-            c.add_blockid(v.first);
-            c.add_blockgapexist(v.second);
-        }
-        treeToWrite.add_consensusseqmap();
-        *treeToWrite.mutable_consensusseqmap( treeToWrite.consensusseqmap_size() - 1 ) = c;
-    }
+        panman::ConsensusSeqToBlockIds::Builder c = consensusSeqMapBuilder[consensusSeqMapBuilderCount];
 
+        ::capnp::List<int64_t>::Builder blockIdBuilder = c.initBlockId(u.first.size());
+        ::capnp::List<uint32_t>::Builder conSeqBuilder = c.initConsensusSeq(u.first.size());
+        ::capnp::List<bool>::Builder blockGapExistBuilder = c.initBlockGapExist(u.first.size());
+        
+        for(auto v=0; v<u.second.size(); v++) {
+            blockIdBuilder.set(v,u.second[v].first);
+            blockGapExistBuilder.set(v, u.second[v].second);
+        }
+
+        for(auto v=0; v<u.first.size(); v++) {
+            conSeqBuilder.set(v,u.first[v]);
+        }
+        consensusSeqMapBuilderCount++;
+    }
+    assert(consensusSeqMapBuilderCount==consensusSeqToBlockIds.size());
+
+    ::capnp::List<panman::GapList>::Builder gapsBuilder = treeToWrite.initGaps(newGaps.size());
     for(size_t i = 0; i < newGaps.size(); i++) {
-        panman::gapList gl;
+        panman::GapList::Builder gl = gapsBuilder[i];
+
+        ::capnp::List<int32_t>::Builder nucGapLengthBuilder = gl.initNucGapLength(newGaps[i].nucPosition.size());
+        ::capnp::List<int32_t>::Builder nucPositionBuilder = gl.initNucPosition(newGaps[i].nucPosition.size());
+
         for(size_t j = 0; j < newGaps[i].nucPosition.size(); j++) {
-            gl.add_nucposition(newGaps[i].nucPosition[j]);
-            gl.add_nucgaplength(newGaps[i].nucGapLength[j]);
+            nucPositionBuilder.set(j, newGaps[i].nucPosition[j]);
+            nucGapLengthBuilder.set(j,newGaps[i].nucGapLength[j]);
         }
-        gl.set_blockid(((int64_t)newGaps[i].primaryBlockId << 32));
-        gl.set_blockgapexist(false);
-        treeToWrite.add_gaps();
-        *treeToWrite.mutable_gaps( treeToWrite.gaps_size() - 1 ) = gl;
+        gl.setBlockId(((int64_t)newGaps[i].primaryBlockId << 32));
+        gl.setBlockGapExist(false);
     }
 
-    if (!treeToWrite.SerializeToOstream(&fout)) {
-        std::cerr << "Failed to write to output file." << std::endl;
-    }
-
-
+    // if (!treeToWrite.SerializeToOstream(&fout)) {
+    //     std::cerr << "Failed to write to output file." << std::endl;
+    // }
+    ::capnp::writeMessage(fout, message);
 }
 
-void panmanUtils::Tree::getNodesPreorder(panmanUtils::Node* root, panman::tree& treeToWrite) {
-
-    panman::node n;
-    std::map< std::pair< int32_t, int32_t >, std::pair< std::vector< panman::nucMut >, int > > blockToMutations;
+void panmanUtils::Tree::getNodesPreorder(panmanUtils::Node* root, capnp::List<panman::Node>::Builder& nodesBuilder, size_t& nodeIndex) {
+    panman::Node::Builder n = nodesBuilder[nodeIndex++];
+    std::map< std::pair< int32_t, int32_t >, std::pair< std::vector< panman::NucMut::Builder >, int > > blockToMutations;
     std::map< std::pair< int32_t, int32_t >, bool > blockToInversion;
+
+    capnp::MallocMessageBuilder message;
 
     for(size_t i = 0; i < root->nucMutation.size(); i++) {
         const panmanUtils::NucMut& mutation = root->nucMutation[i];
 
-        panman::nucMut nm;
-        nm.set_nucposition(mutation.nucPosition);
+        panman::NucMut::Builder nm = message.initRoot<panman::NucMut>();
+        nm.setNucPosition(mutation.nucPosition);
         if(mutation.nucGapPosition != -1) {
-            nm.set_nucgapposition(mutation.nucGapPosition);
-            nm.set_nucgapexist(true);
+            nm.setNucGapPosition(mutation.nucGapPosition);
+            nm.setNucGapExist(true);
         } else {
-            nm.set_nucgapexist(false);
+            nm.setNucGapExist(false);
         }
 
-        nm.set_mutinfo((((mutation.nucs) >> (24 - (mutation.mutInfo >> 4)*4)) << 8) + mutation.mutInfo);
+
+        nm.setMutInfo((((mutation.nucs) >> (24 - (mutation.mutInfo >> 4)*4)) << 8) + mutation.mutInfo);
         blockToMutations[std::make_pair(mutation.primaryBlockId, mutation.secondaryBlockId)].first.push_back(nm);
         blockToMutations[std::make_pair(mutation.primaryBlockId, mutation.secondaryBlockId)].second = 2;
+
     }
 
     for(size_t i = 0; i < root->blockMutation.size(); i++) {
@@ -2123,47 +2157,47 @@ void panmanUtils::Tree::getNodesPreorder(panmanUtils::Node* root, panman::tree& 
         blockToInversion[std::make_pair(mutation.primaryBlockId, mutation.secondaryBlockId)] = mutation.inversion;
     }
 
+    ::capnp::List<panman::Mutation>::Builder mutationsBuilder = n.initMutations(blockToMutations.size());
+    size_t blockToMutationsCount=0;
     for(auto u: blockToMutations) {
-        panman::mutation mutation;
-        mutation.set_blockmutexist((u.second.second != 2));
-        mutation.set_blockmutinfo(u.second.second);
+        panman::Mutation::Builder mutation = mutationsBuilder[blockToMutationsCount++];
+        mutation.setBlockMutExist((u.second.second != 2));
+        mutation.setBlockMutInfo(u.second.second);
         if(u.second.second != 2) {
             // block mutation exists
-            mutation.set_blockinversion(blockToInversion[u.first]);
+            mutation.setBlockInversion(blockToInversion[u.first]);
         } else {
-            mutation.set_blockinversion(true);
+            mutation.setBlockInversion(true);
         }
 
         int32_t primaryBlockId = u.first.first;
         int32_t secondaryBlockId = u.first.second;
         if(secondaryBlockId != -1) {
-            mutation.set_blockid(((int64_t)primaryBlockId << 32) + secondaryBlockId);
-            mutation.set_blockgapexist(true);
+            mutation.setBlockId(((int64_t)primaryBlockId << 32) + secondaryBlockId);
+            mutation.setBlockGapExist(true);
         } else {
-            mutation.set_blockid(((int64_t)primaryBlockId << 32));
-            mutation.set_blockgapexist(false);
+            mutation.setBlockId(((int64_t)primaryBlockId << 32));
+            mutation.setBlockGapExist(false);
         }
-        for(auto v: u.second.first) {
-            mutation.add_nucmutation();
-            *mutation.mutable_nucmutation(mutation.nucmutation_size() - 1) = v;
-        }
-        n.add_mutations();
-        *n.mutable_mutations(n.mutations_size() - 1) = mutation;
-    }
 
+        ::capnp::List<panman::NucMut>::Builder nucMutationBuilder = mutation.initNucMutation(u.second.first.size());
+        for(auto i=0; i<u.second.first.size();i++) {
+            nucMutationBuilder[i] = u.second.first[i];
+        }
+    }
+    assert(blockToMutationsCount==blockToMutations.size());
+
+    ::capnp::List<capnp::Text>::Builder annotationsBuilder = n.initAnnotations(root->annotations.size());
     for(size_t i = 0; i < root->annotations.size(); i++) {
-        n.add_annotations(root->annotations[i]);
+        annotationsBuilder.set(i,root->annotations[i]);
     }
-
-    treeToWrite.add_nodes();
-    *treeToWrite.mutable_nodes( treeToWrite.nodes_size() - 1 ) = n;
 
     for(auto child: root->children) {
-        getNodesPreorder(child, treeToWrite);
+        getNodesPreorder(child, nodesBuilder, nodeIndex);
     }
 }
 
-void getNodesRootedAt(std::set< std::string >& nodeIds, panmanUtils::Node* node) {
+void getNodesRootedAt(std::set<std::string>& nodeIds, panmanUtils::Node* node) {
     if(node == nullptr) {
         return;
     }
@@ -2175,7 +2209,7 @@ void getNodesRootedAt(std::set< std::string >& nodeIds, panmanUtils::Node* node)
 }
 
 // Write PanMAT to file
-void panmanUtils::Tree::writeToFile(std::ostream& fout, panmanUtils::Node* node) {
+void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils::Node* node) {
     if(node == nullptr) {
         node = root;
     }
@@ -2184,15 +2218,19 @@ void panmanUtils::Tree::writeToFile(std::ostream& fout, panmanUtils::Node* node)
     std::set< std::string > nodeIds;
     getNodesRootedAt(nodeIds, node);
 
-    panman::tree treeToWrite;
-    getNodesPreorder(node, treeToWrite);
+    capnp::MallocMessageBuilder message;
+    panman::Tree::Builder treeToWrite = message.initRoot<panman::Tree>();
+
+    capnp::List<panman::Node>::Builder nodesBuilder = treeToWrite.initNodes(allNodes.size());
+    size_t nodeIndex=0;
+    getNodesPreorder(node, nodesBuilder, nodeIndex);
+    assert(nodeIndex==allNodes.size());
 
     std::string newick = getNewickString(node);
 
-    treeToWrite.set_newick(newick);
+    treeToWrite.setNewick(newick);
 
-    std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > >
-    consensusSeqToBlockIds;
+    std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > > consensusSeqToBlockIds;
 
     for(auto block: blocks) {
         int64_t blockId;
@@ -2207,78 +2245,93 @@ void panmanUtils::Tree::writeToFile(std::ostream& fout, panmanUtils::Node* node)
             std::make_pair(blockId, blockGapExists));
     }
 
+    ::capnp::List<panman::ConsensusSeqToBlockIds>::Builder consensusSeqMapBuilder = treeToWrite.initConsensusSeqMap(consensusSeqToBlockIds.size());
+    int consensusSeqMapBuilderCount = 0;
     for(auto u: consensusSeqToBlockIds) {
-        panman::consensusSeqToBlockIds c;
-        for(auto v: u.first) {
-            c.add_consensusseq(v);
+        panman::ConsensusSeqToBlockIds::Builder c = consensusSeqMapBuilder[consensusSeqMapBuilderCount];
+        
+        ::capnp::List<int64_t>::Builder blockIdBuilder = c.initBlockId(u.first.size());
+        ::capnp::List<uint32_t>::Builder conSeqBuilder = c.initConsensusSeq(u.first.size());
+        ::capnp::List<bool>::Builder blockGapExistBuilder = c.initBlockGapExist(u.first.size());
+        
+        for(auto v=0; v<u.second.size(); v++) {
+            blockIdBuilder.set(v,u.second[v].first);
+            blockGapExistBuilder.set(v, u.second[v].second);
         }
-        for(auto v: u.second) {
-            c.add_blockid(v.first);
-            c.add_blockgapexist(v.second);
+
+        for(auto v=0; v<u.first.size(); v++) {
+            conSeqBuilder.set(v,u.first[v]);
         }
-        treeToWrite.add_consensusseqmap();
-        *treeToWrite.mutable_consensusseqmap( treeToWrite.consensusseqmap_size() - 1 ) = c;
+        consensusSeqMapBuilderCount++;
     }
 
+    ::capnp::List<panman::GapList>::Builder gapsBuilder = treeToWrite.initGaps(gaps.size());
     for(size_t i = 0; i < gaps.size(); i++) {
-        panman::gapList gl;
+        panman::GapList::Builder gl = gapsBuilder[i];
+
+        ::capnp::List<int32_t>::Builder nucGapLengthBuilder = gl.initNucGapLength(gaps[i].nucPosition.size());
+        ::capnp::List<int32_t>::Builder nucPositionBuilder = gl.initNucPosition(gaps[i].nucPosition.size());
+
         for(size_t j = 0; j < gaps[i].nucPosition.size(); j++) {
-            gl.add_nucposition(gaps[i].nucPosition[j]);
-            gl.add_nucgaplength(gaps[i].nucGapLength[j]);
+            nucPositionBuilder.set(j, gaps[i].nucPosition[j]);
+            nucGapLengthBuilder.set(j,gaps[i].nucGapLength[j]);
         }
-        if(gaps[i].secondaryBlockId != -1) {
-            gl.set_blockid(((int64_t)gaps[i].primaryBlockId << 32) + gaps[i].secondaryBlockId);
-            gl.set_blockgapexist(true);
+        if (gaps[i].secondaryBlockId != -1) {
+            gl.setBlockId(((int64_t)gaps[i].primaryBlockId << 32) + gaps[i].secondaryBlockId);
+            gl.setBlockGapExist(true);
         } else {
-            gl.set_blockid(((int64_t)gaps[i].primaryBlockId << 32));
-            gl.set_blockgapexist(false);
+            gl.setBlockId(((int64_t)gaps[i].primaryBlockId << 32));
+            gl.setBlockGapExist(false);
         }
-        treeToWrite.add_gaps();
-        *treeToWrite.mutable_gaps( treeToWrite.gaps_size() - 1 ) = gl;
+        
     }
 
+    ::capnp::List<panman::CircularOffset>::Builder circularSeqBuilder = treeToWrite.initCircularSequences(circularSequences.size());
+    size_t circularSequencesCount = 0;
     for(auto u: circularSequences) {
         // Check if sequence is a part of the subtree being written
         if(nodeIds.find(u.first) == nodeIds.end()) {
             continue;
         }
-
-        panman::circularOffset co;
-        co.set_sequenceid(u.first);
-        co.set_offset(u.second);
-        treeToWrite.add_circularsequences();
-        *treeToWrite.mutable_circularsequences(treeToWrite.circularsequences_size()-1) = co;
+        panman::CircularOffset::Builder co = circularSeqBuilder[circularSequencesCount++];
+        co.setSequenceId(u.first);
+        co.setOffset(u.second);
     }
+    assert(circularSequencesCount==circularSequences.size());
 
+    ::capnp::List<panman::RotationIndex>::Builder rotationIndexesBuilder = treeToWrite.initRotationIndexes(rotationIndexes.size());
+    size_t rotationIndexesCount = 0;
     for(auto u: rotationIndexes) {
         // Check if sequence is a part of the subtree being written
         if(nodeIds.find(u.first) == nodeIds.end()) {
             continue;
         }
 
-        panman::rotationIndex ri;
-        ri.set_sequenceid(u.first);
-        ri.set_blockoffset(u.second);
-        treeToWrite.add_rotationindexes();
-        *treeToWrite.mutable_rotationindexes(treeToWrite.rotationindexes_size()-1) = ri;
+        panman::RotationIndex::Builder ri = rotationIndexesBuilder[rotationIndexesCount++];
+        ri.setSequenceId(u.first);
+        ri.setBlockOffset(u.second);
     }
+    assert(rotationIndexesCount==rotationIndexes.size());
 
+    ::capnp::List<panman::SequenceInverted>::Builder sequenceInvertedBuilder = treeToWrite.initSequencesInverted(sequenceInverted.size());
+    size_t sequenceInvertedCount = 0;
     for(auto u: sequenceInverted) {
         // Check if sequence is a part of the subtree being written
         if(nodeIds.find(u.first) == nodeIds.end()) {
             continue;
         }
 
-        panman::sequenceInverted si;
-        si.set_sequenceid(u.first);
-        si.set_inverted(u.second);
-        treeToWrite.add_sequencesinverted();
-        *treeToWrite.mutable_sequencesinverted(treeToWrite.sequencesinverted_size()-1) = si;
+        panman::SequenceInverted::Builder si = sequenceInvertedBuilder[sequenceInvertedCount++];
+        si.setSequenceId(u.first);
+        si.setInverted(u.second);
     }
+    assert(sequenceInvertedCount == sequenceInverted.size());
 
-    if (!treeToWrite.SerializeToOstream(&fout)) {
-        std::cerr << "Failed to write to output file." << std::endl;
-    }
+    // Todo:: check if write was successful
+    ::capnp::writeMessage(fout, message);
+    // if (!treeToWrite.SerializeToOstream(&fout)) {
+    //     std::cerr << "Failed to write to output file." << std::endl;
+    // }
 }
 
 void panmanUtils::Tree::getBlockSequenceFromReference(block_t& sequence, bool& blockExists, bool& blockStrand, std::string reference, int64_t primaryBlockId, int64_t secondaryBlockId) {
@@ -5229,17 +5282,21 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std::
 }
 
 panmanUtils::TreeGroup::TreeGroup(std::istream& fin) {
-    panman::treeGroup TG;
+    kj::std::StdInputStream kjInputStream(fin);
+    capnp::InputStreamMessageReader messageReader(kjInputStream);
 
-    if(!TG.ParseFromIstream(&fin)) {
-        throw std::invalid_argument("Could not read tree group from input file.");
+    std::cout << "About to start reading root.." << std::endl;
+
+    panman::TreeGroup::Reader TG = messageReader.getRoot<panman::TreeGroup>();
+
+    std::cout << "Ending reading root.." << std::endl;
+
+    for (auto treeFromTG: TG.getTrees()){
+        trees.emplace_back(treeFromTG);
     }
 
-    for(int i = 0; i < TG.trees_size(); i++) {
-        trees.emplace_back(TG.trees(i));
-    }
-    for(int i = 0; i < TG.complexmutations_size(); i++) {
-        complexMutations.emplace_back(TG.complexmutations(i));
+    for (auto compMutFromTG: TG.getComplexMutations()){
+        complexMutations.emplace_back(compMutFromTG);
     }
 }
 
@@ -5249,17 +5306,30 @@ void panmanUtils::TreeGroup::printFASTA(std::ofstream& fout) {
     }
 }
 
-void panmanUtils::TreeGroup::writeToFile(std::ostream& fout) {
-    panman::treeGroup treeGroupToWrite;
+void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
+    capnp::MallocMessageBuilder message;
+    panman::TreeGroup::Builder treeGroupToWrite = message.initRoot<panman::TreeGroup>();
 
+    capnp::List<panman::Tree>::Builder treestoWriteBuilder = treeGroupToWrite.initTrees(trees.size());
+    size_t treesCount = 0;
+
+    std::cout << "Writing Trees..." << std::endl;
     for(auto& tree: trees) {
-        panman::tree treeToWrite;
+        std::cout << "Tree Count:" << treesCount << "..." << std::endl;
+        panman::Tree::Builder treeToWrite = treestoWriteBuilder[treesCount++];
         Node* node = tree.root;
 
-        tree.getNodesPreorder(node, treeToWrite);
+        capnp::List<panman::Node>::Builder nodesBuilder = treeToWrite.initNodes(tree.allNodes.size());
+        size_t nodeIndex=0;
+
+        std::cout << "Writing Nodes..." << std::endl;
+        tree.getNodesPreorder(node, nodesBuilder, nodeIndex);
+        assert(nodeIndex == tree.allNodes.size());
+
         std::string newick = tree.getNewickString(node);
 
-        treeToWrite.set_newick(newick);
+        std::cout << newick << std::endl;
+        treeToWrite.setNewick(newick);
         std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > >
         consensusSeqToBlockIds;
 
@@ -5276,72 +5346,90 @@ void panmanUtils::TreeGroup::writeToFile(std::ostream& fout) {
                 std::make_pair(blockId, blockGapExists));
         }
 
+
+        ::capnp::List<panman::ConsensusSeqToBlockIds>::Builder consensusSeqMapBuilder = treeToWrite.initConsensusSeqMap(consensusSeqToBlockIds.size());
+        int consensusSeqMapBuilderCount = 0;
         for(auto u: consensusSeqToBlockIds) {
-            panman::consensusSeqToBlockIds c;
-            for(auto v: u.first) {
-                c.add_consensusseq(v);
+            panman::ConsensusSeqToBlockIds::Builder c = consensusSeqMapBuilder[consensusSeqMapBuilderCount];
+            
+            ::capnp::List<int64_t>::Builder blockIdBuilder = c.initBlockId(u.first.size());
+            ::capnp::List<uint32_t>::Builder conSeqBuilder = c.initConsensusSeq(u.first.size());
+            ::capnp::List<bool>::Builder blockGapExistBuilder = c.initBlockGapExist(u.first.size());
+            
+            for(auto v=0; v<u.second.size(); v++) {
+                blockIdBuilder.set(v,u.second[v].first);
+                blockGapExistBuilder.set(v, u.second[v].second);
             }
-            for(auto v: u.second) {
-                c.add_blockid(v.first);
-                c.add_blockgapexist(v.second);
+
+            for(auto v=0; v<u.first.size(); v++) {
+                conSeqBuilder.set(v,u.first[v]);
             }
-            treeToWrite.add_consensusseqmap();
-            *treeToWrite.mutable_consensusseqmap( treeToWrite.consensusseqmap_size() - 1 ) = c;
+            consensusSeqMapBuilderCount++;
         }
+        
+        ::capnp::List<panman::GapList>::Builder gapsBuilder = treeToWrite.initGaps(tree.gaps.size());
         for(size_t i = 0; i < tree.gaps.size(); i++) {
-            panman::gapList gl;
+            panman::GapList::Builder gl = gapsBuilder[i];
+
+            ::capnp::List<int32_t>::Builder nucGapLengthBuilder = gl.initNucGapLength(tree.gaps[i].nucPosition.size());
+            ::capnp::List<int32_t>::Builder nucPositionBuilder = gl.initNucPosition(tree.gaps[i].nucPosition.size());
+
             for(size_t j = 0; j < tree.gaps[i].nucPosition.size(); j++) {
-                gl.add_nucposition(tree.gaps[i].nucPosition[j]);
-                gl.add_nucgaplength(tree.gaps[i].nucGapLength[j]);
+                nucPositionBuilder.set(j, tree.gaps[i].nucPosition[j]);
+                nucGapLengthBuilder.set(j,tree.gaps[i].nucGapLength[j]);
             }
-            if(tree.gaps[i].secondaryBlockId != -1) {
-                gl.set_blockid(((int64_t)tree.gaps[i].primaryBlockId << 32) + tree.gaps[i]
-                               .secondaryBlockId);
-                gl.set_blockgapexist(true);
+            if (tree.gaps[i].secondaryBlockId != -1) {
+                gl.setBlockId(((int64_t)tree.gaps[i].primaryBlockId << 32) + tree.gaps[i].secondaryBlockId);
+                gl.setBlockGapExist(true);
             } else {
-                gl.set_blockid(((int64_t)tree.gaps[i].primaryBlockId << 32));
-                gl.set_blockgapexist(false);
+                gl.setBlockId(((int64_t)tree.gaps[i].primaryBlockId << 32));
+                gl.setBlockGapExist(false);
             }
-            treeToWrite.add_gaps();
-            *treeToWrite.mutable_gaps( treeToWrite.gaps_size() - 1 ) = gl;
+            
         }
+
+        ::capnp::List<panman::CircularOffset>::Builder circularSeqBuilder = treeToWrite.initCircularSequences(tree.circularSequences.size());
+        size_t circularSequencesCount = 0;
         for(auto u: tree.circularSequences) {
-            panman::circularOffset co;
-            co.set_sequenceid(u.first);
-            co.set_offset(u.second);
-            treeToWrite.add_circularsequences();
-            *treeToWrite.mutable_circularsequences(treeToWrite.circularsequences_size()-1) = co;
+            panman::CircularOffset::Builder co = circularSeqBuilder[circularSequencesCount++];
+            co.setSequenceId(u.first);
+            co.setOffset(u.second);
         }
+        assert(circularSequencesCount==tree.circularSequences.size());
 
+        ::capnp::List<panman::RotationIndex>::Builder rotationIndexesBuilder = treeToWrite.initRotationIndexes(tree.rotationIndexes.size());
+        size_t rotationIndexesCount = 0;
         for(auto u: tree.rotationIndexes) {
-            panman::rotationIndex ri;
-            ri.set_sequenceid(u.first);
-            ri.set_blockoffset(u.second);
-            treeToWrite.add_rotationindexes();
-            *treeToWrite.mutable_rotationindexes(treeToWrite.rotationindexes_size()-1) = ri;
+            panman::RotationIndex::Builder ri = rotationIndexesBuilder[rotationIndexesCount++];
+            ri.setSequenceId(u.first);
+            ri.setBlockOffset(u.second);
         }
+        assert(rotationIndexesCount==tree.rotationIndexes.size());
 
+        ::capnp::List<panman::SequenceInverted>::Builder sequenceInvertedBuilder = treeToWrite.initSequencesInverted(tree.sequenceInverted.size());
+        size_t sequenceInvertedCount = 0;
         for(auto u: tree.sequenceInverted) {
-            panman::sequenceInverted si;
-            si.set_sequenceid(u.first);
-            si.set_inverted(u.second);
-            treeToWrite.add_sequencesinverted();
-            *treeToWrite.mutable_sequencesinverted(treeToWrite.sequencesinverted_size()-1) = si;
+            panman::SequenceInverted::Builder si = sequenceInvertedBuilder[sequenceInvertedCount++];
+            si.setSequenceId(u.first);
+            si.setInverted(u.second);
         }
-
-        treeGroupToWrite.add_trees();
-        *treeGroupToWrite.mutable_trees( treeGroupToWrite.trees_size() - 1 ) = treeToWrite;
+        assert(sequenceInvertedCount == tree.sequenceInverted.size());
     }
 
+
+    capnp::List<panman::ComplexMutation>::Builder complexMutBuilder = treeGroupToWrite.initComplexMutations(complexMutations.size());
+    size_t cmplxMutCount=0;
+    std::cout << "Writing Complex Mutations..." << std::endl;
     for(auto cm: complexMutations) {
-        treeGroupToWrite.add_complexmutations();
-        *treeGroupToWrite.mutable_complexmutations(treeGroupToWrite
-                .complexmutations_size()-1) = cm.toProtobuf();
+        std::cout << "Cmplx mutation Count:" << cmplxMutCount << "..." << std::endl;
+        complexMutBuilder[cmplxMutCount++] = cm.toCapnProto();
     }
 
-    if(!treeGroupToWrite.SerializeToOstream(&fout)) {
-        std::cerr << "Failed to write to output file." << std::endl;
-    }
+    // ToDo check if the write was successful
+    ::capnp::writeMessage(fout, message);
+    // if(!treeGroupToWrite.SerializeToOstream(&fout)) {
+    //     std::cerr << "Failed to write to output file." << std::endl;
+    // }
 }
 
 void panmanUtils::TreeGroup::printComplexMutations(std::ostream& fout) {

@@ -275,6 +275,7 @@ search for")
 }
 
 void writePanMAN(po::variables_map &globalVm, panmanUtils::TreeGroup *TG) {
+    std::cout << "Writing PanMAN" << std::endl;
     std::string fileName = globalVm["output-file"].as< std::string >();
     std::filesystem::create_directory("./panman");
 
@@ -289,7 +290,10 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::TreeGroup *TG) {
     outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
     outPMATBuffer.push(outputFile);
     std::ostream outstream(&outPMATBuffer);
-    TG->writeToFile(outstream);
+
+    kj::std::StdOutputStream outputStream(outstream);
+
+    TG->writeToFile(outputStream);
     boost::iostreams::close(outPMATBuffer);
     outputFile.close();
 
@@ -315,7 +319,8 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::Tree *T) {
     outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
     outPMATBuffer.push(outputFile);
     std::ostream outstream(&outPMATBuffer);
-    T->writeToFile(outstream);
+    kj::std::StdOutputStream outputStream(outstream);
+    T->writeToFile(outputStream);
     boost::iostreams::close(outPMATBuffer);
     outputFile.close();
 
@@ -350,7 +355,7 @@ void parseAndExecute(int argc, char* argv[]) {
         // Load PanMAT file directly into memory
 
         std::string fileName = globalVm["input-panmat"].as< std::string >();
-        std::ifstream inputFile(fileName);
+        std::ifstream inputFile(fileName, std::ios_base::in | std::ios_base::binary);
         boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
@@ -690,7 +695,8 @@ void parseAndExecute(int argc, char* argv[]) {
         outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
         outPMATBuffer.push(outputFile);
         std::ostream outstream(&outPMATBuffer);
-        T->writeToFile(outstream, T->subtreeExtractParallel(nodeIds));
+        kj::std::StdOutputStream outputStream(outstream);
+        T->writeToFile(outputStream, T->subtreeExtractParallel(nodeIds));
         boost::iostreams::close(outPMATBuffer);
         outputFile.close();
 
@@ -755,9 +761,9 @@ void parseAndExecute(int argc, char* argv[]) {
         outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
         outPMATBuffer.push(outputFile);
         std::ostream outstream(&outPMATBuffer);
-
+        kj::std::StdOutputStream outputStream(outstream);
         panmanUtils::TreeGroup* subnetwork = TG->subnetworkExtract(nodeIds);
-        subnetwork->writeToFile(outstream);
+        subnetwork->writeToFile(outputStream);
 
         boost::iostreams::close(outPMATBuffer);
         outputFile.close();
