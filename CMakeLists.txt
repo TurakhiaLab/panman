@@ -18,25 +18,25 @@ endif()
 include_directories(${Protobuf_INCLUDE_DIRS})
 
 # Include TBB
-include(${TBB_DIR}/cmake/TBBBuild.cmake)
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
-	set(ARCH "arm64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "armv4t")
-	set(ARCH "arm64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
-	set(ARCH "x86")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-	set(ARCH "x86_64")
-endif()
+# include(${TBB_DIR}/cmake/TBBBuild.cmake)
+# if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+# 	set(ARCH "arm64")
+# elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "armv4t")
+# 	set(ARCH "arm64")
+# elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
+# 	set(ARCH "x86")
+# elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+# 	set(ARCH "x86_64")
+# endif()
 
-tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1 arch=${ARCH})
-find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview HINTS ${TBB_DIR})
+# tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1 arch=${ARCH})
+# find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview HINTS ${TBB_DIR})
 
 FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(BUILD_STATIC_LIBS ON)
-set(BUILD_SHARED_LIBS OFF)
+set(BUILD_SHARED_LIBS ON)
 set(JSONCPP_WITH_TESTS OFF)
 set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF)
 set(JSONCPP_WITH_CMAKE_PACKAGE ON)
@@ -71,12 +71,20 @@ target_include_directories(panmanUtils PUBLIC ${TBB_DIR}/include)
 
 TARGET_COMPILE_OPTIONS(panmanUtils PUBLIC -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
-TARGET_LINK_LIBRARIES(panmanUtils PUBLIC  ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} jsoncpp_static stdc++) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+include(FetchContent)
+FetchContent_Declare(
+	TBB
+	GIT_REPOSITORY https://github.com/wjakob/tbb
+	GIT_TAG ddbe45cd3ad89df9a84cd77013d5898fc48b8e89
+	GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(TBB)
+TARGET_LINK_LIBRARIES(panmanUtils PRIVATE  ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${Protobuf_LIBRARIES} jsoncpp_static stdc++) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
 
 
-add_library(panman STATIC ${PANMAT_SRCS} ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(panman SHARED ${PANMAT_SRCS} ${PROTO_SRCS} ${PROTO_HDRS})
 target_include_directories(panman PUBLIC "${PROJECT_BINARY_DIR}")
 target_include_directories(panman PUBLIC ${TBB_DIR}/include)
 
-target_link_libraries(panman PUBLIC ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${Protobuf_LIBRARIES} jsoncpp_static stdc++)
+target_link_libraries(panman PRIVATE ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${Protobuf_LIBRARIES} jsoncpp_static stdc++)
