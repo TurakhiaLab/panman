@@ -36,13 +36,11 @@ FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQ
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(BUILD_STATIC_LIBS ON)
-set(BUILD_SHARED_LIBS ON)
 set(JSONCPP_WITH_TESTS OFF)
 set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF)
 set(JSONCPP_WITH_CMAKE_PACKAGE ON)
 set(ARCHIVE_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/lib)
-find_package(PkgConfig REQUIRED)
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 FetchContent_Declare(
 	jsoncpp
 	GIT_REPOSITORY https://github.com/open-source-parsers/jsoncpp.git
@@ -75,16 +73,18 @@ include(FetchContent)
 FetchContent_Declare(
 	TBB
 	GIT_REPOSITORY https://github.com/wjakob/tbb
-	GIT_TAG ddbe45cd3ad89df9a84cd77013d5898fc48b8e89
-	GIT_SHALLOW TRUE
+	GIT_TAG 344fa84f34089681732a54f5def93a30a3056ab9
 )
+
+set(CMAKE_CXX_STANDARD 17)
 FetchContent_MakeAvailable(TBB)
-TARGET_LINK_LIBRARIES(panmanUtils PRIVATE  ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${Protobuf_LIBRARIES} jsoncpp_static stdc++) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+message(STATUS "TBB LIBRARIES: ${TBB_IMPORTED_TARGETS}")
+TARGET_LINK_LIBRARIES(panmanUtils PUBLIC  ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${Protobuf_LIBRARIES} tbb tbbmalloc tbbmalloc_proxy jsoncpp_static) #${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
 
 
-add_library(panman SHARED ${PANMAT_SRCS} ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(panman STATIC ${PANMAT_SRCS} ${PROTO_SRCS} ${PROTO_HDRS})
 target_include_directories(panman PUBLIC "${PROJECT_BINARY_DIR}")
 target_include_directories(panman PUBLIC ${TBB_DIR}/include)
 
-target_link_libraries(panman PRIVATE ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${Protobuf_LIBRARIES} jsoncpp_static stdc++)
+target_link_libraries(panman PUBLIC ${Boost_LIBRARIES} ${TBB_LIBRARIES} ${Protobuf_LIBRARIES} tbb tbbmalloc tbbmalloc_proxy jsoncpp_static)
