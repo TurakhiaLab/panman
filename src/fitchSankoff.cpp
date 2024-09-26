@@ -30,6 +30,7 @@ int panmanUtils::Tree::nucFitchForwardPass(Node* node,
         std::unordered_map< std::string, int >& states) {
     if(node->children.size() == 0) {
         if(states.find(node->identifier) == states.end()) {
+            std::cerr << "Node ID not found" << std::endl;
             return states[node->identifier] = 0;
         }
         return states[node->identifier];

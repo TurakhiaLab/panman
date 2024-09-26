@@ -28,6 +28,59 @@ void stripStringInPlace(std::string& s) {
     }
 }
 
+std::string printNucMut(int32_t mutInfo){
+    std::string s = "Type ";
+    s += std::to_string(mutInfo&0xf);
+    s += " Length ";
+    s += std::to_string(mutInfo>>4);
+    return s;
+}
+
+std::string printNucs(int32_t mutInfo, int32_t nucs){
+    std::string s = " Chars: ";
+    int len = mutInfo >> 4;
+    for (int i=0; i<len; i++) {
+        s += std::to_string(nucs&0x4);
+        s += " ";
+        nucs = nucs >> 4;
+    }
+    return s;
+}
+
+void checkFunction(panmanUtils::Tree *T) {
+    std::cout << T->root->identifier << std::endl;
+    std::ofstream o("new.fa");
+    T->printFASTA(o);
+
+    // get node id
+    panmanUtils::Node * node = T->allNodes["England/MILK-338D3D9/2022|OV784995.1|2022-01-21"];
+    std::cout << "Found Node: " << node->identifier << std::endl;
+
+    while (node != nullptr) {
+        std::cout << "node: " << node->identifier << std::endl;
+        // Pring block mutations
+        std::cout << "Block mutations" << std::endl;
+        for(auto &u: node->blockMutation) {
+            std::cout << "\t" << u.blockMutInfo << " " <<
+                                 u.inversion << " " <<
+                                 u.primaryBlockId << " " <<
+                                 u.secondaryBlockId << " " << std::endl;
+        }
+
+        // Pring Nuc mutations
+        std::cout << "Nuc mutations" << std::endl;
+        for(auto &u: node->nucMutation) {
+            std::cout << "\t Position " << u.nucPosition << " Gap-position " <<
+                                 u.nucGapPosition << " " <<
+                                 printNucMut(u.mutInfo) << " " <<
+                                 printNucs(u.mutInfo, u.nucs) << " " << std::endl;
+        }
+        node = node->parent;
+    }
+
+    return;
+}
+
 // program option description for building/loading a PanMAT into memory
 po::options_description globalDesc("panmanUtils Command Line Arguments");
 po::positional_options_description globalPositionArgumentDesc;
@@ -526,6 +579,8 @@ void parseAndExecute(int argc, char* argv[]) {
         // T = new panmanUtils::Tree(inputStream, newickInputStream,
         // panmanUtils::FILE_TYPE::MSA_OPTIMIZE);
         // }
+
+        // checkFunction(T);
 
         std::vector<panmanUtils::Tree*> tg;
         tg.push_back(T);

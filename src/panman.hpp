@@ -115,6 +115,13 @@ struct NucMut {
         for(int i = start; i < end; i++) {
             nucs += (std::get<2>(mutationArray[i]) << (4*(5-(i - start))));
         }
+
+        // if (nucPosition == 0){
+        //     std::cout << "\t Writing " << nucPosition << " " << 
+        //                 (int)mutInfo << " " << 
+        //                 nucs << " " <<
+        //                 std::endl;
+        // }
     }
 
     // Create non-SNP mutations from SNP mutations at consecutive positions
@@ -286,7 +293,7 @@ class Tree {
     // memory, assign mutations from the proto file to the tree nodes using preorder
     // traversal
     void assignMutationsToNodes(Node* root, size_t& currentIndex,
-                                std::vector< panman::Node::Reader >& nodes);
+                                std::vector<panman::Node::Reader>& storedNode);
 
     // Get the total number of mutations of given type
     int getTotalParsimonyParallel(NucMutationType nucMutType,

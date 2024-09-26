@@ -45,6 +45,7 @@ find_package(jsoncpp CONFIG REQUIRED)
 
 
 file(GLOB PANMAT_SRCS "src/panmanUtils.cpp" "src/panman.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
+file(GLOB CAP_SRCS "src/capnprototest.cpp")
 
 if(DEFINED CapnProto_PATH)
 	add_executable(panmanUtils
@@ -61,6 +62,13 @@ if(DEFINED CapnProto_PATH)
 		TARGET panmanUtils  
 		PROTOS panman.capnp)
 
+	add_executable(capnp ${CAP_SRCS})
+	capnp_generate(
+		LANGUAGE cpp
+		TARGET capnp
+		PROTOS panman.capnp
+	)
+
 
 else()
 	# protobuf_generate_cpp(
@@ -76,6 +84,12 @@ else()
 		${CAPNP_SRCS}
 		${CAPNP_HDRS}
 		)
+	
+	add_executable(capnp
+	${CAP_SRCS}
+	${CAPNP_SRCS}
+	${CAPNP_HDRS}
+	)
 
 endif()
 
@@ -83,3 +97,8 @@ TARGET_COMPILE_OPTIONS(panmanUtils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
 TARGET_LINK_LIBRARIES(panmanUtils PRIVATE stdc++ JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${CAPNP_LIBRARIES} ) #${Protobuf_LIBRARIES} ${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
+
+TARGET_COMPILE_OPTIONS(capnp PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
+
+TARGET_LINK_LIBRARIES(capnp PRIVATE stdc++ JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${CAPNP_LIBRARIES} ) #${Protobuf_LIBRARIES} ${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+target_include_directories(capnp PUBLIC "${PROJECT_BINARY_DIR}")
