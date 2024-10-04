@@ -381,8 +381,8 @@ panmanUtils::Node* panmanUtils::Tree::createTreeFromNewickString(std::string new
 void panmanUtils::Tree::assignMutationsToNodes(Node* root, size_t& currentIndex,
         std::vector<panman::Node::Reader> &storedNode) {
     std::vector< panmanUtils::NucMut > storedNucMutation;
-    // std::cout << root->identifier << std::endl;
-    // std::cout << "\tMutation: " << currentIndex << std::endl;
+    std::cout << root->identifier << "\tMutation: " << currentIndex << std::endl;
+    
     for (auto nodeMutations: storedNode[currentIndex].getMutations()){
         auto countt = 0;
         for (auto nucMut: nodeMutations.getNucMutation()){
@@ -1115,14 +1115,12 @@ void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
     std::map< std::pair<int32_t, int32_t>, std::vector< uint32_t > > blockIdToConsensusSeq;
 
     int countt = 0;
-    // std::cout << "consensusmap\n";
     for (auto consensusMapElement: mainTree.getConsensusSeqMap()){
         std::vector< uint32_t > seq;
         for (auto consensusSequenceToBlockIds: consensusMapElement.getConsensusSeq()){
             seq.push_back(consensusSequenceToBlockIds);
         } 
 
-        // std::cout << "\tSeq size: " << seq.size() << std::endl;
 
         auto blockIdList = consensusMapElement.getBlockId();
         auto blockGapExistList = consensusMapElement.getBlockGapExist();
@@ -1141,7 +1139,6 @@ void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
     }
 
     std::vector<panman::Node::Reader> storedNodes;
-    
     for (auto nodesFromTree: mainTree.getNodes()){
         storedNodes.push_back(nodesFromTree);
     }
@@ -1158,10 +1155,10 @@ void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
     // Gap List
     for (auto i=0; i< mainTree.getGaps().size(); i++){
         panmanUtils::GapList tempGaps;
-        for (auto j=0; mainTree.getGaps()[i].getNucPosition().size(); j++){
+        for (auto j=0; j<mainTree.getGaps()[i].getNucPosition().size(); j++){
             tempGaps.nucPosition.push_back(mainTree.getGaps()[i].getNucPosition()[j]);
             tempGaps.nucGapLength.push_back(mainTree.getGaps()[i].getNucGapLength()[j]);
-            std::cout << "\t " << j << mainTree.getGaps()[i].getNucPosition()[j] << " " << mainTree.getGaps()[i].getNucGapLength()[j] << std::endl;
+            // std::cout << "\t " << j << mainTree.getGaps()[i].getNucPosition()[j] << " " << mainTree.getGaps()[i].getNucGapLength()[j] << std::endl;
 
         }
         tempGaps.primaryBlockId = (mainTree.getGaps()[i].getBlockId() >> 32);
@@ -2297,14 +2294,15 @@ void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils:
     }
 
     ::capnp::List<panman::GapList>::Builder gapsBuilder = treeToWrite.initGaps(gaps.size());
+    std::cout << "Writing Gap List " << gaps.size() << "\n";
     for(size_t i = 0; i < gaps.size(); i++) {
+        std::cout << "itr: " << i << " size: " <<  gaps[i].nucPosition.size() << "\n";
         panman::GapList::Builder gl = gapsBuilder[i];
 
         ::capnp::List<int32_t>::Builder nucGapLengthBuilder = gl.initNucGapLength(gaps[i].nucPosition.size());
         ::capnp::List<int32_t>::Builder nucPositionBuilder = gl.initNucPosition(gaps[i].nucPosition.size());
 
         for(size_t j = 0; j < gaps[i].nucPosition.size(); j++) {
-            std::cout << "\t " << j << gaps[i].nucPosition[j] << " " << gaps[i].nucGapLength[j] << std::endl;
             nucPositionBuilder.set(j, gaps[i].nucPosition[j]);
             nucGapLengthBuilder.set(j,gaps[i].nucGapLength[j]);
         }
@@ -5405,9 +5403,6 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
         ::capnp::List<panman::GapList>::Builder gapsBuilder = treeToWrite.initGaps(tree.gaps.size());
         for(size_t i = 0; i < tree.gaps.size(); i++) {
             panman::GapList::Builder gl = gapsBuilder[i];
-            // std::cout << "Printing gap list " << i << std::endl;
-
-            std::cout << "Gaps " << i << std::endl;
 
             ::capnp::List<int32_t>::Builder nucGapLengthBuilder = gl.initNucGapLength(tree.gaps[i].nucPosition.size());
             ::capnp::List<int32_t>::Builder nucPositionBuilder = gl.initNucPosition(tree.gaps[i].nucPosition.size());
