@@ -32,7 +32,13 @@ jobs:
           pip install mkdocs-material
           pip install "mkdocs-material[imaging]"
           mkdocs gh-deploy --force
- 
+      - name: switch to gcc-10 on linux
+        if: matrix.configurations.os == "ubuntu-latest"
+        run: |
+          sudo apt install gcc-10 g++-10
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
+          sudo update-alternatives --set gcc /usr/bin/gcc-10
+          
       - name: install pre-reqs and build
         run: |
           sudo apt install -y git build-essential cmake wget curl zip unzip tar protobuf-compiler libboost-all-dev pkg-config capnproto
