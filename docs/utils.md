@@ -138,7 +138,7 @@ Extract variations of all sequences from any PanMAT in a PanMAN in the form of a
 * Example
 ```bash
 cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --vcf -reference=NC_000913.3 --output-file=sars_20 
+./panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
 ```
 
 #### Graphical fragment assembly (GFA) extract

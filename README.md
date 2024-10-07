@@ -1,37 +1,43 @@
-[license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg 
+[license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg
 [license-link]: [https://github.com/TurakhiaLab/panman/LICENSE](https://github.com/TurakhiaLab/panman/blob/main/LICENSE)
 [![License][license-badge]][license-link]
-[![DOI](https://img.shields.io/badge/DOI-10.1101/2024.07.02.601807-blue)](https://doi.org/10.1101/2024.07.02.601807)
+[![DOI](https://img.shields.io/badge/DOI-https://zenodo.org/records/12630607-blue)](https://zenodo.org/records/12630607)
+[<img src="https://img.shields.io/badge/Install with-DockerHub-informational.svg?logo=Docker">](https://hub.docker.com/r/swalia14/panman)
+[<img src="https://img.shields.io/badge/Submitted to-bioRxiv-critical.svg?logo=LOGO">](https://doi.org/10.1101/2024.07.02.601807)
+[<img src="https://img.shields.io/badge/Build with-CMake-green.svg?logo=snakemake">](https://cmake.org)
 
+ 
 # Pangenome Mutation Annotated Network (PanMAN)
 <div align="center">
   <img src="docs/images/logo.svg"/>
 </div>
 
 ## Table of Contents
-- [Overview of PanMANs and <i>panmanUtils</i>](#overview)
-- [Installation and Usage](#install) ([Documentation](https://turakhia.ucsd.edu/panman/))
-
+- [Introduction](#intro) ([Wiki](https://turakhia.ucsd.edu/panman/))
+  - [PanMANs](#panman)
+  - [<i>panmanUtils</i>](#panmanUtils)
+- [Installation](#install)
+  - [Using Installation Script](#script)
+  - [Using Docker Image](#image)
+  - [Using DockerFile](#file)
+- [PanMAN Construction](#construct)
+  - [Using provided dataset](#pangraph)
+  - [Using custom dataset](#custom)
+- [<i>panmanUtils</i> functionalities](#function)
 - [Contribute](#contributions)
 - [Citing PanMAN](#cite_panman)
 
-## <a name="overview"></a> Overview of PanMAN and <i>panmanUtils</i> <br>
-### What is a PanMAN?
+## <a name="intro"></a> Introduction
+Here we provide an overview of PanMAN, <i>panmanUtils</i>, and its installation methods and usage. For more information please see our [Wiki](https://turakhia.ucsd.edu/panman/).
+### <a name="panman"></a> What is a PanMAN?
 PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 1b), and even structural mutations (Fig. 1a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 1c). PanMAN's representative power is compared against existing pangenomic formats in Fig. 1d. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
 <div align="center">
     <div><b>Figure 1: Overview of the PanMAN data structure</b></div>
     <img src="docs/images/panman.svg" width="500"/>
 </div>
 
-### <i><b>panmanUtils</b></i>
+### <a name="panmanUtils"></a> <i>panmanUtils</i>
 <i>panmanUtils</i> includes multiple algorithms to construct PanMANs and to support various functionalities to modify and extract useful information from PanMANs (Fig. 2).
-
-<!-- #### PanMAN constrution
-
-<div align="center">
- <div><b>Figure 2: PanMAN construction pipeline using panmanUtils</b></div>
- <img src="docs/images/construct.svg" width="500"/>
-</div> -->
 
 <div align="center">
     <div><b>Figure 2: Overview of <i>panmanUtils</i>' functionalities</b></div>
@@ -39,8 +45,138 @@ PanMAN or Pangenome Mutation-Annotated Network is a novel data representation fo
 </div>
 
 
-## <a name="install"></a> Installation and Usage <br>
-For information on pnamanUtils installation and usage, please see our documentation page available [here](https://turakhia.ucsd.edu/panman/)
+## <a name="install"></a> Installation
+### <a name="script"></a> Using installation script (requires sudo access)
+
+**Step 0:** Dependencies
+```bash
+Git
+```
+
+**Step 1:** Clone the repository
+```bash
+git https://github.com/TurakhiaLab/panman.git
+cd panman
+```
+**Step 2:** Run the installation script
+```bash
+chmod +x install/installationUbuntu.sh
+./install/installationUbuntu.sh
+```
+**Step 3:** Run panmanUtils
+```bash
+cd build
+./panmanUtils --help
+```
+### <a name="image"></a> Using Docker Image
+
+To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps
+
+**Step 0:** Dependencies
+```bash
+Docker
+```
+**Step 1:** Pull the PanMAN docker image from DockerHub
+```bash
+docker pull swalia14/panman:latest
+```
+**Step 2:** Build and run the docker container
+```bash
+docker run -it swalia14/panman:latest
+```
+**Step 3:** Run panmanUtils
+```bash
+# Insider docker container
+cd /home/panman/build
+./panmanUtils --help
+```
+
+###  <a name="file"></a> Using DockerFile
+Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps
+
+**Step 0:** Dependencies
+```bash
+Docker
+Git
+``` 
+**Step 1:** Clone the repository
+```bash
+git https://github.com/TurakhiaLab/panman.git
+cd panman
+```
+**Step 2:** Build a docker image
+```bash
+cd docker
+docker build -t panman .
+```
+**Step 3:** Build and run docker container
+```bash
+docker run -it panman
+```
+**Step 4:** Run panmanUtils
+```bash
+# Insider docker container
+cd /home/panman/build
+./panmanUtils --help
+```
+
+## <a name="construct"></a> PanMAN Construction
+Once the package is installed, PanMANs can be constructed from PanGraph [or GFA or MSA] and Tree topology (Newick format) using <i>panmanUtils</i>. Here we provide examples for constructing PanMANs from PanGraph (JSON), users can follow the instructions provided in [wiki](https://turakhia.ucsd.edu/panman/) for other methods.
+### Building PanMAN from the provided dataset
+
+**Step 1:** Check if `sars_20.json` and `sars_20.nwk` files exist in `test` directory. Otherwise, follow the instructions to download the dataset.
+
+```bash
+cd $PANMAN_HOME/dataset
+TODO
+```
+
+**Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:
+
+```bash
+cd $PANMAN_HOME/build
+./panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
+```
+The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
+
+### Building PanMAN from the custom dataset
+Alternatively, users can provide custom PanGraph (JSON) and tree topology (Newick format) files to build a panman, using the following command
+
+```bash
+cd $PANMAN_HOME/build
+./panmanUtils -P $PANMAN_HOME/test/example.json -N $PANMAN_HOME/test/example.nwk -O example
+```
+The above command will run <i>panmanUtils</i> program and build `example.panman` in `$PANMAN_HOME/build/panman` directory.
+
+## <a name="function"></a> <i>panmanUtils</i> functionalities
+<i>panmanUtils</i> provide various functionalities such as summary, [Raw sequence, MSA, VCF, GFA] extract, sub-netwrok pruning, and many more. Please refer to [wiki](https://turakhia.ucsd.edu/panman/) for detailed information. Here we provide usage syntax and examples for summary and VCF extract.
+
+#### Summary extract
+The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.
+
+* Usage Syntax
+```bash
+./panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output file> (optional)
+```
+* Example
+```bash
+cd $PANMAN_HOME/build
+./panmanUtils -I panman/sars_20.panman  --summary --output-file=sars_20
+```
+
+#### Variant Call Format (VCF) extract
+Extract variations of all sequences from any PanMAT in a PanMAN in the form of a VCF file with respect to <i>any</i> reference sequence (ref) in the PanMAT.
+
+* Usage syntax
+```bash
+./panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix of output file> (optional) 
+```
+* Example
+```bash
+cd $PANMAN_HOME/build
+./panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
+```
+
 
 ## <a name="contri"></a> Contribute <br>
 We welcome contributions from the community to enhance the capabilities of PanMAN and <i>panmanUtils</i>. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
@@ -48,3 +184,4 @@ We welcome contributions from the community to enhance the capabilities of PanMA
 ## <a name="cite_panman"></a> Citing PanMAN <br>
 If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper: 
 * Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: [10.1101/2024.07.02.601807](https://doi.org/10.1101/2024.07.02.601807)
+
