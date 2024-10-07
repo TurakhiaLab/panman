@@ -44,7 +44,6 @@ theme:
     #     name: Switch to light mode
 
   favicon: images/icon.png
-
   logo: images/icon.png
 
 plugins:
