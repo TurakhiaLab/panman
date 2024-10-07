@@ -43,9 +43,9 @@ theme:
     #     icon: material/brightness-4
     #     name: Switch to light mode
 
-  favicon: images/icon.svg
+  favicon: images/icon.png
 
-  logo: images/icon.svg
+  logo: images/icon.png
 
 plugins:
   - social
