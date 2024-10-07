@@ -83,7 +83,7 @@ nav:
   - Home: index.md
   - Install: install.md
   - Construction: construction.md
-  - Utils: utils.md
+  - Utility: utils.md
 
 extra_javascript:
   - javascripts/mathjax.js
