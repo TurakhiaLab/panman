@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   deploy:
+    name: Deploy Job
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -26,9 +27,10 @@ jobs:
           key: ${{ github.ref }}
           path: .cache
 
-      - name: build docs
+      - name: Install dependencies and build mkdocs
         run: |
           pip install mkdocs-material
+          pip install "mkdocs-material[imaging]"
           mkdocs gh-deploy --force
  
       - name: install pre-reqs and build
