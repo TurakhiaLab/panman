@@ -1,4 +1,4 @@
-# .
+# <b>Welcome to PanMAN Wiki</b>
 <div align="center">
     <img src="images/logo.svg"/>
 </div>
