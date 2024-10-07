@@ -2,9 +2,9 @@
 
 Here, we will learn to build PanMAN from various input formats.
 
-**Step 0:** Steps below require panmanUtils, if not done so far, refer to [installation guide](install.md) to install panmanUtils. To check if panmanUtils is properly installed or not, run the following command, and it should execute without error
+**Step 0:** The Steps below require panmanUtils, if not done so far, refer to [installation guide](install.md) to install panmanUtils. To check if panmanUtils is properly installed or not, run the following command, and it should execute without error
 ```bash
-# enter into panman directory (assuming $PANMAN directs to panman repository directory)
+# enter into the panman directory (assuming $PANMAN directs to the panman repository directory)
 cd $PANMAN_HOME
 ```
 ```bash
@@ -13,7 +13,7 @@ cd $PANMAN_HOME/build
 ```
 ### Building PanMAN from PanGraph
 
-**Step 1:** Check if `sars_20.json` and `sars_20.nwk` files exist in `test` directory. Otherwise follow the instructions to download the dataset.
+**Step 1:** Check if `sars_20.json` and `sars_20.nwk` files exist in `test` directory. Otherwise, follow the instructions to download the dataset.
 
 ```bash
 cd $PANMAN_HOME/dataset
@@ -30,7 +30,7 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 
 ### Building PanMAN from raw genome sequences
 We provide scripts to first construct PanGraph from raw sequences, followed by building a panman.
-**Step 1:** Check if `sars_20.fa` file exist in `test` directory. Otherwise follow the instructions to download the dataset.
+**Step 1:** Check if the `sars_20.fa` file exists in `test` directory. Otherwise, follow the instructions to download the dataset.
 
 ```bash
 cd $PANMAN_HOME/dataset
@@ -45,5 +45,5 @@ chmod +x build_panman.sh
 ./build_panman.sh
 ```
 !!!Note
-    The above script is particuarly designed to be used in the docker container build either from provided docker image or the DockerFile (instructions provided [here](install.md))
+ The above script is particularly designed to be used in the docker container build either from the provided docker image or the DockerFile (instructions provided [here](install.md))
 

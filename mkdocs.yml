@@ -82,6 +82,7 @@ use_directory_urls: false
 nav:
   - Home: index.md
   - Install: install.md
+  - Quick Start: quickstart.md
 
 extra_javascript:
   - javascripts/mathjax.js
