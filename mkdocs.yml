@@ -6,11 +6,11 @@ theme:
   name: material
   features:
     - announce.dismiss
-    - content.action.edit
-    - content.action.view
-    - content.code.annotate
+    # - content.action.edit
+    # - content.action.view
+    - content.code.annotation
     - content.code.copy
-    - content.tooltips
+    # - content.tooltips
     - navigation.footer
     - navigation.expand
     # - navigation.tabs.sticky
