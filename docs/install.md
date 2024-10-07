@@ -3,7 +3,7 @@
 ## Using installation script (requires sudo access)
 
 0. Dependencies
-i. Git
+    i. Git
 
 1. Clone the repository
 ```bash
@@ -25,10 +25,10 @@ cd build
 
 ## Using Docker Image
 
-To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps:
+To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps
 
 0. Dependencies
-i. Docker
+    i. Docker
 1. Pull the PanMAN docker image from DockerHub
 ```bash
 docker pull swalia14/panman:latest
@@ -47,10 +47,11 @@ cd /home/panman/build
  The docker image comes with preinstalled panmanUtils and other tools such as PanGraph, PGGB, and RIVET.
 
 ## Using DockerFile
-Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps:
+Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps
+
 0. Dependencies
-i. Docker
-ii. Git
+    i. Docker
+    ii. Git
 1. Clone the repository
 ```bash
 git https://github.com/TurakhiaLab/panman.git
