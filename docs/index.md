@@ -38,7 +38,7 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 TBA
 
 
-### <b>Installation</b>
+<!-- ### <b>Installation</b>
 panmanUtils can be installed using two different options, as described below: <br>
 1. Installation script <br>
 2. Docker
@@ -255,7 +255,7 @@ $ ./panmanUtils -I <path to PanMAN file> --aa-translations --output-file=<prefix
 ```
 ```
 $ ./panmanUtils -I ecoli_10.panman --aa-translations --output_file=ecoli_10
-```
+``` -->
 
 ## <b>Contributions</b>
 We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
