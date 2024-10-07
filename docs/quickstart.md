@@ -45,5 +45,5 @@ chmod +x build_panman.sh
 ./build_panman.sh
 ```
 !!!Note
- The above script is particularly designed to be used in the docker container build either from the provided docker image or the DockerFile (instructions provided [here](install.md))
+    The above script is particularly designed to be used in the docker container build either from the provided docker image or the DockerFile (instructions provided [here](install.md))
 
