@@ -36,12 +36,12 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
-      primary: white
-      accent: white
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
+    # - scheme: slate
+    #   primary: white
+    #   accent: white
+    #   toggle:
+    #     icon: material/brightness-4
+    #     name: Switch to light mode
 
   favicon: images/icon.png
 
