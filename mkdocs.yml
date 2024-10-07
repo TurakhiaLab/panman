@@ -76,6 +76,7 @@ markdown_extensions:
 use_directory_urls: false
 nav:
   - Home: index.md
+  - Install: install.md
 
 extra_javascript:
   - javascripts/mathjax.js
