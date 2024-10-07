@@ -13,7 +13,7 @@ theme:
     - content.tooltips
     - navigation.footer
     - navigation.expand
-    - navigation.tabs.sticky
+    # - navigation.tabs.sticky
     - navigation.instant.prefetch
     - navigation.tracking
     - search.highlight
@@ -21,6 +21,11 @@ theme:
     - search.suggest
     - toc.follow
     - toc.integrate
+    - navigation.tabs
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - content.tabs.link
   language: en
   palette:
     - scheme: default
