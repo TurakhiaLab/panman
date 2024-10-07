@@ -35,7 +35,7 @@ jobs:
  
       - name: install pre-reqs and build
         run: |
-          sudo apt install -y git build-essential cmake wget curl zip unzip tar protobuf-compiler libboost-all-dev pkg-config
+          sudo apt install -y git build-essential cmake wget curl zip unzip tar protobuf-compiler libboost-all-dev pkg-config capnproto
           chmod +x install/installationUbuntu.sh
           sudo ./install/installationUbuntu.sh
       - name: test
