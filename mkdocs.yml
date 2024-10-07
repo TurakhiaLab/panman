@@ -1,4 +1,4 @@
-site_name: PanMAN Wiki
+site_name: PanMAN
 repo_name: TurakhiaLab/panman
 repo_url: https://github.com/TurakhiaLab/panman
 
@@ -41,8 +41,8 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
-  favicon: images/icon.svg
-  logo: images/logo.svg
+  favicon: images/icon.png
+  logo: images/icon.svg
 
   icon:
   admonition:

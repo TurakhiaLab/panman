@@ -1,4 +1,4 @@
-# Welcome to PanMAN Wiki
+<!-- # Welcome to PanMAN Wiki -->
 <div align="center">
     <img src="images/logo.svg"/>
 </div>
