@@ -435,6 +435,57 @@ bool panmanUtils::Tree::hasPolytomy(Node* node) {
     return false;
 }
 
+size_t readFastaInBatch(std::ifstream& fin, std::map< std::string, std::string >& sequenceIdsToSequences, size_t &startIndex, size_t batchSize) {
+    std::string line;
+    std::string currentSequence, currentSequenceId;
+    size_t lineLength = 0;
+    size_t nextStartIndex = startIndex;
+
+    std::cout << "starting reading for " << nextStartIndex << std::endl;
+    while(getline(fin,line,'\n')) {
+        if(line.length() == 0) {
+            continue;
+        }
+        if(line[0] == '>') {
+            if(currentSequence.length()) {
+                if(lineLength == 0) {
+                    lineLength = currentSequence.length();
+                } else if(lineLength != currentSequence.length()) {
+                    std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                    exit(-1);
+                }
+                size_t lengthStr = startIndex+batchSize>currentSequence.size() ? currentSequence.size()-startIndex: batchSize;
+                sequenceIdsToSequences[currentSequenceId] = currentSequence.substr(startIndex, lengthStr);
+            }
+            std::vector< std::string > splitLine;
+            panmanUtils::stringSplit(line,' ',splitLine);
+            currentSequenceId = splitLine[0].substr(1);
+            currentSequence = "";
+        } else {
+            currentSequence += line;
+        }
+    }
+    if(currentSequence.length()) {
+        if(lineLength != 0 && lineLength != currentSequence.length()) {
+            std::cerr << "Error: sequence lengths don't match!" << std::endl;
+            exit(-1);
+        } else {
+            lineLength = currentSequence.length();
+        }
+        size_t lengthStr = startIndex+batchSize>currentSequence.size() ? currentSequence.size()-startIndex: batchSize;
+        sequenceIdsToSequences[currentSequenceId] = currentSequence.substr(startIndex, lengthStr);
+        nextStartIndex += lengthStr;
+    }
+
+    std::cout << "Done reading till " << nextStartIndex - 1 << std::endl;
+
+    // reset file reader (very important)
+    fin.clear();
+    fin.seekg(0);
+
+    return nextStartIndex;
+}
+
 panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype,
                         std::string reference) {
     if(ftype == panmanUtils::FILE_TYPE::GFA) {
@@ -1102,6 +1153,130 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
             nodeMutexes[u.first].unlock();
         // }
+        });
+
+
+    } else if(ftype == panmanUtils::FILE_TYPE::MSA_OPTIMIZE) {
+        std::string newickString;
+        secondFin >> newickString;
+        root = createTreeFromNewickString(newickString);
+
+        std::string line;
+        size_t lineLength = 0;
+
+        // Find length of MSA
+        std::string currentSequence;
+        while(getline(fin,line,'\n')) {
+            if(line.length() == 0) {
+                continue;
+            }
+            if(line[0] == '>') {
+                if(currentSequence.length()) {
+                    if(lineLength == 0) {
+                        lineLength = currentSequence.length();
+                        break;
+                    }
+                }
+                currentSequence = "";
+            } else {
+                currentSequence += line;
+            }
+        }
+        std::cout << "line length: " << lineLength << std::endl;
+
+        // reset file reader (very important)
+        fin.clear();
+        fin.seekg(0);
+
+        // set batch size
+        size_t memory = 128;//GB
+        size_t batchSize = 10000;
+        std::cout << "Batch size set to: " << batchSize << std::endl;
+
+        std::string consensusSeq;
+        size_t startIndex = 0;
+
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
+        std::unordered_map< std::string, std::mutex > nodeMutexes;
+
+        while (true) {
+            std::map< std::string, std::string > sequenceIdsToSequences;
+            size_t nextStartIndex =  readFastaInBatch(fin, sequenceIdsToSequences, startIndex, batchSize);
+            std::set< size_t > emptyPositions;
+
+            for(size_t i = 0; i < nextStartIndex-startIndex; i++) {
+                bool nonGapFound = false;
+                for(auto u: sequenceIdsToSequences) {
+                    if(u.second[i] != '-') {
+                        consensusSeq += u.second[i];
+                        nonGapFound = true;
+                        break;
+                    }
+                }
+                if(!nonGapFound) {
+                    std::cout << "ideally should not happen\n" << std::endl;
+                    emptyPositions.insert(i);
+                }
+            }
+            for(auto& u: sequenceIdsToSequences) {
+                std::string sequenceString;
+                for(size_t i = 0; i < u.second.length(); i++) {
+                    if(emptyPositions.find(i) == emptyPositions.end()) {
+                        sequenceString += u.second[i];
+                    }
+                }
+                u.second = sequenceString;
+            }
+
+            for(auto u: allNodes) {
+                nodeMutexes[u.first];
+            }
+
+            tbb::parallel_for((size_t)0, nextStartIndex-startIndex, [&](size_t i) {
+                std::unordered_map< std::string, int > states;
+                std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
+                for(const auto& u: sequenceIdsToSequences) {
+                    if(u.second[i] != '-') {
+                        states[u.first] = (1 << getCodeFromNucleotide(u.second[i]));
+                    } else {
+                        states[u.first] = 1;
+                    }
+                }
+                nucFitchForwardPass(root, states);
+                nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSeq[startIndex+i])));
+                nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[startIndex+i])));
+                for(auto mutation: mutations) {
+                    nodeMutexes[mutation.first].lock();
+                    nonGapMutations[mutation.first].push_back(std::make_tuple(0, -1, startIndex+i, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                    if (startIndex+i == 29919) std::cout << "OOps" << std::endl;
+                    nodeMutexes[mutation.first].unlock();
+                }
+            });
+            std::cout << "Processed characters from " << startIndex << " to " << nextStartIndex - 1 << std::endl;
+            startIndex = nextStartIndex;
+            if (startIndex>=lineLength) break;
+        }
+        std::cout << "consensus seq len" << consensusSeq.size() << std::endl;
+        blocks.emplace_back(0, consensusSeq);
+        root->blockMutation.emplace_back(0, std::make_pair(BlockMutationType::BI, false));
+
+        tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
+            nodeMutexes[u.first].lock();
+            std::sort(u.second.begin(), u.second.end());
+            nodeMutexes[u.first].unlock();
+            size_t currentStart = 0;
+            for(size_t i = 1; i < u.second.size(); i++) {
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
+                    nodeMutexes[u.first].lock();
+                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
+                    nodeMutexes[u.first].unlock();
+                    currentStart = i;
+                    continue;
+                }
+            }
+            nodeMutexes[u.first].lock();
+            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+            nodeMutexes[u.first].unlock();
         });
 
 

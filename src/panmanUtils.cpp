@@ -151,6 +151,7 @@ void setupOptionDescriptions() {
     ("acr,q", "ACR method [fitch(default), mppa]")
     //("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
 
+    ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
     ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
     ("start,s", po::value< std::string >(), "Start coordinate of protein translation")
     ("end,e", po::value< std::string >(), "End coordinate of protein translation")
@@ -559,7 +560,7 @@ void parseAndExecute(int argc, char* argv[]) {
         }
 
         bool optimize = false;
-        if(globalVm.count("optimize")) {
+        if(globalVm.count("low-mem-mode")) {
             optimize = true;
         }
 
@@ -572,13 +573,13 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        // if(!optimize) {
-        T = new panmanUtils::Tree(inputStream, newickInputStream,
+        if(!optimize) {
+            T = new panmanUtils::Tree(inputStream, newickInputStream,
                                   panmanUtils::FILE_TYPE::MSA);
-        // } else {
-        // T = new panmanUtils::Tree(inputStream, newickInputStream,
-        // panmanUtils::FILE_TYPE::MSA_OPTIMIZE);
-        // }
+        } else {
+            T = new panmanUtils::Tree(inputStream, newickInputStream,
+                                    panmanUtils::FILE_TYPE::MSA_OPTIMIZE);
+        }
 
         // checkFunction(T);
 
