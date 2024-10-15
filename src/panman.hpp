@@ -270,7 +270,7 @@ struct BlockGapList {
 // PanMAT tree node
 class Node {
   public:
-    float branchLength;
+    float branchLength = 0.0;
     size_t level;
     std::string identifier;
     Node* parent;
@@ -307,7 +307,10 @@ class Tree {
     // Tree traversal for FASTA writer
     void printFASTAHelper(panmanUtils::Node* root, sequence_t& sequence,
                           blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout,
-                          bool aligned = false);
+                          bool aligned = false, bool rootSeq = false, std::tuple<int, int, int, int> start={-1,-1,-1,-1}, std::tuple<int, int, int, int> end={-1,-1,-1,-1});
+
+    void printSingleNodeHelper(std::vector<panmanUtils::Node*> &nodeList, int nodeListIndex, sequence_t& sequence,
+        blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, int panMATStart, int panMATEnd);
 
     // Merge parent and child nodes when compressing subtree
     void mergeNodes(Node* par, Node* chi);
@@ -456,7 +459,10 @@ class Tree {
     // void printSummary();
     void printSummary(std::ostream &out);
     void printBfs(Node* node = nullptr);
-    void printFASTA(std::ostream& fout, bool aligned = false);
+    void printFASTA(std::ostream& fout, bool aligned = false, bool rootSeq = false);
+    void printSingleNode(std::ostream& fout, const sequence_t& sequence,
+                                         const blockExists_t& blockExists, const blockStrand_t& blockStrand,
+                                         std::string nodeIdentifier, std::tuple< int, int, int, int > &panMATStart, std::tuple< int, int, int, int > &panMATEnd);
     void printFASTAParallel(std::ofstream& fout, bool aligned = false);
     void printMAF(std::ostream& fout);
 
@@ -470,6 +476,7 @@ class Tree {
     // sequences are assumed to be the same as their strands in the root sequence for the
     // purpose of splitting the terminal blocks during extraction
     void extractPanMATSegment(kj::std::StdOutputStream& fout, int64_t start, int64_t end);
+    void extractPanMATIndex(std::ostream& fout, int64_t start, int64_t end, std::string nodeIdentifier, bool single=true);
 
     Node* subtreeExtractParallel(std::vector< std::string > nodeIds, const std::set< std::string >& nodeIdsToDefinitelyInclude = {});
     // Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
@@ -707,7 +714,7 @@ class TreeGroup {
 
     TreeGroup* subnetworkExtract(std::unordered_map< int, std::vector< std::string > >& nodeIds);
 
-    void printFASTA(std::ofstream& fout);
+    void printFASTA(std::ofstream& fout, bool rootSeq = false);
     void writeToFile(kj::std::StdOutputStream& fout);
     void printComplexMutations(std::ostream& fout);
 };

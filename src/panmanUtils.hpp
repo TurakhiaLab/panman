@@ -38,6 +38,10 @@ void printSequenceLines(const sequence_t& sequence,
                         const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize,
                         bool aligned, std::ostream& fout, int offset = 0, bool debug = false);
 
+void printSubsequenceLines(const sequence_t& sequence,\
+                                     const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, int start, int end, 
+                                     bool aligned, std::ostream& fout, int offset=0, bool debug=false);
+
 // Remove '-' character from sequence string
 std::string stripGaps(std::string sequenceString);
 std::string getDate();
