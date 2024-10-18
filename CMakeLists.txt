@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 
 project(panmanUtils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
 if(DEFINED Protobuf_PATH) 
@@ -32,7 +32,7 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 # tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1 arch=${ARCH})
 # find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview HINTS ${TBB_DIR})
 
-FIND_PACKAGE(Boost COMPONENTS program_options iostreams filesystem date_time REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS iostreams date_time REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(BUILD_STATIC_LIBS ON)
