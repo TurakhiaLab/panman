@@ -32,7 +32,7 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 # tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1 arch=${ARCH})
 # find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview HINTS ${TBB_DIR})
 
-FIND_PACKAGE(Boost COMPONENTS iostreams date_time REQUIRED)
+FIND_PACKAGE(Boost REQUIRED iostreams date_time)
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(BUILD_STATIC_LIBS ON)
