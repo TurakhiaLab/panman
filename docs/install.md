@@ -7,7 +7,7 @@
 
 1. Clone the repository
 ```bash
-git https://github.com/TurakhiaLab/panman.git
+git clone https://github.com/TurakhiaLab/panman.git
 cd panman
 ```
 2. Run the installation script
@@ -54,7 +54,7 @@ Docker container with preinstalled <i>panmanUtils</i> can also be built from Doc
     ii. Git
 1. Clone the repository
 ```bash
-git https://github.com/TurakhiaLab/panman.git
+git clone https://github.com/TurakhiaLab/panman.git
 cd panman
 ```
 2. Build a docker image
