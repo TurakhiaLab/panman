@@ -152,75 +152,39 @@ void panmanUtils::printSequenceLines(const sequence_t& sequence,\
 
 }
 
-void panmanUtils::printSubsequenceLines(const sequence_t& sequence,\
-                                     const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, int start, int end, 
+void panmanUtils::printSubsequenceLines(const sequence_t& sequence,
+                                     const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, 
+                                     const std::tuple<int, int, int, int>& panMATStart, 
+                                     const std::tuple<int, int, int, int>& panMATEnd,
                                      bool aligned, std::ostream& fout, int offset, bool debug) {
+
+    int primaryBlockIdStart = std::get<0>(panMATStart);
+    int secondaryBlockIdStart = std::get<1>(panMATStart);
+    int posStart = std::get<2>(panMATStart);
+    int gapPosStart = std::get<3>(panMATStart);
+
+    int primaryBlockIdEnd = std::get<0>(panMATEnd);
+    int secondaryBlockIdEnd = std::get<1>(panMATEnd);
+    int posEnd = std::get<2>(panMATEnd);
+    int gapPosEnd = std::get<3>(panMATEnd);
 
     // String that stores the sequence to be printed
     std::string line;
 
-    for(size_t i = 0; i < blockExists.size(); i++) {
-        // Iterate through gap blocks - NOT BEING USED CURRENTLY
-        for(size_t j = 0; j < blockExists[i].second.size(); j++) {
-            // If block exists. Otherwise add gaps if MSA is to be printed
-            if(blockExists[i].second[j]) {
-                // If forward strand, iterare in forward direction
-                if(blockStrand[i].second[j]) {
-                    // Main nucs
-                    for(size_t k = 0; k < sequence[i].second[j].size(); k++) {
-                        // Gap nucs
-                        for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++) {
-                            if(sequence[i].second[j][k].second[w] != '-') {
-                                line += sequence[i].second[j][k].second[w];
-                            } else if(aligned) {
-                                line += '-';
-                            }
-                        }
-                        // Main Nuc
-                        if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x') {
-                            line += sequence[i].second[j][k].first;
-                        } else if(aligned) {
-                            line += '-';
-                        }
-                    }
-                } else {
-                    // If reverse strand, iterate backwards
-                    for(size_t k = sequence[i].second[j].size()-1; k+1 > 0; k--) {
-                        // Main nuc
-                        if(sequence[i].second[j][k].first != '-' && sequence[i].second[j][k].first != 'x') {
-                            line += getComplementCharacter(sequence[i].second[j][k].first);
-                        } else if(aligned) {
-                            line += '-';
-                        }
-                        // Gap nucs
-                        for(size_t w = sequence[i].second[j][k].second.size()-1; w+1 > 0; w--) {
-                            if(sequence[i].second[j][k].second[w] != '-') {
-                                line += getComplementCharacter(sequence[i].second[j][k].second[w]);
-                            } else if(aligned) {
-                                line += '-';
-                            }
-                        }
-
-                    }
-                }
-            } else if(aligned) {
-                for(size_t k = 0; k < sequence[i].second[j].size(); k++) {
-                    for(size_t w = 0; w < sequence[i].second[j][k].second.size(); w++) {
-                        line += '-';
-                    }
-                    line += '-';
-                }
-            }
-        }
-
+    for(size_t i = primaryBlockIdStart; i < primaryBlockIdEnd-primaryBlockIdStart+1; i++) {
+        
         // Non-gap block - the only type being used currently
         if(blockExists[i].first) {
             // If forward strand
             if(blockStrand[i].first) {
                 // Iterate through main nucs
-                for(size_t j = 0; j < sequence[i].first.size(); j++) {
+                size_t nucStart = (i==primaryBlockIdStart)? posStart: 0;
+                size_t nucEnd = (i==primaryBlockIdEnd)? posEnd + 1: sequence[i].first.size();
+                for(size_t j = nucStart; j < nucEnd; j++) {
                     // Gap nucs
-                    for(size_t k = 0; k < sequence[i].first[j].second.size(); k++) {
+                    size_t nucGapStart = (i==primaryBlockIdStart && j == posStart)? gapPosStart: 0;
+                    size_t nucGapEnd = (i==primaryBlockIdEnd && j == posEnd)? gapPosEnd + 1: sequence[i].first[j].second.size();
+                    for(size_t k = nucGapStart; k < sequence[i].first[j].second.size(); k++) {
                         if(sequence[i].first[j].second[k] != '-') {
                             line += sequence[i].first[j].second[k];
                         } else if(aligned) {
@@ -236,7 +200,9 @@ void panmanUtils::printSubsequenceLines(const sequence_t& sequence,\
                 }
             } else {
                 // If reverse strand, iterate backwards
-                for(size_t j = sequence[i].first.size()-1; j+1 > 0; j--) {
+                size_t nucStart = (i==primaryBlockIdStart)? posStart: 0;
+                size_t nucEnd = (i==primaryBlockIdEnd)? posEnd: sequence[i].first.size() - 1;
+                for(size_t j = nucEnd; j+1 > nucStart; j--) {
                     // Main nuc first since we are iterating in reverse direction
                     if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x') {
                         line += getComplementCharacter(sequence[i].first[j].first);
@@ -245,7 +211,9 @@ void panmanUtils::printSubsequenceLines(const sequence_t& sequence,\
                     }
 
                     // Gap nucs
-                    for(size_t k = sequence[i].first[j].second.size()-1; k+1 > 0; k--) {
+                    size_t nucGapStart = (i==primaryBlockIdStart && j == posStart)? gapPosStart: 0;
+                    size_t nucGapEnd = (i==primaryBlockIdEnd && j == posEnd)? gapPosEnd: sequence[i].first[j].second.size() - 1;
+                    for(size_t k = nucGapEnd; k+1 > nucGapStart; k--) {
                         if(sequence[i].first[j].second[k] != '-') {
                             line += getComplementCharacter(sequence[i].first[j].second[k]);
                         } else if(aligned) {
@@ -256,7 +224,9 @@ void panmanUtils::printSubsequenceLines(const sequence_t& sequence,\
             }
         } else if(aligned) {
             // If aligned sequence is required, print gaps instead if block does not exist
-            for(size_t j = 0; j < sequence[i].first.size(); j++) {
+            size_t nucStart = (i==primaryBlockIdStart)? posStart: 0;
+            size_t nucEnd = (i==primaryBlockIdEnd)? posEnd + 1: sequence[i].first.size();
+            for(size_t j = nucStart; j < nucEnd; j++) {
                 for(size_t k = 0; k < sequence[i].first[j].second.size(); k++) {
                     line+='-';
                 }
@@ -266,42 +236,45 @@ void panmanUtils::printSubsequenceLines(const sequence_t& sequence,\
 
     }
 
-    size_t ctr = 0;
+    std::cout << line << std::endl;
+    // size_t ctr = 0;
 
-    if(offset != 0) {
-        for(size_t i = 0; i < line.length(); i++) {
-            if(line[i] != '-') {
-                if(ctr == (size_t)offset) {
-                    // mark starting point
-                    ctr = i;
-                    break;
-                }
-                ctr++;
-            }
-        }
-    }
+    // if(offset != 0) {
+    //     for(size_t i = 0; i < line.length(); i++) {
+    //         if(line[i] != '-') {
+    //             if(ctr == (size_t)offset) {
+    //                 // mark starting point
+    //                 ctr = i;
+    //                 break;
+    //             }
+    //             ctr++;
+    //         }
+    //     }
+    // }
 
-    // std::cout << line << std::endl;
-    std::string currentLine = "";
-    bool reachedEnd = false;
-    int newStart = (line.size()-1-ctr >= start)? ctr+start: start-line.size()-1-ctr;
-    int newEnd = (line.size()-1-ctr >= end)? ctr+end: end-line.size()-1-ctr;
+    // // std::cout << line << std::endl;
+    // std::string currentLine = "";
+    // bool reachedEnd = false;
+    // int newStart = (line.size()-1-ctr >= start)? ctr+start: start-line.size()-1-ctr;
+    // int newEnd = (line.size()-1-ctr >= end)? ctr+end: end-line.size()-1-ctr;
 
-    // std::cout << newStart << " " << newEnd << " " << ctr << " " << start << " " << end << std::endl;
-    if (newStart > newEnd) {
-        currentLine += line.substr(newStart, line.size()-newStart);
-        currentLine += line.substr(0, newEnd+1);
-    } else {
-        currentLine += line.substr(newStart, newEnd-newStart+1);
-    }
-    fout << currentLine << std::endl;
+    // // std::cout << newStart << " " << newEnd << " " << ctr << " " << start << " " << end << std::endl;
+    // if (newStart > newEnd) {
+    //     currentLine += line.substr(newStart, line.size()-newStart);
+    //     currentLine += line.substr(0, newEnd+1);
+    // } else {
+    //     currentLine += line.substr(newStart, newEnd-newStart+1);
+    // }
+    // fout << currentLine << std::endl;
 }
 
 // Depth first traversal FASTA writer
 void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& sequence,
-        blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, std::tuple< int, int, int, int > panMATStart, std::tuple< int, int, int, int > panMATEnd) {
-
+        blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex) {
+        
     // Apply mutations
+    // std::cout << root->identifier << " " << std::get<0>(panMATStart) << " " << std::get<1>(panMATStart) << " " << std::get<2>(panMATStart) << " " << std::get<3>(panMATStart) <<std::endl;
+    // std::cout << root->identifier << " " << std::get<0>(panMATEnd) << " " << std::get<1>(panMATEnd) << " " << std::get<2>(panMATEnd) << " " << std::get<3>(panMATEnd) <<std::endl;
 
     // For reversing block mutations - primary block id, secondary block id, old mutation, old strand, new mutation, new strand
     std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > > blockMutationInfo;
@@ -318,7 +291,6 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
             exit(0);
         }
 
-        // if (rootSeq && (primaryBlockId>=std::get<0>(panMATStart) && primaryBlockId<=std::get<0>(panMATEnd)) && (secondaryBlockId<=std::get<1>(panMATStart) && secondaryBlockId<=std::get<1>(panMATEnd)) ) {
         if(type == 1) {
             // insertion
 
@@ -617,23 +589,64 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
                     break;
                 }
             }
+            // std::cout << "rotating" << std::endl;
             rotate(sequencePrint.begin(), sequencePrint.begin() + rotInd, sequencePrint.end());
             rotate(blockExistsPrint.begin(), blockExistsPrint.begin() + rotInd, blockExistsPrint.end());
             rotate(blockStrandPrint.begin(), blockStrandPrint.begin() + rotInd, blockStrandPrint.end());
         }
 
         if(sequenceInverted.find(root->identifier) != sequenceInverted.end() && sequenceInverted[root->identifier]) {
+            // std::cout << "inverting" << std::endl;
             reverse(sequencePrint.begin(), sequencePrint.end());
             reverse(blockExistsPrint.begin(), blockExistsPrint.end());
             reverse(blockStrandPrint.begin(), blockStrandPrint.end());
         }
-
-        panmanUtils::printSequenceLines(sequencePrint, blockExistsPrint, blockStrandPrint, 70, aligned, fout, offset);
+        if (allIndex) {
+            // bool* checkA;
+            // bool* checkB;
+            // *checkA = false;
+            // *checkB = false;
+            // int startCoordinate = getUnalignedGlobalCoordinate(std::get<0>(panMATStart),
+            //                                            std::get<1>(panMATStart),
+            //                                            std::get<2>(panMATStart),
+            //                                            std::get<3>(panMATStart),
+            //                                            sequencePrint,
+            //                                            blockExistsPrint,
+            //                                            blockStrandPrint,
+            //                                            circularSequences[root->identifier],
+            //                                            checkA
+            //                                         );
+    
+            // int endCoordinate = getUnalignedGlobalCoordinate(std::get<0>(panMATEnd),
+            //                                                 std::get<1>(panMATEnd),
+            //                                                 std::get<2>(panMATEnd),
+            //                                                 std::get<3>(panMATEnd),
+            //                                                 sequencePrint,
+            //                                                 blockExistsPrint,
+            //                                                 blockStrandPrint,
+            //                                                 circularSequences[root->identifier],
+            //                                                 checkB
+            //                                             );
+            
+            // if (checkA) {
+            //     startCoordinate = -1;
+            // }
+            // if (checkB) {
+            //     endCoordinate = -1;
+            // }
+            // std::cout << root->identifier << " " << startCoordinate << " " << endCoordinate << " offsets " << circularSequences[root->identifier] << " " << offset << std::endl;
+            // std::cout << "printFASTA start" << std::get<0>(panMATStart) << " " << std::get<1>(panMATStart) << " " << std::get<2>(panMATStart) << " " << std::get<3>(panMATStart) << std::endl;
+            // std::cout << "printFASTA end" << std::get<0>(panMATEnd) << " " << std::get<1>(panMATEnd) << " " << std::get<2>(panMATEnd) << " " << std::get<3>(panMATEnd) << std::endl;
+            panmanUtils::printSubsequenceLines(sequencePrint, blockExistsPrint, blockStrandPrint, 70, panMATStart, panMATEnd, aligned, fout, offset);
+        } else {
+            panmanUtils::printSequenceLines(sequencePrint, blockExistsPrint, blockStrandPrint, 70, aligned, fout, offset);
+        }
     } else {
 
         // DFS on children
         for(panmanUtils::Node* child: root->children) {
-            printFASTAHelper(child, sequence, blockExists, blockStrand, fout, aligned, rootSeq);
+            printFASTAHelper(child, sequence, blockExists, blockStrand, fout, aligned, rootSeq, panMATStart, panMATEnd, allIndex);
+
         }
     }
 
@@ -667,10 +680,13 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
             }
         }
     }
+
+    // std::cout << "Done iteration for node: " << root->identifier << std::endl; 
+
 }
 
 void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &nodeList, int nodeListIndex, sequence_t& sequence,
-        blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, int panMATStart, int panMATEnd) {
+        blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd) {
     
     panmanUtils::Node* node = nodeList[nodeListIndex--];
 
@@ -1036,7 +1052,7 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
     }
 }
 
-void panmanUtils::Tree::printFASTA(std::ostream& fout, bool aligned, bool rootSeq) {
+void panmanUtils::Tree::printFASTA(std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex) {
     // List of blocks. Each block has a nucleotide list. Along with each nucleotide is a gap list.
     std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence(blocks.size() + 1);
     std::vector< std::pair< bool, std::vector< bool > > > blockExists(blocks.size() + 1, {false, {}});
@@ -1111,7 +1127,8 @@ void panmanUtils::Tree::printFASTA(std::ostream& fout, bool aligned, bool rootSe
     }
 
     // Run depth first traversal to extract sequences
-    printFASTAHelper(root, sequence, blockExists, blockStrand, fout, aligned, rootSeq);
+    
+    printFASTAHelper(root, sequence, blockExists, blockStrand, fout, aligned, rootSeq, panMATStart, panMATEnd, allIndex);
 
 }
 
@@ -1126,32 +1143,6 @@ void panmanUtils::Tree::printSingleNode(std::ostream& fout, const sequence_t& se
         newNode = newNode->parent;
         nodeList.push_back(newNode);
     }
-
-    // for (int i=nodeList.size()-1; i>=0; i--) std::cout << nodeList[i]->identifier << std::endl;
-
-    // std::cout << std::get<0>(panMATStart) << " " << std::get<1>(panMATStart) << " " << std::get<2>(panMATStart) << " " << std::get<3>(panMATStart) << std::endl;
-    // std::cout << std::get<0>(panMATEnd) << " " << std::get<1>(panMATEnd) << " " << std::get<2>(panMATEnd) << " " << std::get<3>(panMATEnd) << std::endl;
-
-    int startCoordinate = getUnalignedGlobalCoordinate(std::get<0>(panMATStart),
-                                                       std::get<1>(panMATStart),
-                                                       std::get<2>(panMATStart),
-                                                       std::get<3>(panMATStart),
-                                                       sequenceRef,
-                                                       blockExistsRef,
-                                                       blockStrandRef,
-                                                       circularSequences[nodeIdentifier]
-                                                    );
-    
-    int endCoordinate = getUnalignedGlobalCoordinate(std::get<0>(panMATEnd),
-                                                       std::get<1>(panMATEnd),
-                                                       std::get<2>(panMATEnd),
-                                                       std::get<3>(panMATEnd),
-                                                       sequenceRef,
-                                                       blockExistsRef,
-                                                       blockStrandRef,
-                                                       circularSequences[nodeIdentifier]
-                                                    );
-    // std::cout << startCoordinate << ":" << endCoordinate << std::endl;
 
     // List of blocks. Each block has a nucleotide list. Along with each nucleotide is a gap list.
     std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >, std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence(blocks.size() + 1);
@@ -1226,6 +1217,6 @@ void panmanUtils::Tree::printSingleNode(std::ostream& fout, const sequence_t& se
         }
     }
     // Run traversal on nodeList to extract sequences
-    printSingleNodeHelper(nodeList, (nodeList.size()-1), sequence, blockExists, blockStrand, fout, false, false, startCoordinate, endCoordinate);
+    printSingleNodeHelper(nodeList, (nodeList.size()-1), sequence, blockExists, blockStrand, fout, false, false, panMATStart, panMATEnd);
 
 }

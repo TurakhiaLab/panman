@@ -149,7 +149,7 @@ void setupOptionDescriptions() {
     ("create-network,k", "Create PanMAN with network of trees from single or multiple PanMAN files")
     ("printMutations,p", "Create PanMAN with network of trees from single or multiple PanMAN files")
     ("acr,q", "ACR method [fitch(default), mppa]")
-    ("index", "Generating indexes and print sequence (passed as reference) between x:y")
+    ("index",po::value< bool >(0), "Generating indexes and print sequence (passed as reference) between x:y")
     ("printRoot", "Print root sequence")
     //("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
   
@@ -567,6 +567,11 @@ void parseAndExecute(int argc, char* argv[]) {
             optimize = true;
         }
 
+        std::string reference = "";
+        if (globalVm.count("reference")) {
+            reference = globalVm["reference"].as<std::string>();
+        }
+
         std::string newickFileName = globalVm["input-newick"].as< std::string >();
 
         std::cout << "Creating PanMAN from MSA and Newick" << std::endl;
@@ -578,10 +583,10 @@ void parseAndExecute(int argc, char* argv[]) {
 
         if(!optimize) {
             T = new panmanUtils::Tree(inputStream, newickInputStream,
-                                  panmanUtils::FILE_TYPE::MSA);
+                                  panmanUtils::FILE_TYPE::MSA, reference);
         } else {
             T = new panmanUtils::Tree(inputStream, newickInputStream,
-                                    panmanUtils::FILE_TYPE::MSA_OPTIMIZE);
+                                    panmanUtils::FILE_TYPE::MSA_OPTIMIZE, reference);
         }
 
         // checkFunction(T);
@@ -664,7 +669,7 @@ void parseAndExecute(int argc, char* argv[]) {
             std::ostream fout (buf);
 
 
-            T->printFASTA(fout, false);
+            T->printFASTA(fout, false, true);
 
             if(globalVm.count("output-file")) outputFile.close();
         }
@@ -1000,12 +1005,10 @@ void parseAndExecute(int argc, char* argv[]) {
             return;
         }
 
-        int treeID;
-        if(!globalVm.count("treeID")) {
-            panmanUtils::printError("TreeID not provided!");
-            std::cout << globalDesc;
-            return;
-        } else treeID = std::stoi(globalVm["treeID"].as< std::string >());
+        int treeID = 0;
+        if(globalVm.count("treeID")) {
+            treeID = std::stoi(globalVm["treeID"].as< std::string >());
+        }
 
         panmanUtils::TreeGroup tg = *TG;
         T = &tg.trees[treeID];
@@ -1261,6 +1264,10 @@ void parseAndExecute(int argc, char* argv[]) {
         auto fastaStart = std::chrono::high_resolution_clock::now();
         for(int i = 0; i < tg.trees.size(); i++) {
             T = &tg.trees[i];
+            if (T->allNodes.find(reference) == T->allNodes.end()) {
+                std::cout << "Error: reference " << reference << " does not exist in PanMAN\n";
+                exit(0);
+            }
             if(globalVm.count("output-file")) {
                 std::string fileName = globalVm["output-file"].as< std::string >();
                 outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".index");
@@ -1270,8 +1277,9 @@ void parseAndExecute(int argc, char* argv[]) {
             }
             std::ostream fout (buf);
 
+            bool allIndex = globalVm["index"].as< bool >();
 
-            T->extractPanMATIndex(fout, startCoordinate,endCoordinate, reference);
+            T->extractPanMATIndex(fout, startCoordinate,endCoordinate, reference, allIndex);
 
             if(globalVm.count("output-file")) outputFile.close();
         }

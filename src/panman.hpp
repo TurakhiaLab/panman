@@ -307,10 +307,10 @@ class Tree {
     // Tree traversal for FASTA writer
     void printFASTAHelper(panmanUtils::Node* root, sequence_t& sequence,
                           blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout,
-                          bool aligned = false, bool rootSeq = false, std::tuple<int, int, int, int> start={-1,-1,-1,-1}, std::tuple<int, int, int, int> end={-1,-1,-1,-1});
+                          bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
 
     void printSingleNodeHelper(std::vector<panmanUtils::Node*> &nodeList, int nodeListIndex, sequence_t& sequence,
-        blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, int panMATStart, int panMATEnd);
+        blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart={-1,-1,-1,-1}, const std::tuple< int, int, int, int >& panMATEnd={-1,-1,-1,-1});
 
     // Merge parent and child nodes when compressing subtree
     void mergeNodes(Node* par, Node* chi);
@@ -399,7 +399,7 @@ class Tree {
     void protoMATToTree(const panman::Tree::Reader& mainTree);
 
     // Fitch Algorithm on Nucleotide mutations
-    int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states);
+    int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
     int nucFitchForwardPassOpt(Node* node, std::unordered_map< std::string, int >& states);
     // Default state is used in rerooting to a tip sequence. It is used to fix the state at
     // the root
@@ -459,7 +459,7 @@ class Tree {
     // void printSummary();
     void printSummary(std::ostream &out);
     void printBfs(Node* node = nullptr);
-    void printFASTA(std::ostream& fout, bool aligned = false, bool rootSeq = false);
+    void printFASTA(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
     void printSingleNode(std::ostream& fout, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
                                          std::string nodeIdentifier, std::tuple< int, int, int, int > &panMATStart, std::tuple< int, int, int, int > &panMATEnd);
@@ -505,7 +505,7 @@ class Tree {
     int32_t getUnalignedGlobalCoordinate(int32_t primaryBlockId, int32_t secondaryBlockId,
                                          int32_t pos, int32_t gapPos, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
-                                         int circularOffset = 0);
+                                         int circularOffset = 0, bool * check = nullptr);
     std::tuple< int, int, int, int > globalCoordinateToBlockCoordinate(
         int64_t globalCoordinate,
         const sequence_t& sequence,

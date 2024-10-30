@@ -39,7 +39,9 @@ void printSequenceLines(const sequence_t& sequence,
                         bool aligned, std::ostream& fout, int offset = 0, bool debug = false);
 
 void printSubsequenceLines(const sequence_t& sequence,\
-                                     const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, int start, int end, 
+                                     const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, 
+                                     const std::tuple<int, int, int, int>& panMATStart, 
+                                     const std::tuple<int, int, int, int>& panMATEnd, 
                                      bool aligned, std::ostream& fout, int offset=0, bool debug=false);
 
 // Remove '-' character from sequence string
