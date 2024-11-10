@@ -172,7 +172,7 @@ Annotate nodes in a PanMAN with a custom string, later searched by these annotat
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --annotate <path to file containing list of annotations> --output-file=ecoli_10_annotate
+./panmanUtils -I <path to PanMAN file> --annotate --input-file=<path to file containing list of annotations> --output-file=ecoli_10_annotate
 ```
 * Example
 ```bash
