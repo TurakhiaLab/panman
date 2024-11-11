@@ -708,7 +708,8 @@ void parseAndExecute(int argc, char* argv[]) {
             std::ostream fout (buf);
 
 
-            T->printFASTA(fout, true);
+            // T->printFASTA(fout, true);
+            T->printFASTAParallel(fout, true);
 
 
             if(globalVm.count("output-file")) outputFile.close();
