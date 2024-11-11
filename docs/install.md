@@ -15,7 +15,7 @@ cd panman
 chmod +x install/installationUbuntu.sh
 ./install/installationUbuntu.sh
 ```
-3. Run panmanUtils
+3. Run <i>panmanUtils</i>
 ```bash
 cd build
 ./panmanUtils --help
@@ -37,14 +37,14 @@ docker pull swalia14/panman:latest
 ```bash
 docker run -it swalia14/panman:latest
 ```
-3. Run panmanUtils
+3. Run <i>panmanUtils</i>
 ```bash
 # Insider docker container
 cd /home/panman/build
 ./panmanUtils --help
 ```
 !!!Note
- The docker image comes with preinstalled panmanUtils and other tools such as PanGraph, PGGB, and RIVET.
+    The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.
 
 ## Using DockerFile
 Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps
@@ -66,7 +66,7 @@ docker build -t panman .
 ```bash
 docker run -it panman
 ```
-4. Run panmanUtils
+4. Run <i>panmanUtils</i>
 ```bash
 # Insider docker container
 cd /home/panman/build
