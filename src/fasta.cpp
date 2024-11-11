@@ -1225,6 +1225,7 @@ void panmanUtils::Tree::printFASTAParallel(std::ostream& fout, bool aligned) {
 
     std::mutex fastaMutex;
     size_t lineSize = 70;
+    std::cout << tbb::this_task_arena::max_concurrency() << std::endl;
 
     tbb::parallel_for_each(allNodes, [&](auto n) {
         if(n.second->children.size() == 0) {
