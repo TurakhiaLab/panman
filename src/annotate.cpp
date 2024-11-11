@@ -29,11 +29,15 @@ void panmanUtils::Tree::annotate(std::ifstream& fin) {
         }
 
         if(allNodes.find(nodeId) == allNodes.end()) {
-            std::cout << "Node ID not found. Line: " << line << std::endl;
+            std::cout << "Node ID not found. Line: " << nodeId << " [" << line << "]" << std::endl;
+            // for (auto a: allNodes) {
+            //     std::cout << a->
+            // }
             return;
         }
-
         Node* nodeToAnnotate = allNodes[nodeId];
+        
+        std::cout << "node before annotation: " << nodeToAnnotate->identifier << " " << nodeToAnnotate->annotations.size() << std::endl;
 
         // Extract annotations
         for(; i < line.length(); i++) {
@@ -57,6 +61,8 @@ void panmanUtils::Tree::annotate(std::ifstream& fin) {
             annotationsToNodes[annotation].push_back(nodeId);
             word = "";
         }
+
+        std::cout << "node annotated: " << nodeToAnnotate->identifier << " " << nodeToAnnotate->annotations[0] << std::endl;
 
     }
 }

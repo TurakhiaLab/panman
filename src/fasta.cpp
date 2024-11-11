@@ -1220,3 +1220,58 @@ void panmanUtils::Tree::printSingleNode(std::ostream& fout, const sequence_t& se
     printSingleNodeHelper(nodeList, (nodeList.size()-1), sequence, blockExists, blockStrand, fout, false, false, panMATStart, panMATEnd);
 
 }
+
+void panmanUtils::Tree::printFASTAParallel(std::ostream& fout, bool aligned) {
+
+    std::mutex fastaMutex;
+    size_t lineSize = 70;
+
+    tbb::parallel_for_each(allNodes, [&](auto n) {
+        if(n.second->children.size() == 0) {
+            std::string sequence;
+            sequence = getStringFromReference(n.first, aligned);
+
+            fastaMutex.lock();
+            fout << '>' << n.first << '\n';
+            for(size_t i = 0; i < sequence.size(); i+=lineSize) {
+                fout << sequence.substr(i, std::min(lineSize, sequence.size() - i)) << '\n';
+            }
+            fastaMutex.unlock();
+        }
+
+    });
+}
+
+void panmanUtils::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout) {
+    std::map< std::string, std::string > nodes;
+    std::map< std::string, std::vector< std::string > > paths;
+    std::string line;
+    while(getline(fin, line, '\n')) {
+        std::vector< std::string > separatedLine;
+        stringSplit(line, '\t', separatedLine);
+        if(separatedLine[0] == "S") {
+            nodes[separatedLine[1]] = separatedLine[2];
+        } else if(separatedLine[0] == "P") {
+            std::vector< std::string > v;
+            stringSplit(separatedLine[2], ',', paths[separatedLine[1]]);
+        }
+    }
+    for(auto p: paths) {
+        fout << ">" << p.first << "\n";
+        std::string sequence;
+        for(auto s: p.second) {
+            char strand = s[s.length()-1];
+            s.pop_back();
+            if(strand == '+') {
+                sequence += nodes[s];
+            } else {
+                for (std::string::reverse_iterator rit=nodes[s].rbegin(); rit!=nodes[s].rend(); ++rit) {
+                    sequence += getComplementCharacter(*rit);
+                }
+            }
+        }
+        for(size_t i = 0; i < sequence.size(); i+=70) {
+            fout << sequence.substr(i,std::min((size_t)70, sequence.size() - i)) << '\n';
+        }
+    }
+}

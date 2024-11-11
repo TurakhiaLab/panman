@@ -534,6 +534,7 @@ void panmanUtils::Tree::assignMutationsToNodes(Node* root, size_t& currentIndex,
 
     for (auto nodeAnnotations: storedNode[currentIndex].getAnnotations()){
         root->annotations.push_back(nodeAnnotations.cStr());
+        std::cout << root->identifier << " " << nodeAnnotations.cStr() << std::endl;
         annotationsToNodes[nodeAnnotations.cStr()].push_back(root->identifier);
     }
 
@@ -558,6 +559,48 @@ bool panmanUtils::Tree::hasPolytomy(Node* node) {
     }
     return false;
 }
+
+
+void readFasta(std::ifstream& fin, std::map< std::string, std::string >& sequenceIdsToSequences) {
+    std::string line;
+    std::string currentSequence, currentSequenceId;
+    size_t lineLength = 0;
+
+    while(getline(fin,line,'\n')) {
+        if(line.length() == 0) {
+            continue;
+        }
+        if(line[0] == '>') {
+            if(currentSequence.length()) {
+                if(lineLength == 0) {
+                    lineLength = currentSequence.length();
+                } else if(lineLength != currentSequence.length()) {
+                    std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                    exit(-1);
+                }
+                sequenceIdsToSequences[currentSequenceId] = currentSequence;
+            }
+            std::vector< std::string > splitLine;
+            panmanUtils::stringSplit(line,' ',splitLine);
+            currentSequenceId = splitLine[0].substr(1);
+            currentSequence = "";
+        } else {
+            currentSequence += line;
+        }
+    }
+    if(currentSequence.length()) {
+        if(lineLength != 0 && lineLength != currentSequence.length()) {
+            std::cerr << "Error: sequence lengths don't match!" << std::endl;
+            exit(-1);
+        } else {
+            lineLength = currentSequence.length();
+        }
+        sequenceIdsToSequences[currentSequenceId] = currentSequence;
+    }
+
+}
+
+
 
 size_t readFastaInBatch(std::ifstream& fin, std::map< std::string, std::string >& sequenceIdsToSequences, size_t &startIndex, size_t batchSize) {
     std::string line;
@@ -602,10 +645,6 @@ size_t readFastaInBatch(std::ifstream& fin, std::map< std::string, std::string >
     }
 
     std::cout << "Done reading till " << nextStartIndex - 1 << std::endl;
-
-    // reset file reader (very important)
-    fin.clear();
-    fin.seekg(0);
 
     return nextStartIndex;
 }
@@ -1197,15 +1236,16 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         // std::cout << root->identifier << std::endl;
         // ReRoot tree if reference provided
         if (reference != "") {
-            if (allNodes.find(reference) == allNodes.end()) {
-                std::cout << reference << " is not a tip!!" << std::endl;
-                exit(0);
-            }
-            transform(allNodes[reference]);
+            // if (allNodes.find(reference) == allNodes.end()) {
+            //     std::cout << reference << " is not a tip!!" << std::endl;
+            //     exit(0);
+            // }
+            // transform(allNodes[reference]);
             // std::cout << reference << "\t" << root->identifier << std::endl;
             consensusSeq = sequenceIdsToSequences[reference];
         } else {
-            for(size_t i = 0; i < lineLength; i++) {
+            tbb::parallel_for((size_t)0, lineLength, [&](size_t i) {
+            // for(size_t i = 0; i < lineLength; i++) {
                 bool nonGapFound = false;
                 for(auto u: sequenceIdsToSequences) {
                     if(u.second[i] != '-') {
@@ -1217,7 +1257,8 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 if(!nonGapFound) {
                     emptyPositions.insert(i);
                 }
-            }
+            // }
+            });
             for(auto& u: sequenceIdsToSequences) {
                 std::string sequenceString;
                 for(size_t i = 0; i < u.second.length(); i++) {
@@ -1228,11 +1269,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 u.second = sequenceString;
             }
         }
-        // std::cout << root->identifier << std::endl;
-        // std::cout << consensusSeq << std::endl;
-        blocks.emplace_back(0, consensusSeq);
-        root->blockMutation.emplace_back(0, std::make_pair(BlockMutationType::BI, false));
-                                                                        // pos, start, end
+        
         tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int8_t,int8_t > > > nonGapMutationsMSA;
         std::unordered_map< std::string, std::mutex > nodeMutexes;
         std::unordered_map< size_t, std::mutex > posMutexes;
@@ -1248,6 +1285,30 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
     	int positionCount = 0;
 
         tbb::parallel_for((size_t)0, consensusSeq.length(), [&](size_t i) {
+            // Sankoff
+            std::unordered_map< std::string, std::vector< int > > stateSets;
+            std::unordered_map< std::string, int > states;
+            std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
+
+            for(const auto& u: sequenceIdsToSequences) {
+                std::vector< int > currentState(16, SANKOFF_INF);
+                if(u.second[i] != '-') {
+                    currentState[getCodeFromNucleotide(u.second[i])] = 0;
+                } else {
+                    currentState[0] = 0;
+                }
+                stateSets[u.first] = currentState;
+            }
+            nucSankoffForwardPass(root, stateSets);
+            nucSankoffBackwardPass(root, stateSets, states, getCodeFromNucleotide(consensusSeq[i]));
+            nucSankoffAssignMutations(root, states, mutations, getCodeFromNucleotide(consensusSeq[i]));
+            for(auto mutation: mutations) {
+                nodeMutexes[mutation.first].lock();
+                nonGapMutationsMSA[mutation.first].push_back(std::make_tuple(i, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                nodeMutexes[mutation.first].unlock();
+            }
+            // Fitch
+            /*
             std::unordered_map< std::string, int > states;
             std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
             for(const auto& u: sequenceIdsToSequences) {
@@ -1269,7 +1330,14 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             }
             posMutexes[i].lock();
             posMutexes[i].unlock();
+            */
         });
+
+        // std::cout << root->identifier << std::endl;
+        std::cout << consensusSeq << std::endl;
+        blocks.emplace_back(0, consensusSeq);
+        root->blockMutation.emplace_back(0, std::make_pair(BlockMutationType::BI, false));
+                                                                        // pos, start, end
 
         sequenceIdsToSequences.clear(); // saving memory
 
@@ -1303,10 +1371,11 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         root = createTreeFromNewickString(newickString);
 
         std::string line;
+        std::string currentSequence, currentSequenceId;
         size_t lineLength = 0;
+        std::string consensusSeq;
 
         // Find length of MSA
-        std::string currentSequence;
         while(getline(fin,line,'\n')) {
             if(line.length() == 0) {
                 continue;
@@ -1315,9 +1384,14 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 if(currentSequence.length()) {
                     if(lineLength == 0) {
                         lineLength = currentSequence.length();
-                        break;
+                    } else if(lineLength != currentSequence.length()) {
+                        std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                        exit(-1);
                     }
                 }
+                std::vector< std::string > splitLine;
+                stringSplit(line,' ',splitLine);
+                currentSequenceId = splitLine[0].substr(1);
                 currentSequence = "";
             } else {
                 currentSequence += line;
@@ -1325,96 +1399,81 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         }
         std::cout << "line length: " << lineLength << std::endl;
 
-        // reset file reader (very important)
-        fin.clear();
-        fin.seekg(0);
-
-        // set batch size
-        size_t memory = 128;//GB
-        size_t batchSize = 100000;
-        std::cout << "Batch size set to: " << batchSize << std::endl;
-
-        std::string consensusSeq;
         consensusSeq.resize(lineLength);
-        size_t startIndex = 0;
 
-        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
+        tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int8_t,int8_t > > > nonGapMutationsMSA;
         std::unordered_map< std::string, std::mutex > nodeMutexes;
-
+        for(auto u: allNodes) {
+            nodeMutexes[u.first];
+        }
         
-        while (true) {
-            std::map< std::string, std::string > sequenceIdsToSequences;
-            size_t nextStartIndex =  readFastaInBatch(fin, sequenceIdsToSequences, startIndex, batchSize);
-            std::set< size_t > emptyPositions;
+        size_t startIndex = 0;
+        size_t memory = 128;//GB
+        size_t batchSize = 5000;
+        size_t nextStartIndex;
+
+        while (startIndex < lineLength) {
             auto newStart = std::chrono::high_resolution_clock::now();
-            tbb::parallel_for((size_t)0, nextStartIndex-startIndex, [&](size_t i) {
-                bool nonGapFound = false;
-                std::cout << startIndex+i << std::endl;
-                for(auto u: sequenceIdsToSequences) {
-                    if(u.second[i] != '-') {
-                        consensusSeq[startIndex+i] = u.second[i];
-                        nonGapFound = true;
-                        break;
+            std::map< std::string, std::string > sequenceIdsToSequences;
+            
+            //reset file read pointer
+            fin.clear(); // clear bad state after eof
+            fin.seekg(0);
+
+            nextStartIndex = readFastaInBatch(fin, sequenceIdsToSequences, startIndex, batchSize);
+
+            if (reference != "") {
+                std::cout << "writing consensus sequences from" << startIndex << " to " << nextStartIndex << std::endl;
+                for (int i=0; i<nextStartIndex-startIndex; i++){
+                    consensusSeq[startIndex+i] = sequenceIdsToSequences[reference][i];
+                }
+            } else {
+                tbb::parallel_for((size_t)0, nextStartIndex-startIndex, [&](size_t i) {
+                    bool nonGapFound = false;
+                    for(auto u: sequenceIdsToSequences) {
+                        if(u.second[i] != '-') {
+                            consensusSeq[i+startIndex] = u.second[i];
+                            nonGapFound = true;
+                            break;
+                        }
                     }
-                }
-                if(!nonGapFound) {
-                    std::cout << "ideally should not happen\n" << std::endl;
-                    exit(1);
-                    // emptyPositions.insert(i);
-                }
-            });
+                    if(!nonGapFound) {
+                        std::cout << "ideally should not happen\n" << std::endl;
+                        exit(1);
+                    }
+                });
+            }
+            
+            std::cout << "consensus seq len " << consensusSeq.size() << std::endl;
+            for (int i=startIndex; i<nextStartIndex;i++)
+                std::cout << consensusSeq[i];
+            std::cout << std::endl;
+
             auto newEnd = std::chrono::high_resolution_clock::now();
             std::chrono::nanoseconds newTime = newEnd - newStart;
-            std::cout << "Consensus till " << nextStartIndex << " done in " << newTime.count() << " nanoseconds" << std::endl;
-            /*
-            for(size_t i = 0; i < nextStartIndex-startIndex; i++) {
-                bool nonGapFound = false;
-                std::cout << i << std::endl;
-                for(auto u: sequenceIdsToSequences) {
-                    if(u.second[i] != '-') {
-                        consensusSeq += u.second[i];
-                        nonGapFound = true;
-                        break;
-                    }
-                }
-                if(!nonGapFound) {
-                    std::cout << "ideally should not happen\n" << std::endl;
-                    emptyPositions.insert(i);
-                }
-            }
-
-            for(auto& u: sequenceIdsToSequences) {
-                std::string sequenceString;
-                for(size_t i = 0; i < u.second.length(); i++) {
-                    if(emptyPositions.find(i) == emptyPositions.end()) {
-                        sequenceString += u.second[i];
-                    }
-                }
-                u.second = sequenceString;
-            }
-	        */
-
-            for(auto u: allNodes) {
-                nodeMutexes[u.first];
-            }
 
             newStart = std::chrono::high_resolution_clock::now();
             tbb::parallel_for((size_t)0, nextStartIndex-startIndex, [&](size_t i) {
+                // Sankoff
+                std::unordered_map< std::string, std::vector< int > > stateSets;
                 std::unordered_map< std::string, int > states;
                 std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
+
                 for(const auto& u: sequenceIdsToSequences) {
+                    std::vector< int > currentState(16, SANKOFF_INF);
                     if(u.second[i] != '-') {
-                        states[u.first] = (1 << getCodeFromNucleotide(u.second[i]));
+                        currentState[getCodeFromNucleotide(u.second[i])] = 0;
                     } else {
-                        states[u.first] = 1;
+                        currentState[0] = 0;
                     }
+                    stateSets[u.first] = currentState;
                 }
-                nucFitchForwardPass(root, states);
-                nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSeq[startIndex+i])));
-                nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[startIndex+i])));
+                nucSankoffForwardPass(root, stateSets);
+                nucSankoffBackwardPass(root, stateSets, states, getCodeFromNucleotide(consensusSeq[startIndex + i]));
+                nucSankoffAssignMutations(root, states, mutations, getCodeFromNucleotide(consensusSeq[startIndex + i]));
                 for(auto mutation: mutations) {
                     nodeMutexes[mutation.first].lock();
-                    nonGapMutations[mutation.first].push_back(std::make_tuple(0, -1, startIndex+i, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                    nonGapMutationsMSA[mutation.first].push_back(std::make_tuple(startIndex + i, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
                     nodeMutexes[mutation.first].unlock();
                 }
             });
@@ -1422,20 +1481,24 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             newTime = newEnd - newStart;
             std::cout << "Processed characters from " << startIndex << " to " << nextStartIndex - 1 << " in " << newTime.count() << " nanoseconds" << std::endl;
             startIndex = nextStartIndex;
-            if (startIndex>=lineLength) break;
         }
-        std::cout << "consensus seq len" << consensusSeq.size() << std::endl;
+
         blocks.emplace_back(0, consensusSeq);
         root->blockMutation.emplace_back(0, std::make_pair(BlockMutationType::BI, false));
+        std::cout << consensusSeq << std::endl;
 
-        tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
+        
+        tbb::parallel_for_each(nonGapMutationsMSA, [&](auto& u) {
+        // for(auto &u: nonGapMutationsMSA){
             nodeMutexes[u.first].lock();
             std::sort(u.second.begin(), u.second.end());
             nodeMutexes[u.first].unlock();
             size_t currentStart = 0;
             for(size_t i = 1; i < u.second.size(); i++) {
-                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
+                if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1])+1 || std::get<1>(u.second[i]) != std::get<1>(u.second[i-1])) {
                     nodeMutexes[u.first].lock();
+                    // if (std::get<0>(u.second[currentStart]) == 0)
+                    //     std::cout << u.first << std::endl;
                     allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
                     nodeMutexes[u.first].unlock();
                     currentStart = i;
@@ -1445,6 +1508,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             nodeMutexes[u.first].lock();
             allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
             nodeMutexes[u.first].unlock();
+        // }
         });
 
 
@@ -4662,62 +4726,6 @@ std::string panmanUtils::Tree::getSequenceFromVCF(std::string sequenceId, std::i
 
     return finalSequence;
 
-}
-
-void panmanUtils::Tree::printFASTAParallel(std::ofstream& fout, bool aligned) {
-
-    std::mutex fastaMutex;
-    size_t lineSize = 70;
-
-    tbb::parallel_for_each(allNodes, [&](auto n) {
-        if(n.second->children.size() == 0) {
-            std::string sequence;
-            sequence = getStringFromReference(n.first, aligned);
-
-            fastaMutex.lock();
-            fout << '>' << n.first << '\n';
-            for(size_t i = 0; i < sequence.size(); i+=lineSize) {
-                fout << sequence.substr(i, std::min(lineSize, sequence.size() - i)) << '\n';
-            }
-            fastaMutex.unlock();
-        }
-
-    });
-}
-
-
-void panmanUtils::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout) {
-    std::map< std::string, std::string > nodes;
-    std::map< std::string, std::vector< std::string > > paths;
-    std::string line;
-    while(getline(fin, line, '\n')) {
-        std::vector< std::string > separatedLine;
-        stringSplit(line, '\t', separatedLine);
-        if(separatedLine[0] == "S") {
-            nodes[separatedLine[1]] = separatedLine[2];
-        } else if(separatedLine[0] == "P") {
-            std::vector< std::string > v;
-            stringSplit(separatedLine[2], ',', paths[separatedLine[1]]);
-        }
-    }
-    for(auto p: paths) {
-        fout << ">" << p.first << "\n";
-        std::string sequence;
-        for(auto s: p.second) {
-            char strand = s[s.length()-1];
-            s.pop_back();
-            if(strand == '+') {
-                sequence += nodes[s];
-            } else {
-                for (std::string::reverse_iterator rit=nodes[s].rbegin(); rit!=nodes[s].rend(); ++rit) {
-                    sequence += getComplementCharacter(*rit);
-                }
-            }
-        }
-        for(size_t i = 0; i < sequence.size(); i+=70) {
-            fout << sequence.substr(i,std::min((size_t)70, sequence.size() - i)) << '\n';
-        }
-    }
 }
 
 int32_t panmanUtils::Tree::getUnalignedGlobalCoordinate(int32_t primaryBlockId,

@@ -160,6 +160,7 @@ void setupOptionDescriptions() {
     ("treeID,d", po::value< std::string >(), "Tree ID, required for --vcf")
     ("input-file,i", po::value< std::string >(), "Path to the input file, required for --subnet, --annotate, and --create-network")
     ("output-file,o", po::value< std::string >(), "Prefix of the output file name")
+    ("threads", po::value< std::int32_t >(), "Number of threads")
     // ("complexmutation-file", po::value< std::string >(), "File path of complex mutation file for tree group")
 
     // ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
@@ -397,6 +398,11 @@ void parseAndExecute(int argc, char* argv[]) {
     po::store(po::command_line_parser(argc, argv).options(globalDesc)
               .positional(globalPositionArgumentDesc).allow_unregistered().run(), globalVm);
     po::notify(globalVm);
+
+    int threads = 16;
+    if (globalVm.count("threads")) threads = globalVm["threads"].as<std::int32_t>();
+    tbb::task_scheduler_init init(threads);
+
 
     // If the data structure loaded into memory is a PanMAT, it is pointed to by T
     panmanUtils::Tree *T = nullptr;
@@ -668,8 +674,8 @@ void parseAndExecute(int argc, char* argv[]) {
             }
             std::ostream fout (buf);
 
-
-            T->printFASTA(fout, false, true);
+            T->printFASTAParallel(fout, false);
+            // T->printFASTA(fout, false, false);
 
             if(globalVm.count("output-file")) outputFile.close();
         }
@@ -1028,6 +1034,9 @@ void parseAndExecute(int argc, char* argv[]) {
         auto annotateEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds annotateTime = annotateEnd - annotateStart;
         std::cout << "Annotate time: " << annotateTime.count() << " nanoseconds\n";
+
+        writePanMAN(globalVm,TG);
+
     } else if (globalVm.count("reroot")) {
         // Reroot the PanMAT to given sequence
 
@@ -1323,7 +1332,58 @@ void parseAndExecute(int argc, char* argv[]) {
 
         return;
     } else {
-        return;
+        char** splitCommandArray;
+
+        while(true) {
+            std::cout << "> ";
+
+            std::string command;
+            std::getline (std::cin, command);
+            stripStringInPlace(command);
+
+            // Split command by spaces
+            std::vector< std::string > splitCommand;
+            panmanUtils::stringSplit(command, ' ', splitCommand);
+            splitCommandArray = new char*[splitCommand.size()];
+            for(size_t i = 0; i < splitCommand.size(); i++) {
+                splitCommandArray[i] = new char[splitCommand[i].length() + 1];
+                strcpy(splitCommandArray[i], splitCommand[i].c_str());
+            }
+
+            try{
+                if(strcmp(splitCommandArray[0], "use") == 0) {
+                    // If command was use, select the PanMAT with the given index from the PanMAN
+                    po::variables_map useVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(useDesc)
+                        .run(), useVm);
+
+                    if(useVm.count("help")) {
+                        std::cout << useDesc;
+                    } else {
+                        po::notify(useVm);
+                        size_t treeIndex = useVm["index"].as< size_t >();
+                        if(TG == nullptr) {
+                            std::cout << "No PanMAN loaded" << std::endl;
+                        } else {
+                            if(TG->trees.size() > treeIndex) {
+                                T = &TG->trees[treeIndex];
+                                std::cout << "PanMAT loaded" << std::endl;
+                            } else {
+                                std::cout << "PanMAT with index " << treeIndex << " doesn't exist."
+                                    " There are only " << TG->trees.size() << " PanMATs." << std::endl;
+                            }
+                        }
+                    }
+                } else if (strcmp(splitCommandArray[0], "root") == 0) {
+                    buf = std::cout.rdbuf();
+                    std::ostream fout (buf);
+                    TG->trees[0].printFASTA(fout, true, true);
+                } 
+            } catch (std::exception& e) {
+                std::cout << e.what() << std::endl;
+            }
+        }
     }
 }
 
@@ -1467,6 +1527,5 @@ void debuggingCode() {
 }
 
 int main(int argc, char* argv[]) {
-    tbb::task_scheduler_init init(32);
     parseAndExecute(argc, argv);
 }

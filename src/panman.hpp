@@ -463,7 +463,7 @@ class Tree {
     void printSingleNode(std::ostream& fout, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
                                          std::string nodeIdentifier, std::tuple< int, int, int, int > &panMATStart, std::tuple< int, int, int, int > &panMATEnd);
-    void printFASTAParallel(std::ofstream& fout, bool aligned = false);
+    void printFASTAParallel(std::ostream& fout, bool aligned = false);
     void printMAF(std::ostream& fout);
 
     void printMAFNew(std::ostream& fout);
