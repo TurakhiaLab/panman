@@ -81,12 +81,12 @@ Extract network in Extended Newick format.
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> ----extended-newick --output-file=<prefix of output file> (optional)
+./panmanUtils -I <path to PanMAN file> --extended-newick --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
 cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman ----extended-newick --output-file=sars_20
+./panmanUtils -I panman/sars_20.panman --extended-newick --output-file=sars_20
 ```
 
 #### Tip/internal node sequences extract
