@@ -15,11 +15,6 @@ cd $PANMAN_HOME/build
 
 **Step 1:** Check if `sars_20.json` and `sars_20.nwk` files exist in `test` directory. Alternatively, users can provide custom PanGraph (JSON) and tree topology (Newick format) files to build a panman. 
 
-<!-- ```bash
-cd $PANMAN_HOME/dataset
-TODO
-``` -->
-
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:
 
 ```bash
@@ -32,11 +27,6 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 
 **Step 1:** Check if `sars_20.gfa` and `sars_20.nwk` files exist in `test` directory. Alternatively, users can provide custom GFA and tree topology (Newick format) files to build a panman. 
 
-<!-- ```bash
-cd $PANMAN_HOME/dataset
-TODO
-``` -->
-
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from GFA:
 
 ```bash
@@ -48,11 +38,6 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 ### Building PanMAN from MSA (FASTA format)
 
 **Step 1:** Check if `sars_20.msa` and `sars_20.nwk` files exist in `test` directory. Alternatively, users can provide custom MSA (FASTA format) and tree topology (Newick format) files to build a panman. 
-<!-- 
-```bash
-cd $PANMAN_HOME/dataset
-TODO
-``` -->
 
 **Step 2:** Run <i>panmanUtils</i> to build a panman from GFA using the following commands:
 
@@ -66,20 +51,15 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 We provide scripts to construct <i>panmanUtils</i> inputs (PanGraph/GFA/MSA and Newick) from raw sequences (FASTA format), followed by building a panman.
 
 !!!Note
-    This script uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively. The script is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](install.md)). ß
+    This script uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively. The script is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](install.md)).
 
 **Step 1:** Check if the `sars_20.fa` file exists in `test` directory. Alternatively, users can provide custom raw sequences (FASTA format) to build a panman. 
-
-<!-- ```bash
-cd $PANMAN_HOME/dataset
-TODO
-``` -->
 
 **Step 2:** Run the following command to construct a panman from raw sequences.
 
 ```bash
 cd $PANMAN_HOME/scripts
 chmod +x build_panman.sh
-./build_panman.sh [pangraph or gfa or msa]
+./build_panman.sh pangraph/gfa/msa
 ```
     
