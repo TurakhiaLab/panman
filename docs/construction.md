@@ -54,7 +54,7 @@ cd $PANMAN_HOME/dataset
 TODO
 ``` -->
 
-**Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from GFA:
+**Step 2:** Run <i>panmanUtils</i> to build a panman from GFA using the following commands:
 
 ```bash
 cd $PANMAN_HOME/build
