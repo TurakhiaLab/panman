@@ -11,7 +11,7 @@ theme:
     - content.tabs.link
     - toc.follow
     - toc.integrate
-    - navigation.sections
+    # - navigation.sections
     - navigation.path
     - navigation.tabs
     - navigation.top
