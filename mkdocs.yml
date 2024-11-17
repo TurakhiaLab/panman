@@ -12,6 +12,7 @@ theme:
     - toc.follow
     - toc.integrate
     # - navigation.sections
+    - navigation.expand
     - navigation.path
     - navigation.tabs
     - navigation.top
