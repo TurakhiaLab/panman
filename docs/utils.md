@@ -205,6 +205,6 @@ cd $PANMAN_HOME/build
 
 !!!Note
     The interactive mode should look like the image attached below
-    <img src="images/interactive_mode.png" /><br>
+    <img src="images/interactiveMode.png" /><br>
 
 **Step 2:** Use the commands listed in [Table 1](#table1) to perform desired operation
