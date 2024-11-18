@@ -1,4 +1,4 @@
-site_name: PanMAN Wiki
+site_name: PanMAN
 repo_name: TurakhiaLab/panman
 repo_url: https://github.com/TurakhiaLab/panman
 
@@ -6,22 +6,29 @@ theme:
   name: material
   features:
     - announce.dismiss
-    - content.action.edit
-    - content.action.view
-    - content.code.annotate
+    - content.code.annotation
     - content.code.copy
-    - content.tooltips
-    - navigation.footer
-    - navigation.expand
-    - navigation.tabs.sticky
-    - navigation.instant.prefetch
-    - navigation.tracking
-    - search.highlight
-    - search.share
-    - search.suggest
+    - content.tabs.link
     - toc.follow
     - toc.integrate
+    # - navigation.sections
+    - navigation.expand
+    - navigation.path
+    # - navigation.tabs
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.suggest
+    # - content.action.edit
+    # - content.action.view
+    # - content.tooltips
+    # - navigation.tabs.sticky
+    # - navigation.instant.prefetch
+    # - navigation.tracking
+    # - search.share
+  
   language: en
+  
   palette:
     - scheme: default
       primary: white
@@ -29,27 +36,31 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
-      primary: white
-      accent: white
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
+    # - scheme: slate
+    #   primary: white
+    #   accent: white
+    #   toggle:
+    #     icon: material/brightness-4
+    #     name: Switch to light mode
 
-  # favicon: images/icon.svg
-  logo: images/icon.svg
+  favicon: images/icon.png
+  logo: images/icon.png
 
-  icon:
-  admonition:
-    note: octicons/tag-16
-    info: octicons/info-16
-    tip: octicons/squirrel-16
-    success: octicons/check-16
-    question: octicons/question-16
-    warning: octicons/alert-16
-    bug: octicons/bug-16
-    example: octicons/beaker-16
-    quote: octicons/quote-16
+plugins:
+  - social
+  - search
+
+  # icon:
+  # admonition:
+  #   note: octicons/tag-16
+  #   info: octicons/info-16
+  #   tip: octicons/squirrel-16
+  #   success: octicons/check-16
+  #   question: octicons/question-16
+  #   warning: octicons/alert-16
+  #   bug: octicons/bug-16
+  #   example: octicons/beaker-16
+  #   quote: octicons/quote-16
 
 extra:
   social:
@@ -69,15 +80,24 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.mark
   - attr_list
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
   - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
 
-use_directory_urls: false
+# use_directory_urls: false
 nav:
   - Home: index.md
+  - Install: install.md
+  - Construction: construction.md
+  - Utility: utils.md
 
-extra_javascript:
-  - javascripts/mathjax.js
-  - https://polyfill.io/v3/polyfill.min.js?features=es6
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+# extra_javascript:
+#   - javascripts/mathjax.js
+#   - https://polyfill.io/v3/polyfill.min.js?features=es6
+#   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+copyright: |
+  &copy; 2024 <a href="https://github.com/TurakhiaLab"  target="_blank" rel="noopener">Turakhia Lab</a>
