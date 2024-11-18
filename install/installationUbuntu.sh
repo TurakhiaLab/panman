@@ -1,6 +1,7 @@
 # Install dependencies
 
-sudo apt install -y git build-essential cmake wget curl zip unzip tar protobuf-compiler libboost-all-dev pkg-config capnproto
+sudo apt install -y git build-essential cmake wget curl zip unzip tar libboost-all-dev pkg-config capnproto
+
 # Build
 startDir=$pwd
 cd $(dirname "$0")
