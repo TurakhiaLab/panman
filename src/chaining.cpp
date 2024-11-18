@@ -35,16 +35,16 @@ struct hashPair {
     }
 };
 // Structure to represent a node in the range tree
-struct Node {
+struct NodeRangeTree {
     std::pair<int,int> point;
-    Node* left;
-    Node* right;
-    Node* parent;
+    NodeRangeTree* left;
+    NodeRangeTree* right;
+    NodeRangeTree* parent;
     int score;
 };
 
-Node* createNode(std::pair<int,int> point) {
-    Node* newNode = new Node;
+NodeRangeTree* createNode(std::pair<int,int> point) {
+    NodeRangeTree* newNode = new NodeRangeTree;
     newNode->point = point;
     newNode->left = newNode->right = nullptr;
     return newNode;
@@ -67,14 +67,14 @@ bool compareY(const std::pair<int,int>& a, const std::pair<int,int>& b) {
 }
 
 
-Node* constructRangeTree(tbb::concurrent_vector<std::pair<int,int>>& points, int start, int end) {
+NodeRangeTree* constructRangeTree(tbb::concurrent_vector<std::pair<int,int>>& points, int start, int end) {
     if (start > end)
         return nullptr;
 
     sort(points.begin() + start, points.begin() + end + 1, compareX);
 
     int mid = (start + end) / 2;
-    Node* root = createNode(points[mid]);
+    NodeRangeTree* root = createNode(points[mid]);
 
     root->left = constructRangeTree(points, start, mid - 1);
     root->right = constructRangeTree(points, mid + 1, end);
@@ -85,7 +85,7 @@ Node* constructRangeTree(tbb::concurrent_vector<std::pair<int,int>>& points, int
 
 
 // Function to perform range query on the 2D range tree
-void queryRange(Node* root, std::pair<int,int> rangeStart, std::pair<int,int> rangeEnd, vector<std::pair<int,int>>& result) {
+void queryRange(NodeRangeTree* root, std::pair<int,int> rangeStart, std::pair<int,int> rangeEnd, vector<std::pair<int,int>>& result) {
     if (root == nullptr)
         return;
 
@@ -101,7 +101,7 @@ void queryRange(Node* root, std::pair<int,int> rangeStart, std::pair<int,int> ra
         queryRange(root->right, rangeStart, rangeEnd, result);
 }
 
-void find_chain(Node* root, std::pair<int,int> point, std::unordered_map<std::pair<int,int>, std::pair<int, std::pair<int,int>>,hashPair>&map, int K, pair<int,int> &curr_base,pair<int,int> &max_score_point) {
+void find_chain(NodeRangeTree* root, std::pair<int,int> point, std::unordered_map<std::pair<int,int>, std::pair<int, std::pair<int,int>>,hashPair>&map, int K, pair<int,int> &curr_base,pair<int,int> &max_score_point) {
 
     std::vector<std::pair<int,int>> result;
     std::pair<int,int> new_base ((point.first - K > 0 ? point.first - K: 0), (point.second - K > 0 ? point.second - K: 0));
@@ -186,7 +186,7 @@ std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, s
     // Constructing the 2D range tree
     // std::cout << "Range Tree Construction Function ";
     start = std::chrono::high_resolution_clock::now();
-    Node* root = constructRangeTree(points_conc, 0, points_conc.size() - 1);
+    NodeRangeTree* root = constructRangeTree(points_conc, 0, points_conc.size() - 1);
     end = std::chrono::high_resolution_clock::now();
     time_ = (end-start);
     // cout << time_.count() << "\n";

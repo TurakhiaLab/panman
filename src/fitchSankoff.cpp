@@ -27,18 +27,23 @@ int panmanUtils::Tree::nucFitchForwardPassOpt(
 }
 
 int panmanUtils::Tree::nucFitchForwardPass(Node* node,
-        std::unordered_map< std::string, int >& states) {
+        std::unordered_map< std::string, int >& states, int refState) {
     if(node->children.size() == 0) {
         if(states.find(node->identifier) == states.end()) {
+            // std::cerr << "Node ID not found" << std::endl;
             return states[node->identifier] = 0;
         }
         return states[node->identifier];
     }
     std::vector< int > childStates;
     for(auto child: node->children) {
-        childStates.push_back(nucFitchForwardPass(child, states));
+        childStates.push_back(nucFitchForwardPass(child, states, refState));
     }
+    //for root
     int orStates = 0, andStates = childStates[0];
+    if (node->parent==nullptr) {
+        return states[node->identifier] = refState;
+    } 
     for(auto u: childStates) {
         orStates |= u;
         andStates &= u;

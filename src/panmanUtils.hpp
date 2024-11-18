@@ -12,7 +12,7 @@
 #include <boost/iostreams/filter/gzip.hpp>
 
 #include <json/json.h>
-#include "panman.pb.h"
+#include "panman.capnp.h"
 
 #include "panman.hpp"
 
@@ -37,6 +37,12 @@ char getComplementCharacter(char nuc);
 void printSequenceLines(const sequence_t& sequence,
                         const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize,
                         bool aligned, std::ostream& fout, int offset = 0, bool debug = false);
+
+void printSubsequenceLines(const sequence_t& sequence,\
+                                     const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, 
+                                     const std::tuple<int, int, int, int>& panMATStart, 
+                                     const std::tuple<int, int, int, int>& panMATEnd, 
+                                     bool aligned, std::ostream& fout, int offset=0, bool debug=false);
 
 // Remove '-' character from sequence string
 std::string stripGaps(std::string sequenceString);

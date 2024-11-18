@@ -15,8 +15,14 @@
 
 static const int SANKOFF_INF = 100000001;
 
-typedef std::vector< std::pair< std::vector< std::pair< char, std::vector< char > > >,
-        std::vector< std::vector< std::pair< char, std::vector< char > > > > > > sequence_t;
+typedef std::vector< // block id
+            std::pair< 
+                std::vector< std::pair< char, std::vector< char > > >, // vector - nuc id, char - char at nuc id, vector <char> - nuc at gap id
+                std::vector< 
+                    std::vector< std::pair< char, std::vector< char > > > 
+                > 
+            > 
+        > sequence_t;
 // Individual block
 typedef std::vector< std::pair< char, std::vector< char > > > block_t;
 
