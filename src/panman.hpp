@@ -308,6 +308,9 @@ class Tree {
     void printFASTAHelper(panmanUtils::Node* root, sequence_t& sequence,
                           blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout,
                           bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
+    void printFASTAHelperNew(panmanUtils::Node* root, sequence_t& sequence,
+                          blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout,
+                          bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
 
     void printSingleNodeHelper(std::vector<panmanUtils::Node*> &nodeList, int nodeListIndex, sequence_t& sequence,
         blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart={-1,-1,-1,-1}, const std::tuple< int, int, int, int >& panMATEnd={-1,-1,-1,-1});
@@ -460,6 +463,7 @@ class Tree {
     void printSummary(std::ostream &out);
     void printBfs(Node* node = nullptr);
     void printFASTA(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
+    void printFASTANew(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
     void printSingleNode(std::ostream& fout, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
                                          std::string nodeIdentifier, std::tuple< int, int, int, int > &panMATStart, std::tuple< int, int, int, int > &panMATEnd);

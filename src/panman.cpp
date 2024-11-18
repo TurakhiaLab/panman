@@ -3377,18 +3377,51 @@ void panmanUtils::Tree::printMutations(std::ostream& fout) {
 
 void panmanUtils::Tree::printNodePaths(std::ostream& fout) {
 
-    for (auto &u: allNodes) {
-        Node* it = u.second;
+    // for (auto &u: allNodes) {
+    //     Node* it = u.second;
 
-        while(it != root) {
-            std::cout << it->identifier << "\t";
-            it = it->parent;
-            if (it != root) std::cout << "<\t";
-            else std::cout << "\n";
+    //     while(it != root) {
+    //         std::cout << it->identifier << "\t";
+    //         it = it->parent;
+    //         if (it != root) std::cout << "<\t";
+    //         else std::cout << "\n";
+    //     }
+
+    // }
+    string name;
+    std::cout << "Enter sequence name:";
+    std::cin >> name;
+
+    std::string positionString;
+    int position;
+    std::cout << "Enter position:";
+    std::cin >> positionString;
+    position = std::stoi(positionString);
+
+    Node * currentNode = allNodes[name];
+    while (true){
+        for (auto &n: currentNode->nucMutation){
+            if (n.nucPosition==position){
+                std::cout << " >> " << currentNode->identifier << ": " << (getNucleotideFromCode(n.nucs&0xF)) << std::endl;
+                break;
+            } else if (position > n.nucGapPosition && position - n.nucPosition < 6) {
+                int len = (n.mutInfo>>4)&0xF;
+                if (n.nucPosition+len>position) {
+                    int itr = position - n.nucPosition;
+                    int nuc = n.nucs;
+                    while (itr>0) {
+                        nuc = nuc>>4;
+                        itr--;
+                    }
+                    std::cout << " >(" << n.nucPosition << ", " << len << ", " << (NucMutationType)(n.mutInfo&0xF) << ")" << currentNode->identifier << ": " << (getNucleotideFromCode(nuc&0xF)) << std::endl;
+                }
+            }
         }
-
+        if (currentNode == root) break;
+        currentNode = currentNode->parent;
     }
-
+    std::cout << "\n";
+    return;
 }
 
 

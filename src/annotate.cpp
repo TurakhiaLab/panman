@@ -29,7 +29,7 @@ void panmanUtils::Tree::annotate(std::ifstream& fin) {
         }
 
         if(allNodes.find(nodeId) == allNodes.end()) {
-            std::cout << "Node ID not found. Line: " << nodeId << " [" << line << "]" << std::endl;
+            // std::cout << "Node ID not found. Line: " << nodeId << " [" << line << "]" << std::endl;
             // for (auto a: allNodes) {
             //     std::cout << a->
             // }

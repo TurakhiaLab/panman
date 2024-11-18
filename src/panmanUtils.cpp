@@ -81,6 +81,8 @@ void checkFunction(panmanUtils::Tree *T) {
     return;
 }
 
+
+
 // program option description for building/loading a PanMAT into memory
 po::options_description globalDesc("panmanUtils Command Line Arguments");
 po::positional_options_description globalPositionArgumentDesc;
@@ -90,36 +92,37 @@ po::options_description summaryDesc("Summary Command Line Arguments");
 po::options_description useDesc("Use Command Line Arguments");
 po::options_description fastaDesc("FASTA Command Line Arguments");
 po::positional_options_description fastaPositionArgumentDesc;
-po::options_description mafDesc("MAF Writer Command Line Arguments");
-po::positional_options_description mafPositionArgumentDesc;
-po::options_description writeDesc("MAT Writer Command Line Arguments");
-po::positional_options_description writePositionArgumentDesc;
-po::options_description subtreeDesc("Subtree Extract Command Line Arguments");
-po::positional_options_description subtreePositionArgumentDesc;
+po::options_description fastaAlignDesc("FASTA Command Line Arguments");
+po::positional_options_description fastaAlignPositionArgumentDesc;
+po::options_description subnetDesc("Subnetwork Command Line Arguments");
+po::positional_options_description subnetPositionArgumentDesc;
 po::options_description vcfDesc("VCF writer Command Line Arguments");
 po::positional_options_description vcfPositionArgumentDesc;
-po::options_description annotateDesc("MAT Annotate Command Line Arguments");
+po::options_description gfaDesc("GFA writer Command Line Arguments");
+po::positional_options_description gfaPositionArgumentDesc;
+po::options_description mafDesc("MAF Writer Command Line Arguments");
+po::positional_options_description mafPositionArgumentDesc;
+po::options_description newickDesc("Newick Writer Command Line Arguments");
+po::positional_options_description newickPositionArgumentDesc;
+po::options_description extendNewickDesc("Extended Newick Writer Command Line Arguments");
+po::positional_options_description extedNewickDescPositionArgumentDesc;
+po::options_description annotateDesc("Annotate Command Line Arguments");
 po::positional_options_description annotatePositionArgumentDesc;
-po::options_description searchDesc("Search by annotation Command Line Arguments");
-po::positional_options_description searchPositionArgumentDesc;
-po::options_description generateGFADesc("Generate GFA Command Line Arguments");
-po::positional_options_description generateGFAArgumentDesc;
 po::options_description rerootDesc("Reroot Command Line Arguments");
 po::positional_options_description rerootArgumentDesc;
-po::options_description substitutionsDesc("Substitutions Command Line Arguments");
-po::positional_options_description substitutionsArgumentDesc;
-po::options_description aaTranslationDesc("Amino Acid Translation Command Line Arguments");
+po::options_description aaDesc("Amino Acid Translation Command Line Arguments");
 po::positional_options_description aaTranslationArgumentDesc;
-po::options_description segmentExtractDesc("Segment Extract Command Line Arguments");
-po::positional_options_description segmentExtractArgumentDesc;
-po::options_description GFAToFASTADesc("GFA to Fasta writer Command Line Arguments");
-po::positional_options_description GFAToFASTAArgumentDesc;
-po::options_description groupWriteDesc("Group MAT Writer Command Line Arguments");
-po::positional_options_description groupWritePositionArgumentDesc;
-po::options_description sequenceExtractDesc("Sequence Extract Command Line Arguments");
-po::positional_options_description sequenceExtractPositionArgumentDesc;
-po::options_description groupFastaDesc("Tree Group FASTA writer Command Line Arguments");
-po::positional_options_description groupFastaPositionArgumentDesc;
+po::options_description createNetDesc("Create Network Command Line Arguments");
+po::positional_options_description createNetDescTranslationArgumentDesc;
+po::options_description printMutDesc("Print Mutations Command Line Arguments");
+po::positional_options_description printMutPositionArgumentDesc;
+po::options_description printPathDesc("Print Paths Command Line Arguments");
+po::positional_options_description printPathsArgumentDesc;
+po::options_description indexDesc("Indexing Command Line Arguments");
+po::positional_options_description indexArgumentDesc;
+po::options_description printRootDesc("Root Printer Command Line Arguments");
+po::positional_options_description printRootPositionArgumentDesc;
+
 
 void setupOptionDescriptions() {
     // Global option descriptions
@@ -151,19 +154,19 @@ void setupOptionDescriptions() {
     ("acr,q", "ACR method [fitch(default), mppa]")
     ("index",po::value< bool >(0), "Generating indexes and print sequence (passed as reference) between x:y")
     ("printRoot", "Print root sequence")
-    //("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
+    ("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
   
     ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
     ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
     ("start,s", po::value< int64_t >(), "Start coordinate of protein translation/Start coordinate for indexing")
     ("end,e", po::value< int64_t >(), "End coordinate of protein translation/End coordinate for indexing")
     ("treeID,d", po::value< std::string >(), "Tree ID, required for --vcf")
+    ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
     ("input-file,i", po::value< std::string >(), "Path to the input file, required for --subnet, --annotate, and --create-network")
     ("output-file,o", po::value< std::string >(), "Prefix of the output file name")
     ("threads", po::value< std::int32_t >(), "Number of threads")
     // ("complexmutation-file", po::value< std::string >(), "File path of complex mutation file for tree group")
 
-    // ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
     // ("panman-in", po::value< std::string >(), "Input file path for PanMAT Group")
 
     ;
@@ -177,158 +180,78 @@ void setupOptionDescriptions() {
     ("index", po::value< size_t >()->required(), "PanMAT index")
     ;
 
+    summaryDesc.add_options()
+        ("output-file,o", po::value< std::string >(), "Output file name");
+
     // FASTA option descriptions
     fastaDesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ("aligned", "print in aligned format (MSA)")
-    ("parallel", "Whether we should execute in parallel or not")
-    ;
+        ("output-file,o", po::value< std::string >(), "Output file name");
+    
+    fastaAlignDesc.add_options()
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
-    // Adding output file as positional argument (doesn't require the --output-file tag)
-    fastaPositionArgumentDesc.add("output-file,o", -1);
+    subnetDesc.add_options()
+        ("input-file", po::value< std::string >(), "Input file name")
+        ("output-file,o", po::value< std::string >(), "Output file name");
+
+    vcfDesc.add_options()
+        ("treeID", po::value< std::int64_t >(), "Tree ID [default 0]")
+        ("reference", po::value< std::string >(), "Reference name")
+        ("output-file,o", po::value< std::string >(), "Output file name");
+
+    gfaDesc.add_options()
+        ("treeID", po::value< std::int64_t >(), "Tree ID [default 0]")
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
     // MAF option descriptions
     mafDesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ;
+        ("treeID", po::value< std::int64_t >(), "Tree ID [default 0]")
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
-    // Adding output file as positional argument (doesn't require the --output-file tag)
-    mafPositionArgumentDesc.add("output-file,o", -1);
+    newickDesc.add_options()
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
-    // MAT Writer option descriptions
-    writeDesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ;
+    extendNewickDesc.add_options()
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
-    // Adding output file as positional argument (doesn't require the --output-file tag)
-    writePositionArgumentDesc.add("output-file,o", -1);
-
-    // Subtree Extract option descriptions
-    subtreeDesc.add_options()
-    ("help", "produce help message")
-    ("newick", po::value< bool >()->default_value(false), "just print newick string")
-    ("input-file", po::value< std::string >(), "Input file name if reading node IDs from file")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ("node-ids", po::value< std::vector< std::string > >()->multitoken(), "Node \
-IDs to extract")
-    ;
-
-    // Adding output file as positional argument
-    subtreePositionArgumentDesc.add("output-file,o", -1);
-
-    // Sequence Extract option descriptions
-    sequenceExtractDesc.add_options()
-    ("help", "produce help message")
-    ("list", po::value< std::vector< std::string > >()->multitoken()->required(), "Sequence names")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ;
-
-    // Adding output file as positional argument (doesn't require the --output-file tag)
-    sequenceExtractPositionArgumentDesc.add("output-file,o", -1);
-
-    // VCF Writer option descriptions
-    vcfDesc.add_options()
-    ("help", "produce help message")
-    ("reference", po::value< std::string >()->required(), "Sequence ID of the reference \
-sequence")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ("fasta-file", po::value< std::string >(), "FASTA file name if it should also be created \
-            from VCF File. Mainly used to verify the correctness of VCF file")
-    ;
-
-    // Adding output file as positional argument
-    vcfPositionArgumentDesc.add("output-file,o", -1);
-
-    // MAT Annotate option descriptions
     annotateDesc.add_options()
-    ("help", "produce help message")
-    ("input-file", po::value< std::string >()->required(), "Name of the file containing \
-annotation info")
-    ;
-
-    // Adding input file as positional argument
-    annotatePositionArgumentDesc.add("input-file", -1);
-
-    // Search by annotation option descriptions
-    searchDesc.add_options()
-    ("help", "produce help message")
-    ("keywords", po::value< std::vector< std::string > >()->multitoken(), "list of keywords to \
-search for")
-    ;
-
-    searchPositionArgumentDesc.add("keywords", -1);
-
-    // Generate GFA option descriptions
-    generateGFADesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ;
-
-    generateGFAArgumentDesc.add("output-file,o", -1);
-
-    // GFA to FASTA option descriptions
-    GFAToFASTADesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ("input-file", po::value< std::string >()->required(), "Input file name")
-    ;
-
-    GFAToFASTAArgumentDesc.add("output-file,o", -1);
+        ("treeID", po::value< std::int64_t >(), "Tree ID [default 0]")
+        ("input-file", po::value< std::string >(), "Input file name")
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
     rerootDesc.add_options()
-    ("help", "produce help message")
-    ("sequence-name", po::value< std::string >()->required(), "Name of sequence to reroot to")
-    ;
+        ("treeID", po::value< std::int64_t >(), "Tree ID [default 0]")
+        ("reference", po::value< std::string >(), "Reference name")
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
-    rerootArgumentDesc.add("sequence-name", -1);
+    aaDesc.add_options()
+        ("treeID", po::value< std::int64_t >(), "Tree ID [default 0]")
+        ("start,s", po::value< int64_t >(), "Start coordinate of protein translation/Start coordinate for indexing")
+        ("end,e", po::value< int64_t >(), "End coordinate of protein translation/End coordinate for indexing")
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
-    substitutionsDesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(), "Name of the output file")
-    ;
+    createNetDesc.add_options()
+        ("input-file", po::value< std::string >(), "File containing complex mutations")
+        ("tree-group", po::value< int64_t >(), "List of PanMATs")
+        ("output-file,o", po::value< std::string >(), "Output file name");
+    
+    printMutDesc.add_options()
+        ("treeID", po::value< std::int64_t >(), "Tree ID [default 0]")
+        ("output-file,o", po::value< std::string >(), "Output file name");
+        
+    printPathDesc.add_options()
+        ("treeID", po::value< std::int64_t >(), "Tree ID [default 0]")
+        ("output-file,o", po::value< std::string >(), "Output file name");
+    
+    indexDesc.add_options()
+        ("reference", po::value< std::string >(), "Reference name")
+        ("start,s", po::value< int64_t >(), "Start coordinate of protein translation/Start coordinate for indexing")
+        ("end,e", po::value< int64_t >(), "End coordinate of protein translation/End coordinate for indexing")
+        ("index",po::value< bool >(0), "Generating indexes and print sequence (passed as reference) between x:y")
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
-    substitutionsArgumentDesc.add("output-file,o", -1);
-
-    aaTranslationDesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(),
-     "Name of output file to store tsv file")
-    ("start", po::value< int64_t >()->required(), "Root coordinate to start transcription")
-    ("end", po::value< int64_t >()->required(), "Root coordinate to end transcription")
-    ;
-
-    aaTranslationArgumentDesc.add("output-file,o", -1);
-
-    segmentExtractDesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(),
-     "Name of output file to store tsv file")
-    ("start", po::value< int64_t >()->required(), "Root coordinate to start extraction")
-    ("end", po::value< int64_t >()->required(), "Root coordinate to end extraction")
-    ;
-
-    segmentExtractArgumentDesc.add("output-file,o", -1);
-
-    // Tree Group FASTA option descriptions
-    groupFastaDesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ;
-
-    // Adding output file as positional argument
-    groupFastaPositionArgumentDesc.add("output-file,o", -1);
-
-    // Group MAT Writer option descriptions
-    groupWriteDesc.add_options()
-    ("help", "produce help message")
-    ("output-file,o", po::value< std::string >()->required(), "Output file name")
-    ;
-
-    // Adding output file as positional argument
-    groupWritePositionArgumentDesc.add("output-file,o", -1);
+    printRootDesc.add_options()
+        ("output-file,o", po::value< std::string >(), "Output file name");
 }
 
 void writePanMAN(po::variables_map &globalVm, panmanUtils::TreeGroup *TG) {
@@ -388,6 +311,715 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::Tree *T) {
 
 }
 
+void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // If command was summary, print the summary of the PanMAT
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto summaryStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree *T = &tg.trees[i];
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".summary");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+        T->printSummary(fout);
+
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto summaryEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds summaryTime = summaryEnd - summaryStart;
+    std::cout << "\nSummary creation time: " << summaryTime.count() << " nanoseconds\n";
+}
+
+void fasta(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print raw sequences to output file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree *T  = &tg.trees[i];
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+        // T->printFASTAParallel(fout, false);
+        T->printFASTANew(fout, false, false);
+
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+}
+
+void fastaAligned(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print multiple sequence alignment to output file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree *T  = &tg.trees[i];
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".msa");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+
+        // T->printFASTA(fout, true);
+        T->printFASTAParallel(fout, true);
+
+
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+}
+
+void subnetwork(panmanUtils::Tree *T, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Extract subnet of PanMAN to new file
+
+    if(T == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+    if(!globalVm.count("output-file")) {
+        panmanUtils::printError("Output file not provided!");
+        std::cout << globalDesc;
+        return;
+    }
+
+    // List of node identifiers that need to be extracted from the tree
+    std::vector< std::string > nodeIds;
+    std::string nodeId;
+
+    if(globalVm.count("input-file")) {
+        std::string inputFileName = globalVm["input-file"].as< std::string >();
+        std::ifstream fin(inputFileName);
+        while(fin >> nodeId) {
+            nodeIds.push_back(nodeId);
+        }
+        fin.close();
+    } else {
+        panmanUtils::printError("No source of node ids provided");
+        exit(0);
+    }
+
+    if(nodeIds.size() == 0) {
+        std::cout << "No node identifiers provided!" << std::endl;
+    }
+
+    std::string outputFileName = globalVm["output-file"].as< std::string >();
+    std::filesystem::create_directory("./panman");
+    std::ofstream outputFiles("./panman/" + outputFileName + ".panman");
+    boost::iostreams::filtering_streambuf< boost::iostreams::output> outPMATBuffer;
+
+    auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+    // outPMATBuffer.push(boost::iostreams::gzip_compressor());
+    boost::iostreams::lzma_params params;
+    params.level = 9; // Highest compression level
+    outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
+    outPMATBuffer.push(outputFiles);
+    std::ostream outstream(&outPMATBuffer);
+    kj::std::StdOutputStream outputStream(outstream);
+    T->writeToFile(outputStream, T->subtreeExtractParallel(nodeIds));
+    boost::iostreams::close(outPMATBuffer);
+    outputFiles.close();
+
+    auto subtreeEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+    std::cout << "\nParallel Subtree Extract execution time: "
+                << subtreeTime.count() << " nanoseconds\n";
+}
+
+void subnet(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Extract the subnetwork consisting of given node IDs from PanMAN
+
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    std::string outputFileName;
+    if(!globalVm.count("output-file")) {
+        panmanUtils::printError("Output file not provided!");
+        std::cout << globalDesc;
+        return;
+    } else outputFileName = globalVm["output-file"].as< std::string >();
+
+    // List of node identifiers that need to be extracted from the tree
+    std::unordered_map< int, std::vector< std::string > > nodeIds;
+    std::string nodeId;
+
+    if(globalVm.count("input-file")) {
+        std::string inputFileName = globalVm["input-file"].as< std::string >();
+        std::ifstream fin(inputFileName);
+        std::string line;
+        int treeId;
+        while(std::getline(fin, line)) {
+            std::stringstream ss(line);
+            ss >> treeId;
+            while(ss >> nodeId) {
+                nodeIds[treeId].push_back(nodeId);
+            }
+        }
+        fin.close();
+    } else {
+        panmanUtils::printError("Input file not provided!");
+        std::cout << globalDesc;
+        return;
+    }
+
+    if(nodeIds.size() == 0) {
+        std::cout << "No node identifiers selected!" << std::endl;
+    }
+
+    std::filesystem::create_directory("./panman");
+    std::ofstream outputFiles("./panman/" + outputFileName + ".panman");
+    boost::iostreams::filtering_streambuf< boost::iostreams::output>
+    outPMATBuffer;
+
+    auto subtreeStart = std::chrono::high_resolution_clock::now();
+
+    // outPMATBuffer.push(boost::iostreams::gzip_compressor());
+    boost::iostreams::lzma_params params;
+    params.level = 9; // Highest compression level
+    outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
+    outPMATBuffer.push(outputFiles);
+    std::ostream outstream(&outPMATBuffer);
+    kj::std::StdOutputStream outputStream(outstream);
+    panmanUtils::TreeGroup* subnetwork = TG->subnetworkExtract(nodeIds);
+    subnetwork->writeToFile(outputStream);
+
+    boost::iostreams::close(outPMATBuffer);
+    outputFiles.close();
+
+    auto subtreeEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
+
+    std::cout << "\nParallel Subnetwork Extract execution time: "
+                << subtreeTime.count() << " nanoseconds\n";
+}
+
+void vcf(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+    int treeID = 0;
+    if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+    panmanUtils::TreeGroup tg = *TG;
+    panmanUtils::Tree * T = &tg.trees[treeID];
+
+    std::string reference;
+    if(!globalVm.count("reference")) {
+        for (auto &n: T->allNodes) {
+            reference = n.first;
+            break;
+        }
+    } else reference = globalVm["reference"].as< std::string >();
+
+    if(globalVm.count("output-file")) {
+        std::string fileName = globalVm["output-file"].as< std::string >();
+        outputFile.open("./info/" + fileName + ".vcf");
+        buf = outputFile.rdbuf();
+    } else {
+        buf = std::cout.rdbuf();
+    }
+    std::ostream fout (buf);
+
+    auto vcfStart = std::chrono::high_resolution_clock::now();
+
+    T->printVCFParallel(reference, fout);
+
+    auto vcfEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
+    std::cout << "\nVCF execution time: " << vcfTime.count() << " nanoseconds\n";
+    if(globalVm.count("output-file")) outputFile.close();
+}
+
+void gfa(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // If GFA is to be extracted from PanMAN
+
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    int treeID = 0;
+    if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+    panmanUtils::TreeGroup tg = *TG;
+    panmanUtils::Tree * T = &tg.trees[treeID];
+
+    if(globalVm.count("output-file")) {
+        std::string fileName = globalVm["output-file"].as< std::string >();
+        outputFile.open("./info/" + fileName + ".gfa");
+        buf = outputFile.rdbuf();
+    } else {
+        buf = std::cout.rdbuf();
+    }
+    std::ostream fout (buf);
+
+    auto generateVGStart = std::chrono::high_resolution_clock::now();
+
+    T->convertToGFA(fout);
+
+    auto generateVGEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds generateVGTime = generateVGEnd - generateVGStart;
+
+    std::cout << "GFA generation time: " << generateVGTime.count()
+                << " nanoseconds\n";
+    if(globalVm.count("output-file")) outputFile.close();
+}
+
+void maf(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected. Try groupFasta for FASTA of the whole"
+                    " PanMAN" << std::endl;
+        return;
+    }
+
+    int treeID = 0;
+    if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+    panmanUtils::TreeGroup tg = *TG;
+    panmanUtils::Tree * T = &tg.trees[treeID];
+
+    if(globalVm.count("output-file")) {
+        std::string fileName = globalVm["output-file"].as< std::string >();
+        outputFile.open("./info/" + fileName + ".maf");
+        buf = outputFile.rdbuf();
+    } else {
+        buf = std::cout.rdbuf();
+    }
+    std::ostream fout (buf);
+
+    auto mafStart = std::chrono::high_resolution_clock::now();
+
+    T->printMAF(fout);
+
+    auto mafEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds mafTime = mafEnd - mafStart;
+    std::cout << "\nMAF execution time: " << mafTime.count() << " nanoseconds\n";
+    if(globalVm.count("output-file")) outputFile.close();
+}
+
+void newick (panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print newick string of the PanMAT or PanMAN loaded into memory
+    if(TG) {
+        int index = 0;
+        for(auto& t: TG->trees) {
+            if(globalVm.count("output-file")) {
+                std::string fileName = globalVm["output-file"].as< std::string >();
+                outputFile.open("./info/" + fileName + "_" + std::to_string(index) + ".newick");
+                buf = outputFile.rdbuf();
+            } else {
+                buf = std::cout.rdbuf();
+            }
+            std::ostream fout (buf);
+            fout << t.getNewickString(t.root) << std::endl;
+            if(globalVm.count("output-file")) outputFile.close();
+        }
+    } else {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+}
+
+void extendNewick(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print Extended Newick String
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    if(globalVm.count("output-file")) {
+        std::string fileName = globalVm["output-file"].as< std::string >();
+        outputFile.open("./info/" + fileName + ".extended-newick");
+        buf = outputFile.rdbuf();
+    } else {
+        buf = std::cout.rdbuf();
+    }
+    std::ostream fout (buf);
+
+
+    auto writeStart = std::chrono::high_resolution_clock::now();
+
+    for (auto& tree: TG->trees) {
+        fout << tree.getNewickString(tree.root) << std::endl;
+    }
+
+    TG->printComplexMutations(fout);
+
+    if(globalVm.count("output-file")) outputFile.close();
+
+    auto writeEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds writeTime = writeEnd - writeStart;
+    std::cout << "\nExtended Newick execution time: " << writeTime.count()
+                << " nanoseconds\n";
+}
+
+void annotate(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Annotate nodes of PanMAT
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    int treeID = 0;
+    if(globalVm.count("treeID")) {
+        treeID = std::stoi(globalVm["treeID"].as< std::string >());
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+    panmanUtils::Tree * T = &tg.trees[treeID];
+
+    if(!globalVm.count("input-file")) {
+        panmanUtils::printError("Input file not provided!");
+        std::cout << globalDesc;
+        return;
+    }
+
+    std::string fileName = globalVm["input-file"].as< std::string >();
+    std::ifstream fin(fileName);
+    auto annotateStart = std::chrono::high_resolution_clock::now();
+
+    T->annotate(fin);
+
+    auto annotateEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds annotateTime = annotateEnd - annotateStart;
+    std::cout << "Annotate time: " << annotateTime.count() << " nanoseconds\n";
+
+    writePanMAN(globalVm,TG);
+}
+
+void reroot(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Reroot the PanMAT to given sequence
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    int treeID;
+    if(!globalVm.count("treeID")) {
+        panmanUtils::printError("TreeID not provided!");
+        std::cout << globalDesc;
+        return;
+    } else treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+    panmanUtils::TreeGroup tg = *TG;
+    panmanUtils::Tree * T = &tg.trees[treeID];
+
+    if(!globalVm.count("reference")) {
+        panmanUtils::printError("Refence ID not provided!");
+        std::cout << globalDesc;
+        return;
+    }
+
+    std::string sequenceName = globalVm["reference"].as< std::string >();
+
+    auto rerootStart = std::chrono::high_resolution_clock::now();
+
+    T->reroot(sequenceName);
+
+    auto rerootEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds rerootTime = rerootEnd - rerootStart;
+    std::cout << "\nReroot execution time: " << rerootTime.count()
+                << " nanoseconds\n";
+
+    TG->trees[treeID] = *T;
+
+
+    writePanMAN(globalVm, TG);
+}
+
+void aa(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Extract amino acid translations in tsv file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    int treeID;
+    if(!globalVm.count("treeID")) {
+        panmanUtils::printError("TreeID not provided!");
+        std::cout << globalDesc;
+        return;
+    } else treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+    panmanUtils::TreeGroup tg = *TG;
+    panmanUtils::Tree * T = &tg.trees[treeID];
+
+    if(!globalVm.count("start") || !globalVm.count("end")) {
+        std::cout << "Start/End Coordinate not provided" << std::endl;
+        return;
+    }
+
+    int64_t startCoordinate = globalVm["start"].as< int64_t >();
+    int64_t endCoordinate = globalVm["end"].as< int64_t >();
+
+    if(globalVm.count("output-file")) {
+        std::string fileName = globalVm["output-file"].as< std::string >();
+        outputFile.open("./info/" + fileName + ".tsv");
+        buf = outputFile.rdbuf();
+    } else {
+        buf = std::cout.rdbuf();
+    }
+    std::ostream fout (buf);
+
+    auto aaStart = std::chrono::high_resolution_clock::now();
+
+    T->extractAminoAcidTranslations(fout, startCoordinate, endCoordinate);
+
+    auto aaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds aaTime = aaEnd - aaStart;
+    std::cout << "\nAmino Acid translate execution time: " << aaTime.count()
+                << " nanoseconds\n";
+    if(globalVm.count("output-file")) outputFile.close();
+}
+
+void createNet(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Create PanMAN from list of PanMAT files and a complex mutation file listing the complex
+    // mutations relating these PanMATs
+
+    std::vector< std::string > fileNames;
+
+    std::string mutationFileName;
+    if(!globalVm.count("input-file")) {
+        panmanUtils::printError("Input File containing complex mutations not provided!");
+        return;
+    }
+
+    fileNames = globalVm["tree-group"].as< std::vector< std::string > >();
+    mutationFileName = globalVm["input-file"].as< std::string >();
+
+    std::ifstream mutationFile(mutationFileName);
+
+    std::vector< std::ifstream > files;
+    for(auto u: fileNames) {
+        files.emplace_back(u);
+    }
+
+    auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+
+    TG = new panmanUtils::TreeGroup(files, mutationFile);
+
+    auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
+    std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+
+    mutationFile.close();
+    for(auto& u: files) {
+        u.close();
+    }
+}
+
+void printMut(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    int treeID = 0;
+    if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+    panmanUtils::TreeGroup tg = *TG;
+    panmanUtils::Tree * T = &TG->trees[treeID];
+    // T = &tg.trees[treeID];
+
+
+    if(globalVm.count("output-file")) {
+        std::string fileName = globalVm["output-file"].as< std::string >();
+        outputFile.open("./info/" + fileName + ".mutations");
+        buf = outputFile.rdbuf();
+    } else {
+        buf = std::cout.rdbuf();
+    }
+    std::ostream fout (buf);
+
+
+    auto substitutionsStart = std::chrono::high_resolution_clock::now();
+
+    std::cout << T->root->identifier << std::endl;
+
+    // T->printMutations(fout);
+    T->printMutationsNew(fout);
+
+    auto substitutionsEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds substitutionsTime = substitutionsEnd - substitutionsStart;
+    std::cout << "\nMutation extract execution time: "
+                << substitutionsTime.count() << " nanoseconds\n";
+
+    if(globalVm.count("output-file")) outputFile.close();
+}
+
+void printPath(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+    int treeID = 0;
+    if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
+
+    panmanUtils::TreeGroup tg = *TG;
+    panmanUtils::Tree * T = &TG->trees[treeID];
+    // T = &tg.trees[treeID];
+
+
+    if(globalVm.count("output-file")) {
+        std::string fileName = globalVm["output-file"].as< std::string >();
+        outputFile.open("./info/" + fileName + ".mutations");
+        buf = outputFile.rdbuf();
+    } else {
+        buf = std::cout.rdbuf();
+    }
+    std::ostream fout (buf);
+
+
+    auto substitutionsStart = std::chrono::high_resolution_clock::now();
+
+    std::cout << T->root->identifier << std::endl;
+
+    // T->printMutations(fout);
+    T->printNodePaths(fout);
+
+    auto substitutionsEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds substitutionsTime = substitutionsEnd - substitutionsStart;
+    std::cout << "\nMutation extract execution time: "
+                << substitutionsTime.count() << " nanoseconds\n";
+
+    if(globalVm.count("output-file")) outputFile.close();
+}
+
+void index(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // indexing
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    // Get start and end coordinate
+    int64_t startCoordinate = 0;
+    int64_t endCoordinate = -1;
+    if(!globalVm.count("start")) {
+        std::cout << "Start Coordinate not provided, setting it to 0" << std::endl;
+    } else {
+        startCoordinate = globalVm["start"].as< int64_t >();
+    }
+
+    if(!globalVm.count("end")) {
+        std::cout << "End Coordinate not provided, setting it to length of seqeunce - 1" << std::endl;
+    } else {
+        endCoordinate = globalVm["end"].as< int64_t >();
+    }
+
+    // get sequence
+    std::string reference="";
+    if(!globalVm.count("reference")) {
+        std::cout << "Error: Reference not provided" << std::endl;
+        return;
+    } else {
+        reference = globalVm["reference"].as< std::string >();
+    }
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree * T = &tg.trees[i];
+        if (T->allNodes.find(reference) == T->allNodes.end()) {
+            std::cout << "Error: reference " << reference << " does not exist in PanMAN\n";
+            exit(0);
+        }
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".index");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+        bool allIndex = globalVm["index"].as< bool >();
+
+        T->extractPanMATIndex(fout, startCoordinate,endCoordinate, reference, allIndex);
+
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nIndexing execution time: " << fastaTime.count() << " nanoseconds\n";
+}
+
+void printRoot(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print raw sequences to output file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree * T = &tg.trees[i];
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+
+        T->printFASTA(fout, true, true);
+
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+
+}
+
 void parseAndExecute(int argc, char* argv[]) {
 
     // Setup boost::program_options
@@ -399,7 +1031,7 @@ void parseAndExecute(int argc, char* argv[]) {
               .positional(globalPositionArgumentDesc).allow_unregistered().run(), globalVm);
     po::notify(globalVm);
 
-    int threads = 16;
+    int threads = 64;
     if (globalVm.count("threads")) threads = globalVm["threads"].as<std::int32_t>();
     tbb::task_scheduler_init init(threads);
 
@@ -623,714 +1255,58 @@ void parseAndExecute(int argc, char* argv[]) {
     std::streambuf * buf;
 
     if(globalVm.count("summary")) {
-        // If command was summary, print the summary of the PanMAT
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        panmanUtils::TreeGroup tg = *TG;
-
-        auto summaryStart = std::chrono::high_resolution_clock::now();
-        for(int i = 0; i < tg.trees.size(); i++) {
-            T = &tg.trees[i];
-            if(globalVm.count("output-file")) {
-                std::string fileName = globalVm["output-file"].as< std::string >();
-                outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".summary");
-                buf = outputFile.rdbuf();
-            } else {
-                buf = std::cout.rdbuf();
-            }
-            std::ostream fout (buf);
-            T->printSummary(fout);
-
-            if(globalVm.count("output-file")) outputFile.close();
-        }
-
-        auto summaryEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds summaryTime = summaryEnd - summaryStart;
-        std::cout << "\nSummary creation time: " << summaryTime.count() << " nanoseconds\n";
-
+        summary(TG, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("fasta")) {
-        // Print raw sequences to output file
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        panmanUtils::TreeGroup tg = *TG;
-
-        auto fastaStart = std::chrono::high_resolution_clock::now();
-        for(int i = 0; i < tg.trees.size(); i++) {
-            T = &tg.trees[i];
-            if(globalVm.count("output-file")) {
-                std::string fileName = globalVm["output-file"].as< std::string >();
-                outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
-                buf = outputFile.rdbuf();
-            } else {
-                buf = std::cout.rdbuf();
-            }
-            std::ostream fout (buf);
-
-            T->printFASTAParallel(fout, false);
-            // T->printFASTA(fout, false, false);
-
-            if(globalVm.count("output-file")) outputFile.close();
-        }
-
-        auto fastaEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
-        std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
-
+        fasta(TG, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("fasta-aligned")) {
-        // Print multiple sequence alignment to output file
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        panmanUtils::TreeGroup tg = *TG;
-
-        auto fastaStart = std::chrono::high_resolution_clock::now();
-        for(int i = 0; i < tg.trees.size(); i++) {
-            T = &tg.trees[i];
-            if(globalVm.count("output-file")) {
-                std::string fileName = globalVm["output-file"].as< std::string >();
-                outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".msa");
-                buf = outputFile.rdbuf();
-            } else {
-                buf = std::cout.rdbuf();
-            }
-            std::ostream fout (buf);
-
-
-            // T->printFASTA(fout, true);
-            T->printFASTAParallel(fout, true);
-
-
-            if(globalVm.count("output-file")) outputFile.close();
-        }
-
-        auto fastaEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
-        std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
-
+        fastaAligned(TG, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("subnetwork")) { // for PanMAT -> Old
-        // Extract subnet of PanMAN to new file
-
-        if(T == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-        if(!globalVm.count("output-file")) {
-            panmanUtils::printError("Output file not provided!");
-            std::cout << globalDesc;
-            return;
-        }
-
-        // List of node identifiers that need to be extracted from the tree
-        std::vector< std::string > nodeIds;
-        std::string nodeId;
-
-        if(globalVm.count("input-file")) {
-            std::string inputFileName = globalVm["input-file"].as< std::string >();
-            std::ifstream fin(inputFileName);
-            while(fin >> nodeId) {
-                nodeIds.push_back(nodeId);
-            }
-            fin.close();
-        } else {
-            panmanUtils::printError("No source of node ids provided");
-            std::cout << subtreeDesc;
-        }
-
-        if(nodeIds.size() == 0) {
-            std::cout << "No node identifiers provided!" << std::endl;
-        }
-
-        std::string outputFileName = globalVm["output-file"].as< std::string >();
-        std::filesystem::create_directory("./panman");
-        std::ofstream outputFile("./panman/" + outputFileName + ".panman");
-        boost::iostreams::filtering_streambuf< boost::iostreams::output> outPMATBuffer;
-
-        auto subtreeStart = std::chrono::high_resolution_clock::now();
-
-        // outPMATBuffer.push(boost::iostreams::gzip_compressor());
-        boost::iostreams::lzma_params params;
-        params.level = 9; // Highest compression level
-        outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
-        outPMATBuffer.push(outputFile);
-        std::ostream outstream(&outPMATBuffer);
-        kj::std::StdOutputStream outputStream(outstream);
-        T->writeToFile(outputStream, T->subtreeExtractParallel(nodeIds));
-        boost::iostreams::close(outPMATBuffer);
-        outputFile.close();
-
-        auto subtreeEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
-
-        std::cout << "\nParallel Subtree Extract execution time: "
-                  << subtreeTime.count() << " nanoseconds\n";
+        subnetwork(T, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("subnet")) {
-        // Extract the subnetwork consisting of given node IDs from PanMAN
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        std::string outputFileName;
-        if(!globalVm.count("output-file")) {
-            panmanUtils::printError("Output file not provided!");
-            std::cout << globalDesc;
-            return;
-        } else outputFileName = globalVm["output-file"].as< std::string >();
-
-        // List of node identifiers that need to be extracted from the tree
-        std::unordered_map< int, std::vector< std::string > > nodeIds;
-        std::string nodeId;
-
-        if(globalVm.count("input-file")) {
-            std::string inputFileName = globalVm["input-file"].as< std::string >();
-            std::ifstream fin(inputFileName);
-            std::string line;
-            int treeId;
-            while(std::getline(fin, line)) {
-                std::stringstream ss(line);
-                ss >> treeId;
-                while(ss >> nodeId) {
-                    nodeIds[treeId].push_back(nodeId);
-                }
-            }
-            fin.close();
-        } else {
-            panmanUtils::printError("Input file not provided!");
-            std::cout << subtreeDesc;
-            return;
-        }
-
-        if(nodeIds.size() == 0) {
-            std::cout << "No node identifiers selected!" << std::endl;
-        }
-
-        std::filesystem::create_directory("./panman");
-        std::ofstream outputFile("./panman/" + outputFileName + ".panman");
-        boost::iostreams::filtering_streambuf< boost::iostreams::output>
-        outPMATBuffer;
-
-        auto subtreeStart = std::chrono::high_resolution_clock::now();
-
-        // outPMATBuffer.push(boost::iostreams::gzip_compressor());
-        boost::iostreams::lzma_params params;
-        params.level = 9; // Highest compression level
-        outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
-        outPMATBuffer.push(outputFile);
-        std::ostream outstream(&outPMATBuffer);
-        kj::std::StdOutputStream outputStream(outstream);
-        panmanUtils::TreeGroup* subnetwork = TG->subnetworkExtract(nodeIds);
-        subnetwork->writeToFile(outputStream);
-
-        boost::iostreams::close(outPMATBuffer);
-        outputFile.close();
-
-        auto subtreeEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds subtreeTime = subtreeEnd - subtreeStart;
-
-        std::cout << "\nParallel Subnetwork Extract execution time: "
-                  << subtreeTime.count() << " nanoseconds\n";
+        subnet(TG, globalVm, outputFile, buf);
+        return;
     } else if(globalVm.count("vcf")) {
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-
-        int treeID = 0;
-        if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
-
-        panmanUtils::TreeGroup tg = *TG;
-        T = &tg.trees[treeID];
-
-        std::string reference;
-        if(!globalVm.count("reference")) {
-            for (auto &n: T->allNodes) {
-                reference = n.first;
-                break;
-            }
-        } else reference = globalVm["reference"].as< std::string >();
-
-        if(globalVm.count("output-file")) {
-            std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + ".vcf");
-            buf = outputFile.rdbuf();
-        } else {
-            buf = std::cout.rdbuf();
-        }
-        std::ostream fout (buf);
-
-        auto vcfStart = std::chrono::high_resolution_clock::now();
-
-        T->printVCFParallel(reference, fout);
-
-        auto vcfEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
-        std::cout << "\nVCF execution time: " << vcfTime.count() << " nanoseconds\n";
-        if(globalVm.count("output-file")) outputFile.close();
-
+        vcf(TG, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("gfa")) {
-        // If GFA is to be extracted from PanMAN
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        int treeID = 0;
-        if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
-
-        panmanUtils::TreeGroup tg = *TG;
-        T = &tg.trees[treeID];
-
-        if(globalVm.count("output-file")) {
-            std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + ".gfa");
-            buf = outputFile.rdbuf();
-        } else {
-            buf = std::cout.rdbuf();
-        }
-        std::ostream fout (buf);
-
-        auto generateVGStart = std::chrono::high_resolution_clock::now();
-
-        T->convertToGFA(fout);
-
-        auto generateVGEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds generateVGTime = generateVGEnd - generateVGStart;
-
-        std::cout << "GFA generation time: " << generateVGTime.count()
-                  << " nanoseconds\n";
-        if(globalVm.count("output-file")) outputFile.close();
+        gfa(TG, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("maf")) {
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected. Try groupFasta for FASTA of the whole"
-                      " PanMAN" << std::endl;
-            return;
-        }
-
-        int treeID = 0;
-        if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
-
-        panmanUtils::TreeGroup tg = *TG;
-        T = &tg.trees[treeID];
-
-        if(globalVm.count("output-file")) {
-            std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + ".maf");
-            buf = outputFile.rdbuf();
-        } else {
-            buf = std::cout.rdbuf();
-        }
-        std::ostream fout (buf);
-
-        auto mafStart = std::chrono::high_resolution_clock::now();
-
-        T->printMAF(fout);
-
-        auto mafEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds mafTime = mafEnd - mafStart;
-        std::cout << "\nMAF execution time: " << mafTime.count() << " nanoseconds\n";
-        if(globalVm.count("output-file")) outputFile.close();
+        maf(TG, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("newick")) {
-        // Print newick string of the PanMAT or PanMAN loaded into memory
-        if(TG) {
-            int index = 0;
-            for(auto& t: TG->trees) {
-                if(globalVm.count("output-file")) {
-                    std::string fileName = globalVm["output-file"].as< std::string >();
-                    outputFile.open("./info/" + fileName + "_" + std::to_string(index) + ".newick");
-                    buf = outputFile.rdbuf();
-                } else {
-                    buf = std::cout.rdbuf();
-                }
-                std::ostream fout (buf);
-                fout << t.getNewickString(t.root) << std::endl;
-                if(globalVm.count("output-file")) outputFile.close();
-            }
-        } else {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
+        newick(TG, globalVm, outputFile, buf);
         return;
-
     } else if(globalVm.count("extended-newick")) {
-        // Print Extended Newick String
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        if(globalVm.count("output-file")) {
-            std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + ".extended-newick");
-            buf = outputFile.rdbuf();
-        } else {
-            buf = std::cout.rdbuf();
-        }
-        std::ostream fout (buf);
-
-
-        auto writeStart = std::chrono::high_resolution_clock::now();
-
-        for (auto& tree: TG->trees) {
-            fout << tree.getNewickString(tree.root) << std::endl;
-        }
-
-        TG->printComplexMutations(fout);
-
-        if(globalVm.count("output-file")) outputFile.close();
-
-        auto writeEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds writeTime = writeEnd - writeStart;
-        std::cout << "\nExtended Newick execution time: " << writeTime.count()
-                  << " nanoseconds\n";
-    } else if (globalVm.count("annotate")) {
-        // Annotate nodes of PanMAT
-
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        int treeID = 0;
-        if(globalVm.count("treeID")) {
-            treeID = std::stoi(globalVm["treeID"].as< std::string >());
-        }
-
-        panmanUtils::TreeGroup tg = *TG;
-        T = &tg.trees[treeID];
-
-        if(!globalVm.count("input-file")) {
-            panmanUtils::printError("Input file not provided!");
-            std::cout << globalDesc;
-            return;
-        }
-
-        std::string fileName = globalVm["input-file"].as< std::string >();
-        std::ifstream fin(fileName);
-        auto annotateStart = std::chrono::high_resolution_clock::now();
-
-        T->annotate(fin);
-
-        auto annotateEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds annotateTime = annotateEnd - annotateStart;
-        std::cout << "Annotate time: " << annotateTime.count() << " nanoseconds\n";
-
-        writePanMAN(globalVm,TG);
-
-    } else if (globalVm.count("reroot")) {
-        // Reroot the PanMAT to given sequence
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        int treeID;
-        if(!globalVm.count("treeID")) {
-            panmanUtils::printError("TreeID not provided!");
-            std::cout << globalDesc;
-            return;
-        } else treeID = std::stoi(globalVm["treeID"].as< std::string >());
-
-        panmanUtils::TreeGroup tg = *TG;
-        T = &tg.trees[treeID];
-
-        if(!globalVm.count("reference")) {
-            panmanUtils::printError("Refence ID not provided!");
-            std::cout << globalDesc;
-            return;
-        }
-
-        std::string sequenceName = globalVm["reference"].as< std::string >();
-
-        auto rerootStart = std::chrono::high_resolution_clock::now();
-
-        T->reroot(sequenceName);
-
-        auto rerootEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds rerootTime = rerootEnd - rerootStart;
-        std::cout << "\nReroot execution time: " << rerootTime.count()
-                  << " nanoseconds\n";
-
-        TG->trees[treeID] = *T;
-
-
-        writePanMAN(globalVm, TG);
+        extendNewick(TG, globalVm, outputFile, buf);
         return;
-
+    } else if (globalVm.count("annotate")) {
+        annotate(TG, globalVm, outputFile, buf);
+        return;
+    } else if (globalVm.count("reroot")) {
+        reroot(TG, globalVm, outputFile, buf);
+        return;
     } else if (globalVm.count("aa-mutations")) {
-        // Extract amino acid translations in tsv file
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        int treeID;
-        if(!globalVm.count("treeID")) {
-            panmanUtils::printError("TreeID not provided!");
-            std::cout << globalDesc;
-            return;
-        } else treeID = std::stoi(globalVm["treeID"].as< std::string >());
-
-        panmanUtils::TreeGroup tg = *TG;
-        T = &tg.trees[treeID];
-
-        if(!globalVm.count("start") || !globalVm.count("end")) {
-            std::cout << "Start/End Coordinate not provided" << std::endl;
-            return;
-        }
-
-        int64_t startCoordinate = globalVm["start"].as< int64_t >();
-        int64_t endCoordinate = globalVm["end"].as< int64_t >();
-
-        if(globalVm.count("output-file")) {
-            std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + ".tsv");
-            buf = outputFile.rdbuf();
-        } else {
-            buf = std::cout.rdbuf();
-        }
-        std::ostream fout (buf);
-
-        auto aaStart = std::chrono::high_resolution_clock::now();
-
-        T->extractAminoAcidTranslations(fout, startCoordinate, endCoordinate);
-
-        auto aaEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds aaTime = aaEnd - aaStart;
-        std::cout << "\nAmino Acid translate execution time: " << aaTime.count()
-                  << " nanoseconds\n";
-        if(globalVm.count("output-file")) outputFile.close();
+        aa(TG, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("create-network")) {
-        // Create PanMAN from list of PanMAT files and a complex mutation file listing the complex
-        // mutations relating these PanMATs
-
-        std::vector< std::string > fileNames;
-
-        std::string mutationFileName;
-        if(!globalVm.count("input-file")) {
-            panmanUtils::printError("Input File containing complex mutations not provided!");
-            return;
-        }
-
-        fileNames = globalVm["tree-group"].as< std::vector< std::string > >();
-        mutationFileName = globalVm["input-file"].as< std::string >();
-
-        std::ifstream mutationFile(mutationFileName);
-
-        std::vector< std::ifstream > files;
-        for(auto u: fileNames) {
-            files.emplace_back(u);
-        }
-
-        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
-
-        TG = new panmanUtils::TreeGroup(files, mutationFile);
-
-        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
-        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
-
-        mutationFile.close();
-        for(auto& u: files) {
-            u.close();
-        }
+        createNet(TG, globalVm, outputFile, buf);
+        return;
     } else if(globalVm.count("printMutations")) {
-
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-
-        int treeID = 0;
-        if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
-
-        panmanUtils::TreeGroup tg = *TG;
-        T = &TG->trees[treeID];
-        // T = &tg.trees[treeID];
-
-
-        if(globalVm.count("output-file")) {
-            std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + ".mutations");
-            buf = outputFile.rdbuf();
-        } else {
-            buf = std::cout.rdbuf();
-        }
-        std::ostream fout (buf);
-
-
-        auto substitutionsStart = std::chrono::high_resolution_clock::now();
-
-        std::cout << T->root->identifier << std::endl;
-
-        // T->printMutations(fout);
-        T->printMutationsNew(fout);
-
-        auto substitutionsEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds substitutionsTime = substitutionsEnd - substitutionsStart;
-        std::cout << "\nMutation extract execution time: "
-                  << substitutionsTime.count() << " nanoseconds\n";
-
-        if(globalVm.count("output-file")) outputFile.close();
+        printMut(TG, globalVm, outputFile, buf);
+        return;
     } else if(globalVm.count("printNodePaths")) {
-
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-
-        int treeID = 0;
-        if(globalVm.count("treeID")) treeID = std::stoi(globalVm["treeID"].as< std::string >());
-
-        panmanUtils::TreeGroup tg = *TG;
-        T = &TG->trees[treeID];
-        // T = &tg.trees[treeID];
-
-
-        if(globalVm.count("output-file")) {
-            std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + ".mutations");
-            buf = outputFile.rdbuf();
-        } else {
-            buf = std::cout.rdbuf();
-        }
-        std::ostream fout (buf);
-
-
-        auto substitutionsStart = std::chrono::high_resolution_clock::now();
-
-        std::cout << T->root->identifier << std::endl;
-
-        // T->printMutations(fout);
-        T->printNodePaths(fout);
-
-        auto substitutionsEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds substitutionsTime = substitutionsEnd - substitutionsStart;
-        std::cout << "\nMutation extract execution time: "
-                  << substitutionsTime.count() << " nanoseconds\n";
-
-        if(globalVm.count("output-file")) outputFile.close();
+        printPath(TG, globalVm, outputFile, buf);
+        return;
     } else if (globalVm.count("index")) {
-        // indexing
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        panmanUtils::TreeGroup tg = *TG;
-
-        // Get start and end coordinate
-        int64_t startCoordinate = 0;
-        int64_t endCoordinate = -1;
-        if(!globalVm.count("start")) {
-            std::cout << "Start Coordinate not provided, setting it to 0" << std::endl;
-        } else {
-            startCoordinate = globalVm["start"].as< int64_t >();
-        }
-
-        if(!globalVm.count("end")) {
-            std::cout << "End Coordinate not provided, setting it to length of seqeunce - 1" << std::endl;
-        } else {
-            endCoordinate = globalVm["end"].as< int64_t >();
-        }
-
-        // get sequence
-        std::string reference="";
-        if(!globalVm.count("reference")) {
-            std::cout << "Error: Reference not provided" << std::endl;
-            return;
-        } else {
-            reference = globalVm["reference"].as< std::string >();
-        }
-    
-        auto fastaStart = std::chrono::high_resolution_clock::now();
-        for(int i = 0; i < tg.trees.size(); i++) {
-            T = &tg.trees[i];
-            if (T->allNodes.find(reference) == T->allNodes.end()) {
-                std::cout << "Error: reference " << reference << " does not exist in PanMAN\n";
-                exit(0);
-            }
-            if(globalVm.count("output-file")) {
-                std::string fileName = globalVm["output-file"].as< std::string >();
-                outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".index");
-                buf = outputFile.rdbuf();
-            } else {
-                buf = std::cout.rdbuf();
-            }
-            std::ostream fout (buf);
-
-            bool allIndex = globalVm["index"].as< bool >();
-
-            T->extractPanMATIndex(fout, startCoordinate,endCoordinate, reference, allIndex);
-
-            if(globalVm.count("output-file")) outputFile.close();
-        }
-
-        auto fastaEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
-        std::cout << "\nIndexing execution time: " << fastaTime.count() << " nanoseconds\n";
-
+        index(TG, globalVm, outputFile, buf);
         return;
     } else if(globalVm.count("printRoot")) {
-        // Print raw sequences to output file
-
-        if(TG == nullptr) {
-            std::cout << "No PanMAN selected" << std::endl;
-            return;
-        }
-
-        panmanUtils::TreeGroup tg = *TG;
-
-        auto fastaStart = std::chrono::high_resolution_clock::now();
-        for(int i = 0; i < tg.trees.size(); i++) {
-            T = &tg.trees[i];
-            if(globalVm.count("output-file")) {
-                std::string fileName = globalVm["output-file"].as< std::string >();
-                outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
-                buf = outputFile.rdbuf();
-            } else {
-                buf = std::cout.rdbuf();
-            }
-            std::ostream fout (buf);
-
-
-            T->printFASTA(fout, true, true);
-
-            if(globalVm.count("output-file")) outputFile.close();
-        }
-
-        auto fastaEnd = std::chrono::high_resolution_clock::now();
-        std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
-        std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
-
+        printRoot(TG, globalVm, outputFile, buf);
         return;
     } else {
         char** splitCommandArray;
@@ -1352,35 +1328,133 @@ void parseAndExecute(int argc, char* argv[]) {
             }
 
             try{
-                if(strcmp(splitCommandArray[0], "use") == 0) {
-                    // If command was use, select the PanMAT with the given index from the PanMAN
-                    po::variables_map useVm;
-                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
-                        .options(useDesc)
-                        .run(), useVm);
-
-                    if(useVm.count("help")) {
-                        std::cout << useDesc;
-                    } else {
-                        po::notify(useVm);
-                        size_t treeIndex = useVm["index"].as< size_t >();
-                        if(TG == nullptr) {
-                            std::cout << "No PanMAN loaded" << std::endl;
-                        } else {
-                            if(TG->trees.size() > treeIndex) {
-                                T = &TG->trees[treeIndex];
-                                std::cout << "PanMAT loaded" << std::endl;
-                            } else {
-                                std::cout << "PanMAT with index " << treeIndex << " doesn't exist."
-                                    " There are only " << TG->trees.size() << " PanMATs." << std::endl;
-                            }
-                        }
-                    }
-                } else if (strcmp(splitCommandArray[0], "root") == 0) {
+                if(strcmp(splitCommandArray[0], "help") == 0) {
+                    std::cout << globalDesc;
+                } 
+                else if (strcmp(splitCommandArray[0], "root") == 0) {
                     buf = std::cout.rdbuf();
                     std::ostream fout (buf);
                     TG->trees[0].printFASTA(fout, true, true);
                 } 
+                else if(strcmp(splitCommandArray[0], "summary") == 0) {
+                    po::variables_map summaryVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(summaryDesc)
+                        .run(), summaryVm);
+
+                    summary(TG, summaryVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "fasta") == 0) {
+                    po::variables_map fastaVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(fastaDesc)
+                        .run(), fastaVm);
+
+                    fasta(TG, fastaVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "fasta-aligned") == 0) {
+                    po::variables_map fastaAlignVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(fastaAlignDesc)
+                        .run(), fastaAlignVm);
+
+                    fastaAligned(TG, fastaAlignVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "subnet") == 0) {
+                    po::variables_map subnetVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(subnetDesc)
+                        .run(), subnetVm);
+
+                    subnet(TG, subnetVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "vcf") == 0) {
+                    po::variables_map vcfVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(vcfDesc)
+                        .run(), vcfVm);
+                    vcf(TG, vcfVm, outputFile, buf);
+
+                } else if(strcmp(splitCommandArray[0], "gfa") == 0) {
+                    po::variables_map gfaVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(gfaDesc)
+                        .run(), gfaVm);
+                    gfa(TG, gfaVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "maf") == 0) {
+                    po::variables_map mafVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(mafDesc)
+                        .run(), mafVm);
+                    
+                    maf(TG, mafVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "newick") == 0) {
+                    po::variables_map newickVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(newickDesc)
+                        .run(), newickVm);
+                    newick(TG, newickVm, outputFile, buf);
+
+                } else if(strcmp(splitCommandArray[0], "extended-newick") == 0) {
+                    po::variables_map extendNewickVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(extendNewickDesc)
+                        .positional(fastaPositionArgumentDesc).run(), extendNewickVm);
+                    extendNewick(TG, extendNewickVm, outputFile, buf);
+                } else if (strcmp(splitCommandArray[0], "annotate") == 0) {
+                    po::variables_map annotateVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(annotateDesc)
+                        .run(), annotateVm);
+                    annotate(TG, annotateVm, outputFile, buf);
+
+                } else if (strcmp(splitCommandArray[0], "reroot") == 0) {
+                    po::variables_map rerootVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(rerootDesc)
+                        .run(), rerootVm);
+                    reroot(TG, rerootVm, outputFile, buf);
+
+                } else if (strcmp(splitCommandArray[0], "aa-mutations") == 0) {
+                    po::variables_map aaVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(aaDesc)
+                        .run(), aaVm);
+                    aa(TG, aaVm, outputFile, buf);
+
+                } else if(strcmp(splitCommandArray[0], "create-network") == 0) {
+                    po::variables_map createNetVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(createNetDesc)
+                        .run(), createNetVm);
+                    createNet(TG, createNetVm, outputFile, buf);
+
+                } else if(strcmp(splitCommandArray[0], "printMutations") == 0) {
+                    po::variables_map printMutVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(printMutDesc)
+                        .run(), printMutVm);
+                    printMut(TG, printMutVm, outputFile, buf);
+
+                } else if(strcmp(splitCommandArray[0], "printNodes") == 0) {
+                    po::variables_map printNodeVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(printPathDesc)
+                        .run(), printNodeVm);
+                    printPath(TG, printNodeVm, outputFile, buf);
+                } else if (strcmp(splitCommandArray[0], "index") == 0) {
+                    po::variables_map indexVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(indexDesc)
+                        .run(), indexVm);
+                    index(TG, indexVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "printRoot") == 0) {
+                    po::variables_map printRootVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(printRootDesc)
+                        .run(), printRootVm);
+                    printRoot(TG, printRootVm, outputFile, buf);
+                } else if (strcmp(splitCommandArray[0], "exit") == 0 || strcmp(splitCommandArray[0], "q") == 0) {
+                    return;
+                } else {
+                    std::cout << "type exit or q to exit" << std::endl;
+                }
             } catch (std::exception& e) {
                 std::cout << e.what() << std::endl;
             }
