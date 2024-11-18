@@ -17,6 +17,7 @@ cd capnproto-c++-1.0.2
 make -j6 check
 sudo make install
 which capnp
+cd ../
 
 git clone https://github.com/microsoft/vcpkg.git
 sudo apt-get install pkg-config
