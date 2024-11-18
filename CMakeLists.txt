@@ -18,11 +18,10 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # include_directories(${Protobuf_INCLUDE_DIRS})
 
 # Adding capn proto
-if(DEFINED CapnProto_PATH) 
-	find_package(CapnProto REQUIRED HINTS ${CapnProto_PATH}) 
-else()
-	find_package(CapnProto REQUIRED) 
-endif()
+
+find_program(CAPNP_EXECUTABLE capnp REQUIRED)
+find_program(CAPNPC_CXX_EXECUTABLE capnpc-c++ REQUIRED)
+find_package(CapnProto REQUIRED)
 
 if(CapnProto_FOUND)
 	message(STATUS "Using Capn Proto ${CapnProto_VERSION}")
