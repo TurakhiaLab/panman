@@ -1198,6 +1198,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         // Read MSA
         while(getline(fin,line,'\n')) {
             if(line.length() == 0) {
+                std::cout << "here";
                 continue;
             }
             if(line[0] == '>') {
@@ -1208,18 +1209,20 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                         std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
                         exit(-1);
                     }
-                    // std::cout << currentSequenceId <<  "\t" << currentSequence;
-                    sequenceIdsToSequences[currentSequenceId] = currentSequence;
+                    std::vector< std::string > splitLine;
+                    stringSplit(currentSequenceId,'\r',splitLine);
+                    sequenceIdsToSequences[splitLine[0]] = currentSequence;
                 }
                 std::vector< std::string > splitLine;
                 stringSplit(line,' ',splitLine);
                 currentSequenceId = splitLine[0].substr(1);
                 currentSequence = "";
             } else {
-                currentSequence += line;
+                std::vector< std::string > splitLine;
+                stringSplit(line,'\r',splitLine);
+                currentSequence += splitLine[0];
             }
         }
-
 
         if(currentSequence.length()) {
             if(lineLength != 0 && lineLength != currentSequence.length()) {
@@ -1227,38 +1230,36 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 exit(-1);
             } else {
                 lineLength = currentSequence.length();
-                std::cout << lineLength << std::endl;
             }
             sequenceIdsToSequences[currentSequenceId] = currentSequence;
         }
+
+
+        std::cout << lineLength << std::endl;
         std::set< size_t > emptyPositions;
 
-        // std::cout << root->identifier << std::endl;
-        // ReRoot tree if reference provided
+        
         if (reference != "") {
-            // if (allNodes.find(reference) == allNodes.end()) {
-            //     std::cout << reference << " is not a tip!!" << std::endl;
-            //     exit(0);
-            // }
-            // transform(allNodes[reference]);
-            // std::cout << reference << "\t" << root->identifier << std::endl;
             consensusSeq = sequenceIdsToSequences[reference];
         } else {
-            tbb::parallel_for((size_t)0, lineLength, [&](size_t i) {
-            // for(size_t i = 0; i < lineLength; i++) {
+            // tbb::parallel_for((size_t)0, lineLength, [&](size_t i) {
+            consensusSeq.resize(lineLength);
+            int countEmpty=0;
+            for(size_t i = 0; i < lineLength; i++) {
                 bool nonGapFound = false;
                 for(auto u: sequenceIdsToSequences) {
                     if(u.second[i] != '-') {
-                        consensusSeq += u.second[i];
+                        consensusSeq[i] = u.second[i];
                         nonGapFound = true;
                         break;
                     }
                 }
                 if(!nonGapFound) {
+                    countEmpty++;
                     emptyPositions.insert(i);
                 }
-            // }
-            });
+            }
+            // });
             for(auto& u: sequenceIdsToSequences) {
                 std::string sequenceString;
                 for(size_t i = 0; i < u.second.length(); i++) {
@@ -1269,7 +1270,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 u.second = sequenceString;
             }
         }
-        
+
         tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int8_t,int8_t > > > nonGapMutationsMSA;
         std::unordered_map< std::string, std::mutex > nodeMutexes;
         std::unordered_map< size_t, std::mutex > posMutexes;
@@ -1284,44 +1285,53 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         }
     	int positionCount = 0;
 
-        tbb::parallel_for((size_t)0, consensusSeq.length(), [&](size_t i) {
-            // Sankoff
-            std::unordered_map< std::string, std::vector< int > > stateSets;
-            std::unordered_map< std::string, int > states;
-            std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
+        
 
-            for(const auto& u: sequenceIdsToSequences) {
-                std::vector< int > currentState(16, SANKOFF_INF);
-                if(u.second[i] != '-') {
-                    currentState[getCodeFromNucleotide(u.second[i])] = 0;
-                } else {
-                    currentState[0] = 0;
-                }
-                stateSets[u.first] = currentState;
-            }
-            nucSankoffForwardPass(root, stateSets);
-            nucSankoffBackwardPass(root, stateSets, states, getCodeFromNucleotide(consensusSeq[i]));
-            nucSankoffAssignMutations(root, states, mutations, getCodeFromNucleotide(consensusSeq[i]));
-            for(auto mutation: mutations) {
-                nodeMutexes[mutation.first].lock();
-                nonGapMutationsMSA[mutation.first].push_back(std::make_tuple(i, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
-                nodeMutexes[mutation.first].unlock();
-            }
+        // tbb::parallel_for((size_t)0, consensusSeq.length(), [&](size_t i) {
+        for(int i=0; i<consensusSeq.size(); i++) {
+            // Sankoff
+            // std::cout << "index: "<< i << " " << consensusSeq[i] << std::endl;
+            // std::unordered_map< std::string, std::vector< int > > stateSets;
+            // std::unordered_map< std::string, int > states;
+            // std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
+
+            // for(const auto& u: sequenceIdsToSequences) {
+            //     std::vector< int > currentState(16, SANKOFF_INF);
+            //     if(u.second[i] != '-') {
+            //         currentState[getCodeFromNucleotide(u.second[i])] = 0;
+            //     } else {
+            //         currentState[0] = 0;
+            //     }
+            //     stateSets[u.first] = currentState;
+            // }
+            // nucSankoffForwardPass(root, stateSets);
+            // nucSankoffBackwardPass(root, stateSets, states, getCodeFromNucleotide(consensusSeq[i]));
+            // nucSankoffAssignMutations(root, states, mutations, getCodeFromNucleotide(consensusSeq[i]));
+            // for(auto mutation: mutations) {
+            //     nodeMutexes[mutation.first].lock();
+            //     nonGapMutationsMSA[mutation.first].push_back(std::make_tuple(i, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+            //     nodeMutexes[mutation.first].unlock();
+            // }
             // Fitch
-            /*
+            
             std::unordered_map< std::string, int > states;
             std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
             for(const auto& u: sequenceIdsToSequences) {
                 if(u.second[i] != '-') {
-                    states[u.first] = (1 << getCodeFromNucleotide(u.second[i]));
+                    states.insert({u.first, (1 << getCodeFromNucleotide(u.second[i]))});
+                    // states[u.first] = (1 << getCodeFromNucleotide(u.second[i]));
                 } else {
-                    states[u.first] = 1;
+                    states.insert({u.first, 1});
+                    // states[u.first] = 1;
                 }
-            }
+            }  
+            // exit(0);
             int refState = (reference=="")?-1:1<<getCodeFromNucleotide(sequenceIdsToSequences[reference][i]);
             nucFitchForwardPass(root, states, refState);
-
-            nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSeq[i])),refState);
+            // for (const auto &a: states) std::cout << a.first.c_str() <<  ": " << a.second << std::endl;
+            // exit(0);
+            // std::cout << i << "\t" << states[root->identifier] << std::endl;
+            nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensusSeq[i])));
             nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[i])));
             for(auto mutation: mutations) {
                 nodeMutexes[mutation.first].lock();
@@ -1330,8 +1340,9 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             }
             posMutexes[i].lock();
             posMutexes[i].unlock();
-            */
-        });
+            
+        // });
+        }
 
         // std::cout << root->identifier << std::endl;
         std::cout << consensusSeq << std::endl;
@@ -1363,8 +1374,6 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             nodeMutexes[u.first].unlock();
         // }
         });
-
-
     } else if(ftype == panmanUtils::FILE_TYPE::MSA_OPTIMIZE) {
         std::string newickString;
         secondFin >> newickString;
