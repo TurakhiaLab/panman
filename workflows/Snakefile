@@ -12,29 +12,32 @@ rule pangraph:
     conda:
         envs/panamanUtils.yml
     threads:
-        threads = 32
+        thread = 32
     shell:
         '''
         echo "Building Alignment with PanGraph..."
-        export JULIA_NUM_THREADS={threads}
+        export JULIA_NUM_THREADS={thread}
         mkdir -p output
         pangraph {input[0]} > {output[0]} 2> {output[1]}
         echo $(cat {output[1]} | grep "tree" | awk '{split($0,a,"tree:  "); print a[2]}') > {output[1]}
         '''
 
 rule mashtree:
-	input:
-		config["FASTA"]
-	output:
-		output/mashtree.nwk
+    input:
+        config["FASTA"]
+    output:
+        output/mashtree.nwk
     threads:
-        threads = 32
-	shell:
-		'''
+        thread = 32
+    shell:
+        '''
         echo "Building Tree with MashTree..."
         mkdir -p output
-        mashtree --numcpus {threads} {input[0]} > {output[0]}
-		'''
+        python3 scripts/splitSeqs.py {input[0]} temp
+        mashtree --numcpus {thread} temp/* > {output[0]}
+        python3 scripts/updateNewick.py {output[0]} /temp {output[0]}
+        rm -r temp /temp
+        '''
 
 rule msa:
     input:
@@ -43,12 +46,10 @@ rule msa:
     output:
         output/mafft.aln
     threads:
-        threads = 32
+        thread = 32
     shell:
         '''
         echo "Building Alignment with MAFFT..."
         mafft {input[0]} > {output[0]}
         '''
-
-
 
