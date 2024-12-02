@@ -1,55 +1,110 @@
+'''
+This is a snakemake workflow for building PanMAN from PanGraph, GFA, or MSA.
+
+Users can run workflow as:
+
+Building PanMAN from PanGraph Alignment
+    snakemake --use-conda --cores [num threads] --config RUNTYPE="pangraph" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count]
+Building PanMAN from PGGB Alignment
+    snakemake --use-conda --cores [num threads] --config RUNTYPE="gfa" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count]
+Building PanMAN from MAFFT Alignment
+    snakemake --use-conda --cores [num threads] --config RUNTYPE="msa" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count]
+
+Note: This workflow uses MashTree to build tree input for panmanUtils when building panman from gfa or msa.
+'''
+
+def config_select(config):
+    target_rule = config.get("RUNTYPE", None)
+    
+    if target_rule == "pangraph":
+        return "output/pangraph.aln"
+    elif target_rule == "gfa":
+        return "output/pggb.aln"
+    elif target_rule == "msa":
+        return "output/mafft.aln"
+    else:
+        raise ValueError(f"Unknown target rule '{target_rule}'. Choose from 'pangraph', 'gfa', or 'msa'.")
 
 rule all:
     input:
-        config["RUNTYPE"]
+        config_select(config)
 
 rule pangraph:
     input:
         config["FASTA"]
     output:
-        output/pangraph.json
-        output/pangraph.nwk
-    conda:
-        envs/panamanUtils.yml
+        aln = "output/pangraph.aln",
+        newick = "output/pangraph.nwk",
+        panman = "panman/out.panman"
     threads:
-        thread = 32
+        threads = 32
     shell:
         '''
         echo "Building Alignment with PanGraph..."
-        export JULIA_NUM_THREADS={thread}
+        export JULIA_NUM_THREADS={threads}
         mkdir -p output
-        pangraph {input[0]} > {output[0]} 2> {output[1]}
-        echo $(cat {output[1]} | grep "tree" | awk '{split($0,a,"tree:  "); print a[2]}') > {output[1]}
+        pangraph build {input[0]} > {output.aln} 2> {output.newick}
+        awk '/tree/ {{split($0,a,"tree:  "); print a[2]}}' {output.newick} > temp.newick && mv temp.newick {output.newick}
+
+        echo "Building PanMAN from Pangraph alignment..."
+        ../build/panmanUtils -P {output.aln} -N {output.newick} -o out
         '''
 
 rule mashtree:
     input:
         config["FASTA"]
     output:
-        output/mashtree.nwk
+        newick = "output/mashtree.nwk"
     threads:
-        thread = 32
+        threads = 32
     shell:
         '''
         echo "Building Tree with MashTree..."
         mkdir -p output
         python3 scripts/splitSeqs.py {input[0]} temp
-        mashtree --numcpus {thread} temp/* > {output[0]}
-        python3 scripts/updateNewick.py {output[0]} /temp {output[0]}
+        mashtree --numcpus {threads} temp/* > {output.newick}
+        python3 scripts/updateNewick.py {output.newick} /temp {output.newick}
         rm -r temp /temp
         '''
 
-rule msa:
+rule mafft:
     input:
-        config["FASTA"]
-        output/mashtree.nwk
+        config["FASTA"],
+        newick = "output/mashtree.nwk"
     output:
-        output/mafft.aln
+        aln = "output/mafft.aln",
+        panman = "panman/out.panman"
     threads:
-        thread = 32
+        threads = 32
     shell:
         '''
         echo "Building Alignment with MAFFT..."
-        mafft {input[0]} > {output[0]}
+        mafft --auto {input.newick} > {output.aln}
+
+        echo "Building PanMAN from MAFFT alignment..."
+        ../build/panmanUtils -M {output.aln} -N {input.newick} -o out
+        '''
+
+rule pggb:
+    input:
+        fasta = config["FASTA"],
+        newick = "output/mashtree.nwk"
+    output:
+        aln = "output/pggb.aln",
+        panman = "panman/out.panman"
+    threads:
+        threads = 32
+    params:
+        sq = config["SEQ_COUNT"]
+    shell:
+        '''
+        echo "Building Alignment with PGGB..."
+        samtools faidx {input.fasta}
+        pggb --threads {threads} -i {input.fasta} -o pggb_temp -n {params.sq}
+        mv pggb_temp/*final.gfa {output.aln}
+        rm -r pggb_temp
+
+        echo "Building PanMAN from PGGB alignment..."
+        ../build/panmanUtils -G {output.aln} -N {input.newick} -o out
         '''
 
