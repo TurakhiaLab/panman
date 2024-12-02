@@ -308,8 +308,11 @@ class Tree {
     void printFASTAHelper(panmanUtils::Node* root, sequence_t& sequence,
                           blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout,
                           bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
-    void printFASTAHelperNew(panmanUtils::Node* root, sequence_t& sequence,
-                          blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout,
+    void printFASTAHelperNew(panmanUtils::Node* root, 
+                          std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+                          std::vector<bool>& blockExists, 
+                          std::vector<bool>& blockStrand, 
+                          std::ostream& fout,
                           bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
 
     void printSingleNodeHelper(std::vector<panmanUtils::Node*> &nodeList, int nodeListIndex, sequence_t& sequence,

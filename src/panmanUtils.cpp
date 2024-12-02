@@ -364,6 +364,7 @@ void fasta(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstrea
 
         // T->printFASTAParallel(fout, false);
         T->printFASTANew(fout, false, false);
+        // T->printFASTA(fout,false,false);
 
         if(globalVm.count("output-file")) outputFile.close();
     }
@@ -1031,7 +1032,7 @@ void parseAndExecute(int argc, char* argv[]) {
               .positional(globalPositionArgumentDesc).allow_unregistered().run(), globalVm);
     po::notify(globalVm);
 
-    int threads = 64;
+    int threads = 32;
     if (globalVm.count("threads")) threads = globalVm["threads"].as<std::int32_t>();
     tbb::task_scheduler_init init(threads);
 

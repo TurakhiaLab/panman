@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.8) 
 
-project(panmanUtils)
+project(panmanUtilsNew)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
@@ -46,13 +46,13 @@ find_package(jsoncpp CONFIG REQUIRED)
 file(GLOB PANMAT_SRCS "src/panmanUtils.cpp" "src/panman.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
 
 if(DEFINED CapnProto_PATH)
-	add_executable(panmanUtils
+	add_executable(panmanUtilsNew
 		${PANMAT_SRCS}
 		)
 
 	capnp_generate(
 		LANGUAGE cpp
-		TARGET panmanUtils  
+		TARGET panmanUtilsNew  
 		PROTOS panman.capnp)
 
 else()
@@ -60,7 +60,7 @@ else()
 		CAPNP_SRCS CAPNP_HDRS 
 		panman.capnp)
 	
-	add_executable(panmanUtils
+	add_executable(panmanUtilsNew
 		${PANMAT_SRCS}
 		${CAPNP_SRCS}
 		${CAPNP_HDRS}
@@ -68,7 +68,7 @@ else()
 	
 endif()
 
-TARGET_COMPILE_OPTIONS(panmanUtils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
+TARGET_COMPILE_OPTIONS(panmanUtilsNew PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
-TARGET_LINK_LIBRARIES(panmanUtils PRIVATE stdc++ JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${CAPNP_LIBRARIES} ) #${Protobuf_LIBRARIES} ${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
-target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
+TARGET_LINK_LIBRARIES(panmanUtilsNew PRIVATE stdc++ JsonCpp::JsonCpp ${Boost_LIBRARIES} ${TBB_IMPORTED_TARGETS} ${CAPNP_LIBRARIES} ) #${Protobuf_LIBRARIES} ${Boost_LIBRARIES}  ) # OpenMP::OpenMP_CXX)
+target_include_directories(panmanUtilsNew PUBLIC "${PROJECT_BINARY_DIR}")
