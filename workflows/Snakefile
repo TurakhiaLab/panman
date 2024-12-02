@@ -1,0 +1,54 @@
+
+rule all:
+    input:
+        config["RUNTYPE"]
+
+rule pangraph:
+    input:
+        config["FASTA"]
+    output:
+        output/pangraph.json
+        output/pangraph.nwk
+    conda:
+        envs/panamanUtils.yml
+    threads:
+        threads = 32
+    shell:
+        '''
+        echo "Building Alignment with PanGraph..."
+        export JULIA_NUM_THREADS={threads}
+        mkdir -p output
+        pangraph {input[0]} > {output[0]} 2> {output[1]}
+        echo $(cat {output[1]} | grep "tree" | awk '{split($0,a,"tree:  "); print a[2]}') > {output[1]}
+        '''
+
+rule mashtree:
+	input:
+		config["FASTA"]
+	output:
+		output/mashtree.nwk
+    threads:
+        threads = 32
+	shell:
+		'''
+        echo "Building Tree with MashTree..."
+        mkdir -p output
+        mashtree --numcpus {threads} {input[0]} > {output[0]}
+		'''
+
+rule msa:
+    input:
+        config["FASTA"]
+        output/mashtree.nwk
+    output:
+        output/mafft.aln
+    threads:
+        threads = 32
+    shell:
+        '''
+        echo "Building Alignment with MAFFT..."
+        mafft {input[0]} > {output[0]}
+        '''
+
+
+

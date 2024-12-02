@@ -1,0 +1,4 @@
+channels:
+  - defaults
+  - bioconda
+  - conda-forge
