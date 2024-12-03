@@ -13,6 +13,7 @@
 
 #include <json/json.h>
 #include "panman.capnp.h"
+#include "usher.pb.h"
 
 #include "panman.hpp"
 
@@ -55,7 +56,7 @@ std::string stripString(std::string s);
 
 void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
-
+void panmanToUsher(panmanUtils::Tree* panmanTree, std::string refName, std::string filename, std::string refSeq="");
 
 
 // Represents input PanGraph information for PanMAT generation
@@ -106,7 +107,7 @@ class Pangraph {
         tbb::concurrent_unordered_map< size_t,
         std::vector< std::pair< size_t, size_t > > > > > deletions;
 
-    Pangraph(Json::Value& pangraphData);
+    Pangraph(Json::Value& pangraphData, panmanUtils::Node* node=nullptr);
     std::vector< size_t > getTopologicalSort();
     std::unordered_map< std::string,std::vector< int > >
     getAlignedSequences(const std::vector< size_t >& topoArray);

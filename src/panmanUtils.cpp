@@ -155,6 +155,7 @@ void setupOptionDescriptions() {
     ("index",po::value< bool >(0), "Generating indexes and print sequence (passed as reference) between x:y")
     ("printRoot", "Print root sequence")
     ("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
+    ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
   
     ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
     ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
@@ -1021,6 +1022,43 @@ void printRoot(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofs
 
 }
 
+void toUsher(panmanUtils::TreeGroup *TG, po::variables_map &globalVm) {
+    // Print raw sequences to output file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree * T = &tg.trees[i];
+        std::string fileName;
+        if(globalVm.count("output-file")) {
+            fileName = globalVm["output-file"].as< std::string >();
+        } else {
+            std::cout << "Output File not provided" << std::endl;
+            return;
+        }
+        std::string refName;
+        if(globalVm.count("reference")) {
+            refName = globalVm["reference"].as< std::string >();
+        } else {
+            std::cout << "Reference not provided" << std::endl;
+            return;
+        }
+
+        panmanUtils::panmanToUsher(T, refName, fileName);
+
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nUsher Conversion time: " << fastaTime.count() << " nanoseconds\n";
+
+}
+
 void parseAndExecute(int argc, char* argv[]) {
 
     // Setup boost::program_options
@@ -1308,6 +1346,9 @@ void parseAndExecute(int argc, char* argv[]) {
         return;
     } else if(globalVm.count("printRoot")) {
         printRoot(TG, globalVm, outputFile, buf);
+        return;
+    }  else if(globalVm.count("toUser")) {
+        toUsher(TG, globalVm);
         return;
     } else {
         char** splitCommandArray;

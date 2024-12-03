@@ -58,7 +58,7 @@ std::pair<int, int> rotate_alignment(const std::vector<std::string>& consensus, 
     }
 
 
-    cout << max_.first << " " << max_.second << " ";
+    // cout << max_.first << " " << max_.second << " ";
 
     return max_;
 

@@ -31,6 +31,7 @@
 #include "annotate.cpp"
 #include "reroot.cpp"
 #include "aaTrans.cpp"
+#include "panman2usher.cpp"
 
 #include "panmanUtils.hpp"
 
@@ -747,10 +748,10 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         secondFin >> newickString;
         Json::Value pangraphData;
         fin >> pangraphData;
-
+        root = createTreeFromNewickString(newickString);
         auto start = std::chrono::high_resolution_clock::now();
 
-        panmanUtils::Pangraph pg(pangraphData);
+        panmanUtils::Pangraph pg(pangraphData, root);
 
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds timing = end -start;
@@ -767,7 +768,6 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         std::unordered_map< std::string, std::vector< int > >
         alignedStrandSequences = pg.getAlignedStrandSequences(topoArray);
 
-        root = createTreeFromNewickString(newickString);
 
         // Check if tree is a polytomy to check if Sankoff algorithm needs to be applied
         bool polytomy = hasPolytomy(root);
@@ -792,8 +792,11 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string,
             std::pair< BlockMutationType, bool > > > globalBlockMutations;
 
-        std::cout << "Inferring mutations..." << std::endl;
+        
+        
+        std::cout << "Inferring Block mutations..." << std::endl;
         tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
+        // for(size_t i=0; i<topoArray.size(); i++){
             if(!polytomy) {
                 // Apply Fitch's algorithm if not a Polytomy
                 std::unordered_map< std::string, int > states;
@@ -881,6 +884,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 blockSankoffAssignMutations(root, states, mutations, 0);
                 globalBlockMutations[i] = mutations;
             }
+        // }
         });
 
         std::unordered_map< std::string, std::mutex > nodeMutexes;
@@ -921,10 +925,13 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         tbb::concurrent_unordered_map< std::string,
             std::vector< std::tuple< int,int,int,int,int,int > > > gapMutations;
 
+        std::cout << "Inferring Nuc mutations..." << std::endl;
         tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
+        // for(size_t i=0; i<topoArray.size(); i++){
             std::string consensusSeq = pg.stringIdToConsensusSeq[pg.intIdToStringId[topoArray[i]]];
-            std::vector< std::pair< char, std::vector< char > > > sequence(consensusSeq.size()+1,
-            {'-', {}});
+            std::vector< std::pair< char, std::vector< char > > > sequence(consensusSeq.size()+1,{'-', {}});
+            std::vector< std::pair< char, std::vector< char > > > dumysequence(consensusSeq.size()+1,{'-', {}});
+
             for(size_t j = 0; j < consensusSeq.length(); j++) {
                 sequence[j].first = consensusSeq[j];
             }
@@ -932,15 +939,19 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 sequence[pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].first]
                 .second.resize(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].second,
                                '-');
+                dumysequence[pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].first]
+                .second.resize(pg.stringIdToGaps[pg.intIdToStringId[topoArray[i]]][j].second,
+                               '-');
             }
             tbb::concurrent_unordered_map< std::string,
                 std::vector< std::pair< char, std::vector< char > > > > individualSequences;
 
             tbb::parallel_for_each(alignedSequences, [&](const auto& u) {
+                std::vector< std::pair< char, std::vector< char > > > currentSequence = sequence;
                 if(u.second[i] == -1) {
+                    // individualSequences[u.first] = dumysequence;
                     return;
                 }
-                std::vector< std::pair< char, std::vector< char > > > currentSequence = sequence;
 
                 for(const auto& v: pg.substitutions[pg.intIdToStringId[topoArray[i]]][u.first][blockCounts[u.first][i]]) {
                     currentSequence[v.first-1].first = v.second[0];
@@ -958,6 +969,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 individualSequences[u.first] = currentSequence;
             });
 
+           
             tbb::parallel_for((size_t) 0, sequence.size(), [&](size_t j) {
                 tbb::parallel_for((size_t)0, sequence[j].second.size(), [&](size_t k) {
                     if(!polytomy) {
@@ -1144,6 +1156,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 }
             });
         });
+        
 
         tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
             nodeMutexes[u.first].lock();
@@ -5304,7 +5317,7 @@ std::vector< size_t > panmanUtils::GfaGraph::getTopologicalSort() {
 }
 
 
-panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData) {
+panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData, panmanUtils::Node* root) {
     // load paths
     bool circular=false;
     for(size_t i = 0; i < pangraphData["paths"].size(); i++) {
@@ -5405,7 +5418,7 @@ panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData) {
                 bool invert = false;
                 sample_new= rotate_sample(sample_base, sample_dumy, strandPaths[p.first], blockNumbers[p.first], blockSizeMap, rotation_index, invert);
 
-                std::cout << p.first << "\n";
+                // std::cout << p.first << "\n";
                 // std::vector<string> temp1({"a","b","c","d","e","f"});
                 // std::vector<string> temp2({"a","b","c","d","g","h"});
                 // std::vector<int> temp3({1,1,1,1,1,1});
@@ -5461,7 +5474,7 @@ panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData) {
     std::vector<int> intSequenceConsensus= {};
     std::vector<int> intSequenceSample= {};
     std::vector<int> intSequenceConsensusNew= {};
-
+    
     std::cout << "Resolving rearrangements and duplications..." << std::endl;
     for(const auto& p: paths) {
         if (seqCount == 0) { // Load first sequence path
@@ -5473,6 +5486,7 @@ panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData) {
                 intSequenceConsensus.push_back(numNodes);
                 numNodes++;
             }
+            // std::cout << "Len of consensus: " << consensus.size() << std::endl;
         } else {
             intSequenceSample.clear();
             intSequenceConsensusNew.clear();
@@ -5505,10 +5519,10 @@ panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData) {
             for (auto &b: intSequenceConsensusNew) {
                 intSequenceConsensus.push_back(b);
             }
-
+            std::cout << "Len of consensus: " << consensus.size() << std::endl;
         }
         seqCount++;
-        // std::cout << seqCount << " " << intSequenceConsensusNew.size() << endl;
+        std::cout << seqCount << " " << intSequenceConsensusNew.size() << endl;
     }
 
     // re-assigning IDs in fixed order
@@ -5525,7 +5539,9 @@ panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData) {
         for (auto &s: m.second) {
             s = order_map[s];
         }
+        // std::cout << m.first << " " << m.first.size() << std::endl;
     }
+
 }
 
 std::unordered_map< std::string,std::vector< int > > panmanUtils::Pangraph::getAlignedStrandSequences(const std::vector< size_t >& topoArray) {
