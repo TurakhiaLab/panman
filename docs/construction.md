@@ -47,19 +47,17 @@ cd $PANMAN_HOME/build
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
-### Building PanMAN from raw genome sequences
-We provide scripts to construct <i>panmanUtils</i> inputs (PanGraph/GFA/MSA and Newick) from raw sequences (FASTA format), followed by building a panman.
+### Building PanMAN from raw genome sequences (Snakemake Workflow)
+We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA format).
 
 !!!Note
-    This script uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively. The script is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](install.md)).
+    The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](install.md)).
 
-**Step 1:** Check if the `sars_20.fa` file exists in `test` directory. Alternatively, users can provide custom raw sequences (FASTA format) to build a panman. 
-
-**Step 2:** Run the following command to construct a panman from raw sequences.
+**Step 1:** Run the following command to construct a panman from raw sequences.
 
 ```bash
-cd $PANMAN_HOME/scripts
-chmod +x build_panman.sh
-./build_panman.sh pangraph/gfa/msa
+cd $PANMAN_HOME/workflows
+conda activate snakemake
+snakemake --use-conda --cores [num threads] --config RUNTYPE="[pangraph/gfa/msa]" FASTA="[user_fasta]" SEQ_COUNT=[haplotype_count]
 ```
     
