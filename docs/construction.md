@@ -62,7 +62,7 @@ conda activate snakemake
 snakemake --use-conda --cores [num threads] --config RUNTYPE="[pangraph/gfa/msa]" FASTA="[user_fasta]" SEQ_COUNT=[haplotype_count]
 ```
 
-### Building PanMAN from fragmented genomes using Snakemake Workflow
+### Building PanMAN from fragmented genomes
 We provide a Snakemake workflow to construct PanMANs from fragmented genomes (FASTA format).
 
 **Step 1:** Run the following command to construct a panman from fragmented genomes
