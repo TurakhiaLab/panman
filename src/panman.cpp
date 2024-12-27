@@ -18,6 +18,8 @@
 #include <chrono>
 #include <filesystem>
 #include <set>
+#include <boost/iostreams/filter/lzma.hpp>
+
 
 #include "chaining.cpp"
 #include "rotation.cpp"
@@ -32,7 +34,6 @@
 #include "reroot.cpp"
 #include "aaTrans.cpp"
 #include "panman2usher.cpp"
-
 #include "panmanUtils.hpp"
 
 char panmanUtils::getNucleotideFromCode(int code) {
@@ -261,7 +262,6 @@ void panmanUtils::stringSplit (std::string const& s, char delim, std::vector<std
 
 panmanUtils::Node* panmanUtils::Tree::createTreeFromNewickString(std::string newickString) {
     newickString = stripString(newickString);
-
     panmanUtils::Node* treeRoot = nullptr;
 
     std::vector<std::string> leaves;
@@ -272,7 +272,7 @@ panmanUtils::Node* panmanUtils::Tree::createTreeFromNewickString(std::string new
 
     std::vector<std::string> s1;
     stringSplit(newickString, ',', s1);
-
+    
     numOpen.reserve(s1.size());
     numClose.reserve(s1.size());
     
@@ -317,9 +317,11 @@ panmanUtils::Node* panmanUtils::Tree::createTreeFromNewickString(std::string new
                 }
             }
         }
+
         leaves.push_back(std::move(leaf));
         numOpen.push_back(no);
         numClose.push_back(nc);
+        
         // float len = (branch.size() > 0) ? std::stof(branch) : -1.0;
         float len = (branch.size() > 0) ? std::stof(branch) : 1.0;
         branchLen[level].push(len);
@@ -340,35 +342,45 @@ panmanUtils::Node* panmanUtils::Tree::createTreeFromNewickString(std::string new
     m_numLeaves = leaves.size();
 
     std::stack<Node*> parentStack;
+    // std::cout << "branchLen  " << branchLen[level].size() << " " <<level << std::endl;
 
-    for (size_t i=0; i<leaves.size(); i++) {
-        auto leaf = leaves[i];
-        auto no = numOpen[i];
-        auto nc = numClose[i];
-        for (size_t j=0; j<no; j++) {
-            std::string nid = newInternalNodeId();
-            Node* newNode = nullptr;
-            if (parentStack.size() == 0) {
-                newNode = new Node(nid, branchLen[level].front());
-                treeRoot = newNode;
-            } else {
-                newNode = new Node(nid, parentStack.top(), branchLen[level].front());
-        
+    if (leaves.size()==1) {
+        auto leaf = leaves[0];
+        Node* newNode = nullptr;
+        std::string nid = newInternalNodeId();
+        newNode = new Node(nid, branchLen[level].front());
+        treeRoot = newNode;
+        allNodes[leaf] = newNode;
+    } else {
+        for (size_t i=0; i<leaves.size(); i++) {
+            auto leaf = leaves[i];
+            auto no = numOpen[i];
+            auto nc = numClose[i];
+            for (size_t j=0; j<no; j++) {
+                std::string nid = newInternalNodeId();
+                Node* newNode = nullptr;
+                if (parentStack.size() == 0) {
+                    newNode = new Node(nid, branchLen[level].front());
+                    treeRoot = newNode;
+                } else {
+                    newNode = new Node(nid, parentStack.top(), branchLen[level].front());
+            
+                }
+                // std::cout << newNode->identifier << '\t' << newNode->branchLength << '\n';
+                branchLen[level].pop();
+                level++;
+
+                allNodes[nid] = newNode;
+                parentStack.push(newNode);
             }
-            // std::cout << newNode->identifier << '\t' << newNode->branchLength << '\n';
+            Node* leafNode = new Node(leaf, parentStack.top(), branchLen[level].front());
+            allNodes[leaf] = leafNode;
+
             branchLen[level].pop();
-            level++;
-
-            allNodes[nid] = newNode;
-            parentStack.push(newNode);
-        }
-        Node* leafNode = new Node(leaf, parentStack.top(), branchLen[level].front());
-        allNodes[leaf] = leafNode;
-
-        branchLen[level].pop();
-        for (size_t j=0; j<nc; j++) {
-            parentStack.pop();
-            level--;
+            for (size_t j=0; j<nc; j++) {
+                parentStack.pop();
+                level--;
+            }
         }
     }
 
@@ -1539,7 +1551,6 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
 
 void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
     // Create tree
-    // std::cout << mainTree.getNewick().cStr() << std::endl;
     root = createTreeFromNewickString(mainTree.getNewick().cStr());
     // std::cout << root->identifier << std::endl;
     std::map< std::pair<int32_t, int32_t>, std::vector< uint32_t > > blockIdToConsensusSeq;
@@ -5601,7 +5612,7 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg) {
 }
 
 panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutationFile) {
-
+    // std::cout << "I am here" << std::endl;
     for (auto& t: tg) {
         trees.push_back(*t);
     }
@@ -5610,7 +5621,10 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutat
     std::string line;
     while(getline(mutationFile, line, '\n')) {
         std::vector< std::string > tokens;
-        stringSplit(line, ' ', tokens);
+        stringSplit(line, '\t', tokens);
+        for (auto a: tokens) {
+            std::cout << a << std::endl;
+        }
         char mutationType = tokens[0][0];
         size_t treeIndex1 = std::stoll(tokens[1]);
         std::string sequenceId1 = tokens[2];
@@ -5623,6 +5637,8 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutat
         size_t treeIndex3 = std::stoll(tokens[9]);
         std::string sequenceId3 = tokens[10];
         bool splitOccurred = false;
+
+        std::cout << sequenceId1 << ", " << sequenceId2 << ": " << sequenceId3 << std::endl;
 
         if(treeIndex3 == treeIndex1 && treeIndex3 == treeIndex2) {
             // If all three sequences are from the same tree, split this tree
@@ -5679,9 +5695,15 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutat
 panmanUtils::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile) {
     for(size_t i = 0; i < treeFiles.size(); i++) {
         boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
-        inPMATBuffer.push(boost::iostreams::gzip_decompressor());
+
+        inPMATBuffer.push(boost::iostreams::lzma_decompressor());
         inPMATBuffer.push(treeFiles[i]);
         std::istream inputStream(&inPMATBuffer);
+
+        // boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
+        // inPMATBuffer.push(boost::iostreams::gzip_decompressor());
+        // inPMATBuffer.push(treeFiles[i]);
+        // std::istream inputStream(&inPMATBuffer);
 
         trees.emplace_back(inputStream);
     }
@@ -5762,12 +5784,14 @@ panmanUtils::TreeGroup::TreeGroup(std::istream& fin) {
 
     panman::TreeGroup::Reader TG = messageReader.getRoot<panman::TreeGroup>();
 
-
+    int count=0;
     for (auto treeFromTG: TG.getTrees()){
+        // std::cout << "Tree " << count++ << ".." << std::endl;
         trees.emplace_back(treeFromTG);
     }
-
+    count=0;
     for (auto compMutFromTG: TG.getComplexMutations()){
+        // std::cout << "Complex Mutation " << count++ << ".." << std::endl;
         complexMutations.emplace_back(compMutFromTG);
     }
 }
@@ -5787,7 +5811,7 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
 
     // std::cout << "Writing Trees..." << std::endl;
     for(auto& tree: trees) {
-        // std::cout << "Tree Count:" << treesCount << "..." << std::endl;
+        std::cout << "Tree Count:" << treesCount << "..." << std::endl;
         panman::Tree::Builder treeToWrite = treestoWriteBuilder[treesCount++];
         Node* node = tree.root;
 
@@ -5897,8 +5921,10 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
     size_t cmplxMutCount=0;
     // std::cout << "Writing Complex Mutations..." << std::endl;
     for(auto cm: complexMutations) {
-        // std::cout << "Cmplx mutation Count:" << cmplxMutCount << "..." << std::endl;
-        complexMutBuilder[cmplxMutCount++] = cm.toCapnProto();
+        panman::ComplexMutation::Builder cmBuilder = complexMutBuilder[cmplxMutCount++];
+        cm.toCapnProto(cmBuilder);
+
+
     }
 
     // ToDo check if the write was successful

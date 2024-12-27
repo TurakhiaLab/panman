@@ -12,12 +12,13 @@
 #include <tbb/parallel_sort.h>
 #include <tbb/concurrent_vector.h>
 
+#include "panman.hpp"
+
 std::pair <int,int> origin (-1,-1);
 std::pair <int,int> base (0,0);
 
 
 using namespace std;
-
 
 
 struct hashPair {
@@ -151,7 +152,7 @@ void find_chain(NodeRangeTree* root, std::pair<int,int> point, std::unordered_ma
 
 std::vector<std::pair<int,int>> chaining (std::vector<std::string> &consensus, std::vector<std::string> &sample) {
     std::vector<std::pair<int,int>> chain;
-    int K = 500;
+    int K = 4000;
 
     std::vector<std::pair<int,int>>  points;
     // std::cout << "Finding seeds sequencial ";
@@ -306,4 +307,72 @@ void chain_align (
                          intToString);
     }
 
+}
+
+void buildConsensusTree (
+    std::vector<std::pair<int,int>> &chain,
+    std::vector<std::string> &consensus,
+    std::vector<std::string> &sample,
+    std::vector<std::string> &consensus_new
+) {
+
+    int prev_consensus_coord = -1;
+    int prev_sample_coord = -1;
+    for (vector<std::pair<int,int>>::reverse_iterator i = chain.rbegin(); i != chain.rend(); ++i ) {
+        int consensus_coord = i->first;
+        int sample_coord = i->second;
+
+        for (auto j = prev_consensus_coord + 1; j < consensus_coord; ++j) {
+            consensus_new.push_back(consensus[j]);
+        }
+        for (auto j = prev_sample_coord + 1; j < sample_coord; ++j) {
+            consensus_new.push_back(sample[j]);
+        }
+        consensus_new.push_back(consensus[consensus_coord]);
+        prev_consensus_coord = consensus_coord;
+        prev_sample_coord = sample_coord;
+    }
+
+    for (auto j = prev_consensus_coord + 1; j < (int)consensus.size(); ++j) {
+        consensus_new.push_back(consensus[j]);
+    }
+
+    for (auto j = prev_sample_coord + 1; j < (int)sample.size(); ++j) {
+        consensus_new.push_back(sample[j]);
+    }
+}
+
+std::vector<std::string> dfs(
+    panmanUtils::Node* node, 
+    std::unordered_map< std::string, std::vector< std::string > >& paths) {
+    std::vector<std::string> consensus;
+    if (node->children.size() == 0){
+        std::vector<std::string> path = paths[node->identifier];
+        std::vector<std::string> nodeConsensus(path.size());
+        for (int i=0; i< path.size(); i++) {
+            nodeConsensus[i] = path[i];
+        }
+        return nodeConsensus;
+    }
+
+    for (auto &n: node->children) {
+        std::vector<std::string> childConsensus = dfs(n, paths);
+        std::vector<std::string> consensus_new;
+        std::vector<std::pair<int,int>> chain = chaining(consensus, childConsensus);
+        buildConsensusTree (chain, consensus, childConsensus, consensus_new);
+        std::cout << node->identifier << " consensus size: " << consensus_new.size() << "(" << childConsensus.size() << "," << consensus.size() << ")" << std::endl;
+        consensus.resize(consensus_new.size());
+        for (int i=0; i<consensus_new.size(); i++) {
+            consensus[i] = consensus_new[i];
+        }
+    }
+
+    return consensus;
+
+}
+// Tree based chaining
+void chainingWithNewick(panmanUtils::Node* node, std::unordered_map< std::string, std::vector< std::string > >& paths) {
+    std::vector<std::string> consensus = dfs(node, paths);
+    std::cout << "Size of conensus using tree structure: " << consensus.size() << std::endl;
+    return;
 }

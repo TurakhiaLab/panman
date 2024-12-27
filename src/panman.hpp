@@ -299,6 +299,8 @@ class Tree {
     // Get the total number of mutations of given type
     int getTotalParsimonyParallel(NucMutationType nucMutType,
                                   BlockMutationType blockMutType = NONE);
+    
+    void getBlockMutationsParallel();
 
     // Run tree traversal to extract mutations in range
     panmanUtils::Node* extractPanMATSegmentHelper(panmanUtils::Node* node,
@@ -635,8 +637,7 @@ struct ComplexMutation {
         nucGapPositionEnd2 = (cm.getNucGapExistEnd2()? (cm.getNucGapPositionEnd2()) : -1);
     }
 
-    panman::ComplexMutation::Builder toCapnProto() {
-        panman::ComplexMutation::Builder cm(nullptr);
+    void toCapnProto(panman::ComplexMutation::Builder& cm) {
         cm.setMutationType(mutationType == 'H');
         cm.setTreeIndex1(treeIndex1);
         cm.setTreeIndex2(treeIndex2);
@@ -701,7 +702,7 @@ struct ComplexMutation {
             cm.setNucGapPositionEnd2(nucGapPositionEnd2);
         }
 
-        return cm;
+        // return cm;
     }
 
 };
