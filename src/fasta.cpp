@@ -1953,7 +1953,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
             blockLengths[primaryBlockId] = 0;
             maxBlockId = std::max(maxBlockId, primaryBlockId);
             if (blockSequence[primaryBlockId]) {
-                int len = 0;
+                // int len = 0;
                 for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
                     bool endFlag = false;
                     for(size_t k = 0; k < 8; k++) {
@@ -1963,7 +1963,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
                             endFlag = true;
                             break;
                         }
-                        len++;
+                        // len++;
                         const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
                         sequence[primaryBlockId].push_back({nucleotide, {}});
                     }
@@ -1974,7 +1974,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
                 }
                 // End character to incorporate for gaps at the end
                 sequence[primaryBlockId].push_back({'x', {}});
-                blockLengths[primaryBlockId] += len;
+                // blockLengths[primaryBlockId] += len;
             } else {
                 int len = 0;
                 for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
@@ -2010,7 +2010,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
                     int len = gaps[i].nucGapLength[j];
                     int pos = gaps[i].nucPosition[j];
                     sequence[primaryBId][pos].second.resize(len, '-');
-                    blockLengths[primaryBId] += len;
+                    // blockLengths[primaryBId] += len;
                 }
             } else {
                 int len=0;
