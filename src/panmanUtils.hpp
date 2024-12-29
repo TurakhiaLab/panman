@@ -35,14 +35,16 @@ char getComplementCharacter(char nuc);
 
 // Given a sequence and block presence/strand information, print the sequence in FASTA format
 // where each line has length lineSize
+
 void printSequenceLines(const sequence_t& sequence,
                         const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize,
                         bool aligned, std::ostream& fout, int offset = 0, bool debug = false);
-void printSequenceLinesNew(const std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+
+std::string printSequenceLinesNew(const std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+                          std::unordered_map<int, int>& blockLengths,
                           const std::vector<bool>& blockExists, 
                           const std::vector<bool>& blockStrand, size_t lineSize,
-                        bool aligned, std::ostream& fout, int offset = 0, bool debug = false);
-
+                        bool aligned, int offset = 0, bool debug = false);
 void printSubsequenceLines(const sequence_t& sequence,\
                                      const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, 
                                      const std::tuple<int, int, int, int>& panMATStart, 

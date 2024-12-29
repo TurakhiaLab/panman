@@ -14,12 +14,13 @@
 #include "panman.capnp.h"
 #include "common.hpp"
 
+#include <mutex>
+
 #include <capnp/message.h>
 #include <capnp/serialize-packed.h>
 #include <kj/std/iostream.h>
 
 namespace panmanUtils {
-
 
 enum NucMutationType {
     // Nucleotide Substutution
@@ -317,7 +318,27 @@ class Tree {
                           std::vector<bool>& blockStrand, 
                           std::ostream& fout,
                           bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
-
+    
+    std::string printFASTAUltraFastHelper(
+                          const std::vector<bool>& blockSequence,
+                          std::unordered_map<int, int>& blockLengths,
+                          const std::vector<panmanUtils::Node*>& nodesFromTipToRoot,  
+                          std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+                          std::vector<bool>& blockExists, 
+                          std::vector<bool>& blockStrand, 
+                          bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
+    
+    std::string extractSequenceHelper(
+                          const std::vector<bool>& blockSequence,
+                          std::unordered_map<int, int>& blockLengths,
+                          const std::vector<panmanUtils::Node*>& nodesFromTipToRoot,  
+                          std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+                          std::vector<bool>& blockExists, 
+                          std::vector<bool>& blockStrand, 
+                          bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
+    
+    std::string extractSingleSequence(panmanUtils::Node* node, bool aligned=false, bool rootSeq=false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
+    
     void printSingleNodeHelper(std::vector<panmanUtils::Node*> &nodeList, int nodeListIndex, sequence_t& sequence,
         blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart={-1,-1,-1,-1}, const std::tuple< int, int, int, int >& panMATEnd={-1,-1,-1,-1});
 
@@ -470,6 +491,7 @@ class Tree {
     void printBfs(Node* node = nullptr);
     void printFASTA(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
     void printFASTANew(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
+    void printFASTAUltraFast(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
     void printSingleNode(std::ostream& fout, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
                                          std::string nodeIdentifier, std::tuple< int, int, int, int > &panMATStart, std::tuple< int, int, int, int > &panMATEnd);
@@ -479,6 +501,7 @@ class Tree {
     void printMAFNew(std::ostream& fout);
     void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
     void printVCFParallel(std::string reference, std::ostream& fout);
+    void printVCFParallel(panmanUtils::Node* node, std::ostream& fout);
     void extractAminoAcidTranslations(std::ostream& fout, int64_t start, int64_t end);
 
     // Extract PanMAT representing a segment of the genome. The start and end coordinates

@@ -141,6 +141,7 @@ void setupOptionDescriptions() {
     ("summary,s", "Print PanMAN summary")
     ("newick,t", "Print newick string of all trees in a PanMAN")
     ("fasta,f", "Print tip/internal sequences (FASTA format)")
+    // ("fasta-fast", "Print tip/internal sequences (FASTA format)")
     ("fasta-aligned,m", "Print MSA of sequences for each PanMAT in a PanMAN (FASTA format)")
     ("subnet,b", "Extract subnet of given PanMAN to a new PanMAN file based on the list of nodes provided in the input-file")
     ("vcf,v", "Print variations of all sequences from any PanMAT in a PanMAN (VCF format)")
@@ -363,9 +364,7 @@ void fasta(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstrea
         }
         std::ostream fout (buf);
 
-        // T->printFASTAParallel(fout, false);
-        T->printFASTANew(fout, false, false);
-        // T->printFASTA(fout,false,false);
+        T->printFASTAUltraFast(fout, false, false);
 
         if(globalVm.count("output-file")) outputFile.close();
     }
@@ -397,8 +396,40 @@ void fastaAligned(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::
         std::ostream fout (buf);
 
 
-        // T->printFASTA(fout, true);
-        T->printFASTAParallel(fout, true);
+        T->printFASTAUltraFast(fout, true);
+
+
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+}
+
+void fastaFast(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print multiple sequence alignment to output file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree *T  = &tg.trees[i];
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+
+        T->printFASTAUltraFast(fout, false, false);
 
 
         if(globalVm.count("output-file")) outputFile.close();
@@ -566,7 +597,14 @@ void vcf(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream 
 
     auto vcfStart = std::chrono::high_resolution_clock::now();
 
-    T->printVCFParallel(reference, fout);
+    panmanUtils::Node* refNode;
+    for (auto &n: T->allNodes) {
+        if (n.first == reference) {
+            refNode = n.second;
+            break;
+        }
+    }
+    T->printVCFParallel(refNode, fout);
 
     auto vcfEnd = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
@@ -1370,6 +1408,9 @@ void parseAndExecute(int argc, char* argv[]) {
     }  else if(globalVm.count("toUser")) {
         toUsher(TG, globalVm);
         return;
+    // } else if(globalVm.count("fasta-fast")){
+    //     fastaFast(TG, globalVm, outputFile, buf);
+    //     return;
     } else {
         char** splitCommandArray;
 

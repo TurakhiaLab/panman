@@ -588,7 +588,8 @@ void readFasta(std::ifstream& fin, std::map< std::string, std::string >& sequenc
                 if(lineLength == 0) {
                     lineLength = currentSequence.length();
                 } else if(lineLength != currentSequence.length()) {
-                    std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                    std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << 
+                    "Expected: " << lineLength << "Produced:" << currentSequence.length() << std::endl;
                     exit(-1);
                 }
                 sequenceIdsToSequences[currentSequenceId] = currentSequence;
@@ -603,7 +604,8 @@ void readFasta(std::ifstream& fin, std::map< std::string, std::string >& sequenc
     }
     if(currentSequence.length()) {
         if(lineLength != 0 && lineLength != currentSequence.length()) {
-            std::cerr << "Error: sequence lengths don't match!" << std::endl;
+            std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << 
+                    "Expected: " << lineLength << "Produced:" << currentSequence.length() << std::endl;
             exit(-1);
         } else {
             lineLength = currentSequence.length();
@@ -631,7 +633,8 @@ size_t readFastaInBatch(std::ifstream& fin, std::map< std::string, std::string >
                 if(lineLength == 0) {
                     lineLength = currentSequence.length();
                 } else if(lineLength != currentSequence.length()) {
-                    std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                    std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << 
+                    "Expected: " << lineLength << "Produced:" << currentSequence.length() << std::endl;
                     exit(-1);
                 }
                 size_t lengthStr = startIndex+batchSize>currentSequence.size() ? currentSequence.size()-startIndex: batchSize;
@@ -647,7 +650,8 @@ size_t readFastaInBatch(std::ifstream& fin, std::map< std::string, std::string >
     }
     if(currentSequence.length()) {
         if(lineLength != 0 && lineLength != currentSequence.length()) {
-            std::cerr << "Error: sequence lengths don't match!" << std::endl;
+            std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << 
+                    "Expected: " << lineLength << "Produced:" << currentSequence.length() << std::endl;
             exit(-1);
         } else {
             lineLength = currentSequence.length();
@@ -1231,7 +1235,8 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                     if(lineLength == 0) {
                         lineLength = currentSequence.length();
                     } else if(lineLength != currentSequence.length()) {
-                        std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                        std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << 
+                    "Expected: " << lineLength << "Produced:" << currentSequence.length() << std::endl;
                         exit(-1);
                     }
                     std::vector< std::string > splitLine;
@@ -1251,7 +1256,8 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
 
         if(currentSequence.length()) {
             if(lineLength != 0 && lineLength != currentSequence.length()) {
-                std::cerr << "Error: sequence lengths don't match!" << std::endl;
+                std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << 
+                    "Expected: " << lineLength << "Produced:" << currentSequence.length() << std::endl;
                 exit(-1);
             } else {
                 lineLength = currentSequence.length();
@@ -1419,7 +1425,8 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                     if(lineLength == 0) {
                         lineLength = currentSequence.length();
                     } else if(lineLength != currentSequence.length()) {
-                        std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << std::endl;
+                        std::cerr << "Error: sequence lengths don't match! " << currentSequenceId << 
+                    "Expected: " << lineLength << "Produced:" << currentSequence.length() << std::endl;
                         exit(-1);
                     }
                 }
