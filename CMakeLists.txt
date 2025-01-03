@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 
 project(panmanUtils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options -w") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
 
@@ -19,7 +19,6 @@ include_directories(${Protobuf_INCLUDE_DIRS})
 
 
 # add capn proto
-
 find_program(CAPNP_EXECUTABLE capnp REQUIRED)
 find_program(CAPNPC_CXX_EXECUTABLE capnpc-c++ REQUIRED)
 find_package(CapnProto REQUIRED)
@@ -59,7 +58,7 @@ if(DEFINED CapnProto_PATH)
 	protouf_generate(
 		LANGUAGE cpp
 		TARGET panmanUtils  
-		PROTOS usher.proto)
+		PROTOS usher.proto panman.proto)
 
 else()
 	capnp_generate_cpp(
@@ -68,7 +67,7 @@ else()
 	
 	protobuf_generate_cpp(
 		PROTO_SRCS PROTO_HDRS
-		usher.proto)
+		usher.proto panman.proto)
 	
 	add_executable(panmanUtils
 		${PANMAT_SRCS}
