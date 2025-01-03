@@ -415,7 +415,7 @@ void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
             int minVal = SANKOFF_INF;
             int minPtr = -1;
             for(int i = 0; i < 16; i++) {
-                std::cout << stateSets[node->identifier][i] << " " << SANKOFF_INF << std::endl;
+                // std::cout << stateSets[node->identifier][i] << " " << SANKOFF_INF << std::endl;
                 if(stateSets[node->identifier][i] < minVal) {
                     minVal = stateSets[node->identifier][i];
                     minPtr = i;

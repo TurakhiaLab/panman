@@ -157,6 +157,7 @@ void setupOptionDescriptions() {
     ("printRoot", "Print root sequence")
     ("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
     ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
+    ("protobuf2capnp", "Converts a Google Protobuf PanMAN to Capn' Proto PanMAN")
   
     ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
     ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
@@ -853,6 +854,22 @@ void aa(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &
     if(globalVm.count("output-file")) outputFile.close();
 }
 
+void protobuf2capnp(panmanUtils::TreeGroup *TG, po::variables_map &globalVm) {
+    std::string fileName = globalVm["input-panman"].as< std::string >();
+    std::ifstream inputFile(fileName);
+    boost::iostreams::filtering_streambuf< boost::iostreams::input> inPMATBuffer;
+    inPMATBuffer.push(boost::iostreams::lzma_decompressor());
+    inPMATBuffer.push(inputFile);
+    std::istream inputStream(&inPMATBuffer);
+
+    std::cout << "starting reading panman" << std::endl;
+    TG = new panmanUtils::TreeGroup(inputStream, true);
+    inputFile.close();
+
+    writePanMAN(globalVm, TG);
+
+}
+
 void createNet(po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
     // Create PanMAN from list of PanMAT files and a complex mutation file listing the complex
     // mutations relating these PanMATs
@@ -872,7 +889,6 @@ void createNet(po::variables_map &globalVm, std::ofstream &outputFile, std::stre
 
     std::vector< std::ifstream > files;
     for(auto u: fileNames) {
-        std::cout << u << std::endl;
         files.emplace_back(u);
     }
 
@@ -891,12 +907,12 @@ void createNet(po::variables_map &globalVm, std::ofstream &outputFile, std::stre
         tg.push_back(&TG->trees[i]);
     }
 
-    panmanUtils::TreeGroup* TG_new = new panmanUtils::TreeGroup(tg, mutationFile);
 
     auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
     std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
 
+    panmanUtils::TreeGroup* TG_new = new panmanUtils::TreeGroup(tg, mutationFile);
     mutationFile.close();
     for(auto& u: files) {
        u.close();
@@ -1139,6 +1155,8 @@ void parseAndExecute(int argc, char* argv[]) {
     if(globalVm.count("help")) {
         std::cout << globalDesc;
         return;
+    } else if (globalVm.count("protobuf2capnp")) {
+        protobuf2capnp(TG, globalVm);
     } else if(globalVm.count("input-panmat")) {
         // Load PanMAT file directly into memory
 
@@ -1338,7 +1356,6 @@ void parseAndExecute(int argc, char* argv[]) {
         writePanMAN(globalVm, TG);
 
     } else if (globalVm.count("create-network")) {
-        std::cout << "Entering here" << std::endl;
         std::ofstream outputFile;
         std::streambuf * buf;
         createNet(globalVm, outputFile, buf);
