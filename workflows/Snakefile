@@ -1,5 +1,5 @@
 '''
-This is a snakemake workflow for building PanMAN from PanGraph, GFA, or MSA.
+This is a snakemake workflow for building PanMAN from alignments (PanGraph, GFA, or MSA) or fragmented assembly.
 
 Users can run workflow as:
 
@@ -10,24 +10,81 @@ Building PanMAN from PGGB Alignment
 Building PanMAN from MAFFT Alignment
     snakemake --use-conda --cores [num threads] --config RUNTYPE="msa" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count]
 
-Note: This workflow uses MashTree to build tree input for panmanUtils when building panman from gfa or msa.
+Building PanMAN from Fragmented Assembly
+    snakemake --use-conda --cores [num threads] --config ASSEM="frag" RUNTYPE="pangraph/gfa/msa" REF="[user_fa]" TARGET="[target.txt]" SEQ_COUNT=[haplotype_count]
+
+Note: This workflow uses MashTree to build tree input for panmanUtils when building panman from GFA or MSA.
 '''
+
+def assem_rule(config):
+    assembly_rule = config.get("ASSEM", None)
+    if assembly_rule == "frag":
+        return "output/input_concat.fa"
 
 def config_select(config):
     target_rule = config.get("RUNTYPE", None)
+    assembly_rule = config.get("ASSEM", None)
     
-    if target_rule == "pangraph":
-        return "output/pangraph.aln"
-    elif target_rule == "gfa":
-        return "output/pggb.aln"
-    elif target_rule == "msa":
-        return "output/mafft.aln"
+    if assembly_rule == "frag":
+        if target_rule == "pangraph":
+            return "output/frag_pangraph.aln"
+        elif target_rule == "gfa":
+            return "output/frag_pggb.aln"
+        elif target_rule == "msa":
+            return "output/frag_mafft.aln"    
+        else:
+            raise ValueError(f"Unknown target rule '{target_rule}'. Choose from 'pangraph', 'gfa', or 'msa'.")
     else:
-        raise ValueError(f"Unknown target rule '{target_rule}'. Choose from 'pangraph', 'gfa', or 'msa'.")
+        if target_rule == "pangraph":
+            return "output/pangraph.aln"
+        elif target_rule == "gfa":
+            return "output/pggb.aln"
+        elif target_rule == "msa":
+            return "output/mafft.aln"    
+        else:
+            raise ValueError(f"Unknown target rule '{target_rule}'. Choose from 'pangraph', 'gfa', or 'msa'.")
+
 
 rule all:
     input:
+        assem_rule(config),
         config_select(config)
+
+rule wfmash:
+    input:
+        ref = config["REF"],
+        target = config["TARGET"]
+    output:
+        concat_file = "output/input_concat.fa"
+    threads:
+        threads = 32
+    shell:
+        '''
+        mkdir -p output/concat
+        scripts/wfmash.sh {input.ref} {input.target} output/concat
+        cat output/concat/* > {output.concat_file}
+        '''
+
+rule pangraph_frag:
+    input:
+        "output/input_concat.fa"
+    output:
+        aln = "output/frag_pangraph.aln",
+        newick = "output/pangraph.nwk",
+        panman = "panman/out.panman"
+    threads:
+        threads = 32
+    shell:
+        '''
+        echo "Building Alignment with PanGraph..."
+        export JULIA_NUM_THREADS={threads}
+        mkdir -p output
+        pangraph build {input[0]} > {output.aln} 2> {output.newick}
+        awk '/tree/ {{split($0,a,"tree:  "); print a[2]}}' {output.newick} > temp.newick && mv temp.newick {output.newick}
+
+        echo "Building PanMAN from Pangraph alignment..."
+        ../build/panmanUtils -P {output.aln} -N {output.newick} -o out
+        '''
 
 rule pangraph:
     input:
@@ -50,6 +107,23 @@ rule pangraph:
         ../build/panmanUtils -P {output.aln} -N {output.newick} -o out
         '''
 
+rule mashtree_frag:
+    input:
+        "output/input_concat.fa"
+    output:
+        newick = "output/mashtree.nwk"
+    threads:
+        threads = 32
+    shell:
+        '''
+        echo "Building Tree with MashTree..."
+        mkdir -p output
+        python3 scripts/splitSeqs.py {input[0]} temp
+        mashtree --numcpus {threads} temp/* > {output.newick}
+        python3 scripts/updateNewick.py {output.newick} temp_dir {output.newick}
+        rm -r temp temp_dir
+        '''
+
 rule mashtree:
     input:
         config["FASTA"]
@@ -63,13 +137,31 @@ rule mashtree:
         mkdir -p output
         python3 scripts/splitSeqs.py {input[0]} temp
         mashtree --numcpus {threads} temp/* > {output.newick}
-        python3 scripts/updateNewick.py {output.newick} /temp {output.newick}
-        rm -r temp /temp
+        python3 scripts/updateNewick.py {output.newick} temp_dir {output.newick}
+        rm -r temp temp_dir
+        '''
+
+rule mafft_frag:
+    input:
+        fasta = "output/input_concat.fa",
+        newick = "output/mashtree.nwk"
+    output:
+        aln = "output/frag_mafft.aln",
+        panman = "panman/out.panman"
+    threads:
+        threads = 32
+    shell:
+        '''
+        echo "Building Alignment with MAFFT..."
+        mafft --auto {input.fasta} > {output.aln}
+
+        echo "Building PanMAN from MAFFT alignment..."
+        ../build/panmanUtils -M {output.aln} -N {input.newick} -o out
         '''
 
 rule mafft:
     input:
-        config["FASTA"],
+        fasta = config["FASTA"],
         newick = "output/mashtree.nwk"
     output:
         aln = "output/mafft.aln",
@@ -79,10 +171,33 @@ rule mafft:
     shell:
         '''
         echo "Building Alignment with MAFFT..."
-        mafft --auto {input.newick} > {output.aln}
+        mafft --auto {input.fasta} > {output.aln}
 
         echo "Building PanMAN from MAFFT alignment..."
         ../build/panmanUtils -M {output.aln} -N {input.newick} -o out
+        '''
+
+rule pggb_frag:
+    input:
+        fasta = "output/input_concat.fa",
+        newick = "output/mashtree.nwk"
+    output:
+        aln = "output/frag_pggb.aln",
+        panman = "panman/out.panman"
+    threads:
+        threads = 32
+    params:
+        sq = config["SEQ_COUNT"]
+    shell:
+        '''
+        echo "Building Alignment with PGGB..."
+        samtools faidx {input.fasta}
+        pggb --threads {threads} -i {input.fasta} -o pggb_temp -n {params.sq}
+        mv pggb_temp/*final.gfa {output.aln}
+        rm -r pggb_temp
+
+        echo "Building PanMAN from PGGB alignment..."
+        ../build/panmanUtils -G {output.aln} -N {input.newick} -o out
         '''
 
 rule pggb:
