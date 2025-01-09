@@ -161,8 +161,8 @@ void setupOptionDescriptions() {
   
     ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
     ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
-    ("start,s", po::value< int64_t >(), "Start coordinate of protein translation/Start coordinate for indexing")
-    ("end,e", po::value< int64_t >(), "End coordinate of protein translation/End coordinate for indexing")
+    ("start,x", po::value< int64_t >(), "Start coordinate of protein translation/Start coordinate for indexing")
+    ("end,y", po::value< int64_t >(), "End coordinate of protein translation/End coordinate for indexing")
     ("treeID,d", po::value< std::string >(), "Tree ID, required for --vcf")
     // ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
     ("input-file,i", po::value< std::string >(), "Path to the input file, required for --subnet, --annotate, and --create-network")
