@@ -34,13 +34,6 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    # - scheme: slate
-    #   primary: white
-    #   accent: white
-    #   toggle:
-    #     icon: material/brightness-4
-    #     name: Switch to light mode
-
   favicon: images/icon.png
   logo: images/icon.png
 
@@ -49,16 +42,16 @@ plugins:
   - search
 
   # icon:
-  admonition:
-    note: octicons/tag-16
-    info: octicons/info-16
-    tip: octicons/squirrel-16
-    success: octicons/check-16
-    question: octicons/question-16
-    warning: octicons/alert-16
-    bug: octicons/bug-16
-    example: octicons/beaker-16
-    quote: octicons/quote-16
+  # admonition:
+  #   note: octicons/tag-16
+  #   info: octicons/info-16
+  #   tip: octicons/squirrel-16
+  #   success: octicons/check-16
+  #   question: octicons/question-16
+  #   warning: octicons/alert-16
+  #   bug: octicons/bug-16
+  #   example: octicons/beaker-16
+  #   quote: octicons/quote-16
 
 extra:
   social:

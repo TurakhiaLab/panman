@@ -3,7 +3,8 @@
     <img src="images/logo.svg"/>
 </div>
 
-## What are PanMANs?
+## <b>Introduction</b> 
+### What are PanMANs?
 PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 2b), and even structural mutations (Fig. 2a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 2c). PanMAN's representative power is compared against existing pangenomic formats in Fig. 1. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
 
 <div align="center">
@@ -18,7 +19,7 @@ PanMAN or Pangenome Mutation-Annotated Network is a novel data representation fo
 </div>
 
 
-## PanMAN's Protocol Buffer file format
+### PanMAN's Protocol Buffer file format
 PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](https://protobuf.dev/)), a binary serialization file format, to compactly store PanMAN's data structure in a file. Fig. 3 provides the .proto file defining the PanMAN’s structure. At the top level, the file format of PanMANs encodes a list (declared as a repeated identifier in the .protof file) of PanMATs. Each PanMAT object stores the following data elements: (a) a unique identifier, (b) a phylogenetic tree stored as a string in Newick format, (c) a list of mutations on each branch ordered according to the pre-order traversal of the tree topology, (d) a block mapping object to record homologous segments identified as duplications and rearrangements, which are mapped against their common consensus sequence; the block-mapping object is also used to derive the pseudo-root, e) a gap list to store the position and length of gaps corresponding to each block's consensus sequence. Each mutation object encodes the node's block and nucleotide mutations that are inferred on the branches leading to that node. If a block mutation exists at a position described by the Block-ID field (int32), the block mutation field (bool) is set to 1, otherwise set to 0, and its type is stored as a substitution to and from a gap in Block mutation type field (bool), encoded as 0 or 1, respectively. In PanMAN, each nucleotide mutation within a block inferred on a branch has four pieces of information, i.e., position (middle coordinate), gap position (last coordinate), mutation type, and mutated characters. To reduce redundancy in the file, consecutive mutations of the same type are packed together and stored as a mutation info (int32) field, where mutation type, mutation length, and mutated characters use 3, 5, and 24 bits, respectively. PanMAN stores each character using one-hot encoding, hence, one "Nucleotide Mutations" object can store up to 6 consecutive mutations of the same type. PanMAN's file also stores the complex mutation object to encode the type of complex mutation and its metadata such as PanMATs' and nodes' identifiers, breakpoint coordinates, etc. The entire file is then compressed using XZ ([https://github.com/tukaani-project/xz](https://github.com/tukaani-project/xz)) to enhance storage efficiency.
 
 <div align="center">
@@ -26,7 +27,7 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
     <b>Figure 3: PanMAN's file format</b>
 </div>
 
-## <i>panmanUtils</i>
+### <i>panmanUtils</i>
 <i>panmanUtils</i> includes multiple algorithms to construct PanMANs and to support various functionalities to modify and extract useful information from PanMANs (Fig. 4). 
 
 <div align="center">
@@ -34,12 +35,12 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
     <b>Figure 4:  Overview of panmanUtils' functionalities</b>
 </div>
 
-## Video Tutorial
+### Video Tutorial
 TBA
 
-# Installation Methods
+## <b>Installation Methods</b>
 
-## Using installation script (requires sudo access)
+### Using installation script (requires sudo access)
 
 0. Dependencies
     i. Git
@@ -62,7 +63,7 @@ cd build
 !!!Note
     <i>panmanUtils</i> is built using CMake and depends upon libraries such as Boost, cap'n proto, etc, which are also installed in `installationUbuntu.sh`. If users face version issues, try using the docker methods detailed below.
 
-## Using Docker Image
+### Using Docker Image
 
 To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps
 
@@ -85,7 +86,7 @@ cd /home/panman/build
 !!!Note
     The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.
 
-## Using DockerFile
+### Using DockerFile
 Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps
 
 0. Dependencies
@@ -112,7 +113,7 @@ cd /home/panman/build
 ./panmanUtils --help
 ```
 
-# PanMAN Construction
+## <b>PanMAN Construction</b>
 
 Here, we will learn to build PanMAN from various input formats.
 
@@ -175,7 +176,7 @@ conda activate snakemake
 snakemake --use-conda --cores [num threads] --config RUNTYPE="[pangraph/gfa/msa]" FASTA="[user_fasta]" SEQ_COUNT=[haplotype_count]
 ```
 
-# Exploring utilities in <i>panmanUtils</i>
+## <b>Exploring utilities in <i>panmanUtils</i></b>
 
 Here, we will learn to use exploit various functionalities provided in <i>panmanUtils</i> software for downstream applications in epidemiological, microbiological, metagenomic, ecological, and evolutionary studies.
 
