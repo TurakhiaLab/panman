@@ -5,27 +5,25 @@ repo_url: https://github.com/TurakhiaLab/panman
 theme:
   name: material
   features:
-    - announce.dismiss
+    # - announce.dismiss
+    - content.tabs.link
     - content.code.annotation
     - content.code.copy
-    - content.tabs.link
+    - content.action.edit
+    - content.action.view
+    - content.tooltips
     - toc.follow
     - toc.integrate
-    # - navigation.sections
-    - navigation.expand
+    - navigation.tabs
+    - navigation.sections
     - navigation.path
-    # - navigation.tabs
-    - navigation.top
+    - navigation.tabs.sticky
+    - navigation.instant.prefetch
+    - navigation.tracking
     - navigation.footer
+    - navigation.expand
     - search.highlight
     - search.suggest
-    # - content.action.edit
-    # - content.action.view
-    # - content.tooltips
-    # - navigation.tabs.sticky
-    # - navigation.instant.prefetch
-    # - navigation.tracking
-    # - search.share
   
   language: en
   
@@ -51,16 +49,16 @@ plugins:
   - search
 
   # icon:
-  # admonition:
-  #   note: octicons/tag-16
-  #   info: octicons/info-16
-  #   tip: octicons/squirrel-16
-  #   success: octicons/check-16
-  #   question: octicons/question-16
-  #   warning: octicons/alert-16
-  #   bug: octicons/bug-16
-  #   example: octicons/beaker-16
-  #   quote: octicons/quote-16
+  admonition:
+    note: octicons/tag-16
+    info: octicons/info-16
+    tip: octicons/squirrel-16
+    success: octicons/check-16
+    question: octicons/question-16
+    warning: octicons/alert-16
+    bug: octicons/bug-16
+    example: octicons/beaker-16
+    quote: octicons/quote-16
 
 extra:
   social:
@@ -87,12 +85,9 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
 
-# use_directory_urls: false
+use_directory_urls: false
 nav:
   - Home: index.md
-  # - Install: install.md
-  # - Construction: construction.md
-  # - Utility: utils.md
 
 # extra_javascript:
 #   - javascripts/mathjax.js
