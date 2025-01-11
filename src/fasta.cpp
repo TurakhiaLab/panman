@@ -369,6 +369,73 @@ void panmanUtils::printSubsequenceLines(const sequence_t& sequence,
     // fout << currentLine << std::endl;
 }
 
+std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::printSequenceLinesNewer(const std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+                          std::unordered_map<int, int>& blockLengths,
+                          const std::vector<bool>& blockExists, 
+                          const std::vector<bool>& blockStrand, size_t lineSize, bool aligned, int offset, bool debug) {
+
+    // String that stores the sequence to be printed
+    std::vector<std::string> lines;
+    std::vector<int> blockLens;
+
+    for(size_t i = 0; i < blockExists.size(); i++) {
+        // Non-gap block - the only type being used currently
+        if(blockExists[i]) {
+            std::string line="";
+            // If forward strand
+            if(blockStrand[i]) {
+                // Iterate through main nucs
+                for(size_t j = 0; j < sequence[i].size(); j++) {
+                    // Gap nucs
+                    for(size_t k = 0; k < sequence[i][j].second.size(); k++) {
+                        if(sequence[i][j].second[k] != '-') {
+                            line += sequence[i][j].second[k];
+                        } else if(aligned) {
+                            line += '-';
+                        }
+                    }
+                    // Main nuc
+                    if(sequence[i][j].first != '-' && sequence[i][j].first != 'x') {
+                        line += sequence[i][j].first;
+                    } else if(aligned && sequence[i][j].first != 'x') {
+                        line += '-';
+                    }
+                }
+            } else {
+                // If reverse strand, iterate backwards
+                for(size_t j = sequence[i].size()-1; j+1 > 0; j--) {
+                    // Main nuc first since we are iterating in reverse direction
+                    if(sequence[i][j].first != '-' && sequence[i][j].first != 'x') {
+                        line += getComplementCharacter(sequence[i][j].first);
+                    } else if(aligned  && sequence[i][j].first != 'x') {
+                        line += '-';
+                    }
+
+                    // Gap nucs
+                    for(size_t k = sequence[i][j].second.size()-1; k+1 > 0; k--) {
+                        if(sequence[i][j].second[k] != '-') {
+                            line += getComplementCharacter(sequence[i][j].second[k]);
+                        } else if(aligned) {
+                            line += '-';
+                        }
+                    }
+                }
+            }
+
+            blockLens.push_back(line.size());
+            lines.push_back(line);
+
+        } else if(aligned) {
+            // If aligned sequence is required, print gaps instead if block does not exist
+            blockLens.push_back(blockLengths[i]);
+            lines.push_back("-");
+        }
+    }
+
+    return std::make_pair(lines, blockLens);
+
+}
+
 // Depth first traversal FASTA writer
 void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& sequence,
         blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex) {
@@ -430,7 +497,7 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
                     blockStrand[primaryBlockId].first = !oldStrand;
                 }
                 if(oldMut != true) {
-                    std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
+                    // std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
                 }
                 blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, mutation.secondaryBlockId, oldMut, oldStrand, oldMut, !oldStrand) );
             } else {
@@ -846,7 +913,7 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
                     blockStrand[primaryBlockId].first = !oldStrand;
                 }
                 if(oldMut != true) {
-                    std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
+                    // std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
                 }
                 blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, mutation.secondaryBlockId, oldMut, oldStrand, oldMut, !oldStrand) );
             } else {
@@ -1753,7 +1820,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
                         oldMut = blockExists[primaryBlockId];
                         blockStrand[primaryBlockId] = !oldStrand;
                         if(oldMut != true) {
-                            std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
+                            // std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
                         }
                     } else {
                         // Actually a deletion
@@ -1921,15 +1988,15 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
     }
 
     std::mutex printMutex;
-
+	int counting=0;
     // for (auto &keyValue: allNodes) {
     tbb::parallel_for_each(allNodes.begin(), allNodes.end(), [&](const std::pair<std::string, panmanUtils::Node*>& keyValue) {
         panmanUtils::Node* node = keyValue.second;
-
         // Create a stringstream for each thread to avoid race conditions on fout
         if (node->children.size() != 0) {
             return;
         }
+
         // Get block sequnece of the Tip
         std::vector< bool >  blockSequence(blocks.size() + 1, false, {});
         std::vector<panmanUtils::Node*> nodesFromTipToRoot;
@@ -2031,7 +2098,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
     // }
 }
 
-std::string panmanUtils::Tree::extractSequenceHelper(
+std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extractSequenceHelper(
                             const std::vector<bool>& blockSequence,
                             std::unordered_map<int, int>& blockLengths,
                             const std::vector<panmanUtils::Node*>& nodesFromTipToRootIn, 
@@ -2070,7 +2137,7 @@ std::string panmanUtils::Tree::extractSequenceHelper(
                         oldMut = blockExists[primaryBlockId];
                         blockStrand[primaryBlockId] = !oldStrand;
                         if(oldMut != true) {
-                            std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
+                            // std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
                         }
                     } else {
                         // Actually a deletion
@@ -2187,7 +2254,6 @@ std::string panmanUtils::Tree::extractSequenceHelper(
     
     // Store sequence
     panmanUtils::Node* tipNode = nodesFromTipToRoot[nodesFromTipToRoot.size()-1];
-    std::string line="";
 
     int offset = 0;
     if(!aligned && circularSequences.find(tipNode->identifier) != circularSequences.end()) {
@@ -2222,11 +2288,10 @@ std::string panmanUtils::Tree::extractSequenceHelper(
         reverse(blockStrandPrint.begin(), blockStrandPrint.end());
     }
     
-    line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false);
-    return line;
+    return panmanUtils::printSequenceLinesNewer(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false);
 }
 
-std::string panmanUtils::Tree::extractSingleSequence(panmanUtils::Node* node, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex) {
+std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extractSingleSequence(panmanUtils::Node* node, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex) {
 
     // Create a stringstream for each thread to avoid race conditions on fout
     if (node->children.size() != 0) {
@@ -2324,6 +2389,5 @@ std::string panmanUtils::Tree::extractSingleSequence(panmanUtils::Node* node, bo
         }
     }
 
-    std::string line = extractSequenceHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex);
-    return line;
+    return extractSequenceHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex);
 }

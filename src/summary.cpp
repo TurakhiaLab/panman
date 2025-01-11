@@ -153,7 +153,7 @@ std::tuple<int, int> getOtherBlockMutationsParallelHelper(
                 blockStrand[primaryBlockId] = !oldStrand;
                 
                 if(oldMut != true) {
-                    std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
+                    // std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
                 }
                 blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, oldMut, oldStrand, oldMut, !oldStrand) );
             } else {

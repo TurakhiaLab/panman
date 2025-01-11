@@ -4,14 +4,14 @@ This is a snakemake workflow for building PanMAN from alignments (PanGraph, GFA,
 Users can run workflow as:
 
 Building PanMAN from PanGraph Alignment
-    snakemake --use-conda --cores [num threads] --config RUNTYPE="pangraph" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count]
+    snakemake --use-conda --cores [num threads] --config RUNTYPE="pangraph" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count] ASSEM="None" REF="None" TARGET="None"
 Building PanMAN from PGGB Alignment
-    snakemake --use-conda --cores [num threads] --config RUNTYPE="gfa" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count]
+    snakemake --use-conda --cores [num threads] --config RUNTYPE="gfa" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count] ASSEM="None" REF="None" TARGET="None"
 Building PanMAN from MAFFT Alignment
-    snakemake --use-conda --cores [num threads] --config RUNTYPE="msa" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count]
+    snakemake --use-conda --cores [num threads] --config RUNTYPE="msa" FASTA="[user_fa]" SEQ_COUNT=[haplotype_count] ASSEM="None" REF="None" TARGET="None"
 
 Building PanMAN from Fragmented Assembly
-    snakemake --use-conda --cores [num threads] --config ASSEM="frag" RUNTYPE="pangraph/gfa/msa" REF="[user_fa]" TARGET="[target.txt]" SEQ_COUNT=[haplotype_count]
+    snakemake --use-conda --cores [num threads] --config RUNTYPE="pangraph/gfa/msa" FASTA="None" SEQ_COUNT=[haplotype_count] ASSEM="frag" REF="[user_fa]" TARGET="[target.txt]" 
 
 Note: This workflow uses MashTree to build tree input for panmanUtils when building panman from GFA or MSA.
 '''
@@ -20,6 +20,8 @@ def assem_rule(config):
     assembly_rule = config.get("ASSEM", None)
     if assembly_rule == "frag":
         return "output/input_concat.fa"
+    else:
+        return None
 
 def config_select(config):
     target_rule = config.get("RUNTYPE", None)
@@ -47,7 +49,7 @@ def config_select(config):
 
 rule all:
     input:
-        assem_rule(config),
+        assem_rule(config) or [],
         config_select(config)
 
 rule wfmash:

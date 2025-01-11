@@ -5692,7 +5692,7 @@ panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData, panmanUtils::Node* ro
             for (auto &b: intSequenceConsensusNew) {
                 intSequenceConsensus.push_back(b);
             }
-            std::cout << "Len of consensus: " << consensus.size() << std::endl;
+            // std::cout << "Len of consensus: " << consensus.size() << std::endl;
         }
         seqCount++;
         // std::cout << seqCount << " " << intSequenceConsensusNew.size() << endl;

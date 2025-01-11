@@ -367,7 +367,7 @@ class Tree {
                           std::vector<bool>& blockStrand, 
                           bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
     
-    std::string extractSequenceHelper(
+    std::pair<std::vector<std::string>, std::vector<int>> extractSequenceHelper(
                           const std::vector<bool>& blockSequence,
                           std::unordered_map<int, int>& blockLengths,
                           const std::vector<panmanUtils::Node*>& nodesFromTipToRoot,  
@@ -376,7 +376,7 @@ class Tree {
                           std::vector<bool>& blockStrand, 
                           bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
     
-    std::string extractSingleSequence(panmanUtils::Node* node, bool aligned=false, bool rootSeq=false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
+    std::pair<std::vector<std::string>, std::vector<int>> extractSingleSequence(panmanUtils::Node* node, bool aligned=false, bool rootSeq=false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
     
     void printSingleNodeHelper(std::vector<panmanUtils::Node*> &nodeList, int nodeListIndex, sequence_t& sequence,
         blockExists_t& blockExists, blockStrand_t& blockStrand, std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart={-1,-1,-1,-1}, const std::tuple< int, int, int, int >& panMATEnd={-1,-1,-1,-1});
@@ -593,6 +593,7 @@ class Tree {
     void annotate(std::ifstream& fin);
     std::vector< std::string > searchByAnnotation(std::string annotation);
     void convertToGFA(std::ostream& fout);
+    void convertToGFAEfficient(std::ostream& fout);
     void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
     void getNodesPreorder(panmanUtils::Node* root, capnp::List<panman::Node>::Builder& nodesBuilder, size_t& nodeIndex);
     size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition,
