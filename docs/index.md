@@ -38,7 +38,8 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 ### Video Tutorial
 TBA
 
-## <b>Installation Methods</b>
+<a name="install"></a>
+## <b><i>panmanUtils</i> Installation Methods</b>
 
 ### Using installation script (requires sudo access)
 
@@ -112,12 +113,12 @@ docker run -it panman
 cd /home/panman/build
 ./panmanUtils --help
 ```
-
+<a name="construction"></a>
 ## <b>PanMAN Construction</b>
 
 Here, we will learn to build PanMAN from various input formats.
 
-**Step 0:** The Steps below require <i>panmanUtils</i>, if not done so far, refer to [installation guide](install.md) to install <i>panmanUtils</i>. To check if <i>panmanUtils</i> is properly installed or not, run the following command, and it should execute without error
+**Step 0:** The Steps below require <i>panmanUtils</i>, if not done so far, refer to [installation guide](#install) to install <i>panmanUtils</i>. To check if <i>panmanUtils</i> is properly installed or not, run the following command, and it should execute without error
 ```bash
 # enter into the panman directory (assuming $PANMAN directs to the panman repository directory)
 cd $PANMAN_HOME
@@ -126,8 +127,8 @@ cd $PANMAN_HOME
 cd $PANMAN_HOME/build
 ./panmanUtils --help
 ```
-### Building PanMAN from PanGraph
-
+### Building PanMAN from Alignments (PanGraph/GFA/MSA)
+#### Building PanMAN from PanGraph
 **Step 1:** Check if `sars_20.json` and `sars_20.nwk` files exist in `test` directory. Alternatively, users can provide custom PanGraph (JSON) and tree topology (Newick format) files to build a panman. 
 
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:
@@ -138,7 +139,7 @@ cd $PANMAN_HOME/build
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
-### Building PanMAN from GFA
+#### Building PanMAN from GFA
 
 **Step 1:** Check if `sars_20.gfa` and `sars_20.nwk` files exist in `test` directory. Alternatively, users can provide custom GFA and tree topology (Newick format) files to build a panman. 
 
@@ -150,7 +151,7 @@ cd $PANMAN_HOME/build
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
-### Building PanMAN from MSA (FASTA format)
+#### Building PanMAN from MSA (FASTA format)
 
 **Step 1:** Check if `sars_20.msa` and `sars_20.nwk` files exist in `test` directory. Alternatively, users can provide custom MSA (FASTA format) and tree topology (Newick format) files to build a panman. 
 
@@ -162,25 +163,36 @@ cd $PANMAN_HOME/build
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
-### Building PanMAN from raw genome sequences (Snakemake Workflow)
-We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA format).
+### Building PanMAN from raw genome sequences or fragment assemblies using Snakemake Workflow
+We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA format) or from fragment assemblies.
 
 !!!Note
-    The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](install.md)).
+    The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](#install)).
 
+#### Building PanMAN from raw genome sequences
 **Step 1:** Run the following command to construct a panman from raw sequences.
 
 ```bash
 cd $PANMAN_HOME/workflows
 conda activate snakemake
-snakemake --use-conda --cores [num threads] --config RUNTYPE="[pangraph/gfa/msa]" FASTA="[user_fasta]" SEQ_COUNT=[haplotype_count]
+snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="[user_input]" SEQ_COUNT="Number of sequences" ASSEM="NONE" REF="NONE" TARGET="NONE"
 ```
+
+#### Building PanMAN from fragment assemblies
+**Step 1:** Run the following command to construct a panman from fragment assemblies.
+
+```bash
+cd $PANMAN_HOME/workflows
+conda activate snakemake
+snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="None" SEQ_COUNT="Number of sequences" ASSEM="frag" REF="reference_file" TARGET="target.txt"
+```
+Here, target.txt contains list of files that contains the fragmented assemblies.
 
 ## <b>Exploring utilities in <i>panmanUtils</i></b>
 
 Here, we will learn to use exploit various functionalities provided in <i>panmanUtils</i> software for downstream applications in epidemiological, microbiological, metagenomic, ecological, and evolutionary studies.
 
-**Step 0:** The Steps below require panmanUtils and a PanMAN. We provide a pre-built panman (`sars_20.panman`), othewise, refer to [installation guide](install.md) to install panmanUtils and [construction](construction.md) instructions to build a PanMAN. 
+**Step 0:** The Steps below require panmanUtils and a PanMAN. We provide a pre-built panman (`sars_20.panman`), othewise, refer to [installation guide](#install) to install panmanUtils and [construction](#construction) instructions to build a PanMAN. 
 <!-- ```bash
 # Assuming $PANMAN directs to the panman repository directory
 cd $PANMAN_HOME
@@ -226,7 +238,7 @@ cd $PANMAN_HOME/build
 > **Important:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
 
 !!!Note
-    For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](construction.md).
+    For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](#construction).
 
 #### Summary extract
 The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.
