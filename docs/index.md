@@ -354,7 +354,7 @@ Extract a subnetwork from a given PanMAN and write it to a new PanMAN file based
 * Example
 ```bash
 cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --subnet --input-file=nodes.txt --output-file=ecoli_10_subnet
+./panmanUtils -I panman/sars_20.panman --subnet --input-file=nodes.txt --output-file=sars_20_subnet
 ```
 
 #### Annotate
@@ -362,12 +362,12 @@ Annotate nodes in a PanMAN with a custom string, later searched by these annotat
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --annotate --input-file=<path to file containing list of annotations> --output-file=ecoli_10_annotate
+./panmanUtils -I <path to PanMAN file> --annotate --input-file=<path to file containing list of annotations> --output-file=sars_20_annotate
 ```
 * Example
 ```bash
 cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --annotate --input-file=annotations.tsv --output-file=ecoli_10_annotate
+./panmanUtils -I panman/sars_20.panman --annotate --input-file=annotations.tsv --output-file=sars_20_annotate
 ```
 > **NOTE:** If output-file is not provided to <i>panmanUtils</i>, the annotated PanMAN will be written to the same file.
 
@@ -382,6 +382,19 @@ Extract amino acid translations from a PanMAN in TSV file.
 ```bash
 cd $PANMAN_HOME/build
 ./panmanUtils -I panman/sars_20.panman --aa-translations --output_file=sars_20
+```
+
+#### Range Query
+<i>panmanUtils</i> allow extracting alignment of all the sequences of a single PanMAT in a PanMAN (FASTA format) with respect to a user-defined reference sequence between positions [start:end]
+
+* Usage syntax
+```bash
+./panmanUtils -I <path to PanMAN file> --index no -x start -y end --reference=<ref sequence name>
+```
+* Example
+```bash
+cd $PANMAN_HOME/build
+./panmanUtils -I <path to PanMAN file> --index no -x 10 -y 100 --reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12"
 ```
 
 ### <i>panmanUtils</i> Interactive mode
