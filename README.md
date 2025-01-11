@@ -161,10 +161,10 @@ cd $PANMAN_HOME/workflows
 conda activate snakemake
 snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="None" SEQ_COUNT="Number of sequences" ASSEM="frag" REF="reference_file" TARGET="target.txt"
 ```
-Here, target.txt contains list of files that contains the fragmented assemblies.
+Here, target.txt includes a list of files that contain the fragmented assemblies.
 
 ## <a name="function"></a> <i>panmanUtils</i> functionalities
-<i>panmanUtils</i> provide various functionalities such as summary, [Raw sequence, MSA, VCF, GFA] extract, sub-netwrok pruning, and many more. Please refer to [wiki](https://turakhia.ucsd.edu/panman/) for detailed information. Here we provide usage syntax and examples for summary and VCF extract.
+<i>panmanUtils</i> provide various functionalities such as summary, [Raw sequence, MSA, VCF, GFA] extract, sub-network pruning, and many more. Please refer to [wiki](https://turakhia.ucsd.edu/panman/) for detailed information. Here we provide usage syntax and examples for summary and VCF extract.
 
 #### Summary extract
 The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.

@@ -1,6 +1,6 @@
 # Install dependencies
 
-sudo apt install -y git build-essential cmake wget curl zip unzip tar libboost-all-dev pkg-config
+sudo apt install -y git build-essential cmake wget curl zip unzip tar libboost-all-dev pkg-config protobuf-compiler
 
 
 # Build

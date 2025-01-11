@@ -186,13 +186,13 @@ cd $PANMAN_HOME/workflows
 conda activate snakemake
 snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="None" SEQ_COUNT="Number of sequences" ASSEM="frag" REF="reference_file" TARGET="target.txt"
 ```
-Here, target.txt contains list of files that contains the fragmented assemblies.
+Here, target.txt includes a list of files that contain the fragmented assemblies.
 
 ## <b>Exploring utilities in <i>panmanUtils</i></b>
 
-Here, we will learn to use exploit various functionalities provided in <i>panmanUtils</i> software for downstream applications in epidemiological, microbiological, metagenomic, ecological, and evolutionary studies.
+Here, we will learn to use various functionalities provided in <i>panmanUtils</i> software for downstream applications in epidemiological, microbiological, metagenomic, ecological, and evolutionary studies.
 
-**Step 0:** The Steps below require panmanUtils and a PanMAN. We provide a pre-built panman (`sars_20.panman`), othewise, refer to [installation guide](#install) to install panmanUtils and [construction](#construction) instructions to build a PanMAN. 
+**Step 0:** The Steps below require panmanUtils and a PanMAN. We provide a pre-built panman (`sars_20.panman`), otherwise, refer to [installation guide](#install) to install panmanUtils and [construction](#construction) instructions to build a PanMAN. 
 <!-- ```bash
 # Assuming $PANMAN directs to the panman repository directory
 cd $PANMAN_HOME
@@ -293,7 +293,7 @@ cd $PANMAN_HOME/build
 ```
 
 #### Multiple Sequence Alignment (MSA) extract
-Extract MSA of sequences for each PanMAT (with pseduo-root coordinates) in a PanMAN in a FASTA format.
+Extract MSA of sequences for each PanMAT (with pseudo-root  coordinates) in a PanMAN in a FASTA format.
 
 * Usage syntax
 ```bash
