@@ -5,27 +5,25 @@ repo_url: https://github.com/TurakhiaLab/panman
 theme:
   name: material
   features:
-    - announce.dismiss
+    # - announce.dismiss
+    - content.tabs.link
     - content.code.annotation
     - content.code.copy
-    - content.tabs.link
+    - content.action.edit
+    - content.action.view
+    - content.tooltips
     - toc.follow
     - toc.integrate
-    # - navigation.sections
-    - navigation.expand
+    - navigation.tabs
+    - navigation.sections
     - navigation.path
-    # - navigation.tabs
-    - navigation.top
+    - navigation.tabs.sticky
+    - navigation.instant.prefetch
+    - navigation.tracking
     - navigation.footer
+    - navigation.expand
     - search.highlight
     - search.suggest
-    # - content.action.edit
-    # - content.action.view
-    # - content.tooltips
-    # - navigation.tabs.sticky
-    # - navigation.instant.prefetch
-    # - navigation.tracking
-    # - search.share
   
   language: en
   
@@ -36,13 +34,6 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    # - scheme: slate
-    #   primary: white
-    #   accent: white
-    #   toggle:
-    #     icon: material/brightness-4
-    #     name: Switch to light mode
-
   favicon: images/icon.png
   logo: images/icon.png
 
@@ -87,12 +78,9 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
 
-# use_directory_urls: false
+use_directory_urls: false
 nav:
   - Home: index.md
-  - Install: install.md
-  - Construction: construction.md
-  - Utility: utils.md
 
 # extra_javascript:
 #   - javascripts/mathjax.js

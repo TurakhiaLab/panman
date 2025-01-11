@@ -13,6 +13,7 @@
 
 #include <json/json.h>
 #include "panman.capnp.h"
+#include "usher.pb.h"
 
 #include "panman.hpp"
 
@@ -34,14 +35,21 @@ char getComplementCharacter(char nuc);
 
 // Given a sequence and block presence/strand information, print the sequence in FASTA format
 // where each line has length lineSize
+
 void printSequenceLines(const sequence_t& sequence,
                         const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize,
                         bool aligned, std::ostream& fout, int offset = 0, bool debug = false);
-void printSequenceLinesNew(const std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+
+std::pair<std::vector<std::string>, std::vector<int>> printSequenceLinesNewer(const std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+                          std::unordered_map<int, int>& blockLengths,
                           const std::vector<bool>& blockExists, 
                           const std::vector<bool>& blockStrand, size_t lineSize,
-                        bool aligned, std::ostream& fout, int offset = 0, bool debug = false);
-
+                        bool aligned, int offset = 0, bool debug = false);
+std::string printSequenceLinesNew(const std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
+                          std::unordered_map<int, int>& blockLengths,
+                          const std::vector<bool>& blockExists, 
+                          const std::vector<bool>& blockStrand, size_t lineSize,
+                        bool aligned, int offset = 0, bool debug = false);
 void printSubsequenceLines(const sequence_t& sequence,\
                                      const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, 
                                      const std::tuple<int, int, int, int>& panMATStart, 
@@ -55,7 +63,7 @@ std::string stripString(std::string s);
 
 void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
-
+void panmanToUsher(panmanUtils::Tree* panmanTree, std::string refName, std::string filename, std::string refSeq="");
 
 
 // Represents input PanGraph information for PanMAT generation
@@ -106,7 +114,7 @@ class Pangraph {
         tbb::concurrent_unordered_map< size_t,
         std::vector< std::pair< size_t, size_t > > > > > deletions;
 
-    Pangraph(Json::Value& pangraphData);
+    Pangraph(Json::Value& pangraphData, panmanUtils::Node* node=nullptr);
     std::vector< size_t > getTopologicalSort();
     std::unordered_map< std::string,std::vector< int > >
     getAlignedSequences(const std::vector< size_t >& topoArray);

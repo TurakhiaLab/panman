@@ -5,7 +5,7 @@ import os
 def splitFasta(input_file, output_dir):
 
     seqNameMap=""
-    ff = open("/temp", "w")
+    ff = open("temp_dir", "w")
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)

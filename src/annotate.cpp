@@ -2,13 +2,14 @@
 
 void panmanUtils::Tree::annotate(std::ifstream& fin) {
     std::string line;
+    char delim = '\t';
     while(getline(fin, line)) {
         std::string word;
         std::string nodeId;
 
         // Extract node ID
         size_t i = 0;
-        for(; i < line.length() && line[i]!=','; i++) {
+        for(; i < line.length() && line[i]!=delim; i++) {
             word+=line[i];
         }
 
@@ -41,7 +42,7 @@ void panmanUtils::Tree::annotate(std::ifstream& fin) {
 
         // Extract annotations
         for(; i < line.length(); i++) {
-            if(line[i] != ',') {
+            if(line[i] != delim) {
                 word += line[i];
             } else {
                 word = stripString(word);

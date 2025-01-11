@@ -30,7 +30,7 @@ int panmanUtils::Tree::nucFitchForwardPass(Node* node,
         std::unordered_map< std::string, int >& states, int refState) {
     if(node->children.size() == 0) {
         if(states.find(node->identifier) == states.end()) {
-            std::cerr << "Node ID " << node->identifier << " not found" << std::endl;
+            // std::cerr << "Node ID " << node->identifier << " " << node->identifier.size() << " not found" << std::endl;
             return states[node->identifier] = 0;
         }
         return states[node->identifier];
@@ -415,7 +415,7 @@ void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
             int minVal = SANKOFF_INF;
             int minPtr = -1;
             for(int i = 0; i < 16; i++) {
-                std::cout << stateSets[node->identifier][i] << " " << SANKOFF_INF << std::endl;
+                // std::cout << stateSets[node->identifier][i] << " " << SANKOFF_INF << std::endl;
                 if(stateSets[node->identifier][i] < minVal) {
                     minVal = stateSets[node->identifier][i];
                     minPtr = i;

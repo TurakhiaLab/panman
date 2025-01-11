@@ -1,10 +1,13 @@
 [license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg
 [license-link]: [https://github.com/TurakhiaLab/panman/LICENSE](https://github.com/TurakhiaLab/panman/blob/main/LICENSE)
 [![License][license-badge]][license-link]
-[![DOI](https://img.shields.io/badge/DOI-https://zenodo.org/records/12630607-blue)](https://zenodo.org/records/12630607)
+[![DOI](https://img.shields.io/badge/DOI-https://zenodo.org/records/12630607-beige)](https://zenodo.org/records/12630607)
 [<img src="https://img.shields.io/badge/Install with-DockerHub-informational.svg?logo=Docker">](https://hub.docker.com/r/swalia14/panman)
 [<img src="https://img.shields.io/badge/Submitted to-bioRxiv-critical.svg?logo=LOGO">](https://doi.org/10.1101/2024.07.02.601807)
 [<img src="https://img.shields.io/badge/Build with-CMake-green.svg?logo=snakemake">](https://cmake.org)
+[<img src="https://img.shields.io/badge/Made with-Snakemake-aquamarine.svg?logo=snakemake">](https://snakemake.readthedocs.io/en/v7.19.1/index.html)
+[<img src="https://img.shields.io/badge/Watch it on-Youtube-FF0000.svg?logo=YouTube">](https://www.youtube.com/watch?v=eh9zQElrmLI)
+[![Build Status](https://github.com/TurakhiaLab/panman/actions/workflows/ci.yml/badge.svg)](https://github.com/TurakhiaLab/panman/actions)
 
  
 # Pangenome Mutation Annotated Network (PanMAN)
@@ -21,8 +24,9 @@
   - [Using Docker Image](#image)
   - [Using DockerFile](#file)
 - [PanMAN Construction](#construct)
-  - [Using provided dataset](#pangraph)
-  - [Using custom dataset](#custom)
+  - [From PanGraph/GFA/MSA](#pangraph)
+  - [From Raw Sequences](#raw)
+  - [From Fragment Assemblies](#frag)
 - [<i>panmanUtils</i> functionalities](#function)
 - [Contribute](#contributions)
 - [Citing PanMAN](#cite_panman)
@@ -134,14 +138,30 @@ cd $PANMAN_HOME/build
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
-### Building PanMAN from the custom dataset
-Alternatively, users can provide custom PanGraph (JSON) and tree topology (Newick format) files to build a panman, using the following command
+### <a name="raw"></a> Building PanMAN from raw sequences or fragment assemblies using Snakemake Workflow
+We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA format) or from fragment assemblies.
+
+!!!Note
+    The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](#install)).
+
+#### Building PanMAN from raw genome sequences
+**Step 1:** Run the following command to construct a panman from raw sequences.
 
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -P $PANMAN_HOME/test/example.json -N $PANMAN_HOME/test/example.nwk -O example
+cd $PANMAN_HOME/workflows
+conda activate snakemake
+snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="[user_input]" SEQ_COUNT="Number of sequences" ASSEM="NONE" REF="NONE" TARGET="NONE"
 ```
-The above command will run <i>panmanUtils</i> program and build `example.panman` in `$PANMAN_HOME/build/panman` directory.
+
+#### <a name="frag"></a> Building PanMAN from fragment assemblies
+**Step 1:** Run the following command to construct a panman from fragment assemblies.
+
+```bash
+cd $PANMAN_HOME/workflows
+conda activate snakemake
+snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="None" SEQ_COUNT="Number of sequences" ASSEM="frag" REF="reference_file" TARGET="target.txt"
+```
+Here, target.txt contains list of files that contains the fragmented assemblies.
 
 ## <a name="function"></a> <i>panmanUtils</i> functionalities
 <i>panmanUtils</i> provide various functionalities such as summary, [Raw sequence, MSA, VCF, GFA] extract, sub-netwrok pruning, and many more. Please refer to [wiki](https://turakhia.ucsd.edu/panman/) for detailed information. Here we provide usage syntax and examples for summary and VCF extract.
