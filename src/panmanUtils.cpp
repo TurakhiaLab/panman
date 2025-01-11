@@ -1422,7 +1422,7 @@ void parseAndExecute(int argc, char* argv[]) {
     } else if(globalVm.count("printRoot")) {
         printRoot(TG, globalVm, outputFile, buf);
         return;
-    }  else if(globalVm.count("toUser")) {
+    }  else if(globalVm.count("toUsher")) {
         toUsher(TG, globalVm);
         return;
     // } else if(globalVm.count("fasta-fast")){
