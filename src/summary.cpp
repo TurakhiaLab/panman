@@ -220,7 +220,7 @@ struct VectorHash {
 void panmanUtils::Tree::getBlockMutationsParallel() {
     //insertions, deletions, inversions
     std::tuple<int, int, int> muts = getBlockMutationsParallelHelper(root);
-    std::cout << "Total Block Insertoins: " <<  std::get<0>(muts) << std::endl;
+    std::cout << "Total Block Insertions: " <<  std::get<0>(muts) << std::endl;
     std::cout << "Total Block Deletions: " <<  std::get<1>(muts) << std::endl;
     std::cout << "Total Block Inversion: " <<  std::get<2>(muts) << std::endl;
 
