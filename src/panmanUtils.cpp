@@ -151,11 +151,11 @@ void setupOptionDescriptions() {
     ("reroot,r", "Reroot a PanMAT in a PanMAN based on the input sequence id (--reference)")
     ("aa-translation,v", "Extract amino acid translations in TSV file")
     ("extended-newick,e", "Print PanMAN's network in extended-newick format")
-    ("printMutations,p", "Create PanMAN with network of trees from single or multiple PanMAN files")
+    ("printMutations,p", "Print mutations from root to each node")
     ("acr,q", "ACR method [fitch(default), mppa]")
     ("index",po::value< bool >(0), "Generating indexes and print sequence (passed as reference) between x:y")
     // ("printRoot", "Print root sequence")
-    // ("printNodePaths", "Create PanMAN with network of trees from single or multiple PanMAN files")
+    // ("printNodePaths", "Print mutations from root to each node")
     ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
     // ("protobuf2capnp", "Converts a Google Protobuf PanMAN to Capn' Proto PanMAN")
   
