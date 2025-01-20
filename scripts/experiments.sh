@@ -1,32 +1,40 @@
-# Constructing PanGraph alignment and Tree from raw genome sequences
-./pangraph build -k mmseqs -a 200 -b 30 data.fa | ./pangraph polish
-
-# Constructing GFA from raw genome sequences using PGGB
-./pggb -i data.fa -t 32 -n num_sequences -o output_dir
-
-# Constructing VG
-./vg convert -p data.gfa -t 32 -v > data.vg 
-
-# Constructing GBZ
-./vg gbwt -G data.gfa --num-threads 32 --gbz-format -g data.gbz
-
-# Constructing MSA from raw genome sequences
-./mafft --auto --keeplength --addfragments data.fa > data.msa
-
-# Constructing PanMANs from Pangraph alignment
-./panmanUtils -P data.pangraph -N data.nwk -o data
-
-# Constructing PanMANs from GFA
-./panmanUtils -G data.gfa -N data.nwk -o data
-
-# Constructing PanMANs from MSA
-./panmanUtils -M data.msa -N data.nwk -o data
-
-##################### panmanUtils experiements for a PanMAN of 4000 RSV sequences ############################################
+##################### Experiements for 4000 RSV sequences ############################################
 
 # Download the PanMAN
+DEST_FILE="rsv_4000.fa"
+FILE_ID="1DAvh5mNOPTl5KL06QONy47oFgHKTo7uT"
+CONFIRM=$(wget --quiet --save-cookies cookies.txt --keep-session-cookies --no-check-certificate "https://drive.google.com/uc?export=download&id=$FILE_ID" -O - | grep -o 'confirm=[^&]*' | sed 's/confirm=//')
+if [ "$CONFIRM" ]; then
+  wget --load-cookies cookies.txt -O "$DEST_FILE" "https://drive.google.com/uc?export=download&id=$FILE_ID&confirm=$CONFIRM"
+else
+  wget --load-cookies cookies.txt -O "$DEST_FILE" "https://drive.google.com/uc?export=download&id=$FILE_ID"
+fi
+rm cookies.txt
 
+# Constructing PanGraph from the Raw Sequences
+./pangraph build -k mmseqs $DEST_FILE | ./pangraph polish > rsv_4000.json 2> rsv_4000.nwk
+awk '/tree/ {{split($0,a,"tree:  "); print a[2]}}' rsv_4000.nwk > temp.newick && mv temp.newick rsv_4000.nwk
 
+# Constructing GFA from raw genome sequences using PGGB
+./pggb -i $DEST_FILE -t 32 -n num_sequences -o output_dir
+
+# Constructing VG
+./vg convert -p rsv_4000.gfa -t 32 -v > rsv_4000.vg 
+
+# Constructing GBZ
+./vg gbwt -G rsv_4000.gfa --num-threads 32 --gbz-format -g rsv_4000.gbz
+
+# Constructing MSA from raw genome sequences
+./mafft --auto --keeplength --addfragments $DEST_FILE > rsv_4000.msa
+
+# Constructing PanMANs from Pangraph alignment
+./panmanUtils -P rsv_4000.json -N rsv_4000.nwk -o data
+
+# Constructing PanMANs from GFA
+./panmanUtils -G rsv_4000.gfa -N rsv_4000.nwk -o data
+
+# Constructing PanMANs from MSA
+./panmanUtils -M rsv_4000.msa -N rsv_4000.nwk -o data
 
 # Extracting summary statistics from PanMANs
 ./panmanUtils -I rsv_4000.panman --summary
