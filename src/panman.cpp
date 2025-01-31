@@ -22,6 +22,7 @@
 #include <typeinfo>
 
 
+#include "impute.cpp"
 #include "chaining.cpp"
 #include "rotation.cpp"
 #include "fitchSankoff.cpp"

@@ -470,6 +470,9 @@ class Tree {
     void protoMATToTree(const panman::Tree::Reader& mainTree);
     void protoMATToTree(const panmanOld::tree& mainTree);
 
+    // Functions for imputation of Ns
+    void imputeViaMaskedFitch();
+
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
     int nucFitchForwardPassOpt(Node* node, std::unordered_map< std::string, int >& states);
