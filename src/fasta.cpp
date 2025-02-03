@@ -1982,7 +1982,8 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
 
     std::unordered_map< std::string, std::mutex > nodeMutexes;
     for(auto u: allNodes) {
-        if (u.second->children.size() == 0) {
+        if (true) {
+        //if (u.second->children.size() == 0) {
             nodeMutexes[u.first];
         }
     }
@@ -1994,7 +1995,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
         panmanUtils::Node* node = keyValue.second;
         // Create a stringstream for each thread to avoid race conditions on fout
         if (node->children.size() != 0) {
-            return;
+            //return;
         }
 
         // Get block sequnece of the Tip
