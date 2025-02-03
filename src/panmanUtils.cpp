@@ -333,7 +333,7 @@ void impute(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstre
 
     auto imputeStart = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < tg.trees.size(); i++) {
-        tg.trees[i].imputeViaMaskedFitch();
+        tg.trees[i].imputeNs();
     }
 
     auto imputeEnd = std::chrono::high_resolution_clock::now();

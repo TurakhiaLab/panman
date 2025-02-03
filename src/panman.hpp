@@ -209,6 +209,43 @@ struct NucMut {
     
 };
 
+// Simplified struct for a nucleotide mutation position; hashable
+struct NucMutPosition {
+    int32_t nucPosition;
+    int32_t nucGapPosition;
+    int32_t primaryBlockId;
+    int32_t secondaryBlockId;
+    int32_t indelLength;
+
+    static int32_t computeIndelLength(uint32_t nucs) {
+        int32_t length = 0;
+        while (nucs) {
+            if (nucs & 0xF)  // Check if the last 4-bit segment is nonzero
+                length++;
+            nucs >>= 4;  // Shift right by 4 bits
+        }
+        return length;
+    }
+
+    NucMutPosition(const panmanUtils::NucMut& nm)
+        : nucPosition(nm.nucPosition),
+          nucGapPosition(nm.nucGapPosition),
+          primaryBlockId(nm.primaryBlockId),
+          secondaryBlockId(nm.secondaryBlockId),
+          indelLength((nm.mutInfo == (panmanUtils::NucMutationType::NS + (1 << 4)) ||
+                       nm.mutInfo == (panmanUtils::NucMutationType::NSNPS + (1 << 4)))
+                      ? 0
+                      : computeIndelLength(nm.nucs)) {}
+
+    bool operator==(const NucMutPosition& other) const {
+        return nucPosition == other.nucPosition &&
+               nucGapPosition == other.nucGapPosition &&
+               primaryBlockId == other.primaryBlockId &&
+               secondaryBlockId == other.secondaryBlockId &&
+               indelLength == other.indelLength;
+    }
+};
+
 // Struct for representing Block Mutations
 struct BlockMut {
     int32_t primaryBlockId;
@@ -471,7 +508,21 @@ class Tree {
     void protoMATToTree(const panmanOld::tree& mainTree);
 
     // Functions for imputation of Ns
-    void imputeViaMaskedFitch();
+    void imputeNs(); // Impute all Ns in the Tree (meant for external use)
+    // Fill the "snvs" and "insertions" maps with all mutations TO N in the subtree with root "node"
+    const void findMutationsToN(Node* node, std::unordered_map< Node*, std::unordered_set< NucMutPosition > >& snvs,
+                                std::unordered_map< Node*, std::unordered_set< NucMutPosition > >& insertions);
+    // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
+    // Start from "node", try parents & children (except "childToIgnore" or anything in "mutsToIgnore")
+    // Tracks total branch distance travelled in "distanceSoFar" in case it's over the limit
+    // Updates mutations for maximum parsimony
+    // Returns the imputed nucleotide, or the empty string for a failure
+    std::string imputeSNV(Node* node, NucMutPosition mutToN, Node* childToIgnore, int distanceSoFar,
+                          const std::unordered_map< Node*, std::unordered_set< NucMutPosition > >& mutsToIgnore);
+    // Similar to imputeSNV. Only allowed to impute from mutations with the same position & size
+    // If only part of an insertion is full of Ns, only impute over the Ns
+    std::string imputeInsertion(Node* node, NucMutPosition mutToN, Node* childToIgnore, int distanceSoFar,
+                                const std::unordered_map< Node*, std::unordered_set< NucMutPosition > >& mutsToIgnore);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
@@ -899,3 +950,17 @@ class TreeGroup {
 };
 
 };
+
+namespace std {
+    template <>
+    struct hash<panmanUtils::NucMutPosition> {
+        size_t operator()(const panmanUtils::NucMutPosition& nm) const {
+            size_t h1 = std::hash<int32_t>{}(nm.nucPosition);
+            size_t h2 = std::hash<int32_t>{}(nm.nucGapPosition);
+            size_t h3 = std::hash<int32_t>{}(nm.primaryBlockId);
+            size_t h4 = std::hash<int32_t>{}(nm.secondaryBlockId);
+            size_t h5 = std::hash<int32_t>{}(nm.indelLength);
+            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^ (h5 << 4);
+        }
+    };
+}

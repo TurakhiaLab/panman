@@ -1,19 +1,37 @@
 
 #include "panmanUtils.hpp"
 
-void panmanUtils::Tree::imputeViaMaskedFitch() {
+void panmanUtils::Tree::imputeNs() {
     std::cout << "Imputing a tree" << std::endl;
 
-    // Identify all coordinates which have a nucleotide substitution to N
-    // Also get a list of all leaves (is that already somewhere?)
-    // For each coordinate, loop over all leaves
-        // If the leaf has an N, mask it, otherwise save its state
-        // Mask internal nodes which have no unmasked children
-        // Run Fitch forward pass
-        // Unmask all nodes (update "states" as necessary)
-        // Run Fitch backward pass
-        // Assign mutations as makes sense
+    std::unordered_map< panmanUtils::Node*, std::unordered_set< panmanUtils::NucMutPosition > > snvs;
+    std::unordered_map< panmanUtils::Node*, std::unordered_set< panmanUtils::NucMutPosition > > insertions;
+    findMutationsToN(root, snvs, insertions);
 
-    // Identify all nodes which have an insertion of Ns
-    // For each node/insertion pair, copy nearby insertions of same length/pos
+    for (const auto toImpute: snvs) {
+        for (const auto& curMut: toImpute.second) {
+            imputeSNV(toImpute.first, curMut, nullptr, 0, snvs);
+        }
+    }
+    
+    for (const auto& toImpute: insertions) {
+        for (const auto& curMut: toImpute.second) {
+            imputeInsertion(toImpute.first, curMut, nullptr, 0, insertions);
+        }
+    }
+}
+
+const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node, 
+        std::unordered_map< panmanUtils::Node*, std::unordered_set< panmanUtils::NucMutPosition > >& snvs,
+        std::unordered_map< panmanUtils::Node*, std::unordered_set< panmanUtils::NucMutPosition > >& insertions) {
+}
+
+std::string panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, panmanUtils::NucMutPosition mutToN, panmanUtils::Node* childToIgnore, int distanceSoFar,
+        const std::unordered_map< panmanUtils::Node*, std::unordered_set< panmanUtils::NucMutPosition > >& mutsToIgnore) {
+    return "";
+}
+
+std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::NucMutPosition mutToN, panmanUtils::Node* childToIgnore, int distanceSoFar,
+        const std::unordered_map< panmanUtils::Node*, std::unordered_set< panmanUtils::NucMutPosition > >& mutsToIgnore) {
+    return "";
 }
