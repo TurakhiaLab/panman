@@ -217,25 +217,19 @@ struct NucMutPosition {
     int32_t secondaryBlockId;
     int32_t indelLength;
 
-    static int32_t computeIndelLength(uint32_t nucs) {
-        int32_t length = 0;
-        while (nucs) {
-            if (nucs & 0xF)  // Check if the last 4-bit segment is nonzero
-                length++;
-            nucs >>= 4;  // Shift right by 4 bits
-        }
-        return length;
-    }
-
     NucMutPosition(const panmanUtils::NucMut& nm)
         : nucPosition(nm.nucPosition),
           nucGapPosition(nm.nucGapPosition),
           primaryBlockId(nm.primaryBlockId),
           secondaryBlockId(nm.secondaryBlockId),
-          indelLength((nm.mutInfo == (panmanUtils::NucMutationType::NS + (1 << 4)) ||
-                       nm.mutInfo == (panmanUtils::NucMutationType::NSNPS + (1 << 4)))
-                      ? 0
-                      : computeIndelLength(nm.nucs)) {}
+          indelLength(0) {}
+
+    NucMutPosition(const panmanUtils::NucMut& nm, int32_t indelLength)
+        : nucPosition(nm.nucPosition),
+          nucGapPosition(nm.nucGapPosition),
+          primaryBlockId(nm.primaryBlockId),
+          secondaryBlockId(nm.secondaryBlockId),
+          indelLength(indelLength) {}
 
     bool operator==(const NucMutPosition& other) const {
         return nucPosition == other.nucPosition &&
