@@ -1,6 +1,9 @@
 
 #include "panmanUtils.hpp"
 
+const int32_t MAX_SNV_IMPUTE_DIST = std::numeric_limits<int32_t>::max();
+const int32_t MAX_INSERTION_IMPUTE_DIST = std::numeric_limits<int32_t>::max();
+
 void panmanUtils::Tree::imputeNs() {
     std::cout << "Imputing a tree" << std::endl;
 
@@ -75,16 +78,22 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
     }
 }
 
-std::string panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, panmanUtils::SNVPosition mutToN, panmanUtils::Node* childToIgnore, int distanceSoFar,
+std::string panmanUtils::Tree::imputeSNV(panmanUtils::Node* node,
+        panmanUtils::SNVPosition mutToN, panmanUtils::Node* childToIgnore, int32_t distanceSoFar,
         const std::unordered_map< panmanUtils::Node*, std::unordered_set< panmanUtils::SNVPosition > >& mutsToIgnore) {
     std::cout << "Imputing SNV for " << node->identifier << " pos (" << mutToN.primaryBlockId;
     std::cout << ", " << mutToN.nucPosition << ", " << mutToN.nucGapPosition << ")" << std::endl;
+    if (node == nullptr || distanceSoFar > MAX_SNV_IMPUTE_DIST) return "";
+
     return "";
 }
 
-std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::IndelPosition mutToN, panmanUtils::Node* childToIgnore, int distanceSoFar,
+std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
+        panmanUtils::IndelPosition mutToN, panmanUtils::Node* childToIgnore, int32_t distanceSoFar,
         const std::unordered_map< panmanUtils::Node*, std::unordered_set< panmanUtils::IndelPosition > >& mutsToIgnore) {
     std::cout << "Imputing indel (length " << mutToN.indelLength << ") for " << node->identifier << " pos (" << mutToN.primaryBlockId;
     std::cout << ", " << mutToN.nucPosition << ", " << mutToN.nucGapPosition << ")" << std::endl;
+    if (node == nullptr || distanceSoFar > MAX_INSERTION_IMPUTE_DIST) return "";
+
     return "";
 }

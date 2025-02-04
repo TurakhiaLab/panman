@@ -553,11 +553,11 @@ class Tree {
     // Tracks total branch distance travelled in "distanceSoFar" in case it's over the limit
     // Updates mutations for maximum parsimony
     // Returns the imputed nucleotide, or the empty string for a failure
-    std::string imputeSNV(Node* node, SNVPosition mutToN, Node* childToIgnore, int distanceSoFar,
+    std::string imputeSNV(Node* node, SNVPosition mutToN, Node* childToIgnore, int32_t distanceSoFar,
                           const std::unordered_map< Node*, std::unordered_set< SNVPosition > >& mutsToIgnore);
     // Similar to imputeSNV. Only allowed to impute from mutations with the same position & size
     // If only part of an insertion is full of Ns, only impute over the Ns
-    std::string imputeInsertion(Node* node, IndelPosition mutToN, Node* childToIgnore, int distanceSoFar,
+    std::string imputeInsertion(Node* node, IndelPosition mutToN, Node* childToIgnore, int32_t distanceSoFar,
                                 const std::unordered_map< Node*, std::unordered_set< IndelPosition > >& mutsToIgnore);
 
     // Fitch Algorithm on Nucleotide mutations
