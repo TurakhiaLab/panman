@@ -29,6 +29,8 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
     snvs[node] = std::unordered_set< panmanUtils::SNVPosition >();
     // Store insertions specially so they can easily be combined
     std::vector< panmanUtils::IndelPosition > insertionsSoFar;
+    // We only care about N/missing nucleotides
+    int codeForN = panmanUtils::getCodeFromNucleotide('N');
 
     for (const auto& curMut: node->nucMutation) {
         // Based on printSingleNodeHelper() in fasta.cpp
@@ -37,23 +39,21 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
         int len = type < 3 ? (curMut.mutInfo >> 4) : 1;
 
         if (type == panmanUtils::NucMutationType::NSNPS) {
-            char curNuc = panmanUtils::getNucleotideFromCode((curMut.nucs >> 20) & 0xF);
-            // We only care about N/missing nucleotides
-            if (curNuc == 'N') {
+            // Nucleotide codes are bitshifted by 20 for some reason
+            if (((curMut.nucs >> 20) & 0xF) == codeForN) {
                 snvs[node].insert(SNVPosition(curMut));
             }
         } else if (type == panmanUtils::NucMutationType::NS) {
             for(int i = 0; i < len; i++) {
                 // Peel away layers to extract a single nucleotide
-                char curNuc = panmanUtils::getNucleotideFromCode((curMut.nucs >> (4*(5-i))) & 0xF);
-                if (curNuc == 'N') {
+                if (((curMut.nucs >> (4*(5-i))) & 0xF) == codeForN) {
                     // Make sure to offset the position coordinate
                     snvs[node].insert(SNVPosition(curMut, i));
                 }
             }
         } else if (type == panmanUtils::NucMutationType::NSNPI
                    || type == panmanUtils::NucMutationType::NI) {
-            IndelPosition curMutPos = IndelPosition(curMut);
+            IndelPosition curMutPos = IndelPosition(curMut, codeForN);
             // Add new NucMutPosition if we can't merge this one with the back
             if (insertionsSoFar.empty() || !insertionsSoFar.back().mergeIndels(curMutPos)) {
                 insertionsSoFar.push_back(curMutPos);
@@ -65,7 +65,7 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
     insertions[node] = std::unordered_set< panmanUtils::IndelPosition >();
     for (const auto& curIndel : insertionsSoFar) {
         // If at least one value is true (i.e. it's not true that none are true)
-        if (!std::none_of(curIndel.isSpecial.begin(), curIndel.isSpecial.end(), [](bool v) { return v; })) {
+        if (!std::none_of(curIndel.isSpecialNuc.begin(), curIndel.isSpecialNuc.end(), [](bool v) { return v; })) {
             insertions[node].insert(curIndel);
         }
     }

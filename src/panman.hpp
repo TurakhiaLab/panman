@@ -245,21 +245,19 @@ struct IndelPosition {
     int32_t secondaryBlockId;
     int32_t indelLength;
     // size of indelLength, whether each position is special
-    std::vector< bool > isSpecial;
+    std::vector< bool > isSpecialNuc;
 
-    IndelPosition(const panmanUtils::NucMut& nm) {
+    IndelPosition(const panmanUtils::NucMut& nm, int specialNucCode) {
         nucPosition = nm.nucPosition;
         nucGapPosition = nm.nucGapPosition;
         primaryBlockId = nm.primaryBlockId;
         secondaryBlockId = nm.secondaryBlockId;
+        indelLength = nm.mutInfo >> 4;
 
-        int len = nm.mutInfo >> 4;
-        isSpecial = std::vector< bool >(len);
-        for(int i = 0; i < len; i++) {
+        isSpecialNuc = std::vector< bool >(indelLength);
+        for(int i = 0; i < indelLength; i++) {
             // Peel away layers to extract a single nucleotide
-            // TODO: uh how do I call this, it worked fine in impute.cpp
-            char curNuc = panmanUtils::getNucleotideFromCode((nm.nucs >> (4*(5-i))) & 0xF);
-            isSpecial[i] = (curNuc == 'N');
+            isSpecialNuc[i] = (((nm.nucs >> (4*(5-i))) & 0xF) == specialNucCode);
         }
     }
 
@@ -268,7 +266,7 @@ struct IndelPosition {
             && primaryBlockId == other.primaryBlockId
             && secondaryBlockId == other.secondaryBlockId) {
             indelLength += other.indelLength;
-            isSpecial.insert(isSpecial.end(), other.isSpecial.begin(), other.isSpecial.end());
+            isSpecialNuc.insert(isSpecialNuc.end(), other.isSpecialNuc.begin(), other.isSpecialNuc.end());
             return true;
         } else {
             return false;
