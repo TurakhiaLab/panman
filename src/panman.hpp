@@ -209,35 +209,6 @@ struct NucMut {
     
 };
 
-// Simplified struct for an SNV position; hashable
-struct SNVPosition {
-    int32_t nucPosition;
-    int32_t nucGapPosition;
-    int32_t primaryBlockId;
-    int32_t secondaryBlockId;
-
-    SNVPosition(const panmanUtils::NucMut& nm)
-        : nucPosition(nm.nucPosition),
-          nucGapPosition(nm.nucGapPosition),
-          primaryBlockId(nm.primaryBlockId),
-          secondaryBlockId(nm.secondaryBlockId) {}
-
-    // findMutationsToN() in impute.cpp needs offsets for SNVs
-    SNVPosition(const panmanUtils::NucMut& nm, int32_t pos_offset) {
-        nucPosition = nm.nucPosition + pos_offset;
-        nucGapPosition = nm.nucGapPosition;
-        primaryBlockId = nm.primaryBlockId;
-        secondaryBlockId = nm.secondaryBlockId;
-    }
-
-    bool operator==(const SNVPosition& other) const {
-        return nucPosition == other.nucPosition &&
-               primaryBlockId == other.primaryBlockId &&
-               secondaryBlockId == other.secondaryBlockId &&
-               nucGapPosition == other.nucGapPosition;
-    }
-};
-
 struct IndelPosition {
     int32_t nucPosition;
     int32_t nucGapPosition;
@@ -271,14 +242,6 @@ struct IndelPosition {
         } else {
             return false;
         }
-    }
-
-    bool operator==(const IndelPosition& other) const {
-        return nucPosition == other.nucPosition &&
-               primaryBlockId == other.primaryBlockId &&
-               secondaryBlockId == other.secondaryBlockId &&
-               nucGapPosition == other.nucGapPosition &&
-               indelLength == other.indelLength;
     }
 };
 
@@ -545,20 +508,17 @@ class Tree {
 
     // Functions for imputation of Ns
     void imputeNs(); // Impute all Ns in the Tree (meant for external use)
-    // Fill the "snvs" and "insertions" maps with all mutations TO N in the subtree with root "node"
-    const void findMutationsToN(Node* node, std::unordered_map< Node*, std::unordered_set< SNVPosition > >& snvs,
-                                std::unordered_map< Node*, std::unordered_set< IndelPosition > >& insertions);
+    // Fill the "snvs" and "insertions" vectors with all mutations TO N in the subtree with root "node"
+    const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& snvs,
+                                std::vector< std::pair< Node*, IndelPosition > >& insertions);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
-    // Start from "node", try parents & children (except "childToIgnore" or anything in "mutsToIgnore")
-    // Tracks total branch distance travelled in "distanceSoFar" in case it's over the limit
+    // Start from "node", try parents & children, except "childToIgnore"
     // Updates mutations for maximum parsimony
     // Returns the imputed nucleotide, or the empty string for a failure
-    std::string imputeSNV(Node* node, SNVPosition mutToN, Node* childToIgnore, int32_t distanceSoFar,
-                          const std::unordered_map< Node*, std::unordered_set< SNVPosition > >& mutsToIgnore);
+    std::string imputeSNV(Node* node, NucMut mutToN, Node* childToIgnore);
     // Similar to imputeSNV. Only allowed to impute from mutations with the same position & size
     // If only part of an insertion is full of Ns, only impute over the Ns
-    std::string imputeInsertion(Node* node, IndelPosition mutToN, Node* childToIgnore, int32_t distanceSoFar,
-                                const std::unordered_map< Node*, std::unordered_set< IndelPosition > >& mutsToIgnore);
+    std::string imputeInsertion(Node* node, IndelPosition mutToN, Node* childToIgnore);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
@@ -986,28 +946,3 @@ class TreeGroup {
 };
 
 };
-
-namespace std {
-    template <>
-    struct hash<panmanUtils::SNVPosition> {
-        size_t operator()(const panmanUtils::SNVPosition& pos) const {
-            size_t h1 = std::hash<int32_t>{}(pos.nucPosition);
-            size_t h2 = std::hash<int32_t>{}(pos.nucGapPosition);
-            size_t h3 = std::hash<int32_t>{}(pos.primaryBlockId);
-            size_t h4 = std::hash<int32_t>{}(pos.secondaryBlockId);
-            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
-        }
-    };
-
-    template <>
-    struct hash<panmanUtils::IndelPosition> {
-        size_t operator()(const panmanUtils::IndelPosition& pos) const {
-            size_t h1 = std::hash<int32_t>{}(pos.nucPosition);
-            size_t h2 = std::hash<int32_t>{}(pos.nucGapPosition);
-            size_t h3 = std::hash<int32_t>{}(pos.primaryBlockId);
-            size_t h4 = std::hash<int32_t>{}(pos.secondaryBlockId);
-            size_t h5 = std::hash<int32_t>{}(pos.indelLength);
-            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^ (h5 << 4);
-        }
-    };
-}
