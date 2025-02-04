@@ -206,7 +206,31 @@ struct NucMut {
         }
     }
 
-    
+    // Subset a SNP from an MNP
+    NucMut(const NucMut& other, int offset) {
+        primaryBlockId = other.primaryBlockId;
+        secondaryBlockId = other.secondaryBlockId;
+        mutInfo = panmanUtils::NucMutationType::NSNPS + (1 << 4);
+        // Extract one nucleotide, then bitshift it 20 to match a regular SNP
+        nucs = ((other.nucs >> (4*(5-offset))) & 0xF) << 20;
+
+        // Offsets based on printSingleNodeHelper() in fasta.cpp
+        if (other.nucGapPosition == -1) {
+            nucPosition = other.nucPosition + offset;
+            nucGapPosition = other.nucGapPosition;
+        } else {
+            nucPosition = other.nucPosition;
+            nucGapPosition = other.nucGapPosition + offset;
+        }
+    }
+
+    bool operator==(const NucMut& other) const {
+        return nucPosition == other.nucPosition &&
+               nucGapPosition == other.nucGapPosition &&
+               primaryBlockId == other.primaryBlockId &&
+               secondaryBlockId == other.secondaryBlockId &&
+               nucGapPosition == other.nucGapPosition;
+    }
 };
 
 struct IndelPosition {
@@ -512,12 +536,12 @@ class Tree {
     const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& snvs,
                                 std::vector< std::pair< Node*, IndelPosition > >& insertions);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
-    // Start from "node", try parents & children, except "childToIgnore"
+    // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
-    // Returns the imputed nucleotide, or the empty string for a failure
-    std::string imputeSNV(Node* node, NucMut mutToN, Node* childToIgnore);
+    void imputeSNV(Node* node, NucMut mutToN);
     // Similar to imputeSNV. Only allowed to impute from mutations with the same position & size
     // If only part of an insertion is full of Ns, only impute over the Ns
+    // Returns the imputed nucleotide, or the empty string for a failure
     std::string imputeInsertion(Node* node, IndelPosition mutToN, Node* childToIgnore);
 
     // Fitch Algorithm on Nucleotide mutations

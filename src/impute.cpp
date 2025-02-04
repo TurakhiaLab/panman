@@ -1,7 +1,7 @@
 
 #include "panmanUtils.hpp"
 
-std::vector<bool> posWithN(panmanUtils::NucMut mut) {
+std::vector<bool> posWithN(const panmanUtils::NucMut mut) {
     int mutLength = mut.mutInfo >> 4;
     std::vector<bool> isN = std::vector<bool>(mutLength);
     for(int i = 0; i < mutLength; i++) {
@@ -19,7 +19,7 @@ void panmanUtils::Tree::imputeNs() {
     findMutationsToN(root, snvs, insertions);
 
     for (const auto toImpute: snvs) {
-        imputeSNV(toImpute.first, toImpute.second, nullptr);
+        imputeSNV(toImpute.first, toImpute.second);
     }
     
     for (const auto& toImpute: insertions) {
@@ -63,13 +63,25 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
     }
 }
 
-std::string panmanUtils::Tree::imputeSNV(panmanUtils::Node* node,
-        panmanUtils::NucMut mutToN, panmanUtils::Node* childToIgnore) {
+void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, panmanUtils::NucMut mutToN) {
     std::cout << "Imputing SNV for " << node->identifier << " pos (" << mutToN.primaryBlockId;
     std::cout << ", " << mutToN.nucPosition << ", " << mutToN.nucGapPosition << ")" << std::endl;
-    if (node == nullptr) return "";
+    if (node == nullptr) return;
 
-    return "";
+    // Get rid of the old mutation in the node's list
+    std::vector<NucMut>::iterator oldIndex = std::find(node->nucMutation.begin(), node->nucMutation.end(), mutToN);
+    node->nucMutation.erase(oldIndex);
+
+    // Possible MNP
+    if ((mutToN.mutInfo & 0x7) == panmanUtils::NucMutationType::NS) {
+        // Add non-N mutations back in (for MNPs which are partially N)
+        std::vector<bool> isN = posWithN(mutToN);
+        for(int i = 0; i < isN.size(); i++) {
+            if (!isN[i]) {
+                node->nucMutation.push_back(NucMut(mutToN, i));
+            }
+        }
+    }
 }
 
 std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
