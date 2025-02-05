@@ -8,3 +8,4 @@ src/*.orig
 panman/*
 .vscode/*
 scripts/*
+info/*
