@@ -14,21 +14,23 @@ std::vector<bool> posWithN(const panmanUtils::NucMut mut) {
 void panmanUtils::Tree::imputeNs() {
     std::cout << "Imputing a tree" << std::endl;
 
-    std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > > snvs;
+    std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > > substitutions;
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > > insertions;
-    findMutationsToN(root, snvs, insertions);
+    findMutationsToN(root, substitutions, insertions);
 
-    for (const auto toImpute: snvs) {
+    std::cout << substitutions.size() << " substitutions to impute" << std::endl;
+    for (const auto& toImpute: substitutions) {
         imputeSNV(toImpute.first, toImpute.second);
     }
     
+    std::cout << insertions.size() << " insertions to impute" << std::endl;
     for (const auto& toImpute: insertions) {
         imputeInsertion(toImpute.first, toImpute.second, nullptr);
     }
 }
 
 const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node, 
-        std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > >& snvs,
+        std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > >& substitutions,
         std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > >& insertions) {
     if (node == nullptr) return;
 
@@ -46,7 +48,7 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
             std::vector<bool> isN = posWithN(curMut);
             // If there's an N somewhere, store this SNP
             if (std::find(begin(isN), end(isN), true) != end(isN)) {
-                snvs.push_back(std::make_pair(node, curMut));
+                substitutions.push_back(std::make_pair(node, curMut));
             }
         } else if (type == panmanUtils::NucMutationType::NSNPI
                    || type == panmanUtils::NucMutationType::NI) {
@@ -59,7 +61,7 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
     }
 
     for(auto child: node->children) {
-        findMutationsToN(child, snvs, insertions);
+        findMutationsToN(child, substitutions, insertions);
     }
 }
 

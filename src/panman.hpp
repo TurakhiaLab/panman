@@ -532,8 +532,8 @@ class Tree {
 
     // Functions for imputation of Ns
     void imputeNs(); // Impute all Ns in the Tree (meant for external use)
-    // Fill the "snvs" and "insertions" vectors with all mutations TO N in the subtree with root "node"
-    const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& snvs,
+    // Fill the "substitutions" and "insertions" vectors with all mutations TO N in the subtree with root "node"
+    const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& substitutions,
                                 std::vector< std::pair< Node*, IndelPosition > >& insertions);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
