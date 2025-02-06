@@ -140,6 +140,7 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, std::vector<pan
         return;
     }
     std::cout << "Nibling found: " << sourceNibling->identifier << std::endl;
+    // ahh have to also handle the aunt/uncle case
     // Erase insertion from current node
     // Erase insertion from nibling
     // Add insertion to parent (likely the exact one from nibling)
