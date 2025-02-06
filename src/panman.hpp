@@ -224,48 +224,20 @@ struct NucMut {
         }
     }
 
+    // Useful for determining whether indels are consecutive
+    bool samePosExceptGap(const NucMut& other) const {
+        return nucPosition == other.nucPosition &&
+               primaryBlockId == other.primaryBlockId &&
+               secondaryBlockId == other.secondaryBlockId;
+    }
+
     bool operator==(const NucMut& other) const {
         return nucPosition == other.nucPosition &&
                nucGapPosition == other.nucGapPosition &&
                primaryBlockId == other.primaryBlockId &&
                secondaryBlockId == other.secondaryBlockId &&
-               nucGapPosition == other.nucGapPosition;
-    }
-};
-
-struct IndelPosition {
-    int32_t nucPosition;
-    int32_t nucGapPosition;
-    int32_t primaryBlockId;
-    int32_t secondaryBlockId;
-    int32_t indelLength;
-    // size of indelLength, whether each position is special
-    std::vector< bool > isSpecialNuc;
-
-    IndelPosition(const panmanUtils::NucMut& nm, int specialNucCode) {
-        nucPosition = nm.nucPosition;
-        nucGapPosition = nm.nucGapPosition;
-        primaryBlockId = nm.primaryBlockId;
-        secondaryBlockId = nm.secondaryBlockId;
-        indelLength = nm.mutInfo >> 4;
-
-        isSpecialNuc = std::vector< bool >(indelLength);
-        for(int i = 0; i < indelLength; i++) {
-            // Peel away layers to extract a single nucleotide
-            isSpecialNuc[i] = (((nm.nucs >> (4*(5-i))) & 0xF) == specialNucCode);
-        }
-    }
-
-    bool mergeIndels(const IndelPosition& other) {
-        if (nucPosition == other.nucPosition
-            && primaryBlockId == other.primaryBlockId
-            && secondaryBlockId == other.secondaryBlockId) {
-            indelLength += other.indelLength;
-            isSpecialNuc.insert(isSpecialNuc.end(), other.isSpecialNuc.begin(), other.isSpecialNuc.end());
-            return true;
-        } else {
-            return false;
-        }
+               mutInfo == other.mutInfo &&
+               nucs == other.nucs;
     }
 };
 
@@ -534,16 +506,17 @@ class Tree {
     void imputeNs(); // Impute all Ns in the Tree (meant for external use)
     // Fill the "substitutions" and "insertions" vectors with all mutations TO N in the subtree with root "node"
     const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& substitutions,
-                                std::vector< std::pair< Node*, IndelPosition > >& insertions);
+                                std::vector< std::pair< Node*, std::vector<NucMut> > >& insertions);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
     void imputeSNV(Node* node, NucMut mutToN);
-    // Similar to imputeSNV. Only allowed to impute from mutations with the same position & size
+    // Similar to imputeSNV. "mutToN" is a list of consecutive insertions
+    // Only allowed to impute from mutations with the same position & size
     // Imputes from niblings (children of siblings), as the only possible useful option
     // If only part of an insertion is full of Ns, only impute over the Ns
     // Updates mutations for maximum parsimony
-    void imputeInsertion(Node* node, IndelPosition mutToN);
+    void imputeInsertion(Node* node, std::vector<NucMut> mutToN);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);

@@ -15,7 +15,7 @@ void panmanUtils::Tree::imputeNs() {
     std::cout << "Imputing a tree" << std::endl;
 
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > > substitutions;
-    std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > > insertions;
+    std::vector< std::pair< panmanUtils::Node*, std::vector<panmanUtils::NucMut> > > insertions;
     findMutationsToN(root, substitutions, insertions);
 
     std::cout << substitutions.size() << " substitutions to impute" << std::endl;
@@ -31,7 +31,7 @@ void panmanUtils::Tree::imputeNs() {
 
 const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node, 
         std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > >& substitutions,
-        std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > >& insertions) {
+        std::vector< std::pair< panmanUtils::Node*, std::vector<panmanUtils::NucMut> > >& insertions) {
     if (node == nullptr) return;
 
     // We only care about N/missing nucleotides
@@ -52,11 +52,13 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
             }
         } else if (type == panmanUtils::NucMutationType::NSNPI
                    || type == panmanUtils::NucMutationType::NI) {
-            IndelPosition curMutPos = IndelPosition(curMut, codeForN);
-            // Add new NucMutPosition if we can't merge this one with the back
-            if (insertions.empty() || !insertions.back().second.mergeIndels(curMutPos)) {
-                insertions.push_back(std::make_pair(node, curMutPos));
+            if (insertions.empty() || insertions.back().first != node
+                || !insertions.back().second.back().samePosExceptGap(curMut)) {
+                // This insertion can't be merged with the previous one, so make a new entry
+                insertions.push_back(std::make_pair(node, std::vector<panmanUtils::NucMut>()));
             }
+            // In all cases, add this insertion to the currently growing insertion
+            insertions.back().second.push_back(curMut);
         }
     }
 
@@ -65,7 +67,7 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
     }
 }
 
-void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, panmanUtils::NucMut mutToN) {
+void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, NucMut mutToN) {
     if (node == nullptr) return;
 
     // Get rid of the old mutation in the node's list
@@ -84,10 +86,15 @@ void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, panmanUtils::NucMut m
     }
 }
 
-void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::IndelPosition mutToN) {
-    std::cout << "Imputing indel (length " << mutToN.indelLength << ") for " << node->identifier << " pos (" << mutToN.primaryBlockId;
-    std::cout << ", " << mutToN.nucPosition << ", " << mutToN.nucGapPosition << ")" << std::endl;
+void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, std::vector<panmanUtils::NucMut> mutToN) {
+    std::cout << "Imputing indel (length " << mutToN.size() << ") for " << node->identifier << " pos (" << mutToN[0].primaryBlockId;
+    std::cout << ", " << mutToN[0].nucPosition << ", " << mutToN[0].nucGapPosition << ")" << std::endl;
 
+    // Algorithm only works if niblings are available
+    if (node == nullptr || node->parent == nullptr) return;
+
+    Node* nibling = nullptr;
+    //std::vector<panmanUtils::NucMut> niblingMut = std::vector<panmanUtils::NucMut>(mutToN.size());
     // Find nibling with insertion of identical length/position
     // Erase insertion from current node
     // Erase insertion from nibling
