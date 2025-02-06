@@ -25,7 +25,7 @@ void panmanUtils::Tree::imputeNs() {
     
     std::cout << insertions.size() << " insertions to impute" << std::endl;
     for (const auto& toImpute: insertions) {
-        imputeInsertion(toImpute.first, toImpute.second, nullptr);
+        imputeInsertion(toImpute.first, toImpute.second);
     }
 }
 
@@ -66,8 +66,6 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
 }
 
 void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, panmanUtils::NucMut mutToN) {
-    std::cout << "Imputing SNV for " << node->identifier << " pos (" << mutToN.primaryBlockId;
-    std::cout << ", " << mutToN.nucPosition << ", " << mutToN.nucGapPosition << ")" << std::endl;
     if (node == nullptr) return;
 
     // Get rid of the old mutation in the node's list
@@ -86,11 +84,13 @@ void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, panmanUtils::NucMut m
     }
 }
 
-std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
-        panmanUtils::IndelPosition mutToN, panmanUtils::Node* childToIgnore) {
+void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::IndelPosition mutToN) {
     std::cout << "Imputing indel (length " << mutToN.indelLength << ") for " << node->identifier << " pos (" << mutToN.primaryBlockId;
     std::cout << ", " << mutToN.nucPosition << ", " << mutToN.nucGapPosition << ")" << std::endl;
-    if (node == nullptr) return "";
 
-    return "";
+    // Find nibling with insertion of identical length/position
+    // Erase insertion from current node
+    // Erase insertion from nibling
+    // Add insertion to parent (likely the exact one from nibling)
+    // Add deletion to nibling's sibling (same as one from nibling, but changed to deletion)
 }

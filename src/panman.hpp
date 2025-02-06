@@ -540,9 +540,10 @@ class Tree {
     // Updates mutations for maximum parsimony
     void imputeSNV(Node* node, NucMut mutToN);
     // Similar to imputeSNV. Only allowed to impute from mutations with the same position & size
+    // Imputes from niblings (children of siblings), as the only possible useful option
     // If only part of an insertion is full of Ns, only impute over the Ns
-    // Returns the imputed nucleotide, or the empty string for a failure
-    std::string imputeInsertion(Node* node, IndelPosition mutToN, Node* childToIgnore);
+    // Updates mutations for maximum parsimony
+    void imputeInsertion(Node* node, IndelPosition mutToN);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
