@@ -539,12 +539,12 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
         // if (rootSeq && (primaryBlockId>=std::get<0>(panMATStart) && primaryBlockId<=std::get<0>(panMATEnd)) && (secondaryBlockId<=std::get<1>(panMATStart) && secondaryBlockId<=std::get<1>(panMATEnd)) ) {
         int32_t nucPosition = root->nucMutation[i].nucPosition;
         int32_t nucGapPosition = root->nucMutation[i].nucGapPosition;
-        uint32_t type = (root->nucMutation[i].mutInfo & 0x7);
+        uint32_t type = root->nucMutation[i].type();
         char newVal = '-';
 
         if(type < 3) {
             // Either S, I or D
-            int len = ((root->nucMutation[i].mutInfo) >> 4);
+            int len = root->nucMutation[i].length();
 
             if(primaryBlockId >= sequence.size()) {
                 std::cout << primaryBlockId << " " << sequence.size() << std::endl;
@@ -955,12 +955,12 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
         // if (rootSeq && (primaryBlockId>=std::get<0>(panMATStart) && primaryBlockId<=std::get<0>(panMATEnd)) && (secondaryBlockId<=std::get<1>(panMATStart) && secondaryBlockId<=std::get<1>(panMATEnd)) ) {
         int32_t nucPosition = node->nucMutation[i].nucPosition;
         int32_t nucGapPosition = node->nucMutation[i].nucGapPosition;
-        uint32_t type = (node->nucMutation[i].mutInfo & 0x7);
+        uint32_t type = node->nucMutation[i].type();
         char newVal = '-';
 
         if(type < 3) {
             // Either S, I or D
-            int len = ((node->nucMutation[i].mutInfo) >> 4);
+            int len = node->nucMutation[i].length();
 
             if(primaryBlockId >= sequence.size()) {
                 std::cout << primaryBlockId << " " << sequence.size() << std::endl;
@@ -1843,12 +1843,12 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
             // if (rootSeq && (primaryBlockId>=std::get<0>(panMATStart) && primaryBlockId<=std::get<0>(panMATEnd)) && (secondaryBlockId<=std::get<1>(panMATStart) && secondaryBlockId<=std::get<1>(panMATEnd)) ) {
                 int32_t nucPosition = node->nucMutation[i].nucPosition;
                 int32_t nucGapPosition = node->nucMutation[i].nucGapPosition;
-                uint32_t type = (node->nucMutation[i].mutInfo & 0x7);
+                uint32_t type = node->nucMutation[i].type();
                 char newVal = '-';
 
                 if(type < 3) {
                     // Either S, I or D
-                    int len = ((node->nucMutation[i].mutInfo) >> 4);
+                    int len = node->nucMutation[i].length();
 
                     if(primaryBlockId >= sequence.size()) {
                         std::cout << primaryBlockId << " " << sequence.size() << std::endl;
@@ -2161,12 +2161,12 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
             // if (rootSeq && (primaryBlockId>=std::get<0>(panMATStart) && primaryBlockId<=std::get<0>(panMATEnd)) && (secondaryBlockId<=std::get<1>(panMATStart) && secondaryBlockId<=std::get<1>(panMATEnd)) ) {
                 int32_t nucPosition = node->nucMutation[i].nucPosition;
                 int32_t nucGapPosition = node->nucMutation[i].nucGapPosition;
-                uint32_t type = (node->nucMutation[i].mutInfo & 0x7);
+                uint32_t type = node->nucMutation[i].type();
                 char newVal = '-';
 
                 if(type < 3) {
                     // Either S, I or D
-                    int len = ((node->nucMutation[i].mutInfo) >> 4);
+                    int len = node->nucMutation[i].length();
 
                     if(primaryBlockId >= sequence.size()) {
                         std::cout << primaryBlockId << " " << sequence.size() << std::endl;

@@ -1,19 +1,14 @@
 
 #include "panmanUtils.hpp"
 
-std::vector<bool> posWithN(const panmanUtils::NucMut mut) {
-    int mutLength = mut.mutInfo >> 4;
-    std::vector<bool> isN = std::vector<bool>(mutLength);
-    for(int i = 0; i < mutLength; i++) {
-        // Peel away layers to extract a single nucleotide
-        isN[i] = (panmanUtils::getNucleotideFromCode((mut.nucs >> (4*(5-i))) & 0xF) == 'N');
-    }
-    return isN;
+// Convenience function to check if a the ith base in mut.nucs is N
+bool isNucN(panmanUtils::NucMut mut, int offset) {
+    // Peel away layers to extract a single nucleotide
+    int curNucCode = (mut.nucs >> (4*(5-offset))) & 0xF;
+    return (panmanUtils::getNucleotideFromCode(curNucCode) == 'N');
 }
 
 void panmanUtils::Tree::imputeNs() {
-    std::cout << "Imputing a tree" << std::endl;
-
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > > substitutions;
     std::vector< std::pair< panmanUtils::Node*, std::vector<panmanUtils::NucMut> > > insertions;
     findMutationsToN(root, substitutions, insertions);
@@ -34,32 +29,46 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
         std::vector< std::pair< panmanUtils::Node*, std::vector<panmanUtils::NucMut> > >& insertions) {
     if (node == nullptr) return;
 
-    // We only care about N/missing nucleotides
-    int codeForN = panmanUtils::getCodeFromNucleotide('N');
+    std::vector<panmanUtils::NucMut> curInsertion;
+    bool curInsertionHasNs = false;
 
     for (const auto& curMut: node->nucMutation) {
         // Based on printSingleNodeHelper() in fasta.cpp
-        uint32_t type = (curMut.mutInfo & 0x7);
-        // <3 NX types may be multibase, >= 3 NSNPX types are all one base
-        int len = type < 3 ? (curMut.mutInfo >> 4) : 1;
+        uint32_t type = curMut.type();
 
+        // Does this mutation have Ns?
+        bool hasNs = false;
+        for(int i = 0; i < curMut.length(); i++) {
+            hasNs |= isNucN(curMut, i);
+        }
+
+        // Save mutation if relevant
         if (type == panmanUtils::NucMutationType::NSNPS
             || type == panmanUtils::NucMutationType::NS) {
-            std::vector<bool> isN = posWithN(curMut);
-            // If there's an N somewhere, store this SNP
-            if (std::find(begin(isN), end(isN), true) != end(isN)) {
+            if (hasNs) {
                 substitutions.push_back(std::make_pair(node, curMut));
             }
         } else if (type == panmanUtils::NucMutationType::NSNPI
                    || type == panmanUtils::NucMutationType::NI) {
-            if (insertions.empty() || insertions.back().first != node
-                || !insertions.back().second.back().samePosExceptGap(curMut)) {
-                // This insertion can't be merged with the previous one, so make a new entry
-                insertions.push_back(std::make_pair(node, std::vector<panmanUtils::NucMut>()));
+            if (curInsertion.empty() || !curInsertion.back().samePosExceptGap(curMut)) {
+                // This insertion can't be merged with the previous one
+                if (curInsertionHasNs) {
+                    insertions.push_back(std::make_pair(node, curInsertion));
+                }
+
+                curInsertion = std::vector<NucMut>();
+                curInsertionHasNs = false;
             }
+            
             // In all cases, add this insertion to the currently growing insertion
-            insertions.back().second.push_back(curMut);
+            curInsertion.push_back(curMut);
+            curInsertionHasNs |= hasNs;
         }
+    }
+
+    // Handle last insertion just in case
+    if (curInsertionHasNs) {
+        insertions.push_back(std::make_pair(node, curInsertion));
     }
 
     for(auto child: node->children) {
@@ -75,11 +84,10 @@ void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, NucMut mutToN) {
     node->nucMutation.erase(oldIndex);
 
     // Possible MNP
-    if ((mutToN.mutInfo & 0x7) == panmanUtils::NucMutationType::NS) {
+    if (mutToN.type() == panmanUtils::NucMutationType::NS) {
         // Add non-N mutations back in (for MNPs which are partially N)
-        std::vector<bool> isN = posWithN(mutToN);
-        for(int i = 0; i < isN.size(); i++) {
-            if (!isN[i]) {
+        for(int i = 0; i < mutToN.length(); i++) {
+            if (isNucN(mutToN, i)) {
                 node->nucMutation.push_back(NucMut(mutToN, i));
             }
         }
@@ -87,15 +95,51 @@ void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, NucMut mutToN) {
 }
 
 void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, std::vector<panmanUtils::NucMut> mutToN) {
-    std::cout << "Imputing indel (length " << mutToN.size() << ") for " << node->identifier << " pos (" << mutToN[0].primaryBlockId;
-    std::cout << ", " << mutToN[0].nucPosition << ", " << mutToN[0].nucGapPosition << ")" << std::endl;
-
     // Algorithm only works if niblings are available
     if (node == nullptr || node->parent == nullptr) return;
 
-    Node* nibling = nullptr;
-    //std::vector<panmanUtils::NucMut> niblingMut = std::vector<panmanUtils::NucMut>(mutToN.size());
+    // Determine total insertion length (NI may be multibase, NSNPI is one base)
+    int imputeLength = 0;
+    for (const auto& curMut: mutToN) imputeLength += curMut.length();
+
+    std::cout << "Imputing indel (length " << imputeLength << ") for " << node->identifier << " pos (" << mutToN[0].primaryBlockId;
+    std::cout << ", " << mutToN[0].nucPosition << ", " << mutToN[0].nucGapPosition << ")" << std::endl;
+
+    Node* sourceNibling = nullptr;
+    std::vector<panmanUtils::NucMut> niblingMut;
+
     // Find nibling with insertion of identical length/position
+    for (const auto& sibling: node->parent->children) {
+        // Don't look at the current node's children
+        if (sibling != node) {
+            for (const auto& nibling: sibling->children) {
+                // Temporary storage for the correct mutation
+                std::vector<panmanUtils::NucMut> curInsertion;
+                int curInsertionLength = 0;
+
+                for (const auto& curMut: nibling->nucMutation) {
+                    uint32_t type = curMut.type();
+                    bool isInsertion = (type == panmanUtils::NucMutationType::NSNPI 
+                                        || type == panmanUtils::NucMutationType::NI);
+                    if (isInsertion && curMut.samePosExceptGap(mutToN[0])) {
+                        curInsertion.push_back(curMut);
+                        curInsertionLength += curMut.length();
+                    }
+                }
+
+                if (curInsertionLength == imputeLength) {
+                    sourceNibling = nibling;
+                    niblingMut = curInsertion; 
+                }
+            }
+        }
+    }
+
+    // Failed to find an appropriate nibling
+    if (sourceNibling == nullptr) {
+        return;
+    }
+    std::cout << "Nibling found: " << sourceNibling->identifier << std::endl;
     // Erase insertion from current node
     // Erase insertion from nibling
     // Add insertion to parent (likely the exact one from nibling)

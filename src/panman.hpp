@@ -224,6 +224,16 @@ struct NucMut {
         }
     }
 
+    // Readable way of accessing # of nucleotides
+    int length() const {
+        return (mutInfo >> 4);
+    }
+
+    // Readable way of accessing mutation type
+    uint32_t type() const {
+        return (mutInfo & 0x7);
+    }
+
     // Useful for determining whether indels are consecutive
     bool samePosExceptGap(const NucMut& other) const {
         return nucPosition == other.nucPosition &&
