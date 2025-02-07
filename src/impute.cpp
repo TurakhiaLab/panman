@@ -46,14 +46,14 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
         if (type == panmanUtils::NucMutationType::NSNPS
             || type == panmanUtils::NucMutationType::NS) {
             if (hasNs) {
-                substitutions.push_back(std::make_pair(node, curMut));
+                substitutions.emplace_back(node, curMut);
             }
         } else if (type == panmanUtils::NucMutationType::NSNPI
                    || type == panmanUtils::NucMutationType::NI) {
-            if (curInsertion.empty() || !curInsertion.back().samePosExceptGap(curMut)) {
+            if (curInsertion.empty() || !curInsertion.back().isConsecutive(curMut)) {
                 // This insertion can't be merged with the previous one
                 if (curInsertionHasNs) {
-                    insertions.push_back(std::make_pair(node, curInsertion));
+                    insertions.emplace_back(node, curInsertion);
                 }
 
                 curInsertion = std::vector<NucMut>();
@@ -100,10 +100,16 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, std::vector<pan
 
     // Determine total insertion length (NI may be multibase, NSNPI is one base)
     int imputeLength = 0;
-    for (const auto& curMut: mutToN) imputeLength += curMut.length();
+    int nonNCount = 0;
+    for (const auto& curMut: mutToN) {
+        imputeLength += curMut.length();
+        for (int i = 0; i < curMut.length(); i++) {
+            if(!isNucN(curMut, i)) nonNCount++;
+        }
+    }
 
-    std::cout << "Imputing indel (length " << imputeLength << ") for " << node->identifier << " pos (" << mutToN[0].primaryBlockId;
-    std::cout << ", " << mutToN[0].nucPosition << ", " << mutToN[0].nucGapPosition << ")" << std::endl;
+    //std::cout << "Imputing indel (length " << imputeLength << ") for " << node->identifier << " pos (" << mutToN[0].primaryBlockId;
+    //std::cout << ", " << mutToN[0].nucPosition << ", " << mutToN[0].nucGapPosition << ")" << std::endl;
 
     Node* sourceNibling = nullptr;
     std::vector<panmanUtils::NucMut> niblingMut;
@@ -121,7 +127,7 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, std::vector<pan
                     uint32_t type = curMut.type();
                     bool isInsertion = (type == panmanUtils::NucMutationType::NSNPI 
                                         || type == panmanUtils::NucMutationType::NI);
-                    if (isInsertion && curMut.samePosExceptGap(mutToN[0])) {
+                    if (isInsertion && curMut.isConsecutive(mutToN[0])) {
                         curInsertion.push_back(curMut);
                         curInsertionLength += curMut.length();
                     }
@@ -135,11 +141,44 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, std::vector<pan
         }
     }
 
+    Node* sourcePibling = nullptr;
+    std::vector<panmanUtils::NucMut> piblingMut;
+
+    if (node->parent->parent != nullptr) {
+        // Find nibling with insertion of identical length/position
+        for (const auto& pibling: node->parent->parent->children) {
+            // Don't look at the current node's parent
+            if (pibling != node->parent) {
+                // Temporary storage for the correct mutation
+                std::vector<panmanUtils::NucMut> curInsertion;
+                int curInsertionLength = 0;
+
+                for (const auto& curMut: pibling->nucMutation) {
+                    uint32_t type = curMut.type();
+                    bool isInsertion = (type == panmanUtils::NucMutationType::NSNPI 
+                                        || type == panmanUtils::NucMutationType::NI);
+                    if (isInsertion && curMut.isConsecutive(mutToN[0])) {
+                        curInsertion.push_back(curMut);
+                        curInsertionLength += curMut.length();
+                    }
+                }
+
+                if (curInsertionLength == imputeLength) {
+                    sourcePibling = pibling;
+                    piblingMut = curInsertion; 
+                }
+            }
+        }
+    }
+
+    std::cout << "Indel length " << imputeLength << " with " << nonNCount << " non-Ns; " ;
+    std::cout << "Nibling found: " << (sourceNibling != nullptr) << "; ";
+    std::cout << "Pibling found: " << (sourcePibling != nullptr) << std::endl; 
+
     // Failed to find an appropriate nibling
     if (sourceNibling == nullptr) {
         return;
     }
-    std::cout << "Nibling found: " << sourceNibling->identifier << std::endl;
     // ahh have to also handle the aunt/uncle case
     // Erase insertion from current node
     // Erase insertion from nibling

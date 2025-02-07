@@ -234,11 +234,20 @@ struct NucMut {
         return (mutInfo & 0x7);
     }
 
-    // Useful for determining whether indels are consecutive
-    bool samePosExceptGap(const NucMut& other) const {
-        return nucPosition == other.nucPosition &&
-               primaryBlockId == other.primaryBlockId &&
-               secondaryBlockId == other.secondaryBlockId;
+    // Does "other" come consecutively AFTER this mutation?
+    bool isConsecutive(const NucMut& other) const {
+        // Different blocks are obviously nonconsecutive
+        if (primaryBlockId != other.primaryBlockId || secondaryBlockId != other.secondaryBlockId) {
+            return false;
+        }
+        
+        if (nucGapPosition == -1) {
+            // According to fasta.cpp, if gap=-1 then you increment nucPosition
+            return other.nucPosition - nucPosition == length();
+        } else {
+            // According to fasta.cpp, if gap!=-1 then you increment nucGapPosition
+            return other.nucGapPosition - nucGapPosition == length();
+        }
     }
 
     bool operator==(const NucMut& other) const {
