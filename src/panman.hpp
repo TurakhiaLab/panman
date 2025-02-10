@@ -234,29 +234,6 @@ struct NucMut {
         return (mutInfo & 0x7);
     }
 
-    // Does "other" come consecutively AFTER this mutation?
-    bool isConsecutive(const NucMut& other) const {
-        // Different blocks are obviously nonconsecutive
-        if (primaryBlockId != other.primaryBlockId || secondaryBlockId != other.secondaryBlockId) {
-            return false;
-        }
-        
-        if (nucGapPosition == -1) {
-            // According to fasta.cpp, if gap=-1 then you increment nucPosition
-            return other.nucPosition - nucPosition == length();
-        } else {
-            // According to fasta.cpp, if gap!=-1 then you increment nucGapPosition
-            return other.nucGapPosition - nucGapPosition == length();
-        }
-    }
-
-    bool samePosition(const NucMut& other) const {
-        return nucPosition == other.nucPosition &&
-               nucGapPosition == other.nucGapPosition &&
-               primaryBlockId == other.primaryBlockId &&
-               secondaryBlockId == other.secondaryBlockId;
-    }
-
     bool operator==(const NucMut& other) const {
         return nucPosition == other.nucPosition &&
                nucGapPosition == other.nucGapPosition &&
@@ -275,6 +252,7 @@ struct IndelPosition {
     int32_t indelLength;
     bool hasSpecialNucs;
 
+    // Create a default IndelPosition (all fields -1/false)
     IndelPosition() {
         nucPosition = -1;
         nucGapPosition = -1;
@@ -284,6 +262,7 @@ struct IndelPosition {
         hasSpecialNucs = false;
     }
 
+    // Create an IndelPosition copying a NucMut
     IndelPosition(const panmanUtils::NucMut& nm, bool hasSpecial) {
         nucPosition = nm.nucPosition;
         nucGapPosition = nm.nucGapPosition;
@@ -293,6 +272,8 @@ struct IndelPosition {
         hasSpecialNucs = hasSpecial;
     }
 
+    // Merge "other" if it comes consecutively after this IndelPosition
+    // Returns whether the merge occcurs
     bool mergeIndels(const NucMut& other, bool hasSpecial) {
         // Different blocks are obviously nonconsecutive
         if (primaryBlockId != other.primaryBlockId || secondaryBlockId != other.secondaryBlockId) {
@@ -581,7 +562,8 @@ class Tree {
     void protoMATToTree(const panmanOld::tree& mainTree);
 
     // Functions for imputation of Ns
-    void imputeNs(); // Impute all Ns in the Tree (meant for external use)
+    // Impute all Ns in the Tree (meant for external use)
+    void imputeNs();
     // Fill the "substitutions" and "insertions" vectors with all mutations TO N in the subtree with root "node"
     const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& substitutions,
                                 std::vector< std::pair< Node*, IndelPosition > >& insertions,

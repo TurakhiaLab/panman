@@ -105,8 +105,7 @@ void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, NucMut mutToN) {
 
 void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::IndelPosition mutToN,
     std::unordered_map< panmanUtils::IndelPosition, std::unordered_set<std::string> >& allInsertions) {
-    // Algorithm only works if niblings are available
-    if (node == nullptr || node->parent == nullptr) return;
+    if (node == nullptr) return;
 
     if (findNearbyInsertion(node->parent, mutToN, 10 - node->branchLength, node, allInsertions)) {
         std::cout << "Found insertion" << std::endl;
