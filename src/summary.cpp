@@ -6,9 +6,9 @@ int getTotalParsimonyParallelHelper(panmanUtils::Node* root, panmanUtils::NucMut
     if(nucMutType != panmanUtils::NucMutationType::NNONE) {
         totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
             for(int i = r.begin(); i != r.end(); i++) {
-                if(((root->nucMutation[i].mutInfo) & 0x7) == nucMutType) {
+                if(root->nucMutation[i].type() == nucMutType) {
                     if(nucMutType == panmanUtils::NucMutationType::NS) {
-                        init += ((root->nucMutation[i].mutInfo) >> 4); // Length of contiguous mutation in case of substitution
+                        init += root->nucMutation[i].length(); // Length of contiguous mutation in case of substitution
                     } else {
                         init++;
                     }

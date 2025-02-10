@@ -340,12 +340,12 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
         int32_t secondaryBlockId = node->nucMutation[i].secondaryBlockId;
         int32_t nucPosition = node->nucMutation[i].nucPosition;
         int32_t nucGapPosition = node->nucMutation[i].nucGapPosition;
-        uint32_t type = (node->nucMutation[i].mutInfo & 0x7);
+        uint32_t type = node->nucMutation[i].type();
         char newVal = '-';
 
         if(type < 3) {
             // Either S, I or D
-            int len = ((node->nucMutation[i].mutInfo) >> 4);
+            int len = node->nucMutation[i].length();
 
             if(primaryBlockId >= sequence.size()) {
                 std::cout << primaryBlockId << " " << sequence.size() << std::endl;

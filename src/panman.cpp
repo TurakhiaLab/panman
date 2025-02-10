@@ -2110,8 +2110,8 @@ bool panmanUtils::Tree::debugSimilarity(const std::vector< panmanUtils::NucMut >
         int gapPos = mutation.nucGapPosition;
 
         // I'm using int instead of NucMutationType because I want the 404 mutation too.
-        int type = ((mutation.mutInfo) & 0x7);
-        int len = ((mutation.mutInfo) >> 4);
+        int type = mutation.type();
+        int len = mutation.length();
 
         if(type >= 3) {
             len = 1;
@@ -2170,8 +2170,8 @@ bool panmanUtils::Tree::debugSimilarity(const std::vector< panmanUtils::NucMut >
         int gapPos = mutation.nucGapPosition;
 
         // I'm using int instead of NucMutationType because I want the 404 mutation too.
-        int type = ((mutation.mutInfo) & 0x7);
-        int len = ((mutation.mutInfo) >> 4);
+        int type = mutation.type();
+        int len = mutation.length();
 
         if(type >= 3) {
             len = 1;
@@ -2256,8 +2256,8 @@ std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(co
         int gapPos = mutation.nucGapPosition;
 
         // I'm using int instead of NucMutationType because I want the 404 mutation too.
-        int type = ((mutation.mutInfo) & 0x7);
-        int len = (((mutation.mutInfo) >> 4));
+        int type = mutation.type();
+        int len = mutation.length();
 
         if(type >= 3) {
             len = 1;
@@ -2445,9 +2445,9 @@ panmanUtils::Node* panmanUtils::Tree::extractPanMATSegmentHelper(panmanUtils::No
             mutation.primaryBlockId -= startBlockID;
             newNode->nucMutation.push_back(mutation);
         } else {
-            int type = ((mutation.mutInfo) & 0x7);
+            int type = mutation.type();
             if(type < 3) {
-                int len = ((mutation.mutInfo) >> 4);
+                int len = mutation.length();
                 std::tuple< int, int, int, int > maxMutCoordinate = mutationCoordinate;
                 if(mutation.nucGapPosition == -1) {
                     std::get<2>(maxMutCoordinate) += len-1;
@@ -2805,7 +2805,7 @@ void panmanUtils::Tree::getNodesPreorder(panmanUtils::Node* root, capnp::List<pa
             nm[i].setNucGapExist(false);
         }
 
-        nm[i].setMutInfo((((mutation.nucs) >> (24 - (mutation.mutInfo >> 4)*4)) << 8) + mutation.mutInfo);
+        nm[i].setMutInfo((((mutation.nucs) >> (24 - mutation.length()*4)) << 8) + mutation.mutInfo);
         blockToMutations[std::make_pair(mutation.primaryBlockId, mutation.secondaryBlockId)].first.push_back(nm[i]);
         blockToMutations[std::make_pair(mutation.primaryBlockId, mutation.secondaryBlockId)].second = 2;
     }
@@ -3123,12 +3123,12 @@ void panmanUtils::Tree::getBlockSequenceFromReference(block_t& sequence, bool& b
 
             int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
             int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
-            uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
+            uint32_t type = (*node)->nucMutation[i].type();
             char newVal = '-';
 
             if(type < 3) {
 
-                int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+                int len = (*node)->nucMutation[i].length();
 
                 if(type == panmanUtils::NucMutationType::NS) {
                     if(nucGapPosition != -1) {
@@ -3423,11 +3423,11 @@ void panmanUtils::Tree::printMutations(std::ostream& fout) {
 
                 int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
                 int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
-                uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
+                uint32_t type = (*node)->nucMutation[i].type();
                 char newVal = '-';
 
                 if(type < 3) {
-                    int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+                    int len = (*node)->nucMutation[i].length();
 
                     if(type == panmanUtils::NucMutationType::NS) {
                         if(nucGapPosition != -1) {
@@ -3839,11 +3839,11 @@ void panmanUtils::Tree::printMutationsNew(std::ostream& fout) {
 
                 int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
                 int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
-                uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
+                uint32_t type = ((*node)->nucMutation[i].type());
                 char newVal = '-';
 
                 if(type < 3) {
-                    int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+                    int len = (*node)->nucMutation[i].length();
 
                     if(type == panmanUtils::NucMutationType::NS) {
                         if(nucGapPosition != -1) {
@@ -4150,12 +4150,12 @@ void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExis
 
             int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
             int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
-            uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
+            uint32_t type = (*node)->nucMutation[i].type();
             char newVal = '-';
 
             if(type < 3) {
 
-                int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+                int len = (*node)->nucMutation[i].length();
 
                 if(type == panmanUtils::NucMutationType::NS) {
                     if(secondaryBlockId != -1) {
@@ -4472,12 +4472,12 @@ std::string panmanUtils::Tree::getStringFromReference(std::string reference, boo
 
             int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
             int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
-            uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
+            uint32_t type = (*node)->nucMutation[i].type();
             char newVal = '-';
 
             if(type < 3) {
 
-                int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+                int len = (*node)->nucMutation[i].length();
 
                 if(type == panmanUtils::NucMutationType::NS) {
                     if(secondaryBlockId != -1) {

@@ -1515,12 +1515,12 @@ void panmanUtils::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fou
 //         // if (rootSeq && (primaryBlockId>=std::get<0>(panMATStart) && primaryBlockId<=std::get<0>(panMATEnd)) && (secondaryBlockId<=std::get<1>(panMATStart) && secondaryBlockId<=std::get<1>(panMATEnd)) ) {
 //         int32_t nucPosition = root->nucMutation[i].nucPosition;
 //         int32_t nucGapPosition = root->nucMutation[i].nucGapPosition;
-//         uint32_t type = (root->nucMutation[i].mutInfo & 0x7);
+//         uint32_t type = root->nucMutation[i].type();
 //         char newVal = '-';
 
 //         if(type < 3) {
 //             // Either S, I or D
-//             int len = ((root->nucMutation[i].mutInfo) >> 4);
+//             int len = root->nucMutation[i].length();
 
 //             if(primaryBlockId >= sequence.size()) {
 //                 std::cout << primaryBlockId << " " << sequence.size() << std::endl;
