@@ -181,7 +181,7 @@ void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* n
     std::cout << "Moving " << toMove->identifier << " to be a child of " << newParent->identifier << std::endl;
     
     if (toMove->parent != nullptr) {
-        std::vector<Node*>::iterator position = std::find(toMove->parent->children.begin(), toMove->parent->children.end(), 8);
+        std::vector<Node*>::iterator position = std::find(toMove->parent->children.begin(), toMove->parent->children.end(), toMove);
         toMove->parent->children.erase(position);
     }
     newParent->children.emplace_back(toMove);
