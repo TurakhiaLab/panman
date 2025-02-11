@@ -161,16 +161,16 @@ const std::vector< std::pair< panmanUtils::Node*, panmanUtils::MutationList > > 
     for (const auto& child: node->children) {
         if (child != ignore) {
             for (const auto& nearby: findNearbyInsertions(child, mutToN, allowedDistance - child->branchLength, node, allInsertions)) {
-                // Add mutations to get to child
-                nearbyInsertions.emplace_back(nearby.first, nearby.second.concat(MutationList(child, false)));
+                // Add mutations to get to child (which must be reversed)
+                nearbyInsertions.emplace_back(nearby.first, nearby.second.concat(MutationList(child, true)));
             }
         }
     }
     // Try parent
     if (node->parent != ignore) {
         for (const auto& nearby: findNearbyInsertions(node->parent, mutToN, allowedDistance - node->branchLength, node, allInsertions)) {
-            // Add mutations to get to parent (which must be reversed)
-            nearbyInsertions.emplace_back(nearby.first, nearby.second.concat(MutationList(node, true)));
+            // Add mutations to get to parent
+            nearbyInsertions.emplace_back(nearby.first, nearby.second.concat(MutationList(node, false)));
         }
     }
     std::cout << nearbyInsertions.size() << " possibilities from " << node->identifier << std::endl;
@@ -179,6 +179,18 @@ const std::vector< std::pair< panmanUtils::Node*, panmanUtils::MutationList > > 
 
 void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList pathMutations) {
     std::cout << "Moving " << toMove->identifier << " to be a child of " << newParent->identifier << std::endl;
+    
+    if (toMove->parent != nullptr) {
+        std::vector<Node*>::iterator position = std::find(toMove->parent->children.begin(), toMove->parent->children.end(), 8);
+        toMove->parent->children.erase(position);
+    }
+    newParent->children.emplace_back(toMove);
 
-    // TODO: implement
+    toMove->branchLength = 1;
+    toMove->level = newParent->level + 1;
+    toMove->parent = newParent;
+    toMove->nucMutation = pathMutations.nucMutation;
+    toMove->blockMutation = pathMutations.blockMutation;
+    toMove->annotations = std::vector<std::string>();
+    toMove->isComMutHead = false;
 }
