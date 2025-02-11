@@ -250,31 +250,19 @@ struct IndelPosition {
     int32_t primaryBlockId;
     int32_t secondaryBlockId;
     int32_t indelLength;
-    bool hasSpecialNucs;
-
-    // Create a default IndelPosition (all fields -1/false)
-    IndelPosition() {
-        nucPosition = -1;
-        nucGapPosition = -1;
-        primaryBlockId = -1;
-        secondaryBlockId = -1;
-        indelLength = -1;
-        hasSpecialNucs = false;
-    }
 
     // Create an IndelPosition copying a NucMut
-    IndelPosition(const panmanUtils::NucMut& nm, bool hasSpecial) {
+    IndelPosition(const panmanUtils::NucMut& nm) {
         nucPosition = nm.nucPosition;
         nucGapPosition = nm.nucGapPosition;
         primaryBlockId = nm.primaryBlockId;
         secondaryBlockId = nm.secondaryBlockId;
         indelLength = nm.length();
-        hasSpecialNucs = hasSpecial;
     }
 
     // Merge "other" if it comes consecutively after this IndelPosition
     // Returns whether the merge occcurs
-    bool mergeIndels(const NucMut& other, bool hasSpecial) {
+    bool mergeIndels(const NucMut& other) {
         // Different blocks are obviously nonconsecutive
         if (primaryBlockId != other.primaryBlockId || secondaryBlockId != other.secondaryBlockId) {
             return false;
@@ -284,7 +272,6 @@ struct IndelPosition {
         if ((nucGapPosition == -1 && other.nucPosition - nucPosition == indelLength) ||
             (nucGapPosition != -1 && other.nucGapPosition - nucGapPosition == indelLength)) {
             indelLength += other.length();
-            hasSpecialNucs |= hasSpecial;
             return true;
         }
         return false;
@@ -295,8 +282,7 @@ struct IndelPosition {
                nucGapPosition == other.nucGapPosition &&
                primaryBlockId == other.primaryBlockId &&
                secondaryBlockId == other.secondaryBlockId &&
-               indelLength == other.indelLength &&
-               hasSpecialNucs == other.hasSpecialNucs;
+               indelLength == other.indelLength;
     }
 };
 
@@ -412,6 +398,40 @@ class Node {
     Node(std::string id, Node* par, float len);
 };
 
+struct MutationList {
+    std::vector<NucMut> nucMutation;
+    std::vector<BlockMut> blockMutation;
+
+    // Make empty list (default constructor)
+    MutationList() {}
+
+    // Copy mutations from a node (possibly reversed)
+    MutationList(const Node* node, bool reversed) {
+        nucMutation = node->nucMutation;
+        blockMutation = node->blockMutation;
+        if (reversed) reverse();
+    }
+
+
+    // TODO: Reverse direction of mutations
+    void reverse() {
+    }
+
+    // Copy list of mutations into a new MutationList
+    MutationList copy() const {
+        MutationList newCopy;
+        newCopy.nucMutation = nucMutation;
+        newCopy.blockMutation = blockMutation;
+        return newCopy;
+    }
+
+    MutationList concat(const MutationList& other) const {
+        MutationList temp = copy();
+        temp.nucMutation.insert(temp.nucMutation.end(), other.nucMutation.begin(), other.nucMutation.end());
+        temp.blockMutation.insert(temp.blockMutation.end(), other.blockMutation.begin(), other.blockMutation.end());
+        return temp;
+    }
+};
 
 // Data structure to represent a PangenomeMAT
 class Tree {
@@ -563,24 +583,29 @@ class Tree {
 
     // Functions for imputation of Ns
     // Impute all Ns in the Tree (meant for external use)
-    void imputeNs();
+    void imputeNs(int allowedIndelDistance);
     // Fill the "substitutions" and "insertions" vectors with all mutations TO N in the subtree with root "node"
+    // Fill "allInsertions" map with {node ID : {all insertion positions}}
     const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& substitutions,
                                 std::vector< std::pair< Node*, IndelPosition > >& insertions,
-                                std::unordered_map< IndelPosition, std::unordered_set<std::string> >& allInsertions);
+                                std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
     void imputeSNV(Node* node, NucMut mutToN);
     // Similar to imputeSNV. "mutToN" is a list of consecutive insertions
-    // Only allowed to impute from mutations with the same position & size
-    // Imputes from niblings (children of siblings), as the only possible useful option
-    // If only part of an insertion is full of Ns, only impute over the Ns
+    // Tries to find a similar insertion nearby and move to be its child
     // Updates mutations for maximum parsimony
-    void imputeInsertion(Node* node, IndelPosition mutToN,
-                         std::unordered_map< IndelPosition, std::unordered_set<std::string> >& allInsertions);
-    Node* findNearbyInsertion(Node* node, IndelPosition mutToN, int allowedDistance, Node* ignore,
-                              std::unordered_map< IndelPosition, std::unordered_set<std::string> >& allInsertions);
+    void imputeInsertion(Node* node, IndelPosition mutToN, int allowedDistance,
+                         std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions);
+    // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
+    // Don't search down the edge to "ignore"
+    // Relies on a precomputed map of nodes to insertion positions                   
+    const std::vector< std::pair< Node*, MutationList > > findNearbyInsertions(
+        Node* node, IndelPosition mutToN, int allowedDistance, Node* ignore,
+        std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions);
+    // Move "toMove" to be a child of "newParent", given that the path between them has "pathMutations"
+    void moveNode(Node* toMove, Node* newParent, MutationList pathMutations);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
@@ -1018,8 +1043,7 @@ namespace std {
             size_t h3 = std::hash<int32_t>{}(pos.primaryBlockId);
             size_t h4 = std::hash<int32_t>{}(pos.secondaryBlockId);
             size_t h5 = std::hash<int32_t>{}(pos.indelLength);
-            size_t h6 = std::hash<int32_t>{}(pos.hasSpecialNucs);
-            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^ (h5 << 4) ^ (h6 << 5);
+            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^ (h5 << 4);
         }
     };
 }
