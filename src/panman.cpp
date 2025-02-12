@@ -40,35 +40,35 @@
 
 char panmanUtils::getNucleotideFromCode(int code) {
     switch(code) {
-    case 1:
+    case panmanUtils::NucCode::A:
         return 'A';
-    case 2:
+    case panmanUtils::NucCode::C:
         return 'C';
-    case 4:
+    case panmanUtils::NucCode::G:
         return 'G';
-    case 8:
+    case panmanUtils::NucCode::T:
         return 'T';
-    case 5:
+    case panmanUtils::NucCode::R:
         return 'R';
-    case 10:
+    case panmanUtils::NucCode::Y:
         return 'Y';
-    case 6:
+    case panmanUtils::NucCode::S:
         return 'S';
-    case 9:
+    case panmanUtils::NucCode::W:
         return 'W';
-    case 12:
+    case panmanUtils::NucCode::K:
         return 'K';
-    case 3:
+    case panmanUtils::NucCode::M:
         return 'M';
-    case 14:
+    case panmanUtils::NucCode::B:
         return 'B';
-    case 13:
+    case panmanUtils::NucCode::D:
         return 'D';
-    case 11:
+    case panmanUtils::NucCode::H:
         return 'H';
-    case 7:
+    case panmanUtils::NucCode::V:
         return 'V';
-    case 15:
+    case panmanUtils::NucCode::N:
         return 'N';
     default:
         return '-';
@@ -78,37 +78,37 @@ char panmanUtils::getNucleotideFromCode(int code) {
 char panmanUtils::getCodeFromNucleotide(char nuc) {
     switch(nuc) {
     case 'A':
-        return 1;
+        return panmanUtils::NucCode::A;
     case 'C':
-        return 2;
+        return panmanUtils::NucCode::C;
     case 'G':
-        return 4;
+        return panmanUtils::NucCode::G;
     case 'T':
-        return 8;
+        return panmanUtils::NucCode::T;
     case 'R':
-        return 5;
+        return panmanUtils::NucCode::R;
     case 'Y':
-        return 10;
+        return panmanUtils::NucCode::Y;
     case 'S':
-        return 6;
+        return panmanUtils::NucCode::S;
     case 'W':
-        return 9;
+        return panmanUtils::NucCode::W;
     case 'K':
-        return 12;
+        return panmanUtils::NucCode::K;
     case 'M':
-        return 3;
+        return panmanUtils::NucCode::M;
     case 'B':
-        return 14;
+        return panmanUtils::NucCode::B;
     case 'D':
-        return 13;
+        return panmanUtils::NucCode::D;
     case 'H':
-        return 11;
+        return panmanUtils::NucCode::H;
     case 'V':
-        return 7;
+        return panmanUtils::NucCode::V;
     case 'N':
-        return 15;
+        return panmanUtils::NucCode::N;
     default:
-        return 0;
+        return panmanUtils::NucCode::MISSING;
     }
 }
 
@@ -2350,6 +2350,44 @@ std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(co
     return consolidatedMutationArray;
 }
 
+const std::vector<panmanUtils::BlockMut> panmanUtils::Tree::consolidateBlockMutations(const std::vector<panmanUtils::BlockMut>& blockMutations) {
+    return blockMutations;
+    // TODO: is this needed?
+    // Tracker for block mutations seen so far
+    std::unordered_map< int32_t, std::unordered_map< int32_t, panmanUtils::BlockMut > > mutMap;
+
+    for (const auto& curMut: blockMutations) {
+        if (mutMap.find(curMut.primaryBlockId) == mutMap.end()) {
+            // No mutation with this primaryBlockId has been seen before
+            mutMap.emplace(curMut.primaryBlockId, std::unordered_map< int32_t, panmanUtils::BlockMut >());
+            mutMap[curMut.primaryBlockId].emplace(curMut.secondaryBlockId, curMut);
+        } else if (mutMap[curMut.primaryBlockId].find(curMut.secondaryBlockId) == mutMap[curMut.primaryBlockId].end()) {
+            // No mutation with this primary/secondaryBlockId has been seen before
+            mutMap[curMut.primaryBlockId].emplace(curMut.secondaryBlockId, curMut);
+        } else {
+            // Two mutations for the same block, must be combined
+            // Notably, mutations are in order from final node to origin node
+            BlockMut otherMut = mutMap[curMut.primaryBlockId][curMut.secondaryBlockId];
+
+            if (curMut.isSimpleInversion() && otherMut.isSimpleInversion()) {
+                // Two inversions cancel out
+                mutMap[curMut.primaryBlockId].erase(curMut.secondaryBlockId);
+            } else if (curMut.isSimpleInversion() && otherMut.isDeletion()) {
+
+            }
+        }
+    }
+
+    // Use all surviving block mutations
+    std::vector<panmanUtils::BlockMut> newBlockMutList;
+    for (const auto& primaries: mutMap) {
+        for (const auto& secondaries: mutMap[primaries.first]) {
+            newBlockMutList.emplace_back(secondaries.second);
+        }
+    }
+
+    return newBlockMutList;
+}
 
 bool panmanUtils::Tree::panMATCoordinateGeq(const std::tuple< int, int, int, int >& coor1,
         const std::tuple< int, int, int, int >& coor2, bool strand) {
