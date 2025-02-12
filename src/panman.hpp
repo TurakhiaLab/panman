@@ -298,11 +298,29 @@ struct Coordinate {
         secondaryBlockId = nm.secondaryBlockId;
     }
 
+    // Create a Coordinate with an offset
+    Coordinate(const NucMut& nm, int nucPositionOffset, int nucGapPositionOffset) {
+        nucPosition = nm.nucPosition + nucPositionOffset;
+        nucGapPosition = nm.nucGapPosition + nucGapPositionOffset;
+        primaryBlockId = nm.primaryBlockId;
+        secondaryBlockId = nm.secondaryBlockId;
+    }
+
     bool operator==(const Coordinate& other) const {
         return nucPosition == other.nucPosition &&
                nucGapPosition == other.nucGapPosition &&
                primaryBlockId == other.primaryBlockId &&
                secondaryBlockId == other.secondaryBlockId;
+    }
+};
+
+struct CoordinateHasher {
+    size_t operator()(const panmanUtils::Coordinate& coord) const {
+        size_t h1 = std::hash<int32_t>{}(coord.nucPosition);
+        size_t h2 = std::hash<int32_t>{}(coord.nucGapPosition);
+        size_t h3 = std::hash<int32_t>{}(coord.primaryBlockId);
+        size_t h4 = std::hash<int32_t>{}(coord.secondaryBlockId);
+        return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
     }
 };
 
@@ -465,7 +483,7 @@ struct MutationList {
     MutationList() {}
 
     // Copy mutations from a node (possibly reversed)
-    MutationList(const Node* node, bool reversed, const std::unordered_map< Coordinate, char >& originalNucs) {
+    MutationList(const Node* node, bool reversed, std::unordered_map< Coordinate, char, CoordinateHasher >& originalNucs) {
         nucMutation = node->nucMutation;
         blockMutation = node->blockMutation;
         if (reversed) reverse(originalNucs);
@@ -473,7 +491,7 @@ struct MutationList {
 
 
     // Reverse direction of mutations
-    void reverse(const std::unordered_map< Coordinate, char >& originalNucs) {
+    void reverse(std::unordered_map< Coordinate, char, CoordinateHasher >& originalNucs) {
         // Temporary container for iteration
         std::vector<NucMut> tempNucMutation = nucMutation;
         nucMutation.clear();
@@ -481,8 +499,6 @@ struct MutationList {
         for (const auto& curMut: tempNucMutation) {
             // Mutation to be reversed
             NucMut newMut = curMut;
-            Coordinate curPos = Coordinate(curMut);
-            //originalNucs.at(curPos);
             std::vector<char> newNucs;
             
             switch(curMut.type()) {
@@ -496,7 +512,7 @@ struct MutationList {
                 newMut.mutInfo += NucMutationType::NSNPI - NucMutationType::NSNPD;
             // Substitution back to original nucleotide
             case NucMutationType::NSNPS:
-                //newMut.setNucs({originalNucs.at(curPos)});
+                newMut.setNucs({originalNucs[Coordinate(curMut)]});
                 break;
             // Same as above, but with handling for multiple nucleotides
             case NucMutationType::NI:
@@ -516,11 +532,10 @@ struct MutationList {
                 for (int i = 0; i < curMut.length(); i++) {
                     // If gap=-1 then increment nucPosition, otherwise increment nucGapPosition
                     if (newMut.nucGapPosition == -1) {
-                        curPos.nucPosition = curMut.nucPosition + i;
+                        newNucs[i] = originalNucs[Coordinate(curMut, i, 0)];
                     } else {
-                        curPos.nucGapPosition = curMut.nucGapPosition + i;
+                        newNucs[i] = originalNucs[Coordinate(curMut, 0, i)];
                     }
-                    //newNucs[i] = originalNucs.at(curPos);
                 }
 
                 newMut.setNucs(newNucs);
@@ -706,7 +721,7 @@ class Tree {
     const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& substitutions,
                                 std::vector< std::pair< Node*, IndelPosition > >& insertions,
                                 std::unordered_map< std::string, std::unordered_set<IndelPosition> >& allInsertions,
-                                std::unordered_map< std::string, std::unordered_map< Coordinate, char > >& originalNucs);
+                                std::unordered_map< std::string, std::unordered_map< Coordinate, char, CoordinateHasher > >& originalNucs);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
@@ -716,14 +731,14 @@ class Tree {
     // Updates mutations for maximum parsimony
     void imputeInsertion(Node* node, IndelPosition mutToN, int allowedDistance,
                          std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
-                         std::unordered_map< std::string, std::unordered_map< Coordinate, char > >& originalNucs);
+                         std::unordered_map< std::string, std::unordered_map< Coordinate, char, CoordinateHasher > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
     const std::vector< std::pair< Node*, MutationList > > findNearbyInsertions(
         Node* node, IndelPosition mutToN, int allowedDistance, Node* ignore,
         std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, char > >& originalNucs);
+        std::unordered_map< std::string, std::unordered_map< Coordinate, char, CoordinateHasher > >& originalNucs);
     // Simplify the changing mutations, e.g. cancel out insertions and deletions
     const MutationList simplifyMutations(MutationList mutList);
     // Move "toMove" to be a child of "newParent", with node mutations "mutList"
@@ -1155,19 +1170,6 @@ class TreeGroup {
 };
 
 };
-
-namespace std {
-    template <>
-    struct hash<panmanUtils::Coordinate> {
-        size_t operator()(const panmanUtils::Coordinate& coord) const {
-            size_t h1 = std::hash<int32_t>{}(coord.nucPosition);
-            size_t h2 = std::hash<int32_t>{}(coord.nucGapPosition);
-            size_t h3 = std::hash<int32_t>{}(coord.primaryBlockId);
-            size_t h4 = std::hash<int32_t>{}(coord.secondaryBlockId);
-            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
-        }
-    };
-}
 
 namespace std {
     template <>
