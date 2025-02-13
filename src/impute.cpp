@@ -5,8 +5,29 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > > substitutions;
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > > insertions;
     std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> > allInsertions;
+    std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher >  curBlockSeqs;
     std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > > originalNucs;
-    findMutationsToN(root, substitutions, insertions, allInsertions, originalNucs);
+    
+    for (const auto& curBlock: blocks) {
+        for (int i = 0; i < curBlock.consensusSeq.size(); i++) {
+            bool endFlag = false;
+            for (int j = 0; j < 8; j++) {
+                int curNucCode = ((curBlock.consensusSeq[i] >> (4*(7 - j))) & 15);
+                if(curNucCode == 0) {
+                    endFlag = true;
+                    break;
+                } else {
+                    curBlockSeqs[Coordinate(i*8 + j, 0, curBlock.primaryBlockId, curBlock.secondaryBlockId)] = (int8_t) curNucCode;
+                    std::cout << "sequence at block " << curBlock.primaryBlockId << " index " << i*8 + j;
+                    std::cout << " is " << panmanUtils::getNucleotideFromCode(curNucCode) << std::endl;
+                }
+            }
+
+            if(endFlag) break;
+        }
+    }
+    
+    findMutationsToN(root, substitutions, insertions, allInsertions, curBlockSeqs, originalNucs);
 
     std::cout << substitutions.size() << " substitutions to impute" << std::endl;
     for (const auto& toImpute: substitutions) {
@@ -23,6 +44,7 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
         std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > >& substitutions,
         std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > >& insertions,
         std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
+        std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher >& curBlockSeqs,
         std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
     if (node == nullptr) return;
 
@@ -33,11 +55,16 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
         // Does this mutation have Ns?
         bool hasNs = false;
         for(int i = 0; i < curMut.length(); i++) {
-            int8_t curNuc = curMut.getNucCode(i);
-            hasNs |= (curNuc == panmanUtils::NucCode::N);
-            if (curMut.isDeletion() || curMut.isSubstitution()) {
-                // set original nucleotide
+            int8_t curNucCode = curMut.getNucCode(i);
+            panmanUtils::Coordinate curPos = panmanUtils::Coordinate(curMut, i);
+
+            hasNs |= (curNucCode == panmanUtils::NucCode::N);
+
+            if (curBlockSeqs.find(curPos) == curBlockSeqs.end()) {
+                curBlockSeqs[curPos] = panmanUtils::NucCode::MISSING;
             }
+            originalNucs[node->identifier][curPos] = curBlockSeqs[curPos];
+            curBlockSeqs[curPos] = curNucCode;
         }
 
         // Save mutation if relevant
@@ -73,7 +100,18 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
         std::unordered_set<panmanUtils::IndelPosition>(nodeInsertions.begin(), nodeInsertions.end()));
 
     for(auto child: node->children) {
-        findMutationsToN(child, substitutions, insertions, allInsertions, originalNucs);
+        findMutationsToN(child, substitutions, insertions, allInsertions, curBlockSeqs, originalNucs);
+    }
+
+    // Undo mutations before passing back up the tree
+    for (const auto& curMut: node->nucMutation) {
+        for(int i = 0; i < curMut.length(); i++) {
+            int8_t curNucCode = curMut.getNucCode(i);
+            panmanUtils::Coordinate curPos = panmanUtils::Coordinate(curMut, i);
+
+            originalNucs[node->identifier][curPos] = curBlockSeqs[curPos];
+            curBlockSeqs[curPos] = curNucCode;
+        }
     }
 }
 
@@ -118,6 +156,17 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::In
             int blockImprovement = node->blockMutation.size() - simpleMutations.blockMutation.size();
             int nucImprovement = node->nucMutation.size() - simpleMutations.nucMutation.size();
             int totalImprovement = blockImprovement + nucImprovement;
+
+            std::cout << "node: ";
+            for (const auto& curMut: node->nucMutation) {
+                std::cout << curMut.type() << " ";
+            }
+            std::cout << std::endl << "simple: ";
+            for (const auto& curMut: simpleMutations.nucMutation) {
+                std::cout << curMut.type() << " ";
+            }
+            std::cout << std::endl;
+            std::cout << node->nucMutation.size() << " vs. " << simpleMutations.nucMutation.size() << std::endl;
             std::cout << blockImprovement << ", " << nucImprovement << std::endl;
 
             if (blockImprovement >= 0 && nucImprovement >= 0 && totalImprovement > bestParsimonyImprovement) {

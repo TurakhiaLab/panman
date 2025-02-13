@@ -311,6 +311,14 @@ struct Coordinate {
         secondaryBlockId = -1;
     }
 
+    // Create a Coordinate by position
+    Coordinate(int nucPosition, int nucGapPosition, int primaryBlockId, int secondaryBlockId) {
+        nucPosition = nucPosition;
+        nucGapPosition = nucGapPosition;
+        primaryBlockId = primaryBlockId;
+        secondaryBlockId = secondaryBlockId;
+    }
+
     // Create a Coordinate copying a NucMut
     Coordinate(const NucMut& nm) {
         nucPosition = nm.nucPosition;
@@ -320,9 +328,15 @@ struct Coordinate {
     }
 
     // Create a Coordinate with an offset
-    Coordinate(const NucMut& nm, int nucPositionOffset, int nucGapPositionOffset) {
-        nucPosition = nm.nucPosition + nucPositionOffset;
-        nucGapPosition = nm.nucGapPosition + nucGapPositionOffset;
+    Coordinate(const NucMut& nm, int offset) {
+        // If gap=-1 then increment nucPosition, otherwise increment nucGapPosition
+        if (nm.nucGapPosition == -1) {
+            nucPosition = nm.nucPosition + offset;
+            nucGapPosition = nm.nucGapPosition;
+        } else {
+            nucPosition = nm.nucPosition;
+            nucGapPosition = nm.nucGapPosition + offset;
+        }
         primaryBlockId = nm.primaryBlockId;
         secondaryBlockId = nm.secondaryBlockId;
     }
@@ -549,12 +563,7 @@ struct MutationList {
             case NucMutationType::NS:
                 newNucs = std::vector<int>(curMut.length());
                 for (int i = 0; i < curMut.length(); i++) {
-                    // If gap=-1 then increment nucPosition, otherwise increment nucGapPosition
-                    if (newMut.nucGapPosition == -1) {
-                        newMut.addNucCode(originalNucs[Coordinate(curMut, i, 0)], i);
-                    } else {
-                        newMut.addNucCode(originalNucs[Coordinate(curMut, 0, i)], i);
-                    }
+                    newMut.addNucCode(originalNucs[Coordinate(curMut, i)], i);
                 }
                 break;
             }
@@ -737,6 +746,7 @@ class Tree {
     const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& substitutions,
                                 std::vector< std::pair< Node*, IndelPosition > >& insertions,
                                 std::unordered_map< std::string, std::unordered_set<IndelPosition> >& allInsertions,
+                                std::unordered_map<Coordinate, int8_t, CoordinateHasher > & curBlockSeqs,
                                 std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
