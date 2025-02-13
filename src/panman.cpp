@@ -228,6 +228,18 @@ panmanUtils::Node::Node(std::string id, Node* par, float len) {
     par->children.push_back(this);
 }
 
+panmanUtils::Node::Node(Node* other, std::string id) {
+    branchLength = other->branchLength;
+    level = other->level;
+    identifier = id;
+    parent = other->parent;
+    parent->children.emplace_back(this);
+    nucMutation = other->nucMutation;
+    blockMutation = other->blockMutation;
+    isComMutHead = other->isComMutHead;
+    treeIndex = other->treeIndex;
+}
+
 panmanUtils::Block::Block(size_t pBlockId, std::string seq) {
     primaryBlockId = pBlockId;
     secondaryBlockId = -1;

@@ -348,7 +348,7 @@ void impute(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstre
     std::chrono::nanoseconds imputeTime = imputeEnd - imputeStart;
     std::cout << "\nImputation time: " << imputeTime.count() << " nanoseconds\n";
 
-    writePanMAN(globalVm, TG);
+    writePanMAN(globalVm, &tg);
 }
 
 void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {

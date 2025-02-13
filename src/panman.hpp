@@ -508,6 +508,13 @@ class Node {
 
     Node(std::string id, float len);
     Node(std::string id, Node* par, float len);
+    // Copy another node, except for its ID, children, & annotations
+    Node(Node* other, std::string id);
+
+    // Disown/remove a child from .children
+    void removeChild(Node* child) {
+        children.erase(std::find(children.begin(), children.end(), child));
+    }
 };
 
 struct MutationList {

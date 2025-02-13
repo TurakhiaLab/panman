@@ -18,8 +18,6 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
                     break;
                 } else {
                     curBlockSeqs[Coordinate(i*8 + j, 0, curBlock.primaryBlockId, curBlock.secondaryBlockId)] = (int8_t) curNucCode;
-                    std::cout << "sequence at block " << curBlock.primaryBlockId << " index " << i*8 + j;
-                    std::cout << " is " << panmanUtils::getNucleotideFromCode(curNucCode) << std::endl;
                 }
             }
 
@@ -153,24 +151,12 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::In
             if (simpleMutations.blockMutation.size() > 0) continue;
 
             // Parsimony improvement score is the decrease in mutation count
-            int blockImprovement = node->blockMutation.size() - simpleMutations.blockMutation.size();
-            int nucImprovement = node->nucMutation.size() - simpleMutations.nucMutation.size();
-            int totalImprovement = blockImprovement + nucImprovement;
+            int nucImprovement = 0;
+            for (const auto& curMut: simpleMutations.nucMutation) nucImprovement += curMut.length();
+            for (const auto& curMut: node->nucMutation) nucImprovement -= curMut.length();
 
-            std::cout << "node: ";
-            for (const auto& curMut: node->nucMutation) {
-                std::cout << curMut.type() << " ";
-            }
-            std::cout << std::endl << "simple: ";
-            for (const auto& curMut: simpleMutations.nucMutation) {
-                std::cout << curMut.type() << " ";
-            }
-            std::cout << std::endl;
-            std::cout << node->nucMutation.size() << " vs. " << simpleMutations.nucMutation.size() << std::endl;
-            std::cout << blockImprovement << ", " << nucImprovement << std::endl;
-
-            if (blockImprovement >= 0 && nucImprovement >= 0 && totalImprovement > bestParsimonyImprovement) {
-                bestParsimonyImprovement = blockImprovement + nucImprovement;
+            if (nucImprovement > bestParsimonyImprovement) {
+                bestParsimonyImprovement = nucImprovement;
                 bestNewParent = nearby.first;
                 bestMutationList = simpleMutations;
             }
@@ -224,20 +210,45 @@ const std::vector< std::pair< panmanUtils::Node*, panmanUtils::MutationList > > 
     return nearbyInsertions;
 }
 
+void printChildren(panmanUtils::Node* node) {
+    std::cout << node->identifier << " has children: ";
+    for (const auto& child: node->children) {
+        std::cout << child->identifier << " ";
+    }
+    std::cout << std::endl;
+    for (const auto& child: node->children) {
+        printChildren(child);
+    }
+}
+
 void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList pathMutations) {
     std::cout << "Moving " << toMove->identifier << " to be a child of " << newParent->identifier << std::endl;
     
-    if (toMove->parent != nullptr) {
-        std::vector<Node*>::iterator position = std::find(toMove->parent->children.begin(), toMove->parent->children.end(), toMove);
-        toMove->parent->children.erase(position);
-    }
-    newParent->children.emplace_back(toMove);
+    // Make dummy parent from grandparent -> dummy -> newParent
+    panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
+    allNodes[dummyParent->identifier] = dummyParent;
 
+    newParent->parent->removeChild(newParent);
+    newParent->parent = dummyParent;
+    dummyParent->children = {newParent};
+    adjustLevels(newParent);
+
+    // newParent now has a 0-length branch from the dummy
+    newParent->nucMutation.clear();
+    newParent->blockMutation.clear();
+    newParent->branchLength = 0;
+
+    // Move node to be a child of the dummy
+    toMove->parent->removeChild(toMove);
+
+    toMove->parent = dummyParent;
+    dummyParent->children.emplace_back(toMove);
+    adjustLevels(toMove);
+
+    // TODO: figure out how branch length works
     toMove->branchLength = 1;
-    toMove->level = newParent->level + 1;
-    toMove->parent = newParent;
     toMove->nucMutation = pathMutations.nucMutation;
     toMove->blockMutation = pathMutations.blockMutation;
-    toMove->annotations = std::vector<std::string>();
+    // TODO: what is that?
     toMove->isComMutHead = false;
 }
