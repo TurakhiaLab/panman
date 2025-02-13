@@ -1,13 +1,6 @@
 
 #include "panmanUtils.hpp"
 
-// Convenience function to check if a the ith base in mut.nucs is N
-bool isNucN(panmanUtils::NucMut mut, int offset) {
-    // Peel away layers to extract a single nucleotide
-    int curNucCode = (mut.nucs >> (4*(5-offset))) & 0xF;
-    return (curNucCode == panmanUtils::NucCode::N);
-}
-
 void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > > substitutions;
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > > insertions;
@@ -37,23 +30,22 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
     bool curInsertionHasNs = false;
 
     for (const auto& curMut: node->nucMutation) {
-        // Based on printSingleNodeHelper() in fasta.cpp
-        uint32_t type = curMut.type();
-
         // Does this mutation have Ns?
         bool hasNs = false;
         for(int i = 0; i < curMut.length(); i++) {
-            hasNs |= isNucN(curMut, i);
+            int8_t curNuc = curMut.getNucCode(i);
+            hasNs |= (curNuc == panmanUtils::NucCode::N);
+            if (curMut.isDeletion() || curMut.isSubstitution()) {
+                // set original nucleotide
+            }
         }
 
         // Save mutation if relevant
-        if (type == panmanUtils::NucMutationType::NSNPS
-            || type == panmanUtils::NucMutationType::NS) {
+        if (curMut.isSubstitution()) {
             if (hasNs) {
                 substitutions.emplace_back(node, curMut);
             }
-        } else if (type == panmanUtils::NucMutationType::NSNPI
-                   || type == panmanUtils::NucMutationType::NI) {
+        } else if (curMut.isInsertion()) {
             if (nodeInsertions.empty()) {
                 nodeInsertions.emplace_back(panmanUtils::IndelPosition(curMut));
                 curInsertionHasNs = hasNs;
@@ -96,14 +88,12 @@ void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, NucMut mutToN) {
     if (mutToN.type() == panmanUtils::NucMutationType::NS) {
         // Add non-N mutations back in (for MNPs which are partially N)
         for(int i = 0; i < mutToN.length(); i++) {
-            if (isNucN(mutToN, i)) {
+            if (mutToN.getNucCode(i) != panmanUtils::NucCode::N) {
                 node->nucMutation.push_back(NucMut(mutToN, i));
             }
         }
     }
 }
-
-
 
 void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::IndelPosition mutToN, int allowedDistance,
     std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,

@@ -268,6 +268,24 @@ struct NucMut {
         nucs += (newNuc << (4*(5-i)));
     }
 
+    // Is this mutation either kind of substitution?
+    bool isSubstitution() const {
+        return (type() == panmanUtils::NucMutationType::NSNPS
+                || type() == panmanUtils::NucMutationType::NS);
+    }
+
+    // Is this mutation either kind of deletion?
+    bool isDeletion() const {
+        return (type() == panmanUtils::NucMutationType::NSNPD
+                || type() == panmanUtils::NucMutationType::ND);
+    }
+    
+    // Is this mutation either kind of insertion?
+    bool isInsertion() const {
+        return (type() == panmanUtils::NucMutationType::NSNPI
+                || type() == panmanUtils::NucMutationType::NI);
+    }
+
     bool operator==(const NucMut& other) const {
         return nucPosition == other.nucPosition &&
                nucGapPosition == other.nucGapPosition &&
