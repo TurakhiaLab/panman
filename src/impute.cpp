@@ -12,7 +12,7 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > > substitutions;
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > > insertions;
     std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> > allInsertions;
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, char, panmanUtils::CoordinateHasher > > originalNucs;
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > > originalNucs;
     findMutationsToN(root, substitutions, insertions, allInsertions, originalNucs);
 
     std::cout << substitutions.size() << " substitutions to impute" << std::endl;
@@ -30,7 +30,7 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
         std::vector< std::pair< panmanUtils::Node*, panmanUtils::NucMut > >& substitutions,
         std::vector< std::pair< panmanUtils::Node*, panmanUtils::IndelPosition > >& insertions,
         std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
-        std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, char, panmanUtils::CoordinateHasher > >& originalNucs) {
+        std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
     if (node == nullptr) return;
 
     std::vector<panmanUtils::IndelPosition> nodeInsertions;
@@ -107,7 +107,7 @@ void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, NucMut mutToN) {
 
 void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::IndelPosition mutToN, int allowedDistance,
     std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, char, panmanUtils::CoordinateHasher > >& originalNucs) {
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
     if (node == nullptr) return;
 
     // Tracking best new position so far
@@ -148,7 +148,7 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::In
 const std::vector< std::pair< panmanUtils::Node*, panmanUtils::MutationList > > panmanUtils::Tree::findNearbyInsertions(
     panmanUtils::Node* node, panmanUtils::IndelPosition mutToN, int allowedDistance, panmanUtils::Node* ignore,
     std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, char, panmanUtils::CoordinateHasher > >& originalNucs) {
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
 
     std::vector< std::pair< panmanUtils::Node*, panmanUtils::MutationList > > nearbyInsertions;
 

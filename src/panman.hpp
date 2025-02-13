@@ -88,7 +88,8 @@ struct NucMut {
         nucPosition = std::get<0>(mutationInfo);
         nucGapPosition = -1;
         mutInfo = (int)std::get<1>(mutationInfo) + (1 << 4);
-        nucs = ((int)std::get<2>(mutationInfo) << 20);
+        nucs = 0;
+        addNucCode(std::get<2>(mutationInfo), 0);
     }
     
     // Create SNP mutation
@@ -99,7 +100,8 @@ struct NucMut {
         nucPosition = std::get<2>(mutationInfo);
         nucGapPosition = std::get<3>(mutationInfo);
         mutInfo = std::get<4>(mutationInfo) + (1 << 4);
-        nucs = (std::get<5>(mutationInfo) << 20);
+        nucs = 0;
+        addNucCode(std::get<2>(mutationInfo), 0);
     }
 
     // Create non-SNP mutations from SNP mutations at consecutive positions for MSA
@@ -136,7 +138,7 @@ struct NucMut {
 
         nucs = 0;
         for(int i = start; i < end; i++) {
-            nucs += (std::get<2>(mutationArray[i]) << (4*(5-(i - start))));
+            addNucCode(std::get<2>(mutationArray[i]), i);
         }
 
         // if (nucPosition == 0){
@@ -181,7 +183,7 @@ struct NucMut {
 
         nucs = 0;
         for(int i = start; i < end; i++) {
-            nucs += (std::get<5>(mutationArray[i]) << (4*(5-(i - start))));
+            addNucCode(std::get<2>(mutationArray[i]), i);
         }
     }
 
@@ -227,42 +229,43 @@ struct NucMut {
     }
 
     // Subset a SNP from an MNP
-    NucMut(const NucMut& other, int offset) {
+    NucMut(const NucMut& other, int i) {
         primaryBlockId = other.primaryBlockId;
         secondaryBlockId = other.secondaryBlockId;
         mutInfo = panmanUtils::NucMutationType::NSNPS + (1 << 4);
-        // Extract one nucleotide, then bitshift it 20 to match a regular SNP
-        nucs = ((other.nucs >> (4*(5-offset))) & 0xF) << 20;
+        // Extract one nucleotide, then set it as the only one
+        int8_t snpNuc = getNucCode(i);
+        nucs = 0;
+        addNucCode(snpNuc, 0);
 
-        // Offsets based on printSingleNodeHelper() in fasta.cpp
+        // If gap=-1 then increment nucPosition, otherwise increment nucGapPosition
         if (other.nucGapPosition == -1) {
-            nucPosition = other.nucPosition + offset;
+            nucPosition = other.nucPosition + i;
             nucGapPosition = other.nucGapPosition;
         } else {
             nucPosition = other.nucPosition;
-            nucGapPosition = other.nucGapPosition + offset;
+            nucGapPosition = other.nucGapPosition + i;
         }
     }
 
-    // Readable way of accessing # of nucleotides
+    // Get # of nucleotides
     int length() const {
         return (mutInfo >> 4);
     }
 
-    // Readable way of accessing mutation type
+    // Get mutation type
     uint32_t type() const {
         return (mutInfo & 0x7);
     }
 
-    void setNucs(std::vector<char> newNucs) {
-        if(newNucs.size() != length()) {
-            throw std::invalid_argument("New nucleotides must have the same length");
-        }
-
-        nucs = 0;
-        for (int i = 0; i < length(); i++) {
-            nucs += (newNucs[i] << (4*(5-i)));
-        }
+    // Get ith nucleotide code
+    int getNucCode(int i) const {
+        return (nucs >> (4*(5-i))) & 0xF;
+    }
+    
+    // Set ith nucleotide code
+    void addNucCode(int8_t newNuc, int i) {
+        nucs += (newNuc << (4*(5-i)));
     }
 
     bool operator==(const NucMut& other) const {
@@ -483,7 +486,7 @@ struct MutationList {
     MutationList() {}
 
     // Copy mutations from a node (possibly reversed)
-    MutationList(const Node* node, bool reversed, std::unordered_map< Coordinate, char, CoordinateHasher >& originalNucs) {
+    MutationList(const Node* node, bool reversed, std::unordered_map< Coordinate, int8_t, CoordinateHasher >& originalNucs) {
         nucMutation = node->nucMutation;
         blockMutation = node->blockMutation;
         if (reversed) reverse(originalNucs);
@@ -491,7 +494,7 @@ struct MutationList {
 
 
     // Reverse direction of mutations
-    void reverse(std::unordered_map< Coordinate, char, CoordinateHasher >& originalNucs) {
+    void reverse(std::unordered_map< Coordinate, int8_t, CoordinateHasher >& originalNucs) {
         // Temporary container for iteration
         std::vector<NucMut> tempNucMutation = nucMutation;
         nucMutation.clear();
@@ -499,49 +502,44 @@ struct MutationList {
         for (const auto& curMut: tempNucMutation) {
             // Mutation to be reversed
             NucMut newMut = curMut;
-            std::vector<char> newNucs;
+            // Erase current nucleotides, to prepare for overwriting
+            newMut.nucs = 0;
+            std::vector<int> newNucs;
             
             switch(curMut.type()) {
             // Insertion to deletion
             case NucMutationType::NSNPI:
                 newMut.mutInfo += NucMutationType::NSNPD - NucMutationType::NSNPI;
-                newMut.setNucs({NucCode::MISSING});
+                newMut.addNucCode(NucCode::MISSING, 0);
                 break;
             // Deletion to insertion of original nucleotide (via falldown)
             case NucMutationType::NSNPD:
                 newMut.mutInfo += NucMutationType::NSNPI - NucMutationType::NSNPD;
             // Substitution back to original nucleotide
             case NucMutationType::NSNPS:
-                newMut.setNucs({originalNucs[Coordinate(curMut)]});
+                newMut.addNucCode(originalNucs[Coordinate(curMut)], 0);
                 break;
             // Same as above, but with handling for multiple nucleotides
             case NucMutationType::NI:
                 newMut.mutInfo += NucMutationType::ND - NucMutationType::NI;
-
-                newNucs = std::vector<char>(curMut.length());
                 for (int i = 0; i < curMut.length(); i++) {
-                    newNucs[i] = NucCode::MISSING;
+                    newMut.addNucCode(NucCode::MISSING, i);
                 }
-
-                newMut.setNucs(newNucs);
                 break;
             case NucMutationType::ND:
                 newMut.mutInfo += panmanUtils::NucMutationType::NI - NucMutationType::ND;
             case NucMutationType::NS:
-                newNucs = std::vector<char>(curMut.length());
+                newNucs = std::vector<int>(curMut.length());
                 for (int i = 0; i < curMut.length(); i++) {
                     // If gap=-1 then increment nucPosition, otherwise increment nucGapPosition
                     if (newMut.nucGapPosition == -1) {
-                        newNucs[i] = originalNucs[Coordinate(curMut, i, 0)];
+                        newMut.addNucCode(originalNucs[Coordinate(curMut, i, 0)], i);
                     } else {
-                        newNucs[i] = originalNucs[Coordinate(curMut, 0, i)];
+                        newMut.addNucCode(originalNucs[Coordinate(curMut, 0, i)], i);
                     }
                 }
-
-                newMut.setNucs(newNucs);
                 break;
             }
-
 
             nucMutation.emplace_back(newMut);
         }
@@ -721,7 +719,7 @@ class Tree {
     const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& substitutions,
                                 std::vector< std::pair< Node*, IndelPosition > >& insertions,
                                 std::unordered_map< std::string, std::unordered_set<IndelPosition> >& allInsertions,
-                                std::unordered_map< std::string, std::unordered_map< Coordinate, char, CoordinateHasher > >& originalNucs);
+                                std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
@@ -731,14 +729,14 @@ class Tree {
     // Updates mutations for maximum parsimony
     void imputeInsertion(Node* node, IndelPosition mutToN, int allowedDistance,
                          std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
-                         std::unordered_map< std::string, std::unordered_map< Coordinate, char, CoordinateHasher > >& originalNucs);
+                         std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
     const std::vector< std::pair< Node*, MutationList > > findNearbyInsertions(
         Node* node, IndelPosition mutToN, int allowedDistance, Node* ignore,
         std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, char, CoordinateHasher > >& originalNucs);
+        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Simplify the changing mutations, e.g. cancel out insertions and deletions
     const MutationList simplifyMutations(MutationList mutList);
     // Move "toMove" to be a child of "newParent", with node mutations "mutList"
