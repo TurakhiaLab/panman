@@ -183,7 +183,7 @@ struct NucMut {
 
         nucs = 0;
         for(int i = start; i < end; i++) {
-            addNucCode(std::get<2>(mutationArray[i]), i - start);
+            addNucCode(std::get<5>(mutationArray[i]), i - start);
         }
     }
 
