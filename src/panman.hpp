@@ -771,7 +771,8 @@ class Tree {
     // Similar to imputeSNV. "mutToN" is a list of consecutive insertions
     // Tries to find a similar insertion nearby and move to be its child
     // Updates mutations for maximum parsimony
-    void imputeInsertion(Node* node, IndelPosition mutToN, int allowedDistance,
+    // Returns whether the imputation succeeded
+    bool imputeInsertion(Node* node, IndelPosition mutToN, int allowedDistance,
                          std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
                          std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
