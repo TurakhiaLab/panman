@@ -262,6 +262,11 @@ struct NucMut {
     int getNucCode(int i) const {
         return (nucs >> (4*(5-i))) & 0xF;
     }
+
+    // Get first nucleotide code (only nuc for NSNPX types)
+    int getFirstNucCode() const {
+        return getNucCode(0);
+    }
     
     // Set ith nucleotide code
     void addNucCode(int8_t newNuc, int i) {

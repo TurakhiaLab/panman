@@ -357,7 +357,7 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     for(int j = 0; j < len; j++) {
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getNucleotideFromCode(node->nucMutation[i].getNucCode(j));
                         sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         
@@ -372,7 +372,7 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     for(int j = 0; j < len; j++) {
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getNucleotideFromCode(node->nucMutation[i].getNucCode(j));
                         sequence[primaryBlockId][nucPosition+j].first = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         
@@ -390,7 +390,7 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     for(int j = 0; j < len; j++) {
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getNucleotideFromCode(node->nucMutation[i].getNucCode(j));
                         sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         
@@ -405,7 +405,7 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     for(int j = 0; j < len; j++) {
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getNucleotideFromCode(node->nucMutation[i].getNucCode(j));
                         sequence[primaryBlockId][nucPosition+j].first = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         
@@ -452,7 +452,7 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
         } else {
             if(type == panmanUtils::NucMutationType::NSNPS) {
                 // SNP Substitution
-                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getNucleotideFromCode(node->nucMutation[i].getFirstNucCode());
                 if(nucGapPosition != -1) {
                     auto mut = mutation_list->add_mutation();
                     char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
@@ -480,7 +480,7 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                 }
             } else if(type == panmanUtils::NucMutationType::NSNPI) {
                 // SNP Insertion
-                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getNucleotideFromCode(node->nucMutation[i].getFirstNucCode());
                 if(nucGapPosition != -1) {
                     auto mut = mutation_list->add_mutation();
                     char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
