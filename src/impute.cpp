@@ -107,8 +107,7 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
             int8_t curNucCode = curMut.getNucCode(i);
             panmanUtils::Coordinate curPos = panmanUtils::Coordinate(curMut, i);
 
-            originalNucs[node->identifier][curPos] = curBlockSeqs[curPos];
-            curBlockSeqs[curPos] = curNucCode;
+            curBlockSeqs[curPos] = originalNucs[node->identifier][curPos];
         }
     }
 }
