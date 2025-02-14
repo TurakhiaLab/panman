@@ -144,6 +144,7 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::In
         std::cout << nearby.first->identifier << std::endl;
         if (nearby.first != node) {
             panmanUtils::MutationList simpleMutations = nearby.second.copy();
+            std::reverse(simpleMutations.nucMutation.begin(), simpleMutations.nucMutation.end());
             simpleMutations.nucMutation = consolidateNucMutations(simpleMutations.nucMutation);
             simpleMutations.blockMutation = consolidateBlockMutations(simpleMutations.blockMutation);
             // Ignore block mutations for now
@@ -151,8 +152,8 @@ void panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node, panmanUtils::In
 
             // Parsimony improvement score is the decrease in mutation count
             int nucImprovement = 0;
-            for (const auto& curMut: simpleMutations.nucMutation) nucImprovement += curMut.length();
-            for (const auto& curMut: node->nucMutation) nucImprovement -= curMut.length();
+            for (const auto& curMut: simpleMutations.nucMutation) nucImprovement -= curMut.length();
+            for (const auto& curMut: node->nucMutation) nucImprovement += curMut.length();
 
             if (nucImprovement > bestParsimonyImprovement) {
                 bestParsimonyImprovement = nucImprovement;
