@@ -88,8 +88,7 @@ struct NucMut {
         nucPosition = std::get<0>(mutationInfo);
         nucGapPosition = -1;
         mutInfo = (int)std::get<1>(mutationInfo) + (1 << 4);
-        nucs = 0;
-        addNucCode(std::get<2>(mutationInfo), 0);
+        setSingleNucCode(std::get<2>(mutationInfo));
     }
     
     // Create SNP mutation
@@ -100,8 +99,7 @@ struct NucMut {
         nucPosition = std::get<2>(mutationInfo);
         nucGapPosition = std::get<3>(mutationInfo);
         mutInfo = std::get<4>(mutationInfo) + (1 << 4);
-        nucs = 0;
-        addNucCode(std::get<2>(mutationInfo), 0);
+        setSingleNucCode(std::get<5>(mutationInfo));
     }
 
     // Create non-SNP mutations from SNP mutations at consecutive positions for MSA
@@ -271,6 +269,12 @@ struct NucMut {
     // Set ith nucleotide code
     void addNucCode(int8_t newNuc, int i) {
         nucs += (newNuc << (4*(5-i)));
+    }
+
+    // Set to have a single nucleotide (for NSNPX types)
+    void setSingleNucCode(int8_t newNuc) {
+        nucs = 0;
+        addNucCode(newNuc, 0);
     }
 
     // Is this mutation either kind of substitution?
