@@ -233,7 +233,12 @@ panmanUtils::Node::Node(Node* other, std::string id) {
     level = other->level;
     identifier = id;
     parent = other->parent;
-    parent->children.emplace_back(this);
+    if (parent != nullptr) {
+        parent->children.emplace_back(this);
+    } else {
+        std::cout << "other (" << other->identifier << ") has no parent" << std::endl;
+    }
+
     nucMutation = other->nucMutation;
     blockMutation = other->blockMutation;
     isComMutHead = other->isComMutHead;
@@ -4082,8 +4087,8 @@ void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExis
 
     for(size_t i = 0; i < blocks.size(); i++) {
 
-        int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
-        int32_t secondaryBlockId = ((int32_t)blocks[i].secondaryBlockId);
+        int32_t primaryBlockId = blocks[i].primaryBlockId;
+        int32_t secondaryBlockId = blocks[i].secondaryBlockId;
 
         maxBlockId = std::max(maxBlockId, primaryBlockId);
 
@@ -4092,7 +4097,7 @@ void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExis
             for(size_t k = 0; k < 8; k++) {
                 const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
 
-                if(nucCode == 0) {
+                if(nucCode == panmanUtils::NucCode::MISSING) {
                     endFlag = true;
                     break;
                 }

@@ -759,10 +759,13 @@ class Tree {
     void imputeNs(int allowedIndelDistance);
     // Fill the "substitutions" and "insertions" vectors with all mutations TO N in the subtree with root "node"
     // Fill "allInsertions" map with {node ID : {all insertion positions}}
-    const void findMutationsToN(Node* node, std::vector< std::pair < Node*, NucMut > >& substitutions,
-                                std::vector< std::pair< Node*, IndelPosition > >& insertions,
+    // Keep track of "curNucs" map with {coordinate : nucleotide} at "node", used for "originalNucs"
+    // Fill "originalNucs" map with {node ID : {coordianate : nucleotide}} for original nucleotides of subsitutions/deletions
+    const void findMutationsToN(Node* node,
+                                std::vector< std::pair < std::string, NucMut > >& substitutions,
+                                std::unordered_map< std::string, std::vector<IndelPosition> >& insertions,
                                 std::unordered_map< std::string, std::unordered_set<IndelPosition> >& allInsertions,
-                                std::unordered_map<Coordinate, int8_t, CoordinateHasher > & curBlockSeqs,
+                                std::unordered_map<Coordinate, int8_t, CoordinateHasher > & curNucs,
                                 std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
@@ -772,14 +775,14 @@ class Tree {
     // Tries to find a similar insertion nearby and move to be its child
     // Updates mutations for maximum parsimony
     // Returns whether the imputation succeeded
-    bool imputeInsertion(Node* node, IndelPosition mutToN, int allowedDistance,
+    bool imputeInsertion(Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
                          std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
                          std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
-    const std::vector< std::pair< Node*, MutationList > > findNearbyInsertions(
-        Node* node, IndelPosition mutToN, int allowedDistance, Node* ignore,
+    const std::unordered_map< std::string, MutationList > findNearbyInsertions(
+        Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance, Node* ignore,
         std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
         std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Simplify the changing mutations, e.g. cancel out insertions and deletions
