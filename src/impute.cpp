@@ -189,8 +189,14 @@ bool panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
                     if (curMut.getNucCode(i) == panmanUtils::NucCode::N) numNs--;
                 }
             }
+            for (const auto& curMut: allNodes[nearby.first]->nucMutation) {
+                for (int i = 0; i < curMut.length(); i++) {
+                    if (curMut.getNucCode(i) == panmanUtils::NucCode::N) numNs--;
+                }
+            }
 
             if (nucImprovement > bestParsimonyImprovement && numNs > 0) {
+                std::cout << "nucImprovement = " << nucImprovement << ", numNs = " << numNs << std::endl;
                 bestParsimonyImprovement = nucImprovement;
                 bestNewParent = allNodes[nearby.first];
                 bestMutationList = simpleMutations;
@@ -270,32 +276,55 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
 
 void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList mutList) {
     std::cout << "moving " << toMove->identifier << " under " << newParent->identifier << std::endl;
+    
+    if (toMove->identifier == "node_632" || toMove->identifier == "node_5256"
+        || toMove->identifier == "node_5162") {
+        std::cout << "skipping because problematic" << std::endl;
+        return;
+    }
 
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
+    std::cout << "1 ";
     allNodes[dummyParent->identifier] = dummyParent;
+    std::cout << "2 ";
 
     newParent->parent->removeChild(newParent);
+    std::cout << "3 ";
     newParent->parent = dummyParent;
+    std::cout << "4 ";
     dummyParent->children = {newParent};
+    std::cout << "5 ";
     adjustLevels(newParent);
+    std::cout << "6 ";
 
     // newParent now has a 0-length branch from the dummy
     newParent->nucMutation.clear();
+    std::cout << "7 ";
     newParent->blockMutation.clear();
+    std::cout << "8 ";
     newParent->branchLength = 0;
+    std::cout << "9 ";
 
     // Move node to be a child of the dummy
     toMove->parent->removeChild(toMove);
+    std::cout << "10 ";
 
     toMove->parent = dummyParent;
+    std::cout << "11 ";
     dummyParent->children.emplace_back(toMove);
+    std::cout << "12 ";
     adjustLevels(toMove);
+    std::cout << "13 ";
 
     // TODO: figure out how branch length works
     toMove->branchLength = 1;
+    std::cout << "14 ";
     toMove->nucMutation = mutList.nucMutation;
+    std::cout << "15 ";
     toMove->blockMutation = mutList.blockMutation;
+    std::cout << "16 ";
     // TODO: what is that?
     toMove->isComMutHead = false;
+    std::cout << "17" << std::endl;
 }
