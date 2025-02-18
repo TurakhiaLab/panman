@@ -229,20 +229,20 @@ panmanUtils::Node::Node(std::string id, Node* par, float len) {
 }
 
 panmanUtils::Node::Node(Node* other, std::string id) {
+    std::cout << "in constructor ";
     branchLength = other->branchLength;
     level = other->level;
     identifier = id;
     parent = other->parent;
     if (parent != nullptr) {
         parent->children.emplace_back(this);
-    } else {
-        std::cout << "other (" << other->identifier << ") has no parent" << std::endl;
     }
 
     nucMutation = other->nucMutation;
     blockMutation = other->blockMutation;
     isComMutHead = other->isComMutHead;
     treeIndex = other->treeIndex;
+    std::cout << "done" << std::endl;
 }
 
 panmanUtils::Block::Block(size_t pBlockId, std::string seq) {
@@ -1987,8 +1987,13 @@ std::string panmanUtils::Tree::getNewickString(Node* node) {
 void panmanUtils::Tree::mergeNodes(panmanUtils::Node* par, panmanUtils::Node* chi) {
 
     par->identifier = chi->identifier;
+    par->annotations = chi->annotations;
     par->branchLength += chi->branchLength;
     par->children = chi->children;
+    for (const auto& newChild: par->children) {
+        newChild->parent = par;
+        adjustLevels(newChild);
+    }
 
     // For block mutations, we cancel out irrelevant mutations
     std::map< std::pair<int, int>, std::pair< panmanUtils::BlockMutationType, bool > > bidMutations;
