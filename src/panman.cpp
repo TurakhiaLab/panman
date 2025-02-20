@@ -229,7 +229,6 @@ panmanUtils::Node::Node(std::string id, Node* par, float len) {
 }
 
 panmanUtils::Node::Node(Node* other, std::string id) {
-    std::cout << "in constructor ";
     branchLength = other->branchLength;
     level = other->level;
     identifier = id;
@@ -242,7 +241,6 @@ panmanUtils::Node::Node(Node* other, std::string id) {
     blockMutation = other->blockMutation;
     isComMutHead = other->isComMutHead;
     treeIndex = other->treeIndex;
-    std::cout << "done" << std::endl;
 }
 
 panmanUtils::Block::Block(size_t pBlockId, std::string seq) {
@@ -2089,6 +2087,7 @@ void panmanUtils::Tree::mergeNodes(panmanUtils::Node* par, panmanUtils::Node* ch
         par->nucMutation.push_back(mutation);
     }
 
+    allNodes.erase(chi->identifier);
     delete chi;
 }
 
@@ -5179,6 +5178,26 @@ void panmanUtils::Tree::adjustLevels(Node* node) {
     }
     for(auto u: node->children) {
         adjustLevels(u);
+    }
+}
+
+void panmanUtils::Tree::fixLevels(panmanUtils::Node* node, size_t& numLeaves, size_t& totalLeafDepth) {
+    // Fix this node's .level attribute
+    if (node->parent == nullptr) {
+        // Root is level 1
+        node->level = 1;
+    } else {
+        node->level = node->parent->level + 1;
+    }
+
+    if (node->children.empty()) {
+        // Update leaf trackers if this is a leaf
+        numLeaves++;
+        totalLeafDepth += node->level;
+        if (node->level > m_maxDepth) m_maxDepth = node->level;
+    } else {
+        // Pre-order traversal of children
+        for (auto child: node->children) fixLevels(child, numLeaves, totalLeafDepth);
     }
 }
 

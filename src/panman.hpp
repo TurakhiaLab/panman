@@ -524,6 +524,18 @@ class Node {
     void removeChild(Node* child) {
         children.erase(std::find(children.begin(), children.end(), child));
     }
+
+    // Rewire pointers so node becomes a child of newParent, returning the old parent
+    Node* changeParent(Node* newParent) {
+        Node* oldParent = parent;
+        // Remove node from old parent's children list
+        if (oldParent != nullptr) oldParent->removeChild(this);
+
+        // Add node to new parent's children
+        parent = newParent;
+        if (newParent != nullptr) newParent->children.emplace_back(this);
+        return oldParent;
+    }
 };
 
 struct MutationList {
@@ -690,6 +702,8 @@ class Tree {
     void dfsExpansion(Node* node, std::vector< Node* >& vec);
     Node* transformHelper(Node* node);
     void adjustLevels(Node* node);
+    // Fix .level attributions
+    void fixLevels(Node* node, size_t& numLeaves, size_t& totalLeafDepth);
 
     // Check if tree is a polytomy
     bool hasPolytomy(Node* node);
@@ -764,7 +778,7 @@ class Tree {
     const void findMutationsToN(Node* node,
                                 std::vector< std::pair < std::string, NucMut > >& substitutions,
                                 std::unordered_map< std::string, std::vector<IndelPosition> >& insertions,
-                                std::unordered_map< std::string, std::unordered_set<IndelPosition> >& allInsertions,
+                                std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
                                 std::unordered_map<Coordinate, int8_t, CoordinateHasher > & curNucs,
                                 std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
@@ -776,14 +790,14 @@ class Tree {
     // Updates mutations for maximum parsimony
     // Returns whether the imputation succeeded
     bool imputeInsertion(Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
-                         std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
+                         std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
                          std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
     const std::unordered_map< std::string, MutationList > findNearbyInsertions(
         Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance, Node* ignore,
-        std::unordered_map< std::string, std::unordered_set<panmanUtils::IndelPosition> >& allInsertions,
+        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
         std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Simplify the changing mutations, e.g. cancel out insertions and deletions
     const MutationList simplifyMutations(MutationList mutList);
