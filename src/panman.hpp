@@ -526,7 +526,7 @@ class Node {
     }
 
     // Rewire pointers so node becomes a child of newParent, returning the old parent
-    Node* changeParent(Node* newParent) {
+    void changeParent(Node* newParent) {
         Node* oldParent = parent;
         // Remove node from old parent's children list
         if (oldParent != nullptr) oldParent->removeChild(this);
@@ -534,7 +534,6 @@ class Node {
         // Add node to new parent's children
         parent = newParent;
         if (newParent != nullptr) newParent->children.emplace_back(this);
-        return oldParent;
     }
 };
 

@@ -252,7 +252,7 @@ void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* n
     allNodes[dummyParent->identifier] = dummyParent;
 
     newParent->changeParent(dummyParent);
-    Node* oldParent = toMove->changeParent(dummyParent);
+    toMove->changeParent(dummyParent);
 
     // newParent now has a 0-length branch from the dummy
     newParent->nucMutation.clear();
