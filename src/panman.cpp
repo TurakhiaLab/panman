@@ -1984,6 +1984,8 @@ std::string panmanUtils::Tree::getNewickString(Node* node) {
 // Merge parent node and child node into parent node
 void panmanUtils::Tree::mergeNodes(panmanUtils::Node* par, panmanUtils::Node* chi) {
 
+    allNodes.erase(par->identifier);
+    allNodes[chi->identifier] = par;
     par->identifier = chi->identifier;
     par->annotations = chi->annotations;
     par->branchLength += chi->branchLength;
@@ -2087,7 +2089,6 @@ void panmanUtils::Tree::mergeNodes(panmanUtils::Node* par, panmanUtils::Node* ch
         par->nucMutation.push_back(mutation);
     }
 
-    allNodes.erase(chi->identifier);
     delete chi;
 }
 

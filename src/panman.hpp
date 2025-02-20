@@ -540,7 +540,6 @@ class Node {
 
 struct MutationList {
     std::vector<NucMut> nucMutation;
-    std::vector<BlockMut> blockMutation;
 
     // Make empty list (default constructor)
     MutationList() {}
@@ -548,7 +547,6 @@ struct MutationList {
     // Copy mutations from a node (possibly reversed)
     MutationList(const Node* node, bool reversed, std::unordered_map< Coordinate, int8_t, CoordinateHasher >& originalNucs) {
         nucMutation = node->nucMutation;
-        blockMutation = node->blockMutation;
         if (reversed) reverse(originalNucs);
     }
 
@@ -604,14 +602,12 @@ struct MutationList {
     MutationList copy() const {
         MutationList newCopy;
         newCopy.nucMutation = nucMutation;
-        newCopy.blockMutation = blockMutation;
         return newCopy;
     }
 
     MutationList concat(const MutationList& other) const {
         MutationList temp = copy();
         temp.nucMutation.insert(temp.nucMutation.end(), other.nucMutation.begin(), other.nucMutation.end());
-        temp.blockMutation.insert(temp.blockMutation.end(), other.blockMutation.begin(), other.blockMutation.end());
         return temp;
     }
 };
@@ -788,10 +784,10 @@ class Tree {
     // Similar to imputeSNV. "mutToN" is a list of consecutive insertions
     // Tries to find a similar insertion nearby and move to be its child
     // Updates mutations for maximum parsimony
-    // Returns whether the imputation succeeded
-    bool imputeInsertion(Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
-                         std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-                         std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
+    // Returns the string of the old parent's ID, on a success, empty string on a failure
+    std::string imputeInsertion(Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
+                                std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
+                                std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
