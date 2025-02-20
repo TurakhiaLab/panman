@@ -29,7 +29,7 @@ RUN curl -O https://capnproto.org/capnproto-c++-1.0.2.tar.gz && tar zxf capnprot
 
 RUN cd panman/build && git clone https://github.com/microsoft/vcpkg.git && apt-get install -y pkg-config && ./vcpkg/bootstrap-vcpkg.sh && ./vcpkg/vcpkg install jsoncpp
 RUN cd panman/build && wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz && tar -xvzf 2019_U9.tar.gz
-RUN cd panman/build && cmake  -DTBB_DIR=${PWD}/oneTBB-2019_U9  -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake -DCMAKE_TOOLCHAIN_FILE=${PWD}/vcpkg/scripts/buildsystems/vcpkg.cmake .. && make -j && cp panman /usr/local/bin && panmanUtils
+RUN cd panman/build && cmake  -DTBB_DIR=${PWD}/oneTBB-2019_U9  -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake -DCMAKE_TOOLCHAIN_FILE=${PWD}/vcpkg/scripts/buildsystems/vcpkg.cmake .. && make -j && cp panmanUtils /usr/local/bin && panmanUtils
 
 # PanGraph
 RUN wget https://github.com/neherlab/pangraph/releases/latest/download/pangraph-aarch64-unknown-linux-musl && mkdir pangraph && mv pangraph-aarch64-unknown-linux-musl pangraph/pangraph && chmod +x pangraph/pangraph && cp pangraph/pangraph /usr/local/bin
