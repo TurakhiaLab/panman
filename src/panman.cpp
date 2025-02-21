@@ -2268,6 +2268,44 @@ bool panmanUtils::Tree::debugSimilarity(const std::vector< panmanUtils::NucMut >
     return true;
 }
 
+const void panmanUtils::Tree::reverseNucMutations(std::vector<panmanUtils::NucMut>& nucMutation,
+    std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher >& originalNucs) {
+    // Temporary container for iteration
+    for (auto& curMut: nucMutation) {
+        // Erase current nucleotides, to prepare for overwriting
+        curMut.nucs = 0;
+        
+        switch(curMut.type()) {
+        // Insertion to deletion
+        case panmanUtils::NucMutationType::NSNPI:
+            curMut.mutInfo += panmanUtils::NucMutationType::NSNPD - panmanUtils::NucMutationType::NSNPI;
+            curMut.addNucCode(panmanUtils::NucCode::MISSING, 0);
+            break;
+        // Deletion to insertion of original nucleotide (via falldown)
+        case panmanUtils::NucMutationType::NSNPD:
+            curMut.mutInfo += panmanUtils::NucMutationType::NSNPI - panmanUtils::NucMutationType::NSNPD;
+        // Substitution back to original nucleotide
+        case panmanUtils::NucMutationType::NSNPS:
+            curMut.addNucCode(originalNucs[panmanUtils::Coordinate(curMut)], 0);
+            break;
+        // Same as above, but with handling for multiple nucleotides
+        case panmanUtils::NucMutationType::NI:
+            curMut.mutInfo += panmanUtils::NucMutationType::ND - panmanUtils::NucMutationType::NI;
+            for (int i = 0; i < curMut.length(); i++) {
+                curMut.addNucCode(panmanUtils::NucCode::MISSING, i);
+            }
+            break;
+        case panmanUtils::NucMutationType::ND:
+            curMut.mutInfo += panmanUtils::NucMutationType::NI - panmanUtils::NucMutationType::ND;
+        case panmanUtils::NucMutationType::NS:
+            for (int i = 0; i < curMut.length(); i++) {
+                curMut.addNucCode(originalNucs[panmanUtils::Coordinate(curMut, i)], i);
+            }
+            break;
+        }
+    }
+}
+
 std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(const std::vector< panmanUtils::NucMut >& nucMutation) {
     // primaryBid, secondaryBid, pos, gap_pos -> type, nuc
     std::map< std::tuple< int32_t, int32_t, int32_t, int32_t >, std::pair< int, int > > mutationRecords;

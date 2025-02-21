@@ -176,7 +176,7 @@ std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
 
     for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance, node, allInsertions, originalNucs)) {
         if (nearby.first != node->identifier) {
-            panmanUtils::MutationList simpleMutations = nearby.second.concat(panmanUtils::MutationList(node, false, originalNucs[node->identifier]));
+            panmanUtils::MutationList simpleMutations = nearby.second.concat(panmanUtils::MutationList(node));
             std::reverse(simpleMutations.nucMutation.begin(), simpleMutations.nucMutation.end());
             simpleMutations.nucMutation = consolidateNucMutations(simpleMutations.nucMutation);
 
@@ -229,7 +229,10 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
             for (const auto& nearby: findNearbyInsertions(child, mutsToN, allowedDistance - child->branchLength, 
                                                           node, allInsertions, originalNucs)) {
                 // Add mutations to get to child (which must be reversed)
-                panmanUtils::MutationList toAdd = panmanUtils::MutationList(child, true, originalNucs[child->identifier]);
+                panmanUtils::MutationList toAdd = panmanUtils::MutationList(child);
+                std::vector<panmanUtils::NucMut> nucMutation = toAdd.nucMutation;
+                reverseNucMutations(nucMutation, originalNucs[child->identifier]);
+                toAdd.nucMutation = nucMutation;
                 nearbyInsertions.emplace(nearby.first, nearby.second.concat(toAdd));
             }
         }
@@ -239,7 +242,7 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
         for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance - node->branchLength,
                                                       node, allInsertions, originalNucs)) {
             // Add mutations to get to parent
-            panmanUtils::MutationList toAdd = panmanUtils::MutationList(node, false, originalNucs[node->identifier]);
+            panmanUtils::MutationList toAdd = panmanUtils::MutationList(node);
             nearbyInsertions.emplace(nearby.first, nearby.second.concat(toAdd));
         }
     }

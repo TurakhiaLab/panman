@@ -544,9 +544,8 @@ struct MutationList {
     MutationList() {}
 
     // Copy mutations from a node (possibly reversed)
-    MutationList(const Node* node, bool reversed, std::unordered_map< Coordinate, int8_t, CoordinateHasher >& originalNucs) {
+    MutationList(const Node* node) {
         nucMutation = node->nucMutation;
-        if (reversed) reverse(originalNucs);
     }
 
 
@@ -677,6 +676,9 @@ class Tree {
     // nodes are combined
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation,
                                           std::pair<int, int> newMutation);
+    // Convert mutations to their exact inverse, i.e. mutations from child to parent
+    const void reverseNucMutations(std::vector<NucMut>& nucMutation,
+        std::unordered_map< Coordinate, int8_t, CoordinateHasher >& originalNucs);
 
     // Iterate through mutations and combine mutations at the same position
     std::vector< NucMut > consolidateNucMutations(const std::vector< NucMut >& nucMutation);
