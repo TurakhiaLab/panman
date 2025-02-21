@@ -64,7 +64,7 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
             mergeNodes(allNodes[oldParent], allNodes[oldParent]->children[0]);
         }
     }
-    std::cout << "Imputed " << insertionImputeSuccesses << "/" << insertions.size() << " insertions to N" << std::endl;
+    std::cout << "Moved " << insertionImputeSuccesses << "/" << insertions.size() << " nodes with insertions to N" << std::endl;
 
     size_t numLeaves;
     size_t totalLeafDepth;
