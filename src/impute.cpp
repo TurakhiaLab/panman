@@ -1,6 +1,14 @@
 
 #include "panmanUtils.hpp"
 
+// Concatenate two vectors of NucMuts
+std::vector<panmanUtils::NucMut> concat(const std::vector<panmanUtils::NucMut>& first, const std::vector<panmanUtils::NucMut>& second) {
+    std::vector<panmanUtils::NucMut> temp(first.size() + second.size());
+    temp.insert(temp.end(), first.begin(), first.end());
+    temp.insert(temp.end(), second.begin(), second.end());
+    return temp;
+}
+
 // Build map of all coordinates to their reference/consensus nucleotide
 std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > getNucs(std::vector<panmanUtils::Block> blocks) {
     std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > nucs;
@@ -172,42 +180,42 @@ std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
     // Tracking best new position so far
     int bestParsimonyImprovement = -1;
     Node* bestNewParent = nullptr;
-    MutationList bestMutationList = MutationList();
+    std::vector<panmanUtils::NucMut> bestNewMuts;
 
     for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance, node, allInsertions, originalNucs)) {
         if (nearby.first != node->identifier) {
-            panmanUtils::MutationList simpleMutations = nearby.second.concat(panmanUtils::MutationList(node));
-            std::reverse(simpleMutations.nucMutation.begin(), simpleMutations.nucMutation.end());
-            simpleMutations.nucMutation = consolidateNucMutations(simpleMutations.nucMutation);
+            std::vector<panmanUtils::NucMut> curNewMuts = concat(nearby.second, node->nucMutation);
+            std::reverse(curNewMuts.begin(), curNewMuts.end());
+            curNewMuts = consolidateNucMutations(curNewMuts);
 
             // Parsimony improvement score is the decrease in mutation count
             int nucImprovement = 0;
             for (const auto& curMut: node->nucMutation) nucImprovement += curMut.length();
-            for (const auto& curMut: simpleMutations.nucMutation) nucImprovement -= curMut.length();
+            for (const auto& curMut: curNewMuts) nucImprovement -= curMut.length();
 
             if (nucImprovement > bestParsimonyImprovement) {
                 bestParsimonyImprovement = nucImprovement;
                 bestNewParent = allNodes[nearby.first];
-                bestMutationList = simpleMutations;
+                bestNewMuts = curNewMuts;
             }
         }
     }
 
     if (bestNewParent != nullptr) {
         std::string oldParentID = node->parent->identifier;
-        moveNode(node, bestNewParent, bestMutationList);
+        moveNode(node, bestNewParent, bestNewMuts);
         return oldParentID;
     } else {
         return "";
     }
 }
 
-const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::Tree::findNearbyInsertions(
+const std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > panmanUtils::Tree::findNearbyInsertions(
     panmanUtils::Node* node, const std::vector<panmanUtils::IndelPosition>& mutsToN, int allowedDistance, panmanUtils::Node* ignore,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
 
-    std::unordered_map< std::string, panmanUtils::MutationList > nearbyInsertions;
+    std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > nearbyInsertions;
 
     // Bases cases: nonexistant node or node too far away
     if (node == nullptr || allowedDistance < 0) return nearbyInsertions;
@@ -217,7 +225,7 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
         if (allInsertions[curID].find(curMut) != allInsertions[curID].end()) {
             // Only use if this insertion has non-N nucleotides to contribute
             if (allInsertions[curID][curMut] < curMut.length) {
-                nearbyInsertions.emplace(node->identifier, panmanUtils::MutationList());
+                nearbyInsertions.emplace(node->identifier, std::vector<panmanUtils::NucMut>());
             }
             break;
         }
@@ -229,11 +237,9 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
             for (const auto& nearby: findNearbyInsertions(child, mutsToN, allowedDistance - child->branchLength, 
                                                           node, allInsertions, originalNucs)) {
                 // Add mutations to get to child (which must be reversed)
-                panmanUtils::MutationList toAdd = panmanUtils::MutationList(child);
-                std::vector<panmanUtils::NucMut> nucMutation = toAdd.nucMutation;
-                reverseNucMutations(nucMutation, originalNucs[child->identifier]);
-                toAdd.nucMutation = nucMutation;
-                nearbyInsertions.emplace(nearby.first, nearby.second.concat(toAdd));
+                std::vector<panmanUtils::NucMut> toAdd = child->nucMutation;
+                reverseNucMutations(toAdd, originalNucs[child->identifier]);
+                nearbyInsertions.emplace(nearby.first, concat(nearby.second, toAdd));
             }
         }
     }
@@ -242,14 +248,13 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
         for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance - node->branchLength,
                                                       node, allInsertions, originalNucs)) {
             // Add mutations to get to parent
-            panmanUtils::MutationList toAdd = panmanUtils::MutationList(node);
-            nearbyInsertions.emplace(nearby.first, nearby.second.concat(toAdd));
+            nearbyInsertions.emplace(nearby.first, concat(nearby.second, node->nucMutation));
         }
     }
     return nearbyInsertions;
 }
 
-void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList mutList) {
+void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, std::vector<panmanUtils::NucMut> newMuts) {
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
     allNodes[dummyParent->identifier] = dummyParent;
@@ -263,5 +268,5 @@ void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* n
 
     // TODO: figure out how branch length works
     toMove->branchLength = 1;
-    toMove->nucMutation = mutList.nucMutation;
+    toMove->nucMutation = newMuts;
 }
