@@ -167,7 +167,7 @@ std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
     const std::vector<panmanUtils::IndelPosition>& mutsToN, int allowedDistance,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
-    if (node == nullptr) return "";
+    if (node == nullptr || !node->blockMutation.empty()) return "";
 
     // Tracking best new position so far
     int bestParsimonyImprovement = -1;
@@ -210,7 +210,7 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
     std::unordered_map< std::string, panmanUtils::MutationList > nearbyInsertions;
 
     // Bases cases: nonexistant node or node too far away
-    if (node == nullptr || allowedDistance < 0 || !node->blockMutation.empty()) return nearbyInsertions;
+    if (node == nullptr || allowedDistance < 0) return nearbyInsertions;
 
     std::string curID = node->identifier;
     for (const auto& curMut: mutsToN) {
@@ -225,7 +225,7 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
 
     // Try children
     for (const auto& child: node->children) {
-        if (child != ignore) {
+        if (child != ignore && child->blockMutation.empty()) {
             for (const auto& nearby: findNearbyInsertions(child, mutsToN, allowedDistance - child->branchLength, 
                                                           node, allInsertions, originalNucs)) {
                 // Add mutations to get to child (which must be reversed)
@@ -235,7 +235,7 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
         }
     }
     // Try parent
-    if (node->parent != ignore) {
+    if (node->parent != ignore && node->blockMutation.empty()) {
         for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance - node->branchLength,
                                                       node, allInsertions, originalNucs)) {
             // Add mutations to get to parent
