@@ -58,14 +58,34 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
             allNodes[toImpute.first], toImpute.second, allowedIndelDistance, allInsertions, originalNucs);
     }
     // Make all moves
-    size_t insertionMoves = 0;
+    std::vector<panmanUtils::Node*> oldParents;
     for (const auto& curMove: toMove) {
         if (curMove.second.first != nullptr) {
-            moveNode(allNodes[curMove.first], curMove.second.first, curMove.second.second);
-            insertionMoves++;
+            Node* curNode = allNodes[curMove.first];
+            oldParents.push_back(moveNode(curNode, curMove.second.first, curMove.second.second));
+            // Re-calculate insertions
+            insertions.erase(curNode->identifier);
+            allInsertions.erase(curNode->identifier);
+            fillImputationLookupTablesHelper(curNode, substitutions, insertions, allInsertions, curNucs, originalNucs);
         }
     }
-    std::cout << "Moved " << insertionMoves << "/" << insertions.size() << " nodes with insertions to N" << std::endl;
+    std::cout << "Moved " << oldParents.size() << "/" << insertions.size() << " nodes with insertions to N" << std::endl;
+    int totalInsertions = 0;
+    int descImputations = 0;
+    // Attempt to impute from descendants
+    for (const auto& toImpute: insertions) {
+        for (const auto& curMut: toImpute.second) {
+            totalInsertions++;
+            descImputations += imputeFromDescendant(allNodes[toImpute.first], curMut, allowedIndelDistance);
+        }
+    }
+    std::cout << "Imputed " << descImputations << " /" << totalInsertions << " insertions from descendants" << std::endl;
+    // Compress parents with single children left over from moves
+    for (const auto& curParent: oldParents) {
+        if (curParent != nullptr && curParent->children.size() == 1) {
+            mergeNodes(curParent, curParent->children[0]);
+        }
+    }
 
     // Fix depth/level attributes, post-move
     size_t numLeaves;
@@ -255,7 +275,7 @@ const std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > panman
     return nearbyInsertions;
 }
 
-void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, std::vector<panmanUtils::NucMut> newMuts) {
+panmanUtils::Node* panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, std::vector<panmanUtils::NucMut> newMuts) {
     panmanUtils::Node* oldParent = toMove->parent;
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
@@ -264,10 +284,6 @@ void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* n
     newParent->changeParent(dummyParent);
     toMove->changeParent(dummyParent);
 
-    if (oldParent != nullptr && oldParent->children.size() == 1) {
-        mergeNodes(oldParent, oldParent->children[0]);
-    }
-
     // newParent now has a 0-length branch from the dummy
     newParent->nucMutation.clear();
     newParent->branchLength = 0;
@@ -275,6 +291,8 @@ void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* n
     // TODO: figure out how branch length works
     toMove->branchLength = 1;
     toMove->nucMutation = newMuts;
+
+    return oldParent;
 }
 
 const bool panmanUtils::Tree::imputeFromDescendant(panmanUtils::Node* node, panmanUtils::IndelPosition mutToN, int allowedDistance) {

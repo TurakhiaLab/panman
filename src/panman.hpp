@@ -751,7 +751,8 @@ class Tree {
         std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
         std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Move "toMove" to be a child of "newParent", with node mutations "newMuts"
-    void moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
+    // Returns the old parent node
+    Node* moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
     const bool imputeFromDescendant(Node* node, IndelPosition mutToN, int allowedDistance);
 
     // Fitch Algorithm on Nucleotide mutations
