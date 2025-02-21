@@ -1153,18 +1153,6 @@ class TreeGroup {
 
 namespace std {
     template <>
-    struct hash<panmanUtils::IndelPosition> {
-        size_t operator()(const panmanUtils::IndelPosition& indelPos) const {
-            size_t h1 = std::hash<int32_t>{}(indelPos.pos.nucPosition);
-            size_t h2 = std::hash<int32_t>{}(indelPos.pos.nucGapPosition);
-            size_t h3 = std::hash<int32_t>{}(indelPos.pos.primaryBlockId);
-            size_t h4 = std::hash<int32_t>{}(indelPos.pos.secondaryBlockId);
-            size_t h5 = std::hash<int32_t>{}(indelPos.length);
-            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^ (h5 << 4);
-        }
-    };
-
-    template <>
     struct hash<panmanUtils::Coordinate> {
         size_t operator()(const panmanUtils::Coordinate& coord) const {
             size_t h1 = std::hash<int32_t>{}(coord.nucPosition);
@@ -1172,6 +1160,15 @@ namespace std {
             size_t h3 = std::hash<int32_t>{}(coord.primaryBlockId);
             size_t h4 = std::hash<int32_t>{}(coord.secondaryBlockId);
             return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
+        }
+    };
+    
+    template <>
+    struct hash<panmanUtils::IndelPosition> {
+        size_t operator()(const panmanUtils::IndelPosition& indelPos) const {
+            size_t h1 = std::hash<panmanUtils::Coordinate>{}(indelPos.pos);
+            size_t h2 = std::hash<int32_t>{}(indelPos.length);
+            return h1 ^ (h2 << 4);
         }
     };
 }
