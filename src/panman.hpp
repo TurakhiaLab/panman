@@ -609,8 +609,6 @@ class Tree {
 
     // Iterate through mutations and combine mutations at the same position
     std::vector< NucMut > consolidateNucMutations(const std::vector< NucMut >& nucMutation);
-    // Iterate through and combine block mutations, from first to last
-    const std::vector< BlockMut > consolidateBlockMutations(const std::vector< BlockMut >& blockMutation);
 
     // Used to confirm that consolidateNucMutations worked correctly. Can be removed in
     // production
@@ -626,7 +624,7 @@ class Tree {
     void dfsExpansion(Node* node, std::vector< Node* >& vec);
     Node* transformHelper(Node* node);
     void adjustLevels(Node* node);
-    // Fix .level attributions
+    // Fix .level attributes, as well as .m_maxDepth
     void fixLevels(Node* node, size_t& numLeaves, size_t& totalLeafDepth);
 
     // Check if tree is a polytomy

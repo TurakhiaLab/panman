@@ -2410,45 +2410,6 @@ std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(co
     return consolidatedMutationArray;
 }
 
-const std::vector<panmanUtils::BlockMut> panmanUtils::Tree::consolidateBlockMutations(const std::vector<panmanUtils::BlockMut>& blockMutations) {
-    return blockMutations;
-    // TODO: is this needed?
-    // Tracker for block mutations seen so far
-    std::unordered_map< int32_t, std::unordered_map< int32_t, panmanUtils::BlockMut > > mutMap;
-
-    for (const auto& curMut: blockMutations) {
-        if (mutMap.find(curMut.primaryBlockId) == mutMap.end()) {
-            // No mutation with this primaryBlockId has been seen before
-            mutMap.emplace(curMut.primaryBlockId, std::unordered_map< int32_t, panmanUtils::BlockMut >());
-            mutMap[curMut.primaryBlockId].emplace(curMut.secondaryBlockId, curMut);
-        } else if (mutMap[curMut.primaryBlockId].find(curMut.secondaryBlockId) == mutMap[curMut.primaryBlockId].end()) {
-            // No mutation with this primary/secondaryBlockId has been seen before
-            mutMap[curMut.primaryBlockId].emplace(curMut.secondaryBlockId, curMut);
-        } else {
-            // Two mutations for the same block, must be combined
-            // Notably, mutations are in order from final node to origin node
-            BlockMut otherMut = mutMap[curMut.primaryBlockId][curMut.secondaryBlockId];
-
-            if (curMut.isSimpleInversion() && otherMut.isSimpleInversion()) {
-                // Two inversions cancel out
-                mutMap[curMut.primaryBlockId].erase(curMut.secondaryBlockId);
-            } else if (curMut.isSimpleInversion() && otherMut.isDeletion()) {
-
-            }
-        }
-    }
-
-    // Use all surviving block mutations
-    std::vector<panmanUtils::BlockMut> newBlockMutList;
-    for (const auto& primaries: mutMap) {
-        for (const auto& secondaries: mutMap[primaries.first]) {
-            newBlockMutList.emplace_back(secondaries.second);
-        }
-    }
-
-    return newBlockMutList;
-}
-
 bool panmanUtils::Tree::panMATCoordinateGeq(const std::tuple< int, int, int, int >& coor1,
         const std::tuple< int, int, int, int >& coor2, bool strand) {
 
