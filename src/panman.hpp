@@ -725,17 +725,17 @@ class Tree {
                                 std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
                                 std::unordered_map<Coordinate, int8_t > & curNucs,
                                 std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
-    // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
+    // Attempt to impute a specific substitution in "node", "mutToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
-    void imputeSNV(Node* node, NucMut mutToN);
+    void imputeSubstitution(Node* node, NucMut mutToN);
     // Similar to imputeSNV. "mutToN" is a list of consecutive insertions
     // Tries to find a similar insertion nearby and move to be its child
     // Updates mutations for maximum parsimony
-    // Returns the string of the old parent's ID, on a success, empty string on a failure
-    std::string imputeInsertion(Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
-                                std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-                                std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
+    // Returns a pair of (new parent ID, new mutations)
+    std::pair< Node*, std::vector<NucMut> > imputeInsertion(Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
+                                                            std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
+                                                            std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
