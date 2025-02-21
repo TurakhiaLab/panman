@@ -2269,7 +2269,7 @@ bool panmanUtils::Tree::debugSimilarity(const std::vector< panmanUtils::NucMut >
 }
 
 const void panmanUtils::Tree::reverseNucMutations(std::vector<panmanUtils::NucMut>& nucMutation,
-    std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher >& originalNucs) {
+    std::unordered_map< panmanUtils::Coordinate, int8_t >& originalNucs) {
     // Temporary container for iteration
     for (auto& curMut: nucMutation) {
         // Erase current nucleotides, to prepare for overwriting

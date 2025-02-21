@@ -10,8 +10,8 @@ std::vector<panmanUtils::NucMut> concat(const std::vector<panmanUtils::NucMut>& 
 }
 
 // Build map of all coordinates to their reference/consensus nucleotide
-std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > getNucs(std::vector<panmanUtils::Block> blocks) {
-    std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > nucs;
+std::unordered_map< panmanUtils::Coordinate, int8_t > getNucs(std::vector<panmanUtils::Block> blocks) {
+    std::unordered_map< panmanUtils::Coordinate, int8_t > nucs;
 
     for (const auto& curBlock: blocks) {
         for (int i = 0; i < curBlock.consensusSeq.size(); i++) {
@@ -38,8 +38,8 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< std::string, panmanUtils::NucMut > > substitutions;
     std::unordered_map< std::string, std::vector<panmanUtils::IndelPosition > > insertions;
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > > allInsertions;
-    std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher >  curNucs = getNucs(blocks);
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > > originalNucs;
+    std::unordered_map< panmanUtils::Coordinate, int8_t >  curNucs = getNucs(blocks);
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > > originalNucs;
     
     findMutationsToN(root, substitutions, insertions, allInsertions, curNucs, originalNucs);
 
@@ -76,8 +76,8 @@ const void panmanUtils::Tree::findMutationsToN(panmanUtils::Node* node,
         std::vector< std::pair< std::string, panmanUtils::NucMut > >& substitutions,
         std::unordered_map< std::string, std::vector<panmanUtils::IndelPosition> >& insertions,
         std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
-        std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher >& curNucs,
-        std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
+        std::unordered_map< panmanUtils::Coordinate, int8_t >& curNucs,
+        std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
     if (node == nullptr) return;
 
     std::string curID = node->identifier;
@@ -174,7 +174,7 @@ void panmanUtils::Tree::imputeSNV(panmanUtils::Node* node, NucMut mutToN) {
 std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
     const std::vector<panmanUtils::IndelPosition>& mutsToN, int allowedDistance,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
     if (node == nullptr || !node->blockMutation.empty()) return "";
 
     // Tracking best new position so far
@@ -213,7 +213,7 @@ std::string panmanUtils::Tree::imputeInsertion(panmanUtils::Node* node,
 const std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > panmanUtils::Tree::findNearbyInsertions(
     panmanUtils::Node* node, const std::vector<panmanUtils::IndelPosition>& mutsToN, int allowedDistance, panmanUtils::Node* ignore,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t, panmanUtils::CoordinateHasher > >& originalNucs) {
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
 
     std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > nearbyInsertions;
 

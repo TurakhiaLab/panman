@@ -368,16 +368,6 @@ struct Coordinate {
     }
 };
 
-struct CoordinateHasher {
-    size_t operator()(const panmanUtils::Coordinate& coord) const {
-        size_t h1 = std::hash<int32_t>{}(coord.nucPosition);
-        size_t h2 = std::hash<int32_t>{}(coord.nucGapPosition);
-        size_t h3 = std::hash<int32_t>{}(coord.primaryBlockId);
-        size_t h4 = std::hash<int32_t>{}(coord.secondaryBlockId);
-        return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
-    }
-};
-
 struct IndelPosition {
     Coordinate pos;
     int32_t length;
@@ -615,7 +605,7 @@ class Tree {
                                           std::pair<int, int> newMutation);
     // Convert mutations to their exact inverse, i.e. mutations from child to parent
     const void reverseNucMutations(std::vector<NucMut>& nucMutation,
-        std::unordered_map< Coordinate, int8_t, CoordinateHasher >& originalNucs);
+        std::unordered_map< Coordinate, int8_t >& originalNucs);
 
     // Iterate through mutations and combine mutations at the same position
     std::vector< NucMut > consolidateNucMutations(const std::vector< NucMut >& nucMutation);
@@ -713,8 +703,8 @@ class Tree {
                                 std::vector< std::pair < std::string, NucMut > >& substitutions,
                                 std::unordered_map< std::string, std::vector<IndelPosition> >& insertions,
                                 std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-                                std::unordered_map<Coordinate, int8_t, CoordinateHasher > & curNucs,
-                                std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
+                                std::unordered_map<Coordinate, int8_t > & curNucs,
+                                std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Attempt to impute a specific SNV in "node", "muteToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
@@ -725,14 +715,14 @@ class Tree {
     // Returns the string of the old parent's ID, on a success, empty string on a failure
     std::string imputeInsertion(Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
                                 std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-                                std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
+                                std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
     const std::unordered_map< std::string, std::vector<NucMut> > findNearbyInsertions(
         Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance, Node* ignore,
         std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t, CoordinateHasher > >& originalNucs);
+        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Move "toMove" to be a child of "newParent", with node mutations "newMuts"
     void moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
 
@@ -1173,6 +1163,17 @@ namespace std {
             size_t h4 = std::hash<int32_t>{}(indelPos.pos.secondaryBlockId);
             size_t h5 = std::hash<int32_t>{}(indelPos.length);
             return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3) ^ (h5 << 4);
+        }
+    };
+
+    template <>
+    struct hash<panmanUtils::Coordinate> {
+        size_t operator()(const panmanUtils::Coordinate& coord) const {
+            size_t h1 = std::hash<int32_t>{}(coord.nucPosition);
+            size_t h2 = std::hash<int32_t>{}(coord.nucGapPosition);
+            size_t h3 = std::hash<int32_t>{}(coord.primaryBlockId);
+            size_t h4 = std::hash<int32_t>{}(coord.secondaryBlockId);
+            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
         }
     };
 }
