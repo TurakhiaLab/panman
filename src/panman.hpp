@@ -537,6 +537,28 @@ class Node {
     }
 };
 
+// TODO: use this
+struct MutationList {
+    std::vector<NucMut> nucMutation;
+    std::vector<BlockMut> blockMutation;
+
+    // Copy mutations from a node
+    MutationList(Node* node) {
+        nucMutation = node->nucMutation;
+        blockMutation = node->blockMutation;       
+    }
+
+    // Convert mutations to their exact inverse, i.e. mutations from child to parent
+    void reverse(std::unordered_map< Coordinate, int8_t > originalNucs,
+        std::unordered_map< uint64_t, std::pair<bool, bool>> originalBlocks);
+
+    // Append another MutationList to the end of this one
+    void append(const MutationList& other) {
+        nucMutation.insert(nucMutation.end(), other.nucMutation.begin(), other.nucMutation.end());
+        blockMutation.insert(blockMutation.end(), other.blockMutation.begin(), other.blockMutation.end());
+    }
+};
+
 // Data structure to represent a PangenomeMAT
 class Tree {
   private:
