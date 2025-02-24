@@ -64,43 +64,16 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
             Node* curNode = allNodes[curMove.first];
             if (curNode->parent != nullptr) oldParents.push_back(curNode->parent);
 
-            std::string dummyParentID = moveNode(curNode, curMove.second.first, curMove.second.second);
-
-            // Transfer insertions from curMove.second.first to new dummy parent
-            std::string newSibling = curMove.second.first->identifier;
-            insertions[dummyParentID] = insertions[newSibling];
-            allInsertions[dummyParentID] = allInsertions[newSibling];
-            insertions[newSibling].clear();
-            allInsertions[newSibling].clear();
-
-            // Re-calculate insertions for the moved node
-            insertions.erase(curMove.first);
-            allInsertions.erase(curMove.first);
-            fillImputationLookupTablesHelper(curNode, substitutions, insertions, allInsertions, curNucs, originalNucs);
+            moveNode(curNode, curMove.second.first, curMove.second.second);
         }
     }
-    std::cout << "Moved " << oldParents.size() << "/" << insertions.size() << " nodes with insertions to N" << std::endl;
-    int totalInsertions = 0;
-    int descImputations = 0;
-    // Attempt to impute from descendants
-    for (const auto& toImpute: insertions) {
-        for (const auto& curMut: toImpute.second) {
-            totalInsertions++;
-            descImputations += imputeFromDescendant(allNodes[toImpute.first], curMut, allowedIndelDistance, allInsertions);
-        }
-    }
-    std::cout << "Imputed " << descImputations << " /" << totalInsertions << " insertions from descendants" << std::endl;
     // Compress parents with single children left over from moves
     for (const auto& curParent: oldParents) {
         if (curParent->children.size() == 1) {
-            std::string parentID = curParent->identifier;
-            std::string childID = curParent->children[0]->identifier;
             mergeNodes(curParent, curParent->children[0]);
-            // Combine child & parent insertions
-            insertions[childID].insert(insertions[childID].end(), insertions[parentID].begin(), insertions[parentID].end());
-            allInsertions[childID].insert(allInsertions[parentID].begin(), allInsertions[parentID].end());
         }
     }
+    std::cout << "Moved " << oldParents.size() << "/" << insertions.size() << " nodes with insertions to N" << std::endl;
 
     // Fix depth/level attributes, post-move
     size_t numLeaves;
@@ -292,8 +265,7 @@ const std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > panman
     return nearbyInsertions;
 }
 
-std::string panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, std::vector<panmanUtils::NucMut> newMuts) {
-    panmanUtils::Node* oldParent = toMove->parent;
+void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, std::vector<panmanUtils::NucMut> newMuts) {
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
     allNodes[dummyParent->identifier] = dummyParent;
@@ -308,101 +280,4 @@ std::string panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::
     // TODO: figure out how branch length works
     toMove->branchLength = 1;
     toMove->nucMutation = newMuts;
-
-    return dummyParent->identifier;
-}
-
-
-
-const bool panmanUtils::Tree::imputeFromDescendant(panmanUtils::Node* node, 
-    const panmanUtils::IndelPosition& mutToN, int allowedDistance,
-    const std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions) {
-    if (node == nullptr) return false;
-    
-    std::vector<panmanUtils::Node*> bestChildPath;
-    int32_t bestChildLength;
-    for (const auto& curPath: findChildInsertions(node, mutToN, allowedDistance, allInsertions)) {
-        if (bestChildPath.size() > 1 || curPath.second < bestChildLength) {
-            bestChildPath = curPath.first;
-            bestChildLength = curPath.second;
-        }
-    }
-
-    // Did imputing from this child succeed?
-    // TODO: allow imputing from further children if the closests fails?
-    bool success = false;
-    if (!bestChildPath.empty()) {
-        if (bestChildPath.size() >= 5) {
-            panmanUtils::Node* child = bestChildPath[0];
-            // Find where the parent/child insertions are
-            int parentI, childI;
-            for (int i = 0; i < node->nucMutation.size(); i++) {
-                if (panmanUtils::Coordinate(node->nucMutation[i]) == mutToN.pos) {
-                    parentI = i;
-                    break;
-                }
-            }
-            for (int i = 0; i < child->nucMutation.size(); i++) {
-                if (panmanUtils::Coordinate(child->nucMutation[i]) == mutToN.pos) {
-                    childI = i;
-                    break;
-                }
-            }
-            // Copy child values up to parent
-            int parentJ = 0;
-            int childJ = 0;
-            int8_t parentNuc, childNuc;
-            for (int i = 0; i < mutToN.length; i++) {
-                parentNuc = node->nucMutation[parentI].getNucCode(parentJ);
-                childNuc = child->nucMutation[childI].getNucCode(childJ);
-                if (parentNuc == panmanUtils::NucCode::N && childNuc != panmanUtils::NucCode::N) {
-                    node->nucMutation[parentI].changeNucCode(childNuc, parentJ);
-                    success = true;
-                }
-                // Update pointers to move to the next inserted nucleotide
-                parentJ++;
-                if (parentJ == node->nucMutation[parentI].length()) {
-                    parentI++;
-                    parentJ = 0;
-                }
-                childJ++;
-                if (childJ == child->nucMutation[childI].length()) {
-                    childI++;
-                    childJ = 0;
-                }
-            }
-        } else {
-            std::cout << "path from " << bestChildPath[0]->identifier << " to " << node->identifier << ": ";
-        }
-    }
-    return success;
-}
-
-const std::vector< std::pair< std::vector<panmanUtils::Node*>, int32_t > > panmanUtils::Tree::findChildInsertions(
-    panmanUtils::Node* node, const panmanUtils::IndelPosition& mutToN, int allowedDistance,
-    const std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions) {
-    
-    std::vector< std::pair< std::vector<panmanUtils::Node*>, int32_t > > childInsertions;
-
-    // Bases cases: nonexistant node or node too far away
-    if (node == nullptr || allowedDistance < 0) return childInsertions;
-
-    std::string curID = node->identifier;
-    if (allInsertions.at(curID).find(mutToN) != allInsertions.at(curID).end()) {
-        // Only use if this insertion has non-N nucleotides to contribute
-        if (allInsertions.at(curID).at(mutToN) < mutToN.length) {
-            std::vector<panmanUtils::Node*> path = {node};
-            childInsertions.emplace_back(path, node->branchLength);
-        }
-    }
-
-    for (const auto& child: node->children) {
-        for (const auto& nearby: findChildInsertions(child, mutToN, allowedDistance - child->branchLength, allInsertions)) {
-            std::vector<panmanUtils::Node*> path = nearby.first;
-            path.push_back(node);
-            childInsertions.emplace_back(path, nearby.second + node->branchLength);
-        }
-    }
-
-    return childInsertions;
 }

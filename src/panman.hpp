@@ -281,13 +281,6 @@ struct NucMut {
         nucs += (newNuc << (4*(5-i)));
     }
 
-    // Change the ith nucleotide to a new one
-    void changeNucCode(int8_t newNuc, int i) {
-        int oldNucCode = getNucCode(i);
-        nucs -= (oldNucCode << (4*(5-i)));
-        addNucCode(newNuc, i);
-    }
-
     // Set to have a single nucleotide (for NSNPX types)
     void setSingleNucCode(int8_t newNuc) {
         nucs = 0;
@@ -759,19 +752,7 @@ class Tree {
         const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
         const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Move "toMove" to be a child of "newParent", with node mutations "newMuts"
-    // Returns new (dummy) parent ID
-    std::string moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
-    // Attempt to impute a specific insertion in "node", "mutToN" which mutated TO N
-    // Searches only direct descendants
-    // Returns whether the imputation was a success
-    const bool imputeFromDescendant(Node* node, const IndelPosition& mutToN, int allowedDistance,
-        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions);
-    // Find insertions the size/position of "mutToN" within "allowedDistance" branch length down from "node"
-    // Relies on a precompted map of nodes to insertion positions
-    // Returns a list of (node paths, branch length) where the node paths start from the child
-    const std::vector< std::pair< std::vector<Node*>, int32_t > > findChildInsertions(
-        Node* node, const IndelPosition& mutToN, int allowedDistance,
-        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions);
+    void moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
