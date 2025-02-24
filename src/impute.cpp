@@ -36,13 +36,12 @@ std::unordered_map< panmanUtils::Coordinate, int8_t > getNucs(std::vector<panman
 
 void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< std::string, panmanUtils::NucMut > > substitutions;
-    std::unordered_map< std::string, std::vector<panmanUtils::IndelPosition > > insertions;
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > > allInsertions;
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > > insertions;
     std::unordered_map< panmanUtils::Coordinate, int8_t >  curNucs = getNucs(blocks);
     std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > > originalNucs;
     
     // Make one pre-order pass over the tree, building lookup tables
-    fillImputationLookupTables(root, substitutions, insertions, allInsertions, curNucs, originalNucs);
+    fillImputationLookupTables(root, substitutions, insertions, curNucs, originalNucs);
 
     // Impute all substitutions (100% success rate)
     for (const auto& toImpute: substitutions) {
@@ -51,12 +50,30 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::cout << "Imputed " << substitutions.size() << "/" << substitutions.size() << " SNPs/MNPs to N" << std::endl;
     
     // Attempt to impute insertions
-    // Find possible places to move nodes to for insertion imputation
+
+    // Store {node ID to move : {node to move under, new mutations}} for all imputation attempts
     std::unordered_map< std::string, std::pair< panmanUtils::Node*, std::vector<panmanUtils::NucMut> > > toMove;
+    // Must filter "insertions" to just those with Ns
+    std::vector<panmanUtils::IndelPosition> insertionsWithNs;
+    int insertionImputationAttempts = 0;
+
+    // Find possible places to move nodes to for insertion imputation
     for (const auto& toImpute: insertions) {
-        toMove[toImpute.first] = findInsertionImputationMove(
-            allNodes[toImpute.first], toImpute.second, allowedIndelDistance, allInsertions, originalNucs);
+        insertionsWithNs.clear();
+        for (const auto& curInsertion: toImpute.second) {
+            if (curInsertion.second > 0) {
+                insertionsWithNs.push_back(curInsertion.first);
+            }
+        }
+
+        // Only attempt an imputation if necessary
+        if (!insertionsWithNs.empty()) {
+            insertionImputationAttempts++;
+            toMove[toImpute.first] = findInsertionImputationMove(
+                allNodes[toImpute.first], insertionsWithNs, allowedIndelDistance, insertions, originalNucs);
+        }
     }
+
     // Make all moves
     std::vector<panmanUtils::Node*> oldParents;
     for (const auto& curMove: toMove) {
@@ -67,13 +84,15 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
             moveNode(curNode, curMove.second.first, curMove.second.second);
         }
     }
+
     // Compress parents with single children left over from moves
     for (const auto& curParent: oldParents) {
         if (curParent->children.size() == 1) {
             mergeNodes(curParent, curParent->children[0]);
         }
     }
-    std::cout << "Moved " << oldParents.size() << "/" << insertions.size() << " nodes with insertions to N" << std::endl;
+
+    std::cout << "Moved " << oldParents.size() << "/" << insertionImputationAttempts << " nodes with insertions to N" << std::endl;
 
     // Fix depth/level attributes, post-move
     size_t numLeaves;
@@ -84,16 +103,15 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
 
 const void panmanUtils::Tree::fillImputationLookupTables(panmanUtils::Node* node, 
         std::vector< std::pair< std::string, panmanUtils::NucMut > >& substitutions,
-        std::unordered_map< std::string, std::vector<panmanUtils::IndelPosition> >& insertions,
-        std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
+        std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
         std::unordered_map< panmanUtils::Coordinate, int8_t >& curNucs,
         std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
     if (node == nullptr) return;
 
-    fillImputationLookupTablesHelper(node, substitutions, insertions, allInsertions, curNucs, originalNucs);
+    fillImputationLookupTablesHelper(node, substitutions, insertions, curNucs, originalNucs);
 
     for(auto child: node->children) {
-        fillImputationLookupTables(child, substitutions, insertions, allInsertions, curNucs, originalNucs);
+        fillImputationLookupTables(child, substitutions, insertions, curNucs, originalNucs);
     }
 
     // Undo mutations before passing back up the tree
@@ -109,8 +127,7 @@ const void panmanUtils::Tree::fillImputationLookupTables(panmanUtils::Node* node
 
 const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node* node, 
     std::vector< std::pair< std::string, panmanUtils::NucMut > >& substitutions,
-    std::unordered_map< std::string, std::vector<panmanUtils::IndelPosition> >& insertions,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
     std::unordered_map< panmanUtils::Coordinate, int8_t >& curNucs,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
     
@@ -154,17 +171,7 @@ const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node
     }
 
     // Transfer curNodeInsertions into insertions and allInsertions
-    // TODO: now that allInsertions stores numNs, could get away with storing only it
-    insertions[curID] = std::vector<panmanUtils::IndelPosition>();
-    allInsertions[curID] = std::unordered_map< panmanUtils::IndelPosition, int32_t >();
-
-    for (const auto& curInsert: curNodeInsertions) {
-        allInsertions[curID].emplace(curInsert.first, curInsert.second);
-        if (curInsert.second > 0) insertions[curID].push_back(curInsert.first);
-    }
-
-    // If no insertions have Ns, don't store this node as needing insertions
-    if (insertions[curID].empty()) insertions.erase(curID);
+    std::copy(curNodeInsertions.begin(), curNodeInsertions.end(), std::inserter(insertions[curID], insertions[curID].begin()));
 }
 
 const void panmanUtils::Tree::imputeSubstitution(panmanUtils::Node* node, NucMut mutToN) {

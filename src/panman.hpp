@@ -718,38 +718,37 @@ class Tree {
     // Run fillImputationLookupTablesHelper() on all nodes in subtree with root "node"
     const void fillImputationLookupTables(Node* node,
         std::vector< std::pair < std::string, NucMut > >& substitutions,
-        std::unordered_map< std::string, std::vector<IndelPosition> >& insertions,
-        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-        std::unordered_map<Coordinate, int8_t > & curNucs,
+        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
+        std::unordered_map<Coordinate, int8_t >& curNucs,
         std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Fill "substitutions" and "insertions" with all mutations TO N in "node"
-    // Fill "allInsertions" map with {node ID : {all insertion positions}}
+    // "substitutions" beomces a vector of (node ID, substitution with Ns) pairs
+    // "insertions" becomes a map of {node ID : {insertion position : number of Ns}}
     // Keep track of "curNucs" map with {coordinate : nucleotide} at "node", used for "originalNucs"
     // Fill "originalNucs" map with {node ID : {coordianate : nucleotide}} for original nucleotides of subsitutions/deletions
     const void fillImputationLookupTablesHelper(Node* node,
         std::vector< std::pair < std::string, NucMut > >& substitutions,
-        std::unordered_map< std::string, std::vector<IndelPosition> >& insertions,
-        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-        std::unordered_map<Coordinate, int8_t > & curNucs,
+        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
+        std::unordered_map<Coordinate, int8_t >& curNucs,
         std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Attempt to impute a specific substitution in "node", "mutToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
     const void imputeSubstitution(Node* node, NucMut mutToN);
-    // Tries to find a similar insertion for each in "mutstoN" within "allowedDistance" branch length from "node"
+    // Tries to find a similar insertion for each in "mutsToN" within "allowedDistance" branch length from "node"
     // Searches in all directions but direct descendants
     // Calculates necessary change in mutations to move there and if moving would increase parsimony
     // Returns a pair of (new parent, new mutations) for a parsimony improvement
     const std::pair< Node*, std::vector<NucMut> > findInsertionImputationMove(
         Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
-        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
+        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
         const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
     const std::unordered_map< std::string, std::vector<NucMut> > findNearbyInsertions(
         Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance, Node* ignore,
-        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
+        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
         const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Move "toMove" to be a child of "newParent", with node mutations "newMuts"
     void moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
