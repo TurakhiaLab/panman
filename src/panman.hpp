@@ -752,9 +752,19 @@ class Tree {
         const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
         const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Move "toMove" to be a child of "newParent", with node mutations "newMuts"
-    // Returns the old parent node
-    Node* moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
-    const bool imputeFromDescendant(Node* node, IndelPosition mutToN, int allowedDistance);
+    // Returns new (dummy) parent ID
+    std::string moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
+    // Attempt to impute a specific insertion in "node", "mutToN" which mutated TO N
+    // Searches only direct descendants
+    // Returns whether the imputation was a success
+    const bool imputeFromDescendant(Node* node, const IndelPosition& mutToN, int allowedDistance,
+        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions);
+    // Find insertions the size/position of "mutToN" within "allowedDistance" branch length down from "node"
+    // Relies on a precompted map of nodes to insertion positions
+    // Returns a list of (node paths, branch length). hwere the node paths start from the child
+    const std::vector< std::pair< std::vector<Node*>, int32_t > > findChildInsertions(
+        Node* node, const IndelPosition& mutToN, int allowedDistance,
+        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
