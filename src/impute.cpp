@@ -312,14 +312,70 @@ std::string panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::
     return dummyParent->identifier;
 }
 
+
+
 const bool panmanUtils::Tree::imputeFromDescendant(panmanUtils::Node* node, 
     const panmanUtils::IndelPosition& mutToN, int allowedDistance,
     const std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions) {
     if (node == nullptr) return false;
+    
+    std::vector<panmanUtils::Node*> bestChildPath;
+    int32_t bestChildLength;
+    for (const auto& curPath: findChildInsertions(node, mutToN, allowedDistance, allInsertions)) {
+        if (bestChildPath.size() > 1 || curPath.second < bestChildLength) {
+            bestChildPath = curPath.first;
+            bestChildLength = curPath.second;
+        }
+    }
 
-    std::vector< std::pair< std::vector<panmanUtils::Node*>, int32_t > > childInsertions = findChildInsertions(
-        node, mutToN, allowedDistance, allInsertions);
-    return false;
+    // Did imputing from this child succeed?
+    // TODO: allow imputing from further children if the closests fails?
+    bool success = false;
+    if (!bestChildPath.empty()) {
+        if (bestChildPath.size() >= 5) {
+            panmanUtils::Node* child = bestChildPath[0];
+            // Find where the parent/child insertions are
+            int parentI, childI;
+            for (int i = 0; i < node->nucMutation.size(); i++) {
+                if (panmanUtils::Coordinate(node->nucMutation[i]) == mutToN.pos) {
+                    parentI = i;
+                    break;
+                }
+            }
+            for (int i = 0; i < child->nucMutation.size(); i++) {
+                if (panmanUtils::Coordinate(child->nucMutation[i]) == mutToN.pos) {
+                    childI = i;
+                    break;
+                }
+            }
+            // Copy child values up to parent
+            int parentJ = 0;
+            int childJ = 0;
+            int8_t parentNuc, childNuc;
+            for (int i = 0; i < mutToN.length; i++) {
+                parentNuc = node->nucMutation[parentI].getNucCode(parentJ);
+                childNuc = child->nucMutation[childI].getNucCode(childJ);
+                if (parentNuc == panmanUtils::NucCode::N && childNuc != panmanUtils::NucCode::N) {
+                    node->nucMutation[parentI].changeNucCode(childNuc, parentJ);
+                    success = true;
+                }
+                // Update pointers to move to the next inserted nucleotide
+                parentJ++;
+                if (parentJ == node->nucMutation[parentI].length()) {
+                    parentI++;
+                    parentJ = 0;
+                }
+                childJ++;
+                if (childJ == child->nucMutation[childI].length()) {
+                    childI++;
+                    childJ = 0;
+                }
+            }
+        } else {
+            std::cout << "path from " << bestChildPath[0]->identifier << " to " << node->identifier << ": ";
+        }
+    }
+    return success;
 }
 
 const std::vector< std::pair< std::vector<panmanUtils::Node*>, int32_t > > panmanUtils::Tree::findChildInsertions(
