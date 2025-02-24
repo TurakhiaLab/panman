@@ -2269,7 +2269,7 @@ bool panmanUtils::Tree::debugSimilarity(const std::vector< panmanUtils::NucMut >
 }
 
 const void panmanUtils::Tree::reverseNucMutations(std::vector<panmanUtils::NucMut>& nucMutation,
-    std::unordered_map< panmanUtils::Coordinate, int8_t >& originalNucs) {
+    const std::unordered_map< panmanUtils::Coordinate, int8_t >& originalNucs) {
     // Temporary container for iteration
     for (auto& curMut: nucMutation) {
         // Erase current nucleotides, to prepare for overwriting
@@ -2286,7 +2286,7 @@ const void panmanUtils::Tree::reverseNucMutations(std::vector<panmanUtils::NucMu
             curMut.mutInfo += panmanUtils::NucMutationType::NSNPI - panmanUtils::NucMutationType::NSNPD;
         // Substitution back to original nucleotide
         case panmanUtils::NucMutationType::NSNPS:
-            curMut.addNucCode(originalNucs[panmanUtils::Coordinate(curMut)], 0);
+            curMut.addNucCode(originalNucs.at(panmanUtils::Coordinate(curMut)), 0);
             break;
         // Same as above, but with handling for multiple nucleotides
         case panmanUtils::NucMutationType::NI:
@@ -2299,7 +2299,7 @@ const void panmanUtils::Tree::reverseNucMutations(std::vector<panmanUtils::NucMu
             curMut.mutInfo += panmanUtils::NucMutationType::NI - panmanUtils::NucMutationType::ND;
         case panmanUtils::NucMutationType::NS:
             for (int i = 0; i < curMut.length(); i++) {
-                curMut.addNucCode(originalNucs[panmanUtils::Coordinate(curMut, i)], i);
+                curMut.addNucCode(originalNucs.at(panmanUtils::Coordinate(curMut, i)), i);
             }
             break;
         }

@@ -128,6 +128,8 @@ const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node
     
     std::string curID = node->identifier;
     std::vector< std::pair< panmanUtils::IndelPosition, int32_t > > curNodeInsertions;
+    // Will store the parent's nucleotide at all positions with an insertion, to allow reversability
+    originalNucs[node->identifier] = std::unordered_map< panmanUtils::Coordinate, int8_t >();
 
     for (const auto& curMut: node->nucMutation) {
         int numNs = 0;
@@ -197,8 +199,8 @@ const void panmanUtils::Tree::imputeSubstitution(panmanUtils::Node* node, NucMut
 
 const std::pair< panmanUtils::Node*, std::vector<panmanUtils::NucMut> > panmanUtils::Tree::findInsertionImputationMove(
     panmanUtils::Node* node, const std::vector<panmanUtils::IndelPosition>& mutsToN, int allowedDistance,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
+    const std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
+    const std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
     // Certain cases are simply impossible
     if (node == nullptr || !node->blockMutation.empty()) {
         return std::make_pair(nullptr, std::vector<panmanUtils::NucMut>());
@@ -233,8 +235,8 @@ const std::pair< panmanUtils::Node*, std::vector<panmanUtils::NucMut> > panmanUt
 
 const std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > panmanUtils::Tree::findNearbyInsertions(
     panmanUtils::Node* node, const std::vector<panmanUtils::IndelPosition>& mutsToN, int allowedDistance, panmanUtils::Node* ignore,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
+    const std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
+    const std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
 
     std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > nearbyInsertions;
 
@@ -243,9 +245,9 @@ const std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > panman
 
     std::string curID = node->identifier;
     for (const auto& curMut: mutsToN) {
-        if (allInsertions[curID].find(curMut) != allInsertions[curID].end()) {
+        if (allInsertions.at(curID).find(curMut) != allInsertions.at(curID).end()) {
             // Only use if this insertion has non-N nucleotides to contribute
-            if (allInsertions[curID][curMut] < curMut.length) {
+            if (allInsertions.at(curID).at(curMut) < curMut.length) {
                 nearbyInsertions.emplace(node->identifier, std::vector<panmanUtils::NucMut>());
             }
             break;
@@ -255,12 +257,12 @@ const std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > panman
     // Try children
     for (const auto& child: node->children) {
         if (child != ignore && child->blockMutation.empty()) {
+            // Add mutations to get to child (which must be reversed)
+            std::vector<panmanUtils::NucMut> toAdd = child->nucMutation;
+            reverseNucMutations(toAdd, originalNucs.at(child->identifier));
             for (const auto& nearby: findNearbyInsertions(child, mutsToN, allowedDistance - child->branchLength, 
                                                           node, allInsertions, originalNucs)) {
-                // Add mutations to get to child (which must be reversed)
-                std::vector<panmanUtils::NucMut> toAdd = child->nucMutation;
-                reverseNucMutations(toAdd, originalNucs[child->identifier]);
-                nearbyInsertions.emplace(nearby.first, concat(nearby.second, toAdd));
+                nearbyInsertions[nearby.first] = concat(nearby.second, toAdd);
             }
         }
     }
@@ -269,7 +271,7 @@ const std::unordered_map< std::string, std::vector<panmanUtils::NucMut> > panman
         for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance - node->branchLength,
                                                       node, allInsertions, originalNucs)) {
             // Add mutations to get to parent
-            nearbyInsertions.emplace(nearby.first, concat(nearby.second, node->nucMutation));
+            nearbyInsertions[nearby.first] = concat(nearby.second, node->nucMutation);
         }
     }
     return nearbyInsertions;

@@ -627,7 +627,7 @@ class Tree {
                                           std::pair<int, int> newMutation);
     // Convert mutations to their exact inverse, i.e. mutations from child to parent
     const void reverseNucMutations(std::vector<NucMut>& nucMutation,
-        std::unordered_map< Coordinate, int8_t >& originalNucs);
+        const std::unordered_map< Coordinate, int8_t >& originalNucs);
 
     // Iterate through mutations and combine mutations at the same position
     std::vector< NucMut > consolidateNucMutations(const std::vector< NucMut >& nucMutation);
@@ -737,19 +737,20 @@ class Tree {
     // Updates mutations for maximum parsimony
     const void imputeSubstitution(Node* node, NucMut mutToN);
     // Tries to find a similar insertion for each in "mutstoN" within "allowedDistance" branch length from "node"
+    // Searches in all directions but direct descendants
     // Calculates necessary change in mutations to move there and if moving would increase parsimony
     // Returns a pair of (new parent, new mutations) for a parsimony improvement
     const std::pair< Node*, std::vector<NucMut> > findInsertionImputationMove(
         Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
-        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
+        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
+        const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
     const std::unordered_map< std::string, std::vector<NucMut> > findNearbyInsertions(
         Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance, Node* ignore,
-        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
+        const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& allInsertions,
+        const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Move "toMove" to be a child of "newParent", with node mutations "newMuts"
     // Returns the old parent node
     Node* moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
