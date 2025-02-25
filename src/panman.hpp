@@ -468,6 +468,10 @@ struct BlockMut {
 
     // Readable way to check if this is a non-insertion inversion
     bool isSimpleInversion() const { return !blockMutInfo && inversion; }
+
+    uint64_t singleBlockID() const { 
+        return ((uint32_t) primaryBlockId << 32) + (uint32_t)secondaryBlockId;
+    }
 };
 
 // List of default blocks in the global coordinate system of the PanMAT
@@ -481,6 +485,10 @@ struct Block {
     Block(size_t primaryBlockId, std::string seq);
     // seq is a compressed form of the sequence where each nucleotide is stored in 4 bytes
     Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);  
+
+    uint64_t singleBlockID() const { 
+        return ((uint32_t) primaryBlockId << 32) + (uint32_t)secondaryBlockId;
+    }
 };
 
 // List of gaps in the global coordinate system of the PanMAT
@@ -549,8 +557,8 @@ struct MutationList {
     }
 
     // Convert mutations to their exact inverse, i.e. mutations from child to parent
-    void reverse(std::unordered_map< Coordinate, int8_t > originalNucs,
-        std::unordered_map< uint64_t, std::pair<bool, bool>> originalBlocks);
+    void reverse(const std::unordered_map< Coordinate, int8_t >& originalNucs,
+        const std::unordered_map< uint64_t, bool >& wasBlockInv);
 
     // Append another MutationList to the end of this one
     void append(const MutationList& other) {
@@ -715,22 +723,38 @@ class Tree {
     // Functions for imputation of Ns
     // Impute all Ns in the Tree (meant for external use)
     void imputeNs(int allowedIndelDistance);
-    // Run fillImputationLookupTablesHelper() on all nodes in subtree with root "node"
-    const void fillImputationLookupTables(Node* node,
-        std::vector< std::pair < std::string, NucMut > >& substitutions,
-        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
-        std::unordered_map<Coordinate, int8_t >& curNucs,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
-    // Fill "substitutions" and "insertions" with all mutations TO N in "node"
+    // Fill "substitutions" and "insertions" with all mutations TO N
     // "substitutions" beomces a vector of (node ID, substitution with Ns) pairs
     // "insertions" becomes a map of {node ID : {insertion position : number of Ns}}
+    // "originalNucs" becomes a map of {node ID : {coordianate : nucleotide}} for original nucleotides of subsitutions/deletions
+    // "wasBlockInv" becomes a map of {node ID : {block IDs : is inversion}} for original block states of deletions
+    const void fillImputationLookupTables(
+        std::vector< std::pair < std::string, NucMut > >& substitutions,
+        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
+        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
+        std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv);
+    // Run fillImputationLookupTables for subtree with root "node"
     // Keep track of "curNucs" map with {coordinate : nucleotide} at "node", used for "originalNucs"
-    // Fill "originalNucs" map with {node ID : {coordianate : nucleotide}} for original nucleotides of subsitutions/deletions
+    // Keep track of "isInv" map with {block IDs : is inversion} at "node", used for "wasBlockInv"
     const void fillImputationLookupTablesHelper(Node* node,
         std::vector< std::pair < std::string, NucMut > >& substitutions,
         std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
+        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
         std::unordered_map<Coordinate, int8_t >& curNucs,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
+        std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv,
+        std::unordered_map< uint64_t, bool >& isInv);
+    // Fill "substitutions", "insertions", and "originalNucs" using nucleotide mutations in "node"
+    // Keep track of "curNucs" map with {coordinate : nucleotide} at "node", used for "originalNucs"
+    const void fillNucleotideLookupTables(Node* node,
+        std::vector< std::pair < std::string, NucMut > >& substitutions,
+        std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
+        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
+        std::unordered_map<Coordinate, int8_t >& curNucs);
+    // Fill "wasBlockInv" using block mutations in "node"
+    // Keep track of "isInv" map with {block IDs : is inversion} at "node", used for "wasBlockInv"
+    const void fillBlockLookupTables(Node* node,
+        std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv,
+        std::unordered_map< uint64_t, bool >& isInv);
     // Attempt to impute a specific substitution in "node", "mutToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony

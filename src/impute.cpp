@@ -37,11 +37,11 @@ std::unordered_map< panmanUtils::Coordinate, int8_t > getNucs(std::vector<panman
 void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< std::string, panmanUtils::NucMut > > substitutions;
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > > insertions;
-    std::unordered_map< panmanUtils::Coordinate, int8_t >  curNucs = getNucs(blocks);
     std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > > originalNucs;
+    std::unordered_map< std::string, std::unordered_map< uint64_t, bool > > wasBlockInv;
     
-    // Make one pre-order pass over the tree, building lookup tables
-    fillImputationLookupTables(root, substitutions, insertions, curNucs, originalNucs);
+    // Make pre-order pass over the tree, building lookup tables
+    fillImputationLookupTables(substitutions, insertions, originalNucs, wasBlockInv);
 
     // Impute all substitutions (100% success rate)
     for (const auto& toImpute: substitutions) {
@@ -101,17 +101,37 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     m_meanDepth = totalLeafDepth / numLeaves;
 }
 
-const void panmanUtils::Tree::fillImputationLookupTables(panmanUtils::Node* node, 
-        std::vector< std::pair< std::string, panmanUtils::NucMut > >& substitutions,
-        std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
-        std::unordered_map< panmanUtils::Coordinate, int8_t >& curNucs,
-        std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
+const void panmanUtils::Tree::fillImputationLookupTables( 
+    std::vector< std::pair < std::string, panmanUtils::NucMut > >& substitutions,
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs,
+    std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv) {
+    
+    // Prepare current-state trackers
+    std::unordered_map< panmanUtils::Coordinate, int8_t > curNucs = getNucs(blocks);
+     std::unordered_map< uint64_t, bool > isInv;
+    for (const auto& curBlock: blocks) {
+        isInv[curBlock.singleBlockID()] = false;
+    }
+
+    fillImputationLookupTablesHelper(root, substitutions, insertions, originalNucs, curNucs, wasBlockInv, isInv);
+}
+
+const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node* node, 
+    std::vector< std::pair < std::string, panmanUtils::NucMut > >& substitutions,
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs,
+    std::unordered_map<panmanUtils::Coordinate, int8_t >& curNucs,
+    std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv,
+    std::unordered_map< uint64_t, bool >& isInv) {
+
     if (node == nullptr) return;
 
-    fillImputationLookupTablesHelper(node, substitutions, insertions, curNucs, originalNucs);
+    fillNucleotideLookupTables(node, substitutions, insertions, originalNucs, curNucs);
+    fillBlockLookupTables(node, wasBlockInv, isInv);
 
     for(auto child: node->children) {
-        fillImputationLookupTables(child, substitutions, insertions, curNucs, originalNucs);
+        fillImputationLookupTablesHelper(child, substitutions, insertions, originalNucs, curNucs, wasBlockInv, isInv);
     }
 
     // Undo mutations before passing back up the tree
@@ -123,13 +143,20 @@ const void panmanUtils::Tree::fillImputationLookupTables(panmanUtils::Node* node
             curNucs[curPos] = originalNucs[node->identifier][curPos];
         }
     }
+
+    for (const auto& curMut: node->blockMutation) {
+        if (curMut.inversion) { 
+            uint64_t blockID = curMut.singleBlockID();
+            isInv[blockID] = !isInv[blockID];
+        }
+    }
 }
 
-const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node* node, 
+const void panmanUtils::Tree::fillNucleotideLookupTables(panmanUtils::Node* node, 
     std::vector< std::pair< std::string, panmanUtils::NucMut > >& substitutions,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
-    std::unordered_map< panmanUtils::Coordinate, int8_t >& curNucs,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs,
+    std::unordered_map< panmanUtils::Coordinate, int8_t >& curNucs) {
     
     std::string curID = node->identifier;
     std::vector< std::pair< panmanUtils::IndelPosition, int32_t > > curNodeInsertions;
@@ -172,6 +199,20 @@ const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node
 
     // Transfer curNodeInsertions into insertions and allInsertions
     std::copy(curNodeInsertions.begin(), curNodeInsertions.end(), std::inserter(insertions[curID], insertions[curID].begin()));
+}
+
+const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node,
+    std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv,
+    std::unordered_map< uint64_t, bool >& isInv) {
+    
+    wasBlockInv[node->identifier] = std::unordered_map< uint64_t, bool >();
+    for (const auto& curMut: node->blockMutation) {
+        // Store original state for all deletions
+        if (curMut.isDeletion()) {
+            uint64_t curID = curMut.singleBlockID();
+            wasBlockInv[node->identifier][curID] = isInv[curID];
+        }
+    }
 }
 
 const void panmanUtils::Tree::imputeSubstitution(panmanUtils::Node* node, NucMut mutToN) {
