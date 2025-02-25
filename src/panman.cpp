@@ -1995,98 +1995,13 @@ void panmanUtils::Tree::mergeNodes(panmanUtils::Node* par, panmanUtils::Node* ch
         adjustLevels(newChild);
     }
 
-    // For block mutations, we cancel out irrelevant mutations
-    std::map< std::pair<int, int>, std::pair< panmanUtils::BlockMutationType, bool > > bidMutations;
-
-    for(auto mutation: par->blockMutation) {
-        int primaryBlockId = mutation.primaryBlockId;
-        int secondaryBlockId = mutation.secondaryBlockId;
-        bool inversion = (mutation.inversion);
-
-        if(mutation.isInsertion()) {
-            bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair( panmanUtils::BlockMutationType::BI, inversion );
-        } else {
-            if(bidMutations.find(std::make_pair(primaryBlockId, secondaryBlockId)) != bidMutations.end()) {
-                if(bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].first == panmanUtils::BlockMutationType::BI) {
-                    // If it was insertion earlier
-                    if(inversion) {
-                        // This means that the new mutation is an inversion. So, inverted the strand of the inserted block
-                        bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = !bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second;
-                    } else {
-                        // Actually a deletion. So insertion and deletion cancel out
-                        bidMutations.erase(std::make_pair(primaryBlockId, secondaryBlockId));
-                    }
-                } else {
-                    // If previous mutation was an inversion
-                    if(!inversion) {
-                        // Actually a deletion. Remove inversion mutation and put deletion instead
-                        bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = false;
-                    }
-                    // deletion followed by inversion doesn't make sense
-                }
-            } else {
-                bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair(panmanUtils::BlockMutationType::BD, inversion);
-            }
-        }
-    }
-
-    for(auto mutation: chi->blockMutation) {
-        int primaryBlockId = mutation.primaryBlockId;
-        int secondaryBlockId = mutation.secondaryBlockId;
-        int type = (mutation.blockMutInfo);
-        bool inversion = (mutation.inversion);
-
-        if(type == panmanUtils::BlockMutationType::BI) {
-            bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair(panmanUtils::BlockMutationType::BI, inversion);
-        } else {
-            if(bidMutations.find(std::make_pair(primaryBlockId, secondaryBlockId)) != bidMutations.end()) {
-                if(bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].first == panmanUtils::BlockMutationType::BI) {
-                    // If it was insertion earlier
-                    if(inversion) {
-                        // This means that the new mutation is an inversion. So, inverted the strand of the inserted block
-                        bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = !bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second;
-                    } else {
-                        // Actually a deletion. So insertion and deletion cancel out
-                        bidMutations.erase(std::make_pair(primaryBlockId, secondaryBlockId));
-                    }
-                } else {
-                    // If previous mutation was an inversion
-                    if(!inversion) {
-                        // Actually a deletion. Remove inversion mutation and put deletion instead
-                        bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)].second = false;
-                    }
-                    // deletion followed by inversion doesn't make sense
-                }
-            } else {
-                bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair(panmanUtils::BlockMutationType::BD, inversion);
-            }
-        }
-    }
-
-    std::vector< panmanUtils::BlockMut > newBlockMutation;
-    for(auto mutation: bidMutations) {
-        if(mutation.second.first == panmanUtils::BlockMutationType::BI) {
-            panmanUtils::BlockMut tempBlockMut;
-            tempBlockMut.primaryBlockId = mutation.first.first;
-            tempBlockMut.secondaryBlockId = mutation.first.second;
-            tempBlockMut.blockMutInfo = panmanUtils::BlockMutationType::BI;
-            tempBlockMut.inversion = mutation.second.second;
-            newBlockMutation.push_back( tempBlockMut );
-        } else {
-            panmanUtils::BlockMut tempBlockMut;
-            tempBlockMut.primaryBlockId = mutation.first.first;
-            tempBlockMut.secondaryBlockId = mutation.first.second;
-            tempBlockMut.blockMutInfo = panmanUtils::BlockMutationType::BD;
-            tempBlockMut.inversion = mutation.second.second;
-            newBlockMutation.push_back( tempBlockMut );
-        }
-    }
-
-    par->blockMutation = newBlockMutation;
-
-    for(auto mutation: chi->nucMutation) {
-        par->nucMutation.push_back(mutation);
-    }
+    std::vector<panmanUtils::NucMut> nucMuts = par->nucMutation;
+    nucMuts.insert(nucMuts.end(), chi->nucMutation.begin(), chi->nucMutation.end());
+    par->nucMutation = consolidateNucMutations(nucMuts);
+    
+    std::vector<panmanUtils::BlockMut> blockMuts = par->blockMutation;
+    blockMuts.insert(blockMuts.end(), chi->blockMutation.begin(), chi->blockMutation.end());
+    par->blockMutation = consolidateBlockMutations(blockMuts);
 
     delete chi;
 }
