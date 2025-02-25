@@ -707,56 +707,7 @@ class Tree {
     bool panMATCoordinateLeq(const std::tuple< int, int, int, int >& coor1,
                              const std::tuple< int, int, int, int >& coor2, bool strand);
 
-
-    std::string newInternalNodeId() {
-        return "node_" + std::to_string(++m_currInternalNode);
-    }
-
-    size_t m_currInternalNode{ 0 };
-    size_t m_numLeaves{ 0 };
-    size_t m_maxDepth{ 0 };
-    float m_meanDepth{ 0 };
-
-    std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
-  public:
-    Node *root;
-    std::vector< Block > blocks;
-    std::vector< GapList > gaps;
-
-    // @DEPRECATED: To be removed with secondary block ID
-    BlockGapList blockGaps;
-
-    // Specifies the circular offset required to print the original sequence
-    std::unordered_map< std::string, int > circularSequences;
-
-    // Specifies the block by which the rotation algorithm rotated the sequence
-    std::unordered_map< std::string, int > rotationIndexes;
-
-    // Specifies whether sequence is inverted or not by the rotation algorithm
-    std::unordered_map< std::string, bool > sequenceInverted;
-
-    std::unordered_map< std::string, Node* > allNodes;
-
-    Tree(const panman::Tree::Reader& mainTree);
-    Tree(const panmanOld::tree& mainTree);
-    Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
-    Tree(std::ifstream& fin, std::ifstream& secondFin,
-         FILE_TYPE ftype = FILE_TYPE::GFA, std::string reference = "");
-
-    // Copy blocks from current tree into new tree which is rooted at one of the internal
-    // nodes of the current tree. Used in split for PanMAN
-    Tree(Node* newRoot, const std::vector< Block >& b, const std::vector< GapList >& g,
-         std::unordered_map< std::string, int >& cs,
-         std::unordered_map< std::string, int >& ri,
-         std::unordered_map< std::string, bool >& si,
-         const BlockGapList& bgl);
-    
-
-    void protoMATToTree(const panman::Tree::Reader& mainTree);
-    void protoMATToTree(const panmanOld::tree& mainTree);
-
-    // Impute all Ns in the Tree (meant for external use)
-    void imputeNs(int allowedIndelDistance);
+    // Functions for N imputation
     // Fill "substitutions" and "insertions" with all mutations TO N
     // "substitutions" beomces a vector of (node ID, substitution with Ns) pairs
     // "insertions" becomes a map of {node ID : {insertion position : number of Ns}}
@@ -812,6 +763,56 @@ class Tree {
         const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
         const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
         const std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv);
+
+    std::string newInternalNodeId() {
+        return "node_" + std::to_string(++m_currInternalNode);
+    }
+
+    size_t m_currInternalNode{ 0 };
+    size_t m_numLeaves{ 0 };
+    size_t m_maxDepth{ 0 };
+    float m_meanDepth{ 0 };
+
+    std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
+  public:
+    Node *root;
+    std::vector< Block > blocks;
+    std::vector< GapList > gaps;
+
+    // @DEPRECATED: To be removed with secondary block ID
+    BlockGapList blockGaps;
+
+    // Specifies the circular offset required to print the original sequence
+    std::unordered_map< std::string, int > circularSequences;
+
+    // Specifies the block by which the rotation algorithm rotated the sequence
+    std::unordered_map< std::string, int > rotationIndexes;
+
+    // Specifies whether sequence is inverted or not by the rotation algorithm
+    std::unordered_map< std::string, bool > sequenceInverted;
+
+    std::unordered_map< std::string, Node* > allNodes;
+
+    Tree(const panman::Tree::Reader& mainTree);
+    Tree(const panmanOld::tree& mainTree);
+    Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
+    Tree(std::ifstream& fin, std::ifstream& secondFin,
+         FILE_TYPE ftype = FILE_TYPE::GFA, std::string reference = "");
+
+    // Copy blocks from current tree into new tree which is rooted at one of the internal
+    // nodes of the current tree. Used in split for PanMAN
+    Tree(Node* newRoot, const std::vector< Block >& b, const std::vector< GapList >& g,
+         std::unordered_map< std::string, int >& cs,
+         std::unordered_map< std::string, int >& ri,
+         std::unordered_map< std::string, bool >& si,
+         const BlockGapList& bgl);
+    
+
+    void protoMATToTree(const panman::Tree::Reader& mainTree);
+    void protoMATToTree(const panmanOld::tree& mainTree);
+
+    // Impute all Ns in the Tree (meant for external use)
+    void imputeNs(int allowedIndelDistance);
     // Move "toMove" to be a child of "newParent", with mutations "newMuts"
     void moveNode(Node* toMove, Node* newParent, MutationList newMuts);
 
