@@ -250,7 +250,6 @@ const std::pair< panmanUtils::Node*, panmanUtils::MutationList > panmanUtils::Tr
     panmanUtils::MutationList bestNewMuts;
 
     for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance, node, allInsertions, originalNucs, wasBlockInv)) {
-        if (nearby.first != node->identifier) {
             panmanUtils::MutationList curNewMuts = nearby.second.concat(MutationList(node));
             curNewMuts.reverseMutations();
             curNewMuts.nucMutation = consolidateNucMutations(curNewMuts.nucMutation);
@@ -268,6 +267,7 @@ const std::pair< panmanUtils::Node*, panmanUtils::MutationList > panmanUtils::Tr
                 bestNewParent = allNodes[nearby.first];
                 bestNewMuts = curNewMuts;
             }
+        panmanUtils::MutationList curNewMuts = nearby.second.concat(MutationList(node));
         }
     }
 
