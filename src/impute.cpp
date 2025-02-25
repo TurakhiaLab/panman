@@ -250,24 +250,22 @@ const std::pair< panmanUtils::Node*, panmanUtils::MutationList > panmanUtils::Tr
     panmanUtils::MutationList bestNewMuts;
 
     for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance, node, allInsertions, originalNucs, wasBlockInv)) {
-            panmanUtils::MutationList curNewMuts = nearby.second.concat(MutationList(node));
-            curNewMuts.reverseMutations();
-            curNewMuts.nucMutation = consolidateNucMutations(curNewMuts.nucMutation);
-            curNewMuts.blockMutation = consolidateBlockMutations(curNewMuts.blockMutation);
-
-            // Parsimony improvement score is the decrease in mutation count
-            int nucImprovement = 0;
-            int blockImprovement = node->blockMutation.size() - curNewMuts.blockMutation.size();
-            for (const auto& curMut: node->nucMutation) nucImprovement += curMut.length();
-            for (const auto& curMut: curNewMuts.nucMutation) nucImprovement -= curMut.length();
-
-            if (nucImprovement > bestNucImprovement & blockImprovement >= bestBlockImprovement) {
-                bestNucImprovement = nucImprovement;
-                bestBlockImprovement = blockImprovement;
-                bestNewParent = allNodes[nearby.first];
-                bestNewMuts = curNewMuts;
-            }
         panmanUtils::MutationList curNewMuts = nearby.second.concat(MutationList(node));
+        curNewMuts.reverseMutations();
+        curNewMuts.nucMutation = consolidateNucMutations(curNewMuts.nucMutation);
+        curNewMuts.blockMutation = consolidateBlockMutations(curNewMuts.blockMutation);
+
+        // Parsimony improvement score is the decrease in mutation count
+        int nucImprovement = 0;
+        int blockImprovement = node->blockMutation.size() - curNewMuts.blockMutation.size();
+        for (const auto& curMut: node->nucMutation) nucImprovement += curMut.length();
+        for (const auto& curMut: curNewMuts.nucMutation) nucImprovement -= curMut.length();
+
+        if (nucImprovement > bestNucImprovement & blockImprovement >= bestBlockImprovement) {
+            bestNucImprovement = nucImprovement;
+            bestBlockImprovement = blockImprovement;
+            bestNewParent = allNodes[nearby.first];
+            bestNewMuts = curNewMuts;
         }
     }
 
