@@ -469,6 +469,23 @@ struct BlockMut {
     // Readable way to check if this is a non-insertion inversion
     bool isSimpleInversion() const { return !blockMutInfo && inversion; }
 
+    // Make this mutation into an insertion, keeping the same block IDs
+    void convertToInsertion(bool inversion) {
+        blockMutInfo = true;
+        inversion = inversion;
+    }
+
+    // Make this mutation into a deletion, keeping the same block IDs
+    void convertToDeletion() {
+        blockMutInfo = false;
+        inversion = false;
+    }
+
+    // Flip this mutation's inversion marker
+    void invert() {
+        inversion = !inversion;
+    }
+
     uint64_t singleBlockID() const { 
         return ((uint32_t) primaryBlockId << 32) + (uint32_t)secondaryBlockId;
     }
@@ -545,7 +562,6 @@ class Node {
     }
 };
 
-// TODO: use this
 struct MutationList {
     std::vector<NucMut> nucMutation;
     std::vector<BlockMut> blockMutation;
@@ -556,14 +572,31 @@ struct MutationList {
         blockMutation = node->blockMutation;       
     }
 
+    // Copy constructor
+    MutationList(const MutationList& other) {
+        nucMutation = other.nucMutation;
+        blockMutation = other.blockMutation;
+    }
+
+    // Default constructor (empty MutationList)
+    MutationList() {}
+
     // Convert mutations to their exact inverse, i.e. mutations from child to parent
-    void reverse(const std::unordered_map< Coordinate, int8_t >& originalNucs,
+    void invertMutations(const std::unordered_map< Coordinate, int8_t >& originalNucs,
         const std::unordered_map< uint64_t, bool >& wasBlockInv);
 
-    // Append another MutationList to the end of this one
-    void append(const MutationList& other) {
-        nucMutation.insert(nucMutation.end(), other.nucMutation.begin(), other.nucMutation.end());
-        blockMutation.insert(blockMutation.end(), other.blockMutation.begin(), other.blockMutation.end());
+    // Reverse the order of mutations
+    void reverseMutations() {
+        std::reverse(nucMutation.begin(), nucMutation.end());
+        std::reverse(blockMutation.begin(), blockMutation.end());
+    }
+
+    // Concatenate another MutationList to the end of this one
+    MutationList concat(const MutationList& other) const {
+        MutationList newMuts = *this;
+        newMuts.nucMutation.insert(newMuts.nucMutation.end(), other.nucMutation.begin(), other.nucMutation.end());
+        newMuts.blockMutation.insert(newMuts.blockMutation.end(), other.blockMutation.begin(), other.blockMutation.end());
+        return newMuts;
     }
 };
 
@@ -639,6 +672,8 @@ class Tree {
 
     // Iterate through mutations and combine mutations at the same position
     std::vector< NucMut > consolidateNucMutations(const std::vector< NucMut >& nucMutation);
+    // Iterate through mutations and combine mutations for the same block
+    std::vector<BlockMut> consolidateBlockMutations(const std::vector<BlockMut>& blockMutation);
 
     // Used to confirm that consolidateNucMutations worked correctly. Can be removed in
     // production
@@ -720,7 +755,6 @@ class Tree {
     void protoMATToTree(const panman::Tree::Reader& mainTree);
     void protoMATToTree(const panmanOld::tree& mainTree);
 
-    // Functions for imputation of Ns
     // Impute all Ns in the Tree (meant for external use)
     void imputeNs(int allowedIndelDistance);
     // Fill "substitutions" and "insertions" with all mutations TO N
@@ -760,22 +794,26 @@ class Tree {
     // Updates mutations for maximum parsimony
     const void imputeSubstitution(Node* node, NucMut mutToN);
     // Tries to find a similar insertion for each in "mutsToN" within "allowedDistance" branch length from "node"
+    // Uses "originalNucs" and "wasBlockInv" maps to help invert mutations when necessary
     // Searches in all directions but direct descendants
     // Calculates necessary change in mutations to move there and if moving would increase parsimony
     // Returns a pair of (new parent, new mutations) for a parsimony improvement
-    const std::pair< Node*, std::vector<NucMut> > findInsertionImputationMove(
+    const std::pair< Node*, MutationList > findInsertionImputationMove(
         Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance,
         const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
-        const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
+        const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
+        const std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv);
     // Find insertions the size/position of "mutToN" within "allowedDistance" branch length from "node"
+    // Uses "originalNucs" and "wasBlockInv" maps to help invert mutations when necessary
     // Don't search down the edge to "ignore"
     // Relies on a precomputed map of nodes to insertion positions                   
-    const std::unordered_map< std::string, std::vector<NucMut> > findNearbyInsertions(
+    const std::unordered_map< std::string, MutationList > findNearbyInsertions(
         Node* node, const std::vector<IndelPosition>& mutsToN, int allowedDistance, Node* ignore,
         const std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
-        const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
-    // Move "toMove" to be a child of "newParent", with node mutations "newMuts"
-    void moveNode(Node* toMove, Node* newParent, std::vector<NucMut> newMuts);
+        const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
+        const std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv);
+    // Move "toMove" to be a child of "newParent", with mutations "newMuts"
+    void moveNode(Node* toMove, Node* newParent, MutationList newMuts);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);

@@ -2001,10 +2001,9 @@ void panmanUtils::Tree::mergeNodes(panmanUtils::Node* par, panmanUtils::Node* ch
     for(auto mutation: par->blockMutation) {
         int primaryBlockId = mutation.primaryBlockId;
         int secondaryBlockId = mutation.secondaryBlockId;
-        bool type = (mutation.blockMutInfo);
         bool inversion = (mutation.inversion);
 
-        if(type == panmanUtils::BlockMutationType::BI) {
+        if(mutation.isInsertion()) {
             bidMutations[std::make_pair(primaryBlockId, secondaryBlockId)] = std::make_pair( panmanUtils::BlockMutationType::BI, inversion );
         } else {
             if(bidMutations.find(std::make_pair(primaryBlockId, secondaryBlockId)) != bidMutations.end()) {
@@ -2408,6 +2407,104 @@ std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(co
     }
 
     return consolidatedMutationArray;
+}
+
+std::vector<panmanUtils::BlockMut> panmanUtils::Tree::consolidateBlockMutations(const std::vector<panmanUtils::BlockMut>& blockMutation) {
+    // Single block ID -> mutation
+    std::map< uint64_t, panmanUtils::BlockMut > mutationRecords;
+    for(const auto& curMut: blockMutation) {
+        uint64_t curID = curMut.singleBlockID();
+
+        if (mutationRecords.find(curID) == mutationRecords.end()) {
+            // No previous mutation of this type
+            mutationRecords[curID] = curMut;
+        } else {
+            panmanUtils::BlockMut oldMut = mutationRecords[curID];
+            if (oldMut.isInsertion()) {
+                if (curMut.isInsertion()) {
+                    throw std::invalid_argument("Block insertion followed by insertion doesn't make sense");
+                } else if (curMut.isDeletion()) {
+                    // Insertion followed by deletion cancels out
+                    mutationRecords.erase(curID);
+                } else {
+                    // Insertion followed by inversion
+                    mutationRecords[curID].invert();
+                }
+            } else if (oldMut.isDeletion()) {
+                if (curMut.isInsertion()) {
+                    // Deletion followed by insertion cancels out
+                    mutationRecords.erase(curID);
+                } else {
+                    throw std::invalid_argument("Block deletion followed by inversion or deletion doesn't make sense");
+                }
+            } else {
+                if (curMut.isInsertion()) {
+                    throw std::invalid_argument("Block inversion followed by insertion doesn't make sense");
+                } else if (curMut.isDeletion()) {
+                    // Inversion followed by deletion is just a deletion
+                    mutationRecords[curID] = curMut;
+                } else {
+                    // Two inversions cancel out
+                    mutationRecords.erase(curID);
+                }
+            }
+        }
+    }
+
+    // Extract block mutations (sorted due to using std::map) into a vector
+    std::vector<panmanUtils::BlockMut> mutationArray;
+    for(const auto& curMut: mutationRecords) {
+        mutationArray.push_back(curMut.second);
+    }
+    return mutationArray;
+}
+
+void panmanUtils::MutationList::invertMutations(const std::unordered_map< panmanUtils::Coordinate, int8_t >& originalNucs,
+    const std::unordered_map< uint64_t, bool >& wasBlockInv) {
+
+    // Reverse nucleotide mutations
+    for (auto& curMut: nucMutation) {
+        // Erase current nucleotides, to prepare for overwriting
+        curMut.nucs = 0;
+        
+        switch(curMut.type()) {
+        // Insertion to deletion
+        case panmanUtils::NucMutationType::NSNPI:
+            curMut.mutInfo += panmanUtils::NucMutationType::NSNPD - panmanUtils::NucMutationType::NSNPI;
+            curMut.addNucCode(panmanUtils::NucCode::MISSING, 0);
+            break;
+        // Deletion to insertion of original nucleotide (via falldown)
+        case panmanUtils::NucMutationType::NSNPD:
+            curMut.mutInfo += panmanUtils::NucMutationType::NSNPI - panmanUtils::NucMutationType::NSNPD;
+        // Substitution back to original nucleotide
+        case panmanUtils::NucMutationType::NSNPS:
+            curMut.addNucCode(originalNucs.at(panmanUtils::Coordinate(curMut)), 0);
+            break;
+        // Same as above, but with handling for multiple nucleotides
+        case panmanUtils::NucMutationType::NI:
+            curMut.mutInfo += panmanUtils::NucMutationType::ND - panmanUtils::NucMutationType::NI;
+            for (int i = 0; i < curMut.length(); i++) {
+                curMut.addNucCode(panmanUtils::NucCode::MISSING, i);
+            }
+            break;
+        case panmanUtils::NucMutationType::ND:
+            curMut.mutInfo += panmanUtils::NucMutationType::NI - panmanUtils::NucMutationType::ND;
+        case panmanUtils::NucMutationType::NS:
+            for (int i = 0; i < curMut.length(); i++) {
+                curMut.addNucCode(originalNucs.at(panmanUtils::Coordinate(curMut, i)), i);
+            }
+            break;
+        }
+    }
+
+    // Reverse block mutations
+    for (auto& curMut: blockMutation) {
+        if (curMut.isInsertion()) {
+            curMut.convertToDeletion();
+        } else if (curMut.isDeletion()) {
+            curMut.convertToInsertion(wasBlockInv.at(curMut.singleBlockID()));
+        }
+    }
 }
 
 bool panmanUtils::Tree::panMATCoordinateGeq(const std::tuple< int, int, int, int >& coor1,
