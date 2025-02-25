@@ -297,12 +297,18 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
     // Try children
     for (const auto& child: node->children) {
         if (child != ignore) {
-            // Add mutations to get to child (which must be reversed)
-            panmanUtils::MutationList toAdd = MutationList(child);
-            toAdd.invertMutations(originalNucs.at(child->identifier), wasBlockInv.at(child->identifier));
-            for (const auto& nearby: findNearbyInsertions(child, mutsToN, allowedDistance - child->branchLength, 
-                                                          node, allInsertions, originalNucs, wasBlockInv)) {
-                nearbyInsertions[nearby.first] = nearby.second.concat(toAdd);
+            auto childPossibilities = findNearbyInsertions(
+                child, mutsToN, allowedDistance - child->branchLength, 
+                node, allInsertions, originalNucs, wasBlockInv);
+            
+            // Only bother with getting/inverting mutations if necessary
+            if (!childPossibilities.empty()) {
+                // Add mutations to get to child (which must be reversed)
+                panmanUtils::MutationList toAdd = MutationList(child);
+                toAdd.invertMutations(originalNucs.at(child->identifier), wasBlockInv.at(child->identifier));
+                for (const auto& nearby: childPossibilities) {
+                    nearbyInsertions[nearby.first] = nearby.second.concat(toAdd);
+                }
             }
         }
     }
