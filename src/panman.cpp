@@ -2221,8 +2221,8 @@ const void panmanUtils::Tree::reverseNucMutations(std::vector<panmanUtils::NucMu
 }
 
 std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(const std::vector< panmanUtils::NucMut >& nucMutation) {
-    // primaryBid, secondaryBid, pos, gap_pos -> type, nuc
-    std::map< std::tuple< int32_t, int32_t, int32_t, int32_t >, std::pair< int, int > > mutationRecords;
+    // location -> type, nuc
+    std::unordered_map< panmanUtils::Coordinate, std::pair< int, int > > mutationRecords;
     for(auto mutation: nucMutation) {
         int primaryBlockId = mutation.primaryBlockId;
         int secondaryBlockId = mutation.secondaryBlockId;
@@ -2253,31 +2253,18 @@ std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(co
 
         for(int i = 0; i < len; i++) {
             int newChar = mutation.getNucCode(i);
+            panmanUtils::Coordinate curPos = Coordinate(mutation, i);
 
             std::pair< int, int > newMutation = std::make_pair( newType, newChar );
-            if(gapPos != -1) {
-                if(mutationRecords.find(std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )) == mutationRecords.end()) {
-                    mutationRecords[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )] = newMutation;
-                } else {
-                    std::pair< int, int > oldMutation = mutationRecords[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )];
-                    newMutation = replaceMutation(oldMutation, newMutation);
-                    if(newMutation.first != 404) {
-                        mutationRecords[std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i )] = newMutation;
-                    } else {
-                        mutationRecords.erase(std::make_tuple( primaryBlockId, secondaryBlockId, pos, gapPos + i ));
-                    }
-                }
+            if(mutationRecords.find(curPos) == mutationRecords.end()) {
+                mutationRecords[curPos] = newMutation;
             } else {
-                if(mutationRecords.find(std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )) == mutationRecords.end()) {
-                    mutationRecords[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )] = newMutation;
+                std::pair< int, int > oldMutation = mutationRecords[curPos];
+                newMutation = replaceMutation(oldMutation, newMutation);
+                if(newMutation.first != 404) {
+                    mutationRecords[curPos] = newMutation;
                 } else {
-                    std::pair< int, int > oldMutation = mutationRecords[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )];
-                    newMutation = replaceMutation(oldMutation, newMutation);
-                    if(newMutation.first != 404) {
-                        mutationRecords[std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos )] = newMutation;
-                    } else {
-                        mutationRecords.erase(std::make_tuple( primaryBlockId, secondaryBlockId, pos + i, gapPos ));
-                    }
+                    mutationRecords.erase(curPos);
                 }
             }
         }
@@ -2286,10 +2273,10 @@ std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(co
     // primaryBlockId, secondaryBlockId, pos, gapPos, type, char
     std::vector< std::tuple< int, int, int, int, int, int > > mutationArray;
     for(auto u: mutationRecords) {
-        mutationArray.push_back( std::make_tuple( std::get<0>(u.first), std::get<1>(u.first), std::get<2>(u.first), std::get<3>(u.first), u.second.first, u.second.second ) );
+        mutationArray.push_back( std::make_tuple( u.first.primaryBlockId, u.first.secondaryBlockId, u.first.nucPosition, u.first.nucGapPosition, u.second.first, u.second.second ) );
     }
 
-    // mutation array is already sorted since mutationRecord was sorted
+    std::sort(mutationArray.begin(), mutationArray.end());
     std::vector< panmanUtils::NucMut > consolidatedMutationArray;
 
     for(size_t i = 0; i < mutationArray.size(); i++) {
