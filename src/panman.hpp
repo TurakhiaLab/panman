@@ -480,7 +480,7 @@ struct BlockMut {
     }
 
     uint64_t singleBlockID() const { 
-        return ((uint64_t) primaryBlockId << 32) | (uint64_t)secondaryBlockId;
+        return (primaryBlockId << 32) + secondaryBlockId;
     }
 };
 
@@ -497,7 +497,7 @@ struct Block {
     Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);  
 
     uint64_t singleBlockID() const { 
-        return ((uint64_t) primaryBlockId << 32) | (uint64_t)secondaryBlockId;
+        return (primaryBlockId << 32) + secondaryBlockId;
     }
 };
 
