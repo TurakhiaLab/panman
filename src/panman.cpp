@@ -2313,7 +2313,7 @@ std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(co
 
 std::vector<panmanUtils::BlockMut> panmanUtils::Tree::consolidateBlockMutations(const std::vector<panmanUtils::BlockMut>& blockMutation) {
     // Single block ID -> mutation
-    std::map< uint64_t, panmanUtils::BlockMut > mutationRecords;
+    std::unordered_map< uint64_t, panmanUtils::BlockMut > mutationRecords;
     for(const auto& curMut: blockMutation) {
         uint64_t curID = curMut.singleBlockID();
 
