@@ -81,14 +81,7 @@ struct NucMut {
     uint32_t nucs;
 
     // Default constructor
-    NucMut() {
-        primaryBlockId = 0;
-        secondaryBlockId = -1;
-        nucPosition = -1;
-        nucGapPosition = -1;
-        mutInfo = 0;
-        nucs = 0;
-    }
+    NucMut() {}
 
     // Create SNP mutation for MSA (optimized for memory)
     NucMut( const std::tuple< int, int8_t, int8_t>& mutationInfo ) {
