@@ -18,7 +18,7 @@ RUN apt-get update && \
 WORKDIR /home
 
 RUN conda create -n panman -y
-RUN echo "source activate panman" > ~/.bashrc
+RUN echo "source activate panman" >> ~/.bashrc
 SHELL ["conda", "run", "-n", "panman", "/bin/bash", "-c"]
 RUN pip install snakemake
 
@@ -32,7 +32,8 @@ RUN cd panman/build && wget https://github.com/oneapi-src/oneTBB/archive/2019_U9
 RUN cd panman/build && cmake  -DTBB_DIR=${PWD}/oneTBB-2019_U9  -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake -DCMAKE_TOOLCHAIN_FILE=${PWD}/vcpkg/scripts/buildsystems/vcpkg.cmake .. && make -j && cp panmanUtils /usr/local/bin && panmanUtils
 
 # PanGraph
-RUN wget https://github.com/neherlab/pangraph/releases/latest/download/pangraph-aarch64-unknown-linux-musl && mkdir pangraph && mv pangraph-aarch64-unknown-linux-musl pangraph/pangraph && chmod +x pangraph/pangraph && cp pangraph/pangraph /usr/local/bin
+RUN wget https://github.com/neherlab/pangraph/archive/refs/tags/0.7.3.zip && unzip 0.7.3.zip && cd pangraph-0.7.3 && rm trace.jl && touch trace.jl && make && export PATH=$PATH:/home/pangraph-0.7.3/pangraph/bin
+RUN echo "export PATH=$PATH:/home/pangraph-0.7.3/pangraph/bin" >> ~/.bashrc
 
 # Minimap2
 RUN conda install bioconda::minimap2
@@ -51,3 +52,5 @@ RUN conda install bioconda::mafft
 
 # PGGB and VG
 RUN conda install bioconda::pggb
+
+RUN conda install conda-forge::gdown
