@@ -1,5 +1,6 @@
 
 #include "panmanUtils.hpp"
+#include <immintrin.h>
 
 int panmanUtils::Tree::nucFitchForwardPassOpt(
     Node* node,
@@ -403,6 +404,86 @@ std::vector< int > panmanUtils::Tree::nucSankoffForwardPass(Node* node,
     return stateSets[node->identifier] = currentState;
 }
 
+
+// std::vector< int > panmanUtils::Tree::nucSankoffForwardPass(Node* node,
+//     std::unordered_map< std::string, std::vector< int > >& stateSets) {
+
+//     if(node->children.size() == 0) {
+//         if(stateSets.find(node->identifier) == stateSets.end()) {
+//             std::vector< int > blankState(16, SANKOFF_INF);
+//             stateSets[node->identifier] = blankState;
+//         }
+//         return stateSets[node->identifier];
+//     }
+
+
+//     std::vector< std::vector< int > > childStates;
+//     for(auto child: node->children) {
+//         childStates.push_back(nucSankoffForwardPass(child, stateSets));
+//     }
+
+//     // bool minExists = false;
+//     // for(size_t j = 0; j < childStates.size(); j++) {
+//     //     for(int k = 0; k < 16; k++) {
+//     //         if(childStates[j][k] < SANKOFF_INF) {
+//     //             minExists = true;
+//     //             break;
+//     //         }
+//     //     }
+//     // }
+
+//     bool minExists = false;
+//     for(size_t j = 0; j < childStates.size(); j++) {
+//         // load childStates[j] into a vector
+//         __m512i childStateVec = _mm512_loadu_si512((__m512i*) &childStates[j][0]);
+//         // check if any element of childStateVec is less than SANKOFF_INF
+//         __mmask16 mask = _mm512_cmplt_epi32_mask(childStateVec, _mm512_set1_epi32(SANKOFF_INF));
+//         if(mask) {
+//             minExists = true;
+//             break;
+//         }
+//     }
+
+//     if(!minExists) {
+//         std::vector< int > currentState(16, SANKOFF_INF);
+//         return stateSets[node->identifier] = currentState;
+//     }
+
+//     std::vector< int > currentState(16, 0);
+//     __m512i iVec = _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+//     for(size_t j = 0; j < childStates.size(); j++) {
+//         int minVal = SANKOFF_INF;
+
+//         __m512i minValVec = _mm512_set1_epi32(SANKOFF_INF);
+
+//         for(int k = 0; k < 16; k++) {
+//             __m512i kVec = _mm512_set1_epi32(k);
+//             // create another vec that is 1 if iVec element (32bits) is not equal to kVec element
+//             __mmask16 mask = _mm512_cmpneq_epi32_mask(iVec, kVec);
+//             __m512i maskVec = _mm512_mask_set1_epi32(_mm512_set1_epi32(0), mask, 1);
+            
+
+//             __m512i childStateVec = _mm512_loadu_si512((__m512i*) &childStates[j][0]);
+
+//             // Add elements of childStateVec to maskVec
+//             __m512i sumVec = _mm512_add_epi32(childStateVec, maskVec);
+
+//             // update minValVec if sumVec is less than minValVec
+//             minValVec = _mm512_min_epi32(minValVec, sumVec);
+//             // minVal = std::min(minVal, (i != k) + childStates[j][k]);
+//         }
+//         // add minValVec to currentState if minValVec is less than SANKOFF_INF
+//         __m512i currentStateVec = _mm512_loadu_si512((__m512i*) &currentState[0]);
+//         __mmask16 mask = _mm512_cmpneq_epi32_mask(minValVec, _mm512_set1_epi32(SANKOFF_INF));
+//         __m512i maskVec = _mm512_mask_set1_epi32(_mm512_set1_epi32(0), mask, 1);
+//         currentStateVec = _mm512_mask_add_epi32(currentStateVec, mask, currentStateVec, minValVec);
+//         _mm512_storeu_si512((__m512i*) &currentState[0], currentStateVec);
+
+//     }
+
+//     return stateSets[node->identifier] = currentState;
+// }
+
 void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
         std::unordered_map< std::string, std::vector< int > >& stateSets,
         std::unordered_map< std::string, int >& states, int parentPtr,
@@ -425,7 +506,6 @@ void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
 
             states[node->identifier] = minPtr;
         } else {
-
             states[node->identifier] = parentPtr;
         }
     }
@@ -449,6 +529,71 @@ void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
         }
     }
 }
+
+// void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
+//     std::unordered_map< std::string, std::vector< int > >& stateSets,
+//     std::unordered_map< std::string, int >& states, int parentPtr,
+//     int defaultValue) {
+
+//     if(node == root && defaultValue != (1 << 28)) {
+//         states[node->identifier] = defaultValue;
+//     } else {
+//         if(node == root) {
+//             int minVal = SANKOFF_INF;
+//             int minPtr = -1;
+//             for(int i = 0; i < 16; i++) {
+//                 // std::cout << stateSets[node->identifier][i] << " " << SANKOFF_INF << std::endl;
+//                 if(stateSets[node->identifier][i] < minVal) {
+//                     minVal = stateSets[node->identifier][i];
+//                     minPtr = i;
+//                 }
+//             }
+//             assert(minPtr != -1);
+
+//             states[node->identifier] = minPtr;
+//         } else {
+//             states[node->identifier] = parentPtr;
+//         }
+//     }
+
+//     if(states[node->identifier] == -1) {
+//         for(auto child: node->children) {
+//             nucSankoffBackwardPass(child, stateSets, states, -1);
+//         }
+//     } else {
+//         for(auto child: node->children) {
+//             int minPtr = -1;
+//             int minVal = SANKOFF_INF;
+            
+//             // parallelize this loop using AVX-512
+//             __m512i minValVec = _mm512_set1_epi32(SANKOFF_INF);
+            
+//             // if((i != states[node->identifier]) + stateSets[child->identifier][i] < minVal) {
+//             //     minVal = (i != states[node->identifier]) + stateSets[child->identifier][i];
+//             //     minPtr = i;
+//             // }
+            
+//             __m512i iVec = _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+//             __m512i stateVec = _mm512_set1_epi32(states[node->identifier]);
+//             __m512i childStateVec = _mm512_loadu_si512((__m512i*) &stateSets[child->identifier][0]);
+//             __m512i maskVec = _mm512_mask_set1_epi32(_mm512_set1_epi32(0), _mm512_cmpeq_epi32_mask(iVec, stateVec), 1);
+//             __m512i sumVec = _mm512_add_epi32(childStateVec, maskVec);
+//             minValVec = _mm512_min_epi32(minValVec, sumVec);
+
+//             // find which element of minValVec is minimum using AVX512 instructions
+//             int minValArray[16];
+//             _mm512_storeu_si512((__m512i*) &minValArray[0], minValVec);
+//             for(int i = 0; i < 16; i++) {
+//                 if(minValArray[i] < minVal) {
+//                     minVal = minValArray[i];
+//                     minPtr = i;
+//                 }
+//             }
+
+//             nucSankoffBackwardPass(child, stateSets, states, minPtr);
+//         }
+//     }
+// }
 
 void panmanUtils::Tree::nucSankoffBackwardPassOpt(Node* node,
         std::unordered_map< std::string, std::vector< int > >& stateSets,
