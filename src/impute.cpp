@@ -1,14 +1,6 @@
 
 #include "panmanUtils.hpp"
 
-// Concatenate two vectors of NucMuts
-std::vector<panmanUtils::NucMut> concat(const std::vector<panmanUtils::NucMut>& first, const std::vector<panmanUtils::NucMut>& second) {
-    std::vector<panmanUtils::NucMut> temp(first.size() + second.size());
-    temp.insert(temp.end(), first.begin(), first.end());
-    temp.insert(temp.end(), second.begin(), second.end());
-    return temp;
-}
-
 // Build map of all coordinates to their reference/consensus nucleotide
 std::unordered_map< panmanUtils::Coordinate, int8_t > getNucs(std::vector<panmanUtils::Block> blocks) {
     std::unordered_map< panmanUtils::Coordinate, int8_t > nucs;
@@ -215,6 +207,9 @@ const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node,
 }
 
 const void panmanUtils::Tree::imputeSubstitution(panmanUtils::Node* node, NucMut mutToN) {
+    // Substitutions in the root can't be imputed from anywhere
+    if (node->parent == nullptr) return;
+
     // Get rid of the old mutation in the node's list
     std::vector<NucMut>::iterator oldIndex = std::find(node->nucMutation.begin(), node->nucMutation.end(), mutToN);
     node->nucMutation.erase(oldIndex);
