@@ -1995,9 +1995,7 @@ void panmanUtils::Tree::mergeNodes(panmanUtils::Node* par, panmanUtils::Node* ch
         adjustLevels(newChild);
     }
 
-    for (auto mutation: chi->nucMutation) {
-        par->nucMutation.push_back(mutation);
-    }
+    par->nucMutation.insert(par->nucMutation.begin(), chi->nucMutation.begin(), chi->nucMutation.end());
     
     std::vector<panmanUtils::BlockMut> blockMuts = par->blockMutation;
     blockMuts.insert(blockMuts.end(), chi->blockMutation.begin(), chi->blockMutation.end());
@@ -2182,44 +2180,6 @@ bool panmanUtils::Tree::debugSimilarity(const std::vector< panmanUtils::NucMut >
     return true;
 }
 
-const void panmanUtils::Tree::reverseNucMutations(std::vector<panmanUtils::NucMut>& nucMutation,
-    const std::unordered_map< panmanUtils::Coordinate, int8_t >& originalNucs) {
-    // Temporary container for iteration
-    for (auto& curMut: nucMutation) {
-        // Erase current nucleotides, to prepare for overwriting
-        curMut.nucs = 0;
-        
-        switch(curMut.type()) {
-        // Insertion to deletion
-        case panmanUtils::NucMutationType::NSNPI:
-            curMut.mutInfo += panmanUtils::NucMutationType::NSNPD - panmanUtils::NucMutationType::NSNPI;
-            curMut.addNucCode(panmanUtils::NucCode::MISSING, 0);
-            break;
-        // Deletion to insertion of original nucleotide (via falldown)
-        case panmanUtils::NucMutationType::NSNPD:
-            curMut.mutInfo += panmanUtils::NucMutationType::NSNPI - panmanUtils::NucMutationType::NSNPD;
-        // Substitution back to original nucleotide
-        case panmanUtils::NucMutationType::NSNPS:
-            curMut.addNucCode(originalNucs.at(panmanUtils::Coordinate(curMut)), 0);
-            break;
-        // Same as above, but with handling for multiple nucleotides
-        case panmanUtils::NucMutationType::NI:
-            curMut.mutInfo += panmanUtils::NucMutationType::ND - panmanUtils::NucMutationType::NI;
-            for (int i = 0; i < curMut.length(); i++) {
-                curMut.addNucCode(panmanUtils::NucCode::MISSING, i);
-            }
-            break;
-        case panmanUtils::NucMutationType::ND:
-            curMut.mutInfo += panmanUtils::NucMutationType::NI - panmanUtils::NucMutationType::ND;
-        case panmanUtils::NucMutationType::NS:
-            for (int i = 0; i < curMut.length(); i++) {
-                curMut.addNucCode(originalNucs.at(panmanUtils::Coordinate(curMut, i)), i);
-            }
-            break;
-        }
-    }
-}
-
 std::vector< panmanUtils::NucMut > panmanUtils::Tree::consolidateNucMutations(const std::vector< panmanUtils::NucMut >& nucMutation) {
     // location -> type, nuc
     std::unordered_map< panmanUtils::Coordinate, std::pair< int, int > > mutationRecords;
@@ -2353,7 +2313,7 @@ std::vector<panmanUtils::BlockMut> panmanUtils::Tree::consolidateBlockMutations(
         }
     }
 
-    // Extract block mutations (sorted due to using std::map) into a vector
+    // Extract block mutations into a vector
     std::vector<panmanUtils::BlockMut> mutationArray;
     for(const auto& curMut: mutationRecords) {
         mutationArray.push_back(curMut.second);

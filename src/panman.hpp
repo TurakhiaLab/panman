@@ -316,12 +316,7 @@ struct Coordinate {
     int32_t secondaryBlockId;
 
     // Default constructor
-    Coordinate() {
-        nucPosition = -1;
-        nucGapPosition = -1;
-        primaryBlockId = -1;
-        secondaryBlockId = -1;
-    }
+    Coordinate() {}
 
     // Create a Coordinate by position
     Coordinate(int nucPosition, int nucGapPosition, int primaryBlockId, int secondaryBlockId) {
@@ -659,9 +654,6 @@ class Tree {
     // nodes are combined
     std::pair< int, int > replaceMutation(std::pair<int,int> oldMutation,
                                           std::pair<int, int> newMutation);
-    // Convert mutations to their exact inverse, i.e. mutations from child to parent
-    const void reverseNucMutations(std::vector<NucMut>& nucMutation,
-        const std::unordered_map< Coordinate, int8_t >& originalNucs);
 
     // Iterate through mutations and combine mutations at the same position
     std::vector< NucMut > consolidateNucMutations(const std::vector< NucMut >& nucMutation);

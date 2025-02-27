@@ -109,7 +109,8 @@ const void panmanUtils::Tree::fillImputationLookupTables(
     
     // Prepare current-state trackers
     std::unordered_map< panmanUtils::Coordinate, int8_t > curNucs = getNucs(blocks);
-     std::unordered_map< uint64_t, bool > isInv;
+    // All blocks are originally unused
+    std::unordered_map< uint64_t, bool > isInv;
     for (const auto& curBlock: blocks) {
         isInv[curBlock.singleBlockID()] = false;
     }
@@ -137,9 +138,7 @@ const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node
     // Undo mutations before passing back up the tree
     for (const auto& curMut: node->nucMutation) {
         for(int i = 0; i < curMut.length(); i++) {
-            int8_t curNucCode = curMut.getNucCode(i);
             panmanUtils::Coordinate curPos = panmanUtils::Coordinate(curMut, i);
-
             curNucs[curPos] = originalNucs[node->identifier][curPos];
         }
     }
@@ -158,7 +157,6 @@ const void panmanUtils::Tree::fillNucleotideLookupTables(panmanUtils::Node* node
     std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs,
     std::unordered_map< panmanUtils::Coordinate, int8_t >& curNucs) {
     
-    std::string curID = node->identifier;
     std::vector< std::pair< panmanUtils::IndelPosition, int32_t > > curNodeInsertions;
     // Will store the parent's nucleotide at all positions with an insertion, to allow reversability
     originalNucs[node->identifier] = std::unordered_map< panmanUtils::Coordinate, int8_t >();
@@ -197,8 +195,9 @@ const void panmanUtils::Tree::fillNucleotideLookupTables(panmanUtils::Node* node
         }
     }
 
-    // Transfer curNodeInsertions into insertions and allInsertions
-    std::copy(curNodeInsertions.begin(), curNodeInsertions.end(), std::inserter(insertions[curID], insertions[curID].begin()));
+    // Store curNodeInsertions as this node's insertions
+    std::copy(curNodeInsertions.begin(), curNodeInsertions.end(), 
+              std::inserter(insertions[node->identifier], insertions[node->identifier].begin()));
 }
 
 const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node,
@@ -216,8 +215,6 @@ const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node,
 }
 
 const void panmanUtils::Tree::imputeSubstitution(panmanUtils::Node* node, NucMut mutToN) {
-    if (node == nullptr) return;
-
     // Get rid of the old mutation in the node's list
     std::vector<NucMut>::iterator oldIndex = std::find(node->nucMutation.begin(), node->nucMutation.end(), mutToN);
     node->nucMutation.erase(oldIndex);
@@ -248,8 +245,9 @@ const std::pair< panmanUtils::Node*, panmanUtils::MutationList > panmanUtils::Tr
     int bestBlockImprovement = 0;
     Node* bestNewParent = nullptr;
     panmanUtils::MutationList bestNewMuts;
-
-    for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance, node, allInsertions, originalNucs, wasBlockInv)) {
+    
+    for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance, node,
+                                                  allInsertions, originalNucs, wasBlockInv)) {
         panmanUtils::MutationList curNewMuts = nearby.second.concat(MutationList(node));
         curNewMuts.reverseMutations();
         curNewMuts.nucMutation = consolidateNucMutations(curNewMuts.nucMutation);
