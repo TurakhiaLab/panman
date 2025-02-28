@@ -201,7 +201,6 @@ const void panmanUtils::Tree::imputeSubstitution(panmanUtils::Node* node, NucMut
         // Add non-N mutations back in (for MNPs which are partially N)
         for(int i = 0; i < mutToN.length(); i++) {
             if (mutToN.getNucCode(i) != panmanUtils::NucCode::N) {
-                node->nucMutation.push_back(NucMut(mutToN, i));
                 snps.push_back(NucMut(mutToN, i));
             }
         }
