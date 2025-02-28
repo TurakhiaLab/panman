@@ -191,8 +191,6 @@ const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node, blo
 }
 
 const void panmanUtils::Tree::imputeSubstitution(panmanUtils::Node* node, NucMut mutToN) {
-    // Substitutions in the root can't be imputed from anywhere
-    if (node->parent == nullptr) return;
 
     // Get rid of the old mutation in the node's list
     std::vector<NucMut>::iterator oldIndex = std::find(node->nucMutation.begin(), node->nucMutation.end(), mutToN);
