@@ -348,6 +348,38 @@ struct Coordinate {
         secondaryBlockId = nm.secondaryBlockId;
     }
 
+    char getSequenceBase(const sequence_t& seq) const {
+        if(secondaryBlockId != -1) {
+            if(nucGapPosition != -1) {
+                return seq[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
+            } else {
+                return seq[primaryBlockId].second[secondaryBlockId][nucPosition].first;
+            }
+        } else {
+            if(nucGapPosition != -1) {
+                return seq[primaryBlockId].first[nucPosition].second[nucGapPosition];
+            } else {
+                return seq[primaryBlockId].first[nucPosition].first;
+            }
+        }
+    }
+
+    void setSequenceBase(sequence_t& seq, char newNuc) const {
+        if(secondaryBlockId != -1) {
+            if(nucGapPosition != -1) {
+                seq[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newNuc;
+            } else {
+                seq[primaryBlockId].second[secondaryBlockId][nucPosition].first = newNuc;
+            }
+        } else {
+            if(nucGapPosition != -1) {
+                seq[primaryBlockId].first[nucPosition].second[nucGapPosition] = newNuc;
+            } else {
+                seq[primaryBlockId].first[nucPosition].first = newNuc;
+            }
+        }
+    }
+
     bool operator==(const Coordinate& other) const {
         return nucPosition == other.nucPosition &&
                nucGapPosition == other.nucGapPosition &&
@@ -710,21 +742,18 @@ class Tree {
         std::vector< std::pair < std::string, NucMut > >& substitutions,
         std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
         std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
-        std::unordered_map<Coordinate, int8_t >& curNucs,
         std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv,
-        std::unordered_map< uint64_t, bool >& isInv);
+        sequence_t& curSequence, blockExists_t& blockStrand);
     // Fill "substitutions", "insertions", and "originalNucs" using nucleotide mutations in "node"
     // Keep track of "curNucs" map with {coordinate : nucleotide} at "node", used for "originalNucs"
-    const void fillNucleotideLookupTables(Node* node,
+    const void fillNucleotideLookupTables(Node* node, sequence_t& curSequence,
         std::vector< std::pair < std::string, NucMut > >& substitutions,
         std::unordered_map< std::string, std::unordered_map< IndelPosition, int32_t > >& insertions,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
-        std::unordered_map<Coordinate, int8_t >& curNucs);
+        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs);
     // Fill "wasBlockInv" using block mutations in "node"
     // Keep track of "isInv" map with {block IDs : is inversion} at "node", used for "wasBlockInv"
-    const void fillBlockLookupTables(Node* node,
-        std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv,
-        std::unordered_map< uint64_t, bool >& isInv);
+    const void fillBlockLookupTables(Node* node, blockExists_t& blockStrand,
+        std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv);
     // Attempt to impute a specific substitution in "node", "mutToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Updates mutations for maximum parsimony
@@ -890,9 +919,9 @@ class Tree {
     std::string getNewickString(Node* node);
     std::string getStringFromReference(std::string reference, bool aligned = true,
                                        bool incorporateInversions=true);
-    void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists,
-                                  blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false,
-                                  int* rotIndex = nullptr);
+    const void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists,
+                                        blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false,
+                                        int* rotIndex = nullptr);
 
     // For each node in the tree, print mutations with respect to the root node to the
     // output file

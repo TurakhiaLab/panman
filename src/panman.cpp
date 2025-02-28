@@ -4008,7 +4008,7 @@ void panmanUtils::Tree::printMutationsNew(std::ostream& fout) {
 
 }
 
-void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference, bool rotateSequence, int* rotIndex) {
+const void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists, blockStrand_t& blockStrand, std::string reference, bool rotateSequence, int* rotIndex) {
     Node* referenceNode = nullptr;
 
     for(auto u: allNodes) {

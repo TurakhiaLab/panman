@@ -1,31 +1,6 @@
 
 #include "panmanUtils.hpp"
 
-// Build map of all coordinates to their reference/consensus nucleotide
-std::unordered_map< panmanUtils::Coordinate, int8_t > getNucs(std::vector<panmanUtils::Block> blocks) {
-    std::unordered_map< panmanUtils::Coordinate, int8_t > nucs;
-
-    for (const auto& curBlock: blocks) {
-        for (int i = 0; i < curBlock.consensusSeq.size(); i++) {
-            bool endFlag = false;
-            for (int j = 0; j < 8; j++) {
-                int curNucCode = ((curBlock.consensusSeq[i] >> (4*(7 - j))) & 15);
-                if(curNucCode == 0) {
-                    endFlag = true;
-                    break;
-                } else {
-                    nucs[panmanUtils::Coordinate(i*8 + j, 0, curBlock.primaryBlockId, 
-                                                 curBlock.secondaryBlockId)] = (int8_t) curNucCode;
-                }
-            }
-
-            if(endFlag) break;
-        }
-    }
-
-    return nucs;
-}
-
 void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< std::string, panmanUtils::NucMut > > substitutions;
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > > insertions;
@@ -100,54 +75,62 @@ const void panmanUtils::Tree::fillImputationLookupTables(
     std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv) {
     
     // Prepare current-state trackers
-    std::unordered_map< panmanUtils::Coordinate, int8_t > curNucs = getNucs(blocks);
-    // All blocks are originally unused
-    std::unordered_map< uint64_t, bool > isInv;
-    for (const auto& curBlock: blocks) {
-        isInv[curBlock.singleBlockID()] = false;
-    }
+    sequence_t curSequence;
+    blockExists_t blockExists;
+    blockStrand_t blockStrand;
+    getSequenceFromReference(curSequence, blockExists, blockStrand, root->identifier);
 
-    fillImputationLookupTablesHelper(root, substitutions, insertions, originalNucs, curNucs, wasBlockInv, isInv);
+    // Never used, but needed so that the key is in the map
+    insertions[root->identifier] = std::unordered_map< panmanUtils::IndelPosition, int32_t >();
+    originalNucs[root->identifier] = std::unordered_map< panmanUtils::Coordinate, int8_t >();
+    wasBlockInv[root->identifier] = std::unordered_map< uint64_t, bool >();
+
+    for (const auto& child: root->children) {
+        fillImputationLookupTablesHelper(child, substitutions, insertions, originalNucs, wasBlockInv, curSequence, blockStrand);
+    }
 }
 
 const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node* node, 
     std::vector< std::pair < std::string, panmanUtils::NucMut > >& substitutions,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs,
-    std::unordered_map<panmanUtils::Coordinate, int8_t >& curNucs,
     std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv,
-    std::unordered_map< uint64_t, bool >& isInv) {
+    sequence_t& curSequence, blockExists_t& blockStrand) {
 
     if (node == nullptr) return;
 
-    fillNucleotideLookupTables(node, substitutions, insertions, originalNucs, curNucs);
-    fillBlockLookupTables(node, wasBlockInv, isInv);
+    fillNucleotideLookupTables(node, curSequence, substitutions, insertions, originalNucs);
+    fillBlockLookupTables(node, blockStrand, wasBlockInv);
 
     for(auto child: node->children) {
-        fillImputationLookupTablesHelper(child, substitutions, insertions, originalNucs, curNucs, wasBlockInv, isInv);
+        fillImputationLookupTablesHelper(child, substitutions, insertions, originalNucs, wasBlockInv, curSequence, blockStrand);
     }
 
     // Undo mutations before passing back up the tree
     for (const auto& curMut: node->nucMutation) {
         for(int i = 0; i < curMut.length(); i++) {
             panmanUtils::Coordinate curPos = panmanUtils::Coordinate(curMut, i);
-            curNucs[curPos] = originalNucs[node->identifier][curPos];
+            char originalNuc = panmanUtils::getNucleotideFromCode(originalNucs[node->identifier][curPos]);
+            curPos.setSequenceBase(curSequence, originalNuc);
         }
     }
 
     for (const auto& curMut: node->blockMutation) {
         if (curMut.inversion) { 
-            uint64_t blockID = curMut.singleBlockID();
-            isInv[blockID] = !isInv[blockID];
+            if(curMut.secondaryBlockId != -1) {
+                blockStrand[curMut.primaryBlockId].second[curMut.secondaryBlockId] = 
+                    !blockStrand[curMut.primaryBlockId].second[curMut.secondaryBlockId];
+            } else {
+                blockStrand[curMut.primaryBlockId].first = !blockStrand[curMut.primaryBlockId].first;
+            }
         }
     }
 }
 
-const void panmanUtils::Tree::fillNucleotideLookupTables(panmanUtils::Node* node, 
+const void panmanUtils::Tree::fillNucleotideLookupTables(panmanUtils::Node* node, sequence_t& curSequence,
     std::vector< std::pair< std::string, panmanUtils::NucMut > >& substitutions,
     std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
-    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs,
-    std::unordered_map< panmanUtils::Coordinate, int8_t >& curNucs) {
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs) {
     
     std::vector< std::pair< panmanUtils::IndelPosition, int32_t > > curNodeInsertions;
     // Will store the parent's nucleotide at all positions with an insertion, to allow reversability
@@ -162,13 +145,9 @@ const void panmanUtils::Tree::fillNucleotideLookupTables(panmanUtils::Node* node
 
             numNs += (curNucCode == panmanUtils::NucCode::N);
 
-            // If this position was previous unknown, set its prior state to missing
-            if (curNucs.find(curPos) == curNucs.end()) {
-                curNucs[curPos] = panmanUtils::NucCode::MISSING;
-            }
             // Mutate this position, but store the original value
-            originalNucs[node->identifier][curPos] = curNucs[curPos];
-            curNucs[curPos] = curNucCode;
+            originalNucs[node->identifier][curPos] = panmanUtils::getCodeFromNucleotide(curPos.getSequenceBase(curSequence));
+            curPos.setSequenceBase(curSequence, panmanUtils::getNucleotideFromCode(curNucCode));
         }
 
         // Save mutation if relevant
@@ -192,16 +171,21 @@ const void panmanUtils::Tree::fillNucleotideLookupTables(panmanUtils::Node* node
               std::inserter(insertions[node->identifier], insertions[node->identifier].begin()));
 }
 
-const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node,
-    std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv,
-    std::unordered_map< uint64_t, bool >& isInv) {
+const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node, blockExists_t& blockStrand,
+    std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv) {
     
     wasBlockInv[node->identifier] = std::unordered_map< uint64_t, bool >();
     for (const auto& curMut: node->blockMutation) {
         // Store original state for all deletions
         if (curMut.isDeletion()) {
+            bool originalState;
+            if(curMut.secondaryBlockId != -1) {
+                originalState = !blockStrand[curMut.primaryBlockId].second[curMut.secondaryBlockId];
+            } else {
+                originalState= !blockStrand[curMut.primaryBlockId].first;
+            }
             uint64_t curID = curMut.singleBlockID();
-            wasBlockInv[node->identifier][curID] = isInv[curID];
+            wasBlockInv[node->identifier][curMut.singleBlockID()] = originalState;
         }
     }
 }
@@ -244,9 +228,24 @@ const std::pair< panmanUtils::Node*, panmanUtils::MutationList > panmanUtils::Tr
     for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance, node,
                                                   allInsertions, originalNucs, wasBlockInv)) {
         panmanUtils::MutationList curNewMuts = nearby.second.concat(MutationList(node));
+        if (node->identifier == "England/LSPA-3262D1DE/2022|OX397272.1|2022-12-16"
+            && nearby.first == "USA/GA-CDC-STM-D8K4RH96H/2023|OQ347960.1|2023-01-17") {
+                std::cout << std::endl << "before reverse" << std::endl;
+                curNewMuts.print();
+        }
         curNewMuts.reverseMutations();
+        if (node->identifier == "England/LSPA-3262D1DE/2022|OX397272.1|2022-12-16"
+            && nearby.first == "USA/GA-CDC-STM-D8K4RH96H/2023|OQ347960.1|2023-01-17") {
+                std::cout << std::endl << "before consolidate" << std::endl;
+                curNewMuts.print();
+        }
         curNewMuts.nucMutation = consolidateNucMutations(curNewMuts.nucMutation);
         curNewMuts.blockMutation = consolidateBlockMutations(curNewMuts.blockMutation);
+        if (node->identifier == "England/LSPA-3262D1DE/2022|OX397272.1|2022-12-16"
+            && nearby.first == "USA/GA-CDC-STM-D8K4RH96H/2023|OQ347960.1|2023-01-17") {
+                std::cout << std::endl << "final" << std::endl;
+                curNewMuts.print();
+        }
 
         // Parsimony improvement score is the decrease in mutation count
         int nucImprovement = 0;
@@ -267,7 +266,7 @@ const std::pair< panmanUtils::Node*, panmanUtils::MutationList > panmanUtils::Tr
 
 const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::Tree::findNearbyInsertions(
     panmanUtils::Node* node, const std::vector<panmanUtils::IndelPosition>& mutsToN, int allowedDistance, panmanUtils::Node* ignore,
-    const std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& allInsertions,
+    const std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
     const std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >& originalNucs,
     const std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv) {
 
@@ -278,9 +277,9 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
 
     std::string curID = node->identifier;
     for (const auto& curMut: mutsToN) {
-        if (allInsertions.at(curID).find(curMut) != allInsertions.at(curID).end()) {
+        if (insertions.at(curID).find(curMut) != insertions.at(curID).end()) {
             // Only use if this insertion has non-N nucleotides to contribute
-            if (allInsertions.at(curID).at(curMut) < curMut.length) {
+            if (insertions.at(curID).at(curMut) < curMut.length) {
                 nearbyInsertions.emplace(node->identifier, MutationList());
             }
             break;
@@ -292,13 +291,27 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
         if (child != ignore) {
             auto childPossibilities = findNearbyInsertions(
                 child, mutsToN, allowedDistance - child->branchLength, 
-                node, allInsertions, originalNucs, wasBlockInv);
+                node, insertions, originalNucs, wasBlockInv);
             
             // Only bother with getting/inverting mutations if necessary
             if (!childPossibilities.empty()) {
                 // Add mutations to get to child (which must be reversed)
                 panmanUtils::MutationList toAdd = MutationList(child);
+                if (child->identifier == "USA/GA-CDC-STM-D8K4RH96H/2023|OQ347960.1|2023-01-17") {
+                    std::cout << std::endl << "----" << std::endl << "about to invert" << std::endl;
+                    toAdd.print();
+                    for (const auto& orig: originalNucs.at(child->identifier)) {
+                        std::cout << orig.first.primaryBlockId << "," << orig.first.nucPosition << "," << orig.first.nucGapPosition;
+                        std::cout << " " << panmanUtils::getNucleotideFromCode(orig.second) << " | ";
+                    }
+                    std::cout << std::endl;
+                }
                 toAdd.invertMutations(originalNucs.at(child->identifier), wasBlockInv.at(child->identifier));
+
+                if (child->identifier == "USA/GA-CDC-STM-D8K4RH96H/2023|OQ347960.1|2023-01-17") {
+                    std::cout << "inverted" << std::endl;
+                    toAdd.print();
+                }
                 for (const auto& nearby: childPossibilities) {
                     nearbyInsertions[nearby.first] = nearby.second.concat(toAdd);
                 }
@@ -308,7 +321,7 @@ const std::unordered_map< std::string, panmanUtils::MutationList > panmanUtils::
     // Try parent
     if (node->parent != ignore) {
         for (const auto& nearby: findNearbyInsertions(node->parent, mutsToN, allowedDistance - node->branchLength,
-                                                      node, allInsertions, originalNucs, wasBlockInv)) {
+                                                      node, insertions, originalNucs, wasBlockInv)) {
             // Add mutations to get to parent
             nearbyInsertions[nearby.first] = nearby.second.concat(MutationList(node));
         }
