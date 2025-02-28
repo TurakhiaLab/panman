@@ -2371,6 +2371,33 @@ void panmanUtils::MutationList::invertMutations(const std::unordered_map< panman
     }
 }
 
+const std::vector<panmanUtils::NucMut> panmanUtils::MutationList::findOverlappingSubstitutionsWithN(
+    const std::vector<panmanUtils::IndelPosition>& posList) {
+    std::unordered_set<panmanUtils::Coordinate> coords;
+    panmanUtils::Coordinate curCoord;
+    for (const auto& curPos: posList) {
+        curCoord = curPos.pos;
+        for (int i = 0; i < curPos.length; i++) {
+            coords.emplace(curCoord);
+            curCoord.moveForward(1);
+        }
+    }
+
+    std::vector<panmanUtils::NucMut> overlaps;
+    for (const auto& curMut: nucMutation) {
+        if (curMut.isSubstitution()) {
+            curCoord = panmanUtils::Coordinate(curMut);
+            for (int i = 0; i < curMut.length(); i++) {
+                if (coords.find(curCoord) != coords.end()) {
+                    overlaps.push_back(curMut);
+                    break;
+                }
+            }
+        }
+    }
+    return overlaps;
+}
+
 bool panmanUtils::Tree::panMATCoordinateGeq(const std::tuple< int, int, int, int >& coor1,
         const std::tuple< int, int, int, int >& coor2, bool strand) {
 
