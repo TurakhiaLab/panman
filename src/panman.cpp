@@ -1995,7 +1995,9 @@ void panmanUtils::Tree::mergeNodes(panmanUtils::Node* par, panmanUtils::Node* ch
         adjustLevels(newChild);
     }
 
-    par->nucMutation.insert(par->nucMutation.begin(), chi->nucMutation.begin(), chi->nucMutation.end());
+    std::vector<panmanUtils::NucMut> nucMuts = par->nucMutation;
+    nucMuts.insert(nucMuts.end(), chi->nucMutation.begin(), chi->nucMutation.end());
+    par->nucMutation = consolidateNucMutations(nucMuts);
     
     std::vector<panmanUtils::BlockMut> blockMuts = par->blockMutation;
     blockMuts.insert(blockMuts.end(), chi->blockMutation.begin(), chi->blockMutation.end());
