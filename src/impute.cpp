@@ -191,19 +191,21 @@ const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node, blo
 }
 
 const void panmanUtils::Tree::imputeSubstitution(panmanUtils::Node* node, NucMut mutToN) {
-
     // Get rid of the old mutation in the node's list
     std::vector<NucMut>::iterator oldIndex = std::find(node->nucMutation.begin(), node->nucMutation.end(), mutToN);
-    node->nucMutation.erase(oldIndex);
+    oldIndex = node->nucMutation.erase(oldIndex);
 
     // Possible MNP
     if (mutToN.type() == panmanUtils::NucMutationType::NS) {
+        std::vector<NucMut> snps;
         // Add non-N mutations back in (for MNPs which are partially N)
         for(int i = 0; i < mutToN.length(); i++) {
             if (mutToN.getNucCode(i) != panmanUtils::NucCode::N) {
                 node->nucMutation.push_back(NucMut(mutToN, i));
+                snps.push_back(NucMut(mutToN, i));
             }
         }
+        node->nucMutation.insert(oldIndex, snps.begin(), snps.end());
     }
 }
 

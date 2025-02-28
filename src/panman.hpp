@@ -235,9 +235,7 @@ struct NucMut {
         secondaryBlockId = other.secondaryBlockId;
         mutInfo = panmanUtils::NucMutationType::NSNPS + (1 << 4);
         // Extract one nucleotide, then set it as the only one
-        int8_t snpNuc = getNucCode(i);
-        nucs = 0;
-        addNucCode(snpNuc, 0);
+        setSingleNucCode(other.getNucCode(i));
 
         // If gap=-1 then increment nucPosition, otherwise increment nucGapPosition
         if (other.nucGapPosition == -1) {
