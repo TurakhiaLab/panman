@@ -54,7 +54,7 @@ if(DEFINED CapnProto_PATH)
 		TARGET panmanUtils  
 		PROTOS panman.capnp)
 	
-	protouf_generate(
+	protobuf_generate(
 		LANGUAGE cpp
 		TARGET panmanUtils  
 		PROTOS usher.proto panman.proto)
