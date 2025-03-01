@@ -2,13 +2,14 @@
 
 void panmanUtils::Tree::annotate(std::ifstream& fin) {
     std::string line;
+    char delim = '\t';
     while(getline(fin, line)) {
         std::string word;
         std::string nodeId;
 
         // Extract node ID
         size_t i = 0;
-        for(; i < line.length() && line[i]!=','; i++) {
+        for(; i < line.length() && line[i]!=delim; i++) {
             word+=line[i];
         }
 
@@ -29,15 +30,19 @@ void panmanUtils::Tree::annotate(std::ifstream& fin) {
         }
 
         if(allNodes.find(nodeId) == allNodes.end()) {
-            std::cout << "Node ID not found. Line: " << line << std::endl;
+            // std::cout << "Node ID not found. Line: " << nodeId << " [" << line << "]" << std::endl;
+            // for (auto a: allNodes) {
+            //     std::cout << a->
+            // }
             return;
         }
-
         Node* nodeToAnnotate = allNodes[nodeId];
+        
+        std::cout << "node before annotation: " << nodeToAnnotate->identifier << " " << nodeToAnnotate->annotations.size() << std::endl;
 
         // Extract annotations
         for(; i < line.length(); i++) {
-            if(line[i] != ',') {
+            if(line[i] != delim) {
                 word += line[i];
             } else {
                 word = stripString(word);
@@ -57,6 +62,8 @@ void panmanUtils::Tree::annotate(std::ifstream& fin) {
             annotationsToNodes[annotation].push_back(nodeId);
             word = "";
         }
+
+        std::cout << "node annotated: " << nodeToAnnotate->identifier << " " << nodeToAnnotate->annotations[0] << std::endl;
 
     }
 }

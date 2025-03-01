@@ -27,18 +27,23 @@ int panmanUtils::Tree::nucFitchForwardPassOpt(
 }
 
 int panmanUtils::Tree::nucFitchForwardPass(Node* node,
-        std::unordered_map< std::string, int >& states) {
+        std::unordered_map< std::string, int >& states, int refState) {
     if(node->children.size() == 0) {
         if(states.find(node->identifier) == states.end()) {
+            // std::cerr << "Node ID " << node->identifier << " " << node->identifier.size() << " not found" << std::endl;
             return states[node->identifier] = 0;
         }
         return states[node->identifier];
     }
     std::vector< int > childStates;
     for(auto child: node->children) {
-        childStates.push_back(nucFitchForwardPass(child, states));
+        childStates.push_back(nucFitchForwardPass(child, states, refState));
     }
+    //for root
     int orStates = 0, andStates = childStates[0];
+    if (node->parent==nullptr && refState != -1) {
+        return states[node->identifier] = refState;
+    } 
     for(auto u: childStates) {
         orStates |= u;
         andStates &= u;
@@ -97,10 +102,14 @@ void panmanUtils::Tree::nucFitchBackwardPass(Node* node,
         }
         if(node == root) {
             // The root sequence should take any of its values and not care about the parent state
+            // check for non "-" states first
             int currentState = 1;
             while(!(states[node->identifier] & currentState)) {
                 currentState <<= 1;
+                // condition for "-" state
+                // if (currentState == (1<<16)) currentState = 1;
             }
+
             states[node->identifier] = currentState;
         } else if(parentState & states[node->identifier]) {
             states[node->identifier] = parentState;
@@ -406,6 +415,7 @@ void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
             int minVal = SANKOFF_INF;
             int minPtr = -1;
             for(int i = 0; i < 16; i++) {
+                // std::cout << stateSets[node->identifier][i] << " " << SANKOFF_INF << std::endl;
                 if(stateSets[node->identifier][i] < minVal) {
                     minVal = stateSets[node->identifier][i];
                     minPtr = i;
