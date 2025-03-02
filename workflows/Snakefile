@@ -65,7 +65,8 @@ rule wfmash:
         mkdir -p output/concat
         scripts/wfmash.sh {input.ref} {input.target} output/concat
         cat output/concat/* > {output.concat_file}
-        '''
+        cat {input.ref} >> {output.concat_file}
+	'''
 
 rule pangraph_frag:
     input:

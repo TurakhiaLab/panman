@@ -13,7 +13,7 @@ cd RawData
 gunzip *.gz
 
 # Constructing PanGraph from the Raw Sequences
-pangraph build -k mmseqs $DEST_FILE | pangraph polish > out.json 2> out.nwk
+pangraph build -k mmseqs $DEST_FILE | pangraph polish >out.json 2>out.nwk
 awk '/tree/ {{split($0,a,"tree:  "); print a[2]}}' out.nwk > temp.newick && mv temp.newick out.nwk
 
 # Constructing GFA from raw genome sequences using PGGB
@@ -52,8 +52,27 @@ panmanUtils -I out.panman --vcf -o out
 # Converting PanMAN into a  variations in VCF format
 panmanUtils -I out.panman --gfa -o out
 
-################# Experiments for 8M SARS COV-2 genomes #################
+################ Experiments with 8M SARS COV-2 genomes #################
 
+wget https://zenodo.org/records/14633185/files/sars_8M.aln.gz.xz?download=1
+xz -d sars_8M.aln.gz.xz
+gunzip sars_8M.aln.gz
 
+TEMP_FILE="sars_8M_updated.fa"
+while read -r line; do
+    if [[ $line == ">"* ]]; then
+        echo $line | awk '{print $1}' | sed 's/[|].*//g' >> "$TEMP_FILE"
+        # replace_names "$line" >> "$TEMP_FILE"
+    else
+        echo "$line" >> "$TEMP_FILE"
+    fi
+done < "sars_8M.aln"
+
+gdown --folder https://drive.google.com/drive/folders/10Vlycv5KBjwMB1RQfLR_CMBaqmniNpbf
+panmanUtils --input-msa $TEMP_FILE --input-newick SARS_8M/sars_8M.nwk -o sars_8M --low-mem-mode --refFile SARS_8M/wuhan.aln
+panmanUtils -I panman/sars_8M.panman --summary
+
+panmanUtils --create-network panman/sars_8M.panman --input-file SARS_8M/recombinations.txt -o sars_8M_network
+panmanUtils -I panman/sars_8M_network.panman --summary
 
 
