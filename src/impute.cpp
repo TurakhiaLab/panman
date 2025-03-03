@@ -208,6 +208,22 @@ const void panmanUtils::Tree::imputeSubstitution(std::vector<panmanUtils::NucMut
     }
 }
 
+const void panmanUtils::Tree::imputeAllSubstitutionsWithNs(std::vector<panmanUtils::NucMut>& nucMutation) {
+    // Loop over vector backwards as elements will be erased
+    for (int i = nucMutation.size() - 1; i >= 0; i--) {
+        panmanUtils::NucMut curMut = nucMutation[i];
+
+        if (curMut.isSubstitution()) {
+            for (int i = 0; i < curMut.length(); i++) {
+                if (curMut.getNucCode(i) == panmanUtils::NucCode::N) {
+                    imputeSubstitution(nucMutation, curMut);
+                    break;
+                }
+            }
+        }
+    }
+}
+
 const std::pair< panmanUtils::Node*, panmanUtils::MutationList > panmanUtils::Tree::findInsertionImputationMove(
     panmanUtils::Node* node, const std::vector<panmanUtils::IndelPosition>& mutsToN, int allowedDistance,
     const std::unordered_map< std::string, std::unordered_map< panmanUtils::IndelPosition, int32_t > >& insertions,
@@ -233,10 +249,7 @@ const std::pair< panmanUtils::Node*, panmanUtils::MutationList > panmanUtils::Tr
                                                   insertions, originalNucs, wasBlockInv)) {
         panmanUtils::MutationList curNewMuts = nearby.second.concat(MutationList(node));
         curNewMuts.nucMutation = consolidateNucMutations(curNewMuts.nucMutation);
-        std::vector<panmanUtils::NucMut> newNSubs = curNewMuts.findOverlappingSubstitutionsWithN(toImpute);
-        for (const auto& mutToN: curNewMuts.findOverlappingSubstitutionsWithN(toImpute)) {
-            imputeSubstitution(curNewMuts.nucMutation, mutToN);
-        }
+        imputeAllSubstitutionsWithNs(curNewMuts.nucMutation);
         curNewMuts.blockMutation = consolidateBlockMutations(curNewMuts.blockMutation);
 
         // Parsimony improvement score is the decrease in mutation count

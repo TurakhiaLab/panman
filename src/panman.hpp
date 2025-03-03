@@ -612,9 +612,6 @@ struct MutationList {
         return newMuts;
     }
 
-    // Create a list of substitutions which have Ns and overlap indel positions
-    // These were probably made by consolidation during imputation.
-    const std::vector<NucMut> findOverlappingSubstitutionsWithN(const std::vector<IndelPosition>& posList);
 };
 
 // Data structure to represent a PangenomeMAT
@@ -751,9 +748,11 @@ class Tree {
     // Keep track of "isInv" map with {block IDs : is inversion} at "node", used for "wasBlockInv"
     const void fillBlockLookupTables(Node* node, blockExists_t& blockStrand,
         std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv);
-    // Attempt to impute a specific substitution in "nucMutation", "mutToN" which mutated TO N
+    // Impute a specific substitution in "nucMutation", "mutToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     const void imputeSubstitution(std::vector<NucMut>& nucMutation, const NucMut& mutToN);
+    // Impute all substitutions with Ns within "nucMutation"
+    const void imputeAllSubstitutionsWithNs(std::vector<NucMut>& nucMutation);
     // Tries to find a similar insertion for each in "mutsToN" within "allowedDistance" branch length from "node"
     // Uses "originalNucs" and "wasBlockInv" maps to help invert mutations when necessary
     // Searches in all directions but direct descendants
