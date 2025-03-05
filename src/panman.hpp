@@ -948,6 +948,8 @@ class Tree {
     // output file
     void printMutations(std::ostream& fout);
     void printMutationsNew(std::ostream& fout);
+    void printMutationsNew(std::ostream& fout, std::string& referenceString);
+    void printMutationsNew(std::ostream& fout, std::vector<std::string>& nodes, std::string& referenceString);
     void printNodePaths(std::ostream& fout);
 
     void getBlockSequenceFromReference(block_t& sequence, bool& blockExists,
