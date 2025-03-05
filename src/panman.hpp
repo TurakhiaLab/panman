@@ -585,6 +585,16 @@ class Node {
         parent = newParent;
         if (newParent != nullptr) newParent->children.emplace_back(this);
     }
+
+    bool isDescendant(Node* other) {
+        if (parent == nullptr) {
+            return false;
+        } else if (parent == other) {
+            return true;
+        } else {
+            return parent->isDescendant(other);
+        }
+    }
 };
 
 struct MutationList {

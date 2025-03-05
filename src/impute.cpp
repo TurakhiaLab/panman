@@ -47,9 +47,12 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     for (const auto& curMove: toMove) {
         if (curMove.second.first != nullptr) {
             Node* curNode = allNodes[curMove.first];
-            if (curNode->parent != nullptr) oldParents.push_back(curNode->parent);
+            oldParents.push_back(curNode->parent);
 
-            moveNode(curNode, curMove.second.first, curMove.second.second);
+            if (!moveNode(curNode, curMove.second.first, curMove.second.second)) {
+                // The move failed
+                oldParents.erase(oldParents.end() - 1);
+            }
         }
     }
 
@@ -322,6 +325,9 @@ const std::vector<std::pair< panmanUtils::Node*, panmanUtils::MutationList >> pa
 }
 
 void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList newMuts) {
+    // Prevent looping
+    if (newParent->isDescendant(toMove)) return false;
+    
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
     allNodes[dummyParent->identifier] = dummyParent;
