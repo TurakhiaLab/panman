@@ -846,7 +846,7 @@ class Tree {
     // Impute all Ns in the Tree (meant for external use)
     void imputeNs(int allowedIndelDistance);
     // Move "toMove" to be a child of "newParent", with mutations "newMuts"
-    void moveNode(Node* toMove, Node* newParent, MutationList newMuts);
+    bool moveNode(Node* toMove, Node* newParent, MutationList newMuts);
     // Test imputation by N-masking mutations with probability p out of 100
     // Prints share unimputed, imputed wrongly, and imputed correctly, by type
     void testImputation(int p, int allowedIndelDistance);

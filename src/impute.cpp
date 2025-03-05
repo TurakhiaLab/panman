@@ -324,10 +324,10 @@ const std::vector<std::pair< panmanUtils::Node*, panmanUtils::MutationList >> pa
     return nearbyInsertions;
 }
 
-void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList newMuts) {
+bool panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList newMuts) {
     // Prevent looping
     if (newParent->isDescendant(toMove)) return false;
-    
+
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
     allNodes[dummyParent->identifier] = dummyParent;
@@ -343,6 +343,7 @@ void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* n
     toMove->branchLength = 1;
     toMove->nucMutation = newMuts.nucMutation;
     toMove->blockMutation = newMuts.blockMutation;
+    return true;
 }
 
 void panmanUtils::Tree::testImputation(int p, int allowedIndelDistance) {
