@@ -1,5 +1,6 @@
 
 #include "panmanUtils.hpp"
+#include <random>
 
 void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< std::string, panmanUtils::NucMut > > substitutions;
@@ -336,4 +337,106 @@ void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* n
     toMove->branchLength = 1;
     toMove->nucMutation = newMuts.nucMutation;
     toMove->blockMutation = newMuts.blockMutation;
+}
+
+void panmanUtils::Tree::testImputation(int p, int allowedIndelDistance) {
+    auto masked = maskNs(p);
+    imputeNs(allowedIndelDistance);
+    std::tuple< int, int, int, int > subMaskedImputeCounts = checkImputeOfMasked(true, masked["SUB"]);
+    std::tuple< int, int, int, int > insMaskedImputeCounts = checkImputeOfMasked(false, masked["INS"]);
+
+    std::cout << "Substitution imputations:" << std::endl;
+    std::cout << "\t" << std::get<0>(subMaskedImputeCounts) << " ignored (could not be checked)" << std::endl;
+    std::cout << "\t" << std::get<1>(subMaskedImputeCounts) << " unimputed (remained N)" << std::endl;
+    std::cout << "\t" << std::get<2>(subMaskedImputeCounts) << " wrong (imputed to different non-N base)" << std::endl;
+    std::cout << "\t" << std::get<3>(subMaskedImputeCounts) << " correct (imputed to original base)" << std::endl;
+
+    std::cout << "Insertion imputations:" << std::endl;
+    std::cout << "\t" << std::get<0>(insMaskedImputeCounts) << " ignored (could not be checked)" << std::endl;
+    std::cout << "\t" << std::get<1>(insMaskedImputeCounts) << " unimputed (remained N)" << std::endl;
+    std::cout << "\t" << std::get<2>(insMaskedImputeCounts) << " wrong (imputed to different non-N base)" << std::endl;
+    std::cout << "\t" << std::get<3>(insMaskedImputeCounts) << " correct (imputed to original base)" << std::endl;
+}
+
+std::unordered_map< std::string, std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > > > panmanUtils::Tree::maskNs(int p) {
+    // Set up random distribution
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,99);
+
+    // Set up masking tracker
+    std::unordered_map< std::string, std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > > > masked;
+    masked["SUB"] = std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >();
+    masked["INS"] = std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > >();
+
+    for (const auto& node: allNodes) {
+        // don't impute root
+        if (node.second != root) {
+            masked["SUB"][node.first] = std::unordered_map< panmanUtils::Coordinate, int8_t >();
+            masked["INS"][node.first] = std::unordered_map< panmanUtils::Coordinate, int8_t >();
+
+            for (auto& curMut: node.second->nucMutation) {
+                if (!curMut.isDeletion()) {
+                    for (int i = 0; i < curMut.length(); i++) {
+                        if (dist(rng) < p) {
+                            // Save original nucleotide
+                            if (curMut.isSubstitution()) {
+                                masked["SUB"][node.first][panmanUtils::Coordinate(curMut, i)] = curMut.getNucCode(i);
+                            } else {
+                                masked["INS"][node.first][panmanUtils::Coordinate(curMut, i)] = curMut.getNucCode(i);
+                            }
+                            // Mask
+                            curMut.changeNucCode(panmanUtils::NucCode::N, i);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return masked;
+}
+
+std::tuple< int, int, int, int > panmanUtils::Tree::checkImputeOfMasked(bool erasedIsCorrect,
+    std::unordered_map< std::string, std::unordered_map< panmanUtils::Coordinate, int8_t > > masked) {
+    
+    int ignore = 0;
+    int unimputed = 0;
+    int wrong = 0;
+    int correct = 0; 
+    for (const auto& curMasked: masked) {
+        std::unordered_map< panmanUtils::Coordinate, int8_t > changeList = curMasked.second;
+        if (allNodes.find(curMasked.first) != allNodes.end()) {
+            for (const auto& curMut: allNodes[curMasked.first]->nucMutation) {
+                for (int i = 0; i < curMut.length(); i++) {
+                    panmanUtils::Coordinate curPos = panmanUtils::Coordinate(curMut, i);
+
+                    if (changeList.find(curPos) != changeList.end()) {
+                        int8_t curCode = curMut.getNucCode(i);
+
+                        // This mutation has an N-masked coordinate
+                        if (curCode == panmanUtils::NucCode::N) {
+                            unimputed++;
+                        } else if (curCode == changeList[curPos]) {
+                            correct++;
+                        } else {
+                            wrong++;
+                        }
+
+                        changeList.erase(curPos);
+                    }
+                }
+            }
+
+            if (erasedIsCorrect) {
+                correct += changeList.size();
+                changeList.clear();
+            }
+        }
+
+        // Imputation that couldn't be checked for any reason
+        ignore += changeList.size();
+    }
+
+    return std::make_tuple(ignore, unimputed, wrong, correct);
 }

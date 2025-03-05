@@ -91,6 +91,7 @@ po::positional_options_description globalPositionArgumentDesc;
 po::options_description summaryDesc("Summary Command Line Arguments");
 po::options_description useDesc("Use Command Line Arguments");
 po::options_description imputeDesc("Imputation Command Line Arguments");
+po::options_description maskDesc("Masking Command Line Arguments");
 po::options_description fastaDesc("FASTA Command Line Arguments");
 po::positional_options_description fastaPositionArgumentDesc;
 po::options_description fastaAlignDesc("FASTA Command Line Arguments");
@@ -137,6 +138,8 @@ void setupOptionDescriptions() {
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
     ("impute", "Create new PanMAN with N sequences inputed")
     ("max-insertion-impute-distance,D", po::value< int64_t >(), "Maximum total branch length to move a node for insertion imputation [default 5]")
+    ("mask", "Mask nucleotides and report imputation success")
+    ("mask-p", po::value< std::int64_t >(), "p out of 100 chance of masking")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
 
     // ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
@@ -191,6 +194,12 @@ void setupOptionDescriptions() {
         ("max-insertion-impute-distance,D", po::value< int64_t >(), 
         "Maximum total branch length to move a node for insertion imputation [default 5]")
         ("output-file,o", po::value< std::string >(), "Output file name");
+    
+    maskDesc.add_options()
+        ("input-file", po::value< std::string >(), "Input file name")
+        ("mask-p", po::value< std::int64_t >(), "Mask nucleotides and report imputation success")
+        ("max-insertion-impute-distance,D", po::value< int64_t >(), 
+        "Maximum total branch length to move a node for insertion imputation [default 5]");
 
     summaryDesc.add_options()
         ("output-file,o", po::value< std::string >(), "Output file name");
@@ -349,6 +358,31 @@ void impute(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstre
     std::cout << "\nImputation time: " << imputeTime.count() << " nanoseconds\n";
 
     writePanMAN(globalVm, &tg);
+}
+
+void mask(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::streambuf * buf) {
+    // If command was impute, create a new PanMAN with imputed sequences
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    int allowedDistance = 5;
+    if(globalVm.count("max-insertion-impute-distance")) {
+        allowedDistance = globalVm["max-insertion-impute-distance"].as< int64_t >();
+    }
+    int maskP = globalVm["mask-p"].as< int64_t >();
+
+    auto maskStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        tg.trees[i].testImputation(maskP, allowedDistance);
+    }
+
+    auto maskEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds maskTime = maskEnd - maskStart;
+    std::cout << "\nMasking time: " << maskTime.count() << " nanoseconds\n";
 }
 
 void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
@@ -1414,6 +1448,9 @@ void parseAndExecute(int argc, char* argv[]) {
     } else if (globalVm.count("impute")) {
         impute(TG, globalVm, outputFile, buf);
         return;
+    } else if (globalVm.count("mask")) {
+        mask(TG, globalVm, buf);
+        return;
     } else if(globalVm.count("fasta")) {
         fasta(TG, globalVm, outputFile, buf);
         return;
@@ -1502,6 +1539,13 @@ void parseAndExecute(int argc, char* argv[]) {
                         .run(), imputeVm);
 
                    impute(TG, imputeVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "mask") == 0) {
+                    po::variables_map maskVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(maskDesc)
+                        .run(), maskVm);
+
+                   mask(TG, maskVm, buf);
                 } else if(strcmp(splitCommandArray[0], "summary") == 0) {
                     po::variables_map summaryVm;
                     po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)

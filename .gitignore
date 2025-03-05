@@ -9,3 +9,5 @@ panman/*
 .vscode/*
 scripts/*
 info/*
+mask_logs/*
+plots/*
