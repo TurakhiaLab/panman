@@ -12,10 +12,11 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     fillImputationLookupTables(substitutions, insertions, originalNucs, wasBlockInv);
 
     // Impute all substitutions (100% success rate)
+    int totalSubNs = 0;
     for (const auto& toImpute: substitutions) {
-        imputeSubstitution(allNodes[toImpute.first]->nucMutation, toImpute.second);
+        totalSubNs += imputeSubstitution(allNodes[toImpute.first]->nucMutation, toImpute.second);
     }
-    std::cout << "Imputed " << substitutions.size() << "/" << substitutions.size() << " SNPs/MNPs to N" << std::endl;
+    std::cout << "Imputed " << totalSubNs << "/" << totalSubNs << " SNPs/MNPs to N" << std::endl;
     
     // Attempt to impute insertions
 
@@ -194,10 +195,11 @@ const void panmanUtils::Tree::fillBlockLookupTables(panmanUtils::Node* node, blo
     }
 }
 
-const void panmanUtils::Tree::imputeSubstitution(std::vector<panmanUtils::NucMut>& nucMutation, const NucMut& mutToN) {
+const int panmanUtils::Tree::imputeSubstitution(std::vector<panmanUtils::NucMut>& nucMutation, const NucMut& mutToN) {
     // Get rid of the old mutation in the node's list
     std::vector<NucMut>::iterator oldIndex = std::find(nucMutation.begin(), nucMutation.end(), mutToN);
     oldIndex = nucMutation.erase(oldIndex);
+    int subNs = mutToN.length();
 
     // Possible MNP
     if (mutToN.type() == panmanUtils::NucMutationType::NS) {
@@ -209,7 +211,10 @@ const void panmanUtils::Tree::imputeSubstitution(std::vector<panmanUtils::NucMut
             }
         }
         nucMutation.insert(oldIndex, snps.begin(), snps.end());
+        // These SNPs were not erased
+        subNs -= snps.size();
     }
+    return subNs;
 }
 
 const void panmanUtils::Tree::imputeAllSubstitutionsWithNs(std::vector<panmanUtils::NucMut>& nucMutation) {

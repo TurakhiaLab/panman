@@ -766,7 +766,8 @@ class Tree {
         std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv);
     // Impute a specific substitution in "nucMutation", "mutToN" which mutated TO N
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
-    const void imputeSubstitution(std::vector<NucMut>& nucMutation, const NucMut& mutToN);
+    // Returns the number of Ns imputed
+    const int imputeSubstitution(std::vector<NucMut>& nucMutation, const NucMut& mutToN);
     // Impute all substitutions with Ns within "nucMutation"
     const void imputeAllSubstitutionsWithNs(std::vector<NucMut>& nucMutation);
     // Tries to find a similar insertion for each in "mutsToN" within "allowedDistance" branch length from "node"
