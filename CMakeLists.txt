@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.8)
 
 project(panmanUtils)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options -w -mavx512f") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options -w") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
 
