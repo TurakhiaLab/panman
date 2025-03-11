@@ -13,7 +13,7 @@ cd RawData
 gunzip *.gz
 
 # Constructing PanGraph from the Raw Sequences
-pangraph build -k mmseqs $DEST_FILE | pangraph polish >out.json 2>out.nwk
+pangraph build $DEST_FILE | pangraph polish >out.json 2>out.nwk
 awk '/tree/ {{split($0,a,"tree:  "); print a[2]}}' out.nwk > temp.newick && mv temp.newick out.nwk
 
 # Constructing GFA from raw genome sequences using PGGB
