@@ -39,20 +39,23 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
         if (!insertionsWithNs.empty()) {
             insertionImputationAttempts++;
             toMove[toImpute.first] = findInsertionImputationMove(
-                allNodes[toImpute.first], insertionsWithNs, allowedIndelDistance, insertions, originalNucs, wasBlockInv);
+                allNodes[toImpute.first], insertionsWithNs,
+                allowedIndelDistance, insertions, originalNucs, wasBlockInv);
         }
     }
 
     // Make all moves
     std::vector<panmanUtils::Node*> oldParents;
+    std::unordered_set<panmanUtils::Node*> moved;
     for (const auto& curMove: toMove) {
         if (curMove.second.first != nullptr) {
             Node* curNode = allNodes[curMove.first];
-            oldParents.push_back(curNode->parent);
 
-            if (!moveNode(curNode, curMove.second.first, curMove.second.second)) {
-                // The move failed
-                oldParents.erase(oldParents.end() - 1);
+            // If a node was moved, any mutations relative to it are now invalid
+            if (!curNode->isDescendant(moved)) {
+                oldParents.push_back(curNode->parent);
+                moved.emplace(curNode);
+                moveNode(curNode, curMove.second.first, curMove.second.second);
             }
         }
     }
@@ -64,7 +67,8 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
         }
     }
 
-    std::cout << "Moved " << oldParents.size() << "/" << insertionImputationAttempts << " nodes with insertions to N" << std::endl;
+    std::cout << "Moved " << moved.size() << "/" << insertionImputationAttempts;
+    std::cout << " nodes with insertions to N" << std::endl;
 
     // Fix depth/level attributes, post-move
     size_t numLeaves;
@@ -91,7 +95,8 @@ const void panmanUtils::Tree::fillImputationLookupTables(
     wasBlockInv[root->identifier] = std::unordered_map< uint64_t, bool >();
 
     for (const auto& child: root->children) {
-        fillImputationLookupTablesHelper(child, substitutions, insertions, originalNucs, wasBlockInv, curSequence, blockStrand);
+        fillImputationLookupTablesHelper(child, substitutions, insertions, originalNucs, 
+                                         wasBlockInv, curSequence, blockStrand);
     }
 }
 
@@ -108,7 +113,8 @@ const void panmanUtils::Tree::fillImputationLookupTablesHelper(panmanUtils::Node
     fillBlockLookupTables(node, blockStrand, wasBlockInv);
 
     for(auto child: node->children) {
-        fillImputationLookupTablesHelper(child, substitutions, insertions, originalNucs, wasBlockInv, curSequence, blockStrand);
+        fillImputationLookupTablesHelper(child, substitutions, insertions, originalNucs,
+                                         wasBlockInv, curSequence, blockStrand);
     }
 
     // Undo mutations before passing back up the tree
@@ -329,10 +335,7 @@ const std::vector<std::pair< panmanUtils::Node*, panmanUtils::MutationList >> pa
     return nearbyInsertions;
 }
 
-bool panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList newMuts) {
-    // Prevent looping
-    if (newParent->isDescendant(toMove)) return false;
-
+void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList newMuts) {
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
     allNodes[dummyParent->identifier] = dummyParent;
@@ -348,5 +351,4 @@ bool panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* n
     toMove->branchLength = 1;
     toMove->nucMutation = newMuts.nucMutation;
     toMove->blockMutation = newMuts.blockMutation;
-    return true;
 }

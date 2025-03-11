@@ -586,13 +586,13 @@ class Node {
         if (newParent != nullptr) newParent->children.emplace_back(this);
     }
 
-    bool isDescendant(Node* other) {
+    bool isDescendant(const std::unordered_set<Node*>& others) {
         if (parent == nullptr) {
             return false;
-        } else if (parent == other) {
+        } else if (others.find(parent) != others.end()) {
             return true;
         } else {
-            return parent->isDescendant(other);
+            return parent->isDescendant(others);
         }
     }
 };
@@ -840,7 +840,7 @@ class Tree {
     // Impute all Ns in the Tree (meant for external use)
     void imputeNs(int allowedIndelDistance);
     // Move "toMove" to be a child of "newParent", with mutations "newMuts"
-    bool moveNode(Node* toMove, Node* newParent, MutationList newMuts);
+    void moveNode(Node* toMove, Node* newParent, MutationList newMuts);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
