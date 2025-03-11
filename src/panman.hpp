@@ -790,13 +790,6 @@ class Tree {
         const std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > >& originalNucs,
         const std::unordered_map< std::string, std::unordered_map< uint64_t, bool > >& wasBlockInv);
 
-    // N-mask bases in insertions or substitutions with probability p out of 100
-    // Returns {"SUB"/"INS": {ID : {position : original base}}} maps
-    std::unordered_map< std::string, std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > > > maskNs(int p);
-    // Count (ignore, unimputed, wrong, correct) imputations of N-masked bases
-    std::tuple< int, int, int, int > checkImputeOfMasked(bool erasedIsCorrect,
-        std::unordered_map< std::string, std::unordered_map< Coordinate, int8_t > > masked);
-
     std::string newInternalNodeId() {
         return "node_" + std::to_string(++m_currInternalNode);
     }
@@ -848,9 +841,6 @@ class Tree {
     void imputeNs(int allowedIndelDistance);
     // Move "toMove" to be a child of "newParent", with mutations "newMuts"
     bool moveNode(Node* toMove, Node* newParent, MutationList newMuts);
-    // Test imputation by N-masking mutations with probability p out of 100
-    // Prints share unimputed, imputed wrongly, and imputed correctly, by type
-    void testImputation(int p, int allowedIndelDistance);
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
