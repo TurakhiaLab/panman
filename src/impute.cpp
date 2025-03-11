@@ -49,12 +49,13 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     for (const auto& curMove: toMove) {
         if (curMove.second.first != nullptr) {
             Node* curNode = allNodes[curMove.first];
+            Node* newParent = curMove.second.first;
 
             // If a node was moved, any mutations calculated relative to it are no longer valid
-            if (!curNode->isDescendant(moved)) {
+            if (!newParent->isDescendant(moved)) {
                 Node* curParent = curNode->parent;
                 
-                if (moveNode(curNode, curMove.second.first, curMove.second.second)) {
+                if (moveNode(curNode, newParent, curMove.second.second)) {
                     // This move succeeded
                     oldParents.push_back(curParent);
                     moved.emplace(curNode);
