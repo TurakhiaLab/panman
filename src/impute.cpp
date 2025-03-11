@@ -1,6 +1,5 @@
 
 #include "panmanUtils.hpp"
-#include <random>
 
 void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector< std::pair< std::string, panmanUtils::NucMut > > substitutions;
@@ -51,11 +50,15 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
         if (curMove.second.first != nullptr) {
             Node* curNode = allNodes[curMove.first];
 
-            // If a node was moved, any mutations relative to it are now invalid
+            // If a node was moved, any mutations calculated relative to it are no longer valid
             if (!curNode->isDescendant(moved)) {
-                oldParents.push_back(curNode->parent);
-                moved.emplace(curNode);
-                moveNode(curNode, curMove.second.first, curMove.second.second);
+                Node* curParent = curNode->parent;
+                
+                if (moveNode(curNode, curMove.second.first, curMove.second.second)) {
+                    // This move succeeded
+                    oldParents.push_back(curParent);
+                    moved.emplace(curNode);
+                }
             }
         }
     }
@@ -67,8 +70,7 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
         }
     }
 
-    std::cout << "Moved " << moved.size() << "/" << insertionImputationAttempts;
-    std::cout << " nodes with insertions to N" << std::endl;
+    std::cout << "Moved " << moved.size() << "/" << insertionImputationAttempts << " nodes with insertions to N" << std::endl;
 
     // Fix depth/level attributes, post-move
     size_t numLeaves;
@@ -335,7 +337,10 @@ const std::vector<std::pair< panmanUtils::Node*, panmanUtils::MutationList >> pa
     return nearbyInsertions;
 }
 
-void panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList newMuts) {
+bool panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList newMuts) {
+    // Avoid looping
+    if (toMove->isDescendant({newParent})) return false;
+
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
     allNodes[dummyParent->identifier] = dummyParent;
