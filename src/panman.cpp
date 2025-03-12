@@ -228,21 +228,6 @@ panmanUtils::Node::Node(std::string id, Node* par, float len) {
     par->children.push_back(this);
 }
 
-panmanUtils::Node::Node(Node* other, std::string id) {
-    branchLength = other->branchLength;
-    level = other->level;
-    identifier = id;
-    parent = other->parent;
-    if (parent != nullptr) {
-        parent->children.emplace_back(this);
-    }
-
-    nucMutation = other->nucMutation;
-    blockMutation = other->blockMutation;
-    isComMutHead = other->isComMutHead;
-    treeIndex = other->treeIndex;
-}
-
 panmanUtils::Block::Block(size_t pBlockId, std::string seq) {
     primaryBlockId = pBlockId;
     secondaryBlockId = -1;
@@ -2369,54 +2354,6 @@ std::vector<panmanUtils::BlockMut> panmanUtils::Tree::consolidateBlockMutations(
         mutationArray.push_back(curMut.second);
     }
     return mutationArray;
-}
-
-void panmanUtils::MutationList::invertMutations(const std::unordered_map< panmanUtils::Coordinate, int8_t >& originalNucs,
-    const std::unordered_map< uint64_t, bool >& wasBlockInv) {
-
-    // Reverse nucleotide mutations
-    for (auto& curMut: nucMutation) {
-        // Erase current nucleotides, to prepare for overwriting
-        curMut.nucs = 0;
-        
-        switch(curMut.type()) {
-        // Insertion to deletion
-        case panmanUtils::NucMutationType::NSNPI:
-            curMut.mutInfo += panmanUtils::NucMutationType::NSNPD - panmanUtils::NucMutationType::NSNPI;
-            curMut.addNucCode(panmanUtils::NucCode::MISSING, 0);
-            break;
-        // Deletion to insertion of original nucleotide (via falldown)
-        case panmanUtils::NucMutationType::NSNPD:
-            curMut.mutInfo += panmanUtils::NucMutationType::NSNPI - panmanUtils::NucMutationType::NSNPD;
-        // Substitution back to original nucleotide
-        case panmanUtils::NucMutationType::NSNPS:
-            curMut.addNucCode(originalNucs.at(panmanUtils::Coordinate(curMut)), 0);
-            break;
-        // Same as above, but with handling for multiple nucleotides
-        case panmanUtils::NucMutationType::NI:
-            curMut.mutInfo += panmanUtils::NucMutationType::ND - panmanUtils::NucMutationType::NI;
-            for (int i = 0; i < curMut.length(); i++) {
-                curMut.addNucCode(panmanUtils::NucCode::MISSING, i);
-            }
-            break;
-        case panmanUtils::NucMutationType::ND:
-            curMut.mutInfo += panmanUtils::NucMutationType::NI - panmanUtils::NucMutationType::ND;
-        case panmanUtils::NucMutationType::NS:
-            for (int i = 0; i < curMut.length(); i++) {
-                curMut.addNucCode(originalNucs.at(panmanUtils::Coordinate(curMut, i)), i);
-            }
-            break;
-        }
-    }
-
-    // Reverse block mutations
-    for (auto& curMut: blockMutation) {
-        if (curMut.isInsertion()) {
-            curMut.convertToDeletion();
-        } else if (curMut.isDeletion()) {
-            curMut.convertToInsertion(wasBlockInv.at(curMut.singleBlockID()));
-        }
-    }
 }
 
 bool panmanUtils::Tree::panMATCoordinateGeq(const std::tuple< int, int, int, int >& coor1,
@@ -5805,26 +5742,6 @@ void panmanUtils::Tree::adjustLevels(Node* node) {
     }
     for(auto u: node->children) {
         adjustLevels(u);
-    }
-}
-
-void panmanUtils::Tree::fixLevels(panmanUtils::Node* node, size_t& numLeaves, size_t& totalLeafDepth) {
-    // Fix this node's .level attribute
-    if (node->parent == nullptr) {
-        // Root is level 1
-        node->level = 1;
-    } else {
-        node->level = node->parent->level + 1;
-    }
-
-    if (node->children.empty()) {
-        // Update leaf trackers if this is a leaf
-        numLeaves++;
-        totalLeafDepth += node->level;
-        if (node->level > m_maxDepth) m_maxDepth = node->level;
-    } else {
-        // Pre-order traversal of children
-        for (auto child: node->children) fixLevels(child, numLeaves, totalLeafDepth);
     }
 }
 
