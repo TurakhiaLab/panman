@@ -10,9 +10,9 @@ RUN apt-get update && \
                    cmake wget curl zip \
                    unzip tar protobuf-compiler \
                    libboost-all-dev pkg-config && \
-    apt-get clean && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
+    apt-get clean
+    # update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100 && \
+    # update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
 
 
 WORKDIR /home
