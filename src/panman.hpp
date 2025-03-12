@@ -433,6 +433,10 @@ struct BlockMut {
     void invert() {
         inversion = !inversion;
     }
+
+    uint64_t singleBlockID() const { 
+        return (primaryBlockId << 32) + secondaryBlockId;
+    }
 };
 
 // List of default blocks in the global coordinate system of the PanMAT
