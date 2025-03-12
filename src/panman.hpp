@@ -229,13 +229,12 @@ struct NucMut {
         }
     }
 
-    // Subset a SNP from an MNP
+    // Make a 0-length substitution mutation with a given offset
     NucMut(const NucMut& other, int i) {
         primaryBlockId = other.primaryBlockId;
         secondaryBlockId = other.secondaryBlockId;
-        mutInfo = panmanUtils::NucMutationType::NSNPS + (1 << 4);
-        // Extract one nucleotide, then set it as the only one
-        setSingleNucCode(other.getNucCode(i));
+        mutInfo = panmanUtils::NucMutationType::NS;
+        nucs = 0;
 
         // If gap=-1 then increment nucPosition, otherwise increment nucGapPosition
         if (other.nucGapPosition == -1) {
@@ -272,10 +271,11 @@ struct NucMut {
         nucs += (newNuc << (4*(5-i)));
     }
 
-    void changeNucCode(int8_t newNuc, int i) {
-        int oldCode = getNucCode(i);
-        nucs -= (oldCode << (4*(5-i)));
-        addNucCode(newNuc, i);
+    // Append a nucleotide to the end of this mutation
+    void appendNuc(int8_t newNuc) {
+        addNucCode(newNuc, length());
+        // Update length as necessary
+        mutInfo += (1 << 4);
     }
 
     // Set to have a single nucleotide (for NSNPX types)
@@ -593,13 +593,10 @@ class Tree {
     // Impute all substitutions in a subtree defined by root "node"
     // Tracks the number of imputed Ns by adding to "imputedNs"
     void imputeSubtree(Node* node, int& imputedNs);
-    // Impute a specific substitution in "nucMutation", "mutToN" which mutated TO N
+    // Impute all substitutions with Ns within "nucMutation"
     // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
     // Returns the number of Ns imputed
-    const int imputeSubstitution(std::vector<NucMut>& nucMutation, const NucMut& mutToN);
-    // Impute all substitutions with Ns within "nucMutation"
-    // Returns the number of Ns imputed
-    const int imputeAllSubstitutionsWithNs(std::vector<NucMut>& nucMutation);
+    const int imputeSubstitutions(std::vector<NucMut>& nucMutation);
 
     std::string newInternalNodeId() {
         return "node_" + std::to_string(++m_currInternalNode);
