@@ -47,14 +47,12 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
     std::vector<panmanUtils::Node*> oldParents;
     std::unordered_set<panmanUtils::Node*> moved;
     for (const auto& curMove: toMove) {
-        if (curMove.second.first != nullptr) {
-            Node* curNode = allNodes[curMove.first];
-            Node* newParent = curMove.second.first;
-
+        Node* curNode = allNodes[curMove.first];
+        Node* newParent = curMove.second.first;
+        Node* curParent = curNode->parent;
+        if (newParent != nullptr) {
             // If a node was moved, any mutations calculated relative to it are no longer valid
-            if (moved.find(newParent) != moved.end() || !newParent->isDescendant(moved)) {
-                Node* curParent = curNode->parent;
-                
+            if (moved.find(newParent) == moved.end() && !newParent->isDescendant(moved)) {
                 if (moveNode(curNode, newParent, curMove.second.second)) {
                     // This move succeeded
                     oldParents.push_back(curParent);
