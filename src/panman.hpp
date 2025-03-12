@@ -433,10 +433,6 @@ struct BlockMut {
     void invert() {
         inversion = !inversion;
     }
-
-    uint64_t singleBlockID() const { 
-        return (primaryBlockId << 32) + secondaryBlockId;
-    }
 };
 
 // List of default blocks in the global coordinate system of the PanMAT
@@ -449,11 +445,7 @@ struct Block {
 
     Block(size_t primaryBlockId, std::string seq);
     // seq is a compressed form of the sequence where each nucleotide is stored in 4 bytes
-    Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);  
-
-    uint64_t singleBlockID() const { 
-        return (primaryBlockId << 32) + secondaryBlockId;
-    }
+    Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);
 };
 
 // List of gaps in the global coordinate system of the PanMAT
@@ -744,9 +736,9 @@ class Tree {
     std::string getNewickString(Node* node);
     std::string getStringFromReference(std::string reference, bool aligned = true,
                                        bool incorporateInversions=true);
-    const void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists,
-                                        blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false,
-                                        int* rotIndex = nullptr);
+    void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists,
+                                  blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false,
+                                 int* rotIndex = nullptr);
 
     // For each node in the tree, print mutations with respect to the root node to the
     // output file
