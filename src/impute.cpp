@@ -52,7 +52,7 @@ void panmanUtils::Tree::imputeNs(int allowedIndelDistance) {
             Node* newParent = curMove.second.first;
 
             // If a node was moved, any mutations calculated relative to it are no longer valid
-            if (!newParent->isDescendant(moved)) {
+            if (moved.find(newParent) != moved.end() || !newParent->isDescendant(moved)) {
                 Node* curParent = curNode->parent;
                 
                 if (moveNode(curNode, newParent, curMove.second.second)) {
@@ -340,7 +340,7 @@ const std::vector<std::pair< panmanUtils::Node*, panmanUtils::MutationList >> pa
 
 bool panmanUtils::Tree::moveNode(panmanUtils::Node* toMove, panmanUtils::Node* newParent, panmanUtils::MutationList newMuts) {
     // Avoid looping
-    if (toMove->isDescendant({newParent})) return false;
+    if (newParent->isDescendant({toMove})) return false;
 
     // Make dummy parent from grandparent -> dummy -> newParent
     panmanUtils::Node* dummyParent = new Node(newParent, newInternalNodeId());
