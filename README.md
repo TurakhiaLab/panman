@@ -15,8 +15,6 @@
   <img src="docs/images/logo.svg"/>
 </div>
 
-This fork is for implementing and testing imputation for missing/`N` sequences.
-
 ## Table of Contents
 - [Introduction](#intro) ([Wiki](https://turakhia.ucsd.edu/panman/))
   - [PanMANs](#panman)

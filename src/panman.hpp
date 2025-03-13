@@ -80,9 +80,6 @@ struct NucMut {
     uint8_t mutInfo;
     uint32_t nucs;
 
-    // Default constructor
-    NucMut() {}
-
     // Create SNP mutation for MSA (optimized for memory)
     NucMut( const std::tuple< int, int8_t, int8_t>& mutationInfo ) {
         // primaryBlockId, secondaryBlockId, pos, gapPos, type, char
@@ -328,11 +325,6 @@ struct Coordinate {
         nucGapPosition = nm.nucGapPosition;
         primaryBlockId = nm.primaryBlockId;
         secondaryBlockId = nm.secondaryBlockId;
-        moveForward(offset);
-    }
-
-    // Move "offset" steps forward
-    void moveForward(int offset) {
         if (nucGapPosition == -1) {
             nucPosition += offset;
         } else {
@@ -373,7 +365,6 @@ struct Coordinate {
             }
         }
     }
-
 
     bool operator==(const Coordinate& other) const {
         return nucPosition == other.nucPosition &&
