@@ -135,7 +135,7 @@ void setupOptionDescriptions() {
     ("input-gfa,G", po::value< std::string >(), "Input GFA file to build a PanMAN")
     ("input-msa,M", po::value< std::string >(), "Input MSA file (FASTA format) to build a PanMAN")
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
-    ("impute", "Create new PanMAN with N sequences inputed")
+    ("impute", "Create new PanMAN with ambiguous sequences inputed")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
 
     // ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
@@ -335,7 +335,7 @@ void impute(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstre
 
     auto imputeStart = std::chrono::high_resolution_clock::now();
     for(int i = 0; i < tg.trees.size(); i++) {
-        tg.trees[i].imputeNs();
+        tg.trees[i].impute();
     }
 
     auto imputeEnd = std::chrono::high_resolution_clock::now();

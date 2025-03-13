@@ -340,6 +340,23 @@ struct Coordinate {
         }
     }
 
+    // Get base corresponding to this Coordinate's position within a sequence_t
+    char getSequenceBase(const sequence_t& sequence) const {
+        if(secondaryBlockId != -1) {
+            if(nucGapPosition != -1) {
+                return sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
+            } else {
+                return sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first;
+            }
+        } else {
+            if(nucGapPosition != -1) {
+                return sequence[primaryBlockId].first[nucPosition].second[nucGapPosition];
+            } else {
+                return sequence[primaryBlockId].first[nucPosition].first;
+            }
+        }
+    }
+
     bool operator==(const Coordinate& other) const {
         return nucPosition == other.nucPosition &&
                nucGapPosition == other.nucGapPosition &&
@@ -489,11 +506,24 @@ class Node {
 };
 
 // Given that the original state was oldNuc, can newNuc be imputed?
-bool canImpute(int8_t oldNuc, int8_t newNuc);
+bool canImpute(char oldNuc, int8_t newNuc);
 // Impute all substitutions with Ns within "nucMutation"
+// Accepts the original sequence as "sequence"
 // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
-// Returns the number of Ns imputed
-int imputeSubstitutions(std::vector<NucMut>& nucMutation);
+// Returns the number of bases imputed
+int imputeSubstitutions(std::vector<NucMut>& nucMutation, sequence_t sequence);
+
+// Apply block mutations to block trackers, and return a summary to use when undoing
+std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > > applyBlockMut(
+    const std::vector<BlockMut>& blockMutation, blockExists_t& blockExists, blockStrand_t& blockStrand);
+// Apply nucleotide mutations to sequence, and return a summary to use when undoing
+std::vector< std::tuple< int32_t, int32_t, int, int, char, char > > applyNucMut(
+    const std::vector<NucMut>& nucMutation, sequence_t& sequence);
+// Undo block mutations to block trackers
+void undoBlockMut(blockExists_t& blockExists, blockStrand_t& blockStrand,
+    const std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > >& blockMutationInfo);
+// Undo nucleotide mutations to a sequence
+void undoNucMut(sequence_t& sequence, const std::vector< std::tuple< int32_t, int32_t, int, int, char, char > >& mutationInfo);
 
 // Data structure to represent a PangenomeMAT
 class Tree {
@@ -598,8 +628,8 @@ class Tree {
                              const std::tuple< int, int, int, int >& coor2, bool strand);
 
     // Impute all substitutions in a subtree defined by root "node"
-    // Tracks the number of imputed Ns by adding to "imputedNs"
-    void imputeSubtree(Node* node, int& imputedNs);
+    // Tracks the number of imputed bases by adding to "imputedBases"
+    void imputeSubtree(Node* node, sequence_t sequence, int& imputedBases);
 
     std::string newInternalNodeId() {
         return "node_" + std::to_string(++m_currInternalNode);
@@ -648,8 +678,8 @@ class Tree {
     void protoMATToTree(const panman::Tree::Reader& mainTree);
     void protoMATToTree(const panmanOld::tree& mainTree);
 
-    // Impute all Ns in the Tree (meant for external use)
-    void imputeNs();
+    // Impute ambiguous nucleotides in the Tree (meant for external use)
+    void impute();
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);

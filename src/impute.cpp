@@ -1,74 +1,85 @@
 
 #include "panmanUtils.hpp"
 
-void panmanUtils::Tree::imputeNs() {
-    int imputedNs = 0;
+void panmanUtils::Tree::impute() {
+    // Prepare current-state trackers
+    sequence_t sequence;
+    blockExists_t blockExists;
+    blockStrand_t blockStrand;
+    getSequenceFromReference(sequence, blockExists, blockStrand, root->identifier);
+
+    int imputedBases = 0;
     for (const auto& child: root->children) {
-        imputeSubtree(root, imputedNs);
+        imputeSubtree(root, sequence, imputedBases);
     }
 
-    std::string pluralS = (imputedNs == 1) ? "" : "s";
-    std::cout << "Imputed " << imputedNs << " SNP" << pluralS << " to N" << std::endl;
+    std::string pluralS = (imputedBases == 1) ? "" : "s";
+    std::cout << "Imputed " << imputedBases << " SNP" << pluralS << std::endl;
 }
 
-void panmanUtils::Tree::imputeSubtree(panmanUtils::Node* node, int& imputedNs) {
-    imputedNs += imputeSubstitutions(node->nucMutation);
+void panmanUtils::Tree::imputeSubtree(panmanUtils::Node* node, sequence_t sequence, int& imputedBases) {
+    imputedBases += imputeSubstitutions(node->nucMutation, sequence);
+    auto mutationInfo = panmanUtils::applyNucMut(node->nucMutation, sequence);
+
     for (const auto& child: node->children) {
-        imputeSubtree(child, imputedNs);
+        imputeSubtree(child, sequence, imputedBases);
     }
+
+    panmanUtils::undoNucMut(sequence, mutationInfo);
 }
 
-bool panmanUtils::canImpute(int8_t oldNuc, int8_t newNuc) {
+bool panmanUtils::canImpute(char oldNuc, int8_t newNuc) {
     // Using table from https://www.dnabaser.com/articles/IUPAC%20ambiguity%20codes.html
     switch(newNuc) {
     case panmanUtils::NucCode::Y: // C or T
-        return oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::T;
+        return oldNuc == 'C' || oldNuc == 'T';
     case panmanUtils::NucCode::R: // A or G
-        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::G;
+        return oldNuc == 'A' || oldNuc == 'G';
     case panmanUtils::NucCode::W: // A or T
-        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::T;
+        return oldNuc == 'A' || oldNuc == 'T';
     case panmanUtils::NucCode::S: // C or G
-        return oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::G;
+        return oldNuc == 'C' || oldNuc == 'G';
     case panmanUtils::NucCode::K: // G or T
-        return oldNuc == panmanUtils::NucCode::G || oldNuc == panmanUtils::NucCode::T;
+        return oldNuc == 'G' || oldNuc == 'T';
     case panmanUtils::NucCode::M: // A or C
-        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::C;
+        return oldNuc == 'A' || oldNuc == 'C';
     case panmanUtils::NucCode::B: // C, G, or T
-        return oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::G || oldNuc == panmanUtils::NucCode::T;
+        return oldNuc == 'C' || oldNuc == 'G' || oldNuc == 'T';
     case panmanUtils::NucCode::D: // A, G, or T
-        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::G || oldNuc == panmanUtils::NucCode::T;
+        return oldNuc == 'A' || oldNuc == 'G' || oldNuc == 'T';
     case panmanUtils::NucCode::H: // A, C, or T
-        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::T;
+        return oldNuc == 'A' || oldNuc == 'C' || oldNuc == 'T';
     case panmanUtils::NucCode::V: // A, C, or G
-        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::G;
+        return oldNuc == 'A' || oldNuc == 'C' || oldNuc == 'G';
     case panmanUtils::NucCode::N: // Any nucleotide (A, C, G, T)
-        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::C || 
-               oldNuc == panmanUtils::NucCode::G || oldNuc == panmanUtils::NucCode::T;
+        return oldNuc == 'A' || oldNuc == 'C' || oldNuc == 'G' || oldNuc == 'T';
     default:
         return false;
     }
 }
 
-int panmanUtils::imputeSubstitutions(std::vector<panmanUtils::NucMut>& nucMutation) {
-    int totalImputedNs = 0;
+int panmanUtils::imputeSubstitutions(std::vector<panmanUtils::NucMut>& nucMutation, sequence_t sequence) {
+    int totalImputedBases = 0;
     // Will copy mutations back from oldMuts to nucMutation after processing
     std::vector<panmanUtils::NucMut> oldMuts = nucMutation;
     nucMutation.clear();
 
     for (const auto& curMut: oldMuts) {
         if (curMut.isSubstitution()) {
-            // Store non-N substitutions seen so far, which must be retained
+            // Store non-impute substitutions seen so far, which must be retained
             panmanUtils::NucMut newMut = panmanUtils::NucMut(curMut, 0);
 
             for (int i = 0; i < curMut.length(); i++) {
                 int8_t curNucCode = curMut.getNucCode(i);
-                if (curNucCode == panmanUtils::NucCode::N) {
-                    // Add previous non-N MNP if present
+                panmanUtils::Coordinate curPos = panmanUtils::Coordinate(curMut, i);
+
+                if (panmanUtils::canImpute(curPos.getSequenceBase(sequence), curNucCode)) {
+                    // Add previous non-imputed MNP if present
                     if (newMut.length() != 0) nucMutation.push_back(newMut);
 
-                    // Reset non-N MNP
+                    // Reset non-imputed MNP
                     newMut = panmanUtils::NucMut(curMut, i);
-                    totalImputedNs++;
+                    totalImputedBases++;
                 } else {
                     // Must save this non-N substitution
                     newMut.appendNuc(curNucCode);
@@ -83,5 +94,5 @@ int panmanUtils::imputeSubstitutions(std::vector<panmanUtils::NucMut>& nucMutati
         }
     }
     
-    return totalImputedNs;
+    return totalImputedBases;
 }
