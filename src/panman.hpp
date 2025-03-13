@@ -357,6 +357,24 @@ struct Coordinate {
         }
     }
 
+    // Set base corresponding to this Coordinate's position within a sequence_t
+    void setSequenceBase(sequence_t& seq, char newNuc) const {
+        if(secondaryBlockId != -1) {
+            if(nucGapPosition != -1) {
+                seq[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newNuc;
+            } else {
+                seq[primaryBlockId].second[secondaryBlockId][nucPosition].first = newNuc;
+            }
+        } else {
+            if(nucGapPosition != -1) {
+                seq[primaryBlockId].first[nucPosition].second[nucGapPosition] = newNuc;
+            } else {
+                seq[primaryBlockId].first[nucPosition].first = newNuc;
+            }
+        }
+    }
+
+
     bool operator==(const Coordinate& other) const {
         return nucPosition == other.nucPosition &&
                nucGapPosition == other.nucGapPosition &&
@@ -517,13 +535,13 @@ int imputeSubstitutions(std::vector<NucMut>& nucMutation, sequence_t sequence);
 std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > > applyBlockMut(
     const std::vector<BlockMut>& blockMutation, blockExists_t& blockExists, blockStrand_t& blockStrand);
 // Apply nucleotide mutations to sequence, and return a summary to use when undoing
-std::vector< std::tuple< int32_t, int32_t, int, int, char, char > > applyNucMut(
+std::vector< std::tuple< Coordinate, char, char > > applyNucMut(
     const std::vector<NucMut>& nucMutation, sequence_t& sequence);
 // Undo block mutations to block trackers
 void undoBlockMut(blockExists_t& blockExists, blockStrand_t& blockStrand,
     const std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > >& blockMutationInfo);
 // Undo nucleotide mutations to a sequence
-void undoNucMut(sequence_t& sequence, const std::vector< std::tuple< int32_t, int32_t, int, int, char, char > >& mutationInfo);
+void undoNucMut(sequence_t& sequence, const std::vector< std::tuple< Coordinate, char, char > >& mutationInfo);
 
 // Data structure to represent a PangenomeMAT
 class Tree {
