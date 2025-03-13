@@ -18,7 +18,7 @@ void panmanUtils::Tree::imputeSubtree(panmanUtils::Node* node, int& imputedNs) {
     }
 }
 
-const int panmanUtils::Tree::imputeSubstitutions(std::vector<panmanUtils::NucMut>& nucMutation) {
+int panmanUtils::imputeSubstitutions(std::vector<panmanUtils::NucMut>& nucMutation) {
     int totalImputedNs = 0;
     // Will copy mutations back from oldMuts to nucMutation after processing
     std::vector<panmanUtils::NucMut> oldMuts = nucMutation;

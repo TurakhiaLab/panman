@@ -488,6 +488,11 @@ class Node {
     Node(std::string id, Node* par, float len);
 };
 
+// Impute all substitutions with Ns within "nucMutation"
+// Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
+// Returns the number of Ns imputed
+int imputeSubstitutions(std::vector<NucMut>& nucMutation);
+
 // Data structure to represent a PangenomeMAT
 class Tree {
   private:
@@ -593,10 +598,6 @@ class Tree {
     // Impute all substitutions in a subtree defined by root "node"
     // Tracks the number of imputed Ns by adding to "imputedNs"
     void imputeSubtree(Node* node, int& imputedNs);
-    // Impute all substitutions with Ns within "nucMutation"
-    // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
-    // Returns the number of Ns imputed
-    const int imputeSubstitutions(std::vector<NucMut>& nucMutation);
 
     std::string newInternalNodeId() {
         return "node_" + std::to_string(++m_currInternalNode);
