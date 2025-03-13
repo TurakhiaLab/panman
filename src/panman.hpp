@@ -488,6 +488,8 @@ class Node {
     Node(std::string id, Node* par, float len);
 };
 
+// Given that the original state was oldNuc, can newNuc be imputed?
+bool canImpute(int8_t oldNuc, int8_t newNuc);
 // Impute all substitutions with Ns within "nucMutation"
 // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
 // Returns the number of Ns imputed

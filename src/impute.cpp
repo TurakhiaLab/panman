@@ -18,6 +18,37 @@ void panmanUtils::Tree::imputeSubtree(panmanUtils::Node* node, int& imputedNs) {
     }
 }
 
+bool panmanUtils::canImpute(int8_t oldNuc, int8_t newNuc) {
+    // Using table from https://www.dnabaser.com/articles/IUPAC%20ambiguity%20codes.html
+    switch(newNuc) {
+    case panmanUtils::NucCode::Y: // C or T
+        return oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::T;
+    case panmanUtils::NucCode::R: // A or G
+        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::G;
+    case panmanUtils::NucCode::W: // A or T
+        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::T;
+    case panmanUtils::NucCode::S: // C or G
+        return oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::G;
+    case panmanUtils::NucCode::K: // G or T
+        return oldNuc == panmanUtils::NucCode::G || oldNuc == panmanUtils::NucCode::T;
+    case panmanUtils::NucCode::M: // A or C
+        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::C;
+    case panmanUtils::NucCode::B: // C, G, or T
+        return oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::G || oldNuc == panmanUtils::NucCode::T;
+    case panmanUtils::NucCode::D: // A, G, or T
+        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::G || oldNuc == panmanUtils::NucCode::T;
+    case panmanUtils::NucCode::H: // A, C, or T
+        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::T;
+    case panmanUtils::NucCode::V: // A, C, or G
+        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::C || oldNuc == panmanUtils::NucCode::G;
+    case panmanUtils::NucCode::N: // Any nucleotide (A, C, G, T)
+        return oldNuc == panmanUtils::NucCode::A || oldNuc == panmanUtils::NucCode::C || 
+               oldNuc == panmanUtils::NucCode::G || oldNuc == panmanUtils::NucCode::T;
+    default:
+        return false;
+    }
+}
+
 int panmanUtils::imputeSubstitutions(std::vector<panmanUtils::NucMut>& nucMutation) {
     int totalImputedNs = 0;
     // Will copy mutations back from oldMuts to nucMutation after processing
