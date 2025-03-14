@@ -22,13 +22,13 @@ void panmanUtils::Tree::imputeSubtree(panmanUtils::Node* node, sequence_t& seque
 
     // Only bother applying mutations etc. if there's more subtree to search
     if (!node->children.empty()) {
-        //auto mutationInfo = panmanUtils::applyNucMut(node->nucMutation, sequence);
+        auto mutationInfo = panmanUtils::applyNucMut(node->nucMutation, sequence);
 
         for (const auto& child: node->children) {
             imputeSubtree(child, sequence, imputedBases);
         }
 
-        //panmanUtils::undoNucMut(sequence, mutationInfo);
+        panmanUtils::undoNucMut(sequence, mutationInfo);
     }
 }
 
@@ -48,15 +48,19 @@ bool panmanUtils::canImpute(char oldNuc, int8_t newNuc) {
     case panmanUtils::NucCode::M: // A or C
         return oldNuc == 'A' || oldNuc == 'C';
     case panmanUtils::NucCode::B: // C, G, or T
-        return oldNuc == 'C' || oldNuc == 'G' || oldNuc == 'T';
+        return (oldNuc == 'C' || oldNuc == 'G' || oldNuc == 'T' 
+             || oldNuc == 'Y' || oldNuc == 'S' || oldNuc == 'K');
     case panmanUtils::NucCode::D: // A, G, or T
-        return oldNuc == 'A' || oldNuc == 'G' || oldNuc == 'T';
+        return (oldNuc == 'A' || oldNuc == 'G' || oldNuc == 'T' 
+             || oldNuc == 'R' || oldNuc == 'W' || oldNuc == 'K');
     case panmanUtils::NucCode::H: // A, C, or T
-        return oldNuc == 'A' || oldNuc == 'C' || oldNuc == 'T';
+        return (oldNuc == 'A' || oldNuc == 'C' || oldNuc == 'T' 
+             || oldNuc == 'Y' || oldNuc == 'W' || oldNuc == 'M');
     case panmanUtils::NucCode::V: // A, C, or G
-        return oldNuc == 'A' || oldNuc == 'C' || oldNuc == 'G';
-    case panmanUtils::NucCode::N: // Any nucleotide (A, C, G, T)
-        return oldNuc == 'A' || oldNuc == 'C' || oldNuc == 'G' || oldNuc == 'T';
+        return (oldNuc == 'A' || oldNuc == 'C' || oldNuc == 'G' 
+             || oldNuc == 'R' || oldNuc == 'S' || oldNuc == 'M');
+    case panmanUtils::NucCode::N: // Any nucleotide
+        return oldNuc != '-';
     default:
         return false;
     }
@@ -82,7 +86,7 @@ int panmanUtils::imputeSubstitutions(std::vector<panmanUtils::NucMut>& nucMutati
                     if (newMut.length() != 0) nucMutation.push_back(newMut);
 
                     // Reset non-imputed MNP
-                    newMut = panmanUtils::NucMut(curMut, i);
+                    newMut = panmanUtils::NucMut(curMut, i + 1);
                     totalImputedBases++;
                 } else {
                     // Must save this non-N substitution
