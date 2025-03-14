@@ -443,18 +443,6 @@ struct BlockMut {
     // Readable way to check if this is a non-insertion inversion
     bool isSimpleInversion() const { return !blockMutInfo && inversion; }
 
-    // Make this mutation into an insertion, keeping the same block IDs
-    void convertToInsertion(bool inversion) {
-        blockMutInfo = true;
-        inversion = inversion;
-    }
-
-    // Make this mutation into a deletion, keeping the same block IDs
-    void convertToDeletion() {
-        blockMutInfo = false;
-        inversion = false;
-    }
-
     // Flip this mutation's inversion marker
     void invert() {
         inversion = !inversion;
@@ -475,7 +463,7 @@ struct Block {
 
     Block(size_t primaryBlockId, std::string seq);
     // seq is a compressed form of the sequence where each nucleotide is stored in 4 bytes
-    Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);
+    Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);  
 };
 
 // List of gaps in the global coordinate system of the PanMAT
@@ -781,7 +769,7 @@ class Tree {
                                        bool incorporateInversions=true);
     void getSequenceFromReference(sequence_t& sequence, blockExists_t& blockExists,
                                   blockStrand_t& blockStrand, std::string reference, bool rotateSequence = false,
-                                 int* rotIndex = nullptr);
+                                  int* rotIndex = nullptr);
 
     // For each node in the tree, print mutations with respect to the root node to the
     // output file
