@@ -520,7 +520,7 @@ bool canImpute(char oldNuc, int8_t newNuc);
 // Accepts the original sequence as "sequence"
 // Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
 // Returns the number of bases imputed
-int imputeSubstitutions(std::vector<NucMut>& nucMutation, sequence_t sequence);
+int imputeSubstitutions(std::vector<NucMut>& nucMutation, const sequence_t& sequence);
 
 // Apply block mutations to block trackers, and return a summary to use when undoing
 std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > > applyBlockMut(
@@ -638,7 +638,7 @@ class Tree {
 
     // Impute all substitutions in a subtree defined by root "node"
     // Tracks the number of imputed bases by adding to "imputedBases"
-    void imputeSubtree(Node* node, sequence_t sequence, int& imputedBases);
+    void imputeSubtree(Node* node, sequence_t& sequence, int& imputedBases);
 
     std::string newInternalNodeId() {
         return "node_" + std::to_string(++m_currInternalNode);
