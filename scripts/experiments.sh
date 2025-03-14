@@ -1,7 +1,7 @@
 
 # Uncomment one of the following lines 
-DEST_FILE="tb_400.fa"
-# DEST_FILE="rsv_4000.fa"
+DEST_FILE="rsv_4000.fa"
+# DEST_FILE="tb_400.fa"
 # DEST_FILE="sars_20000.fa"
 # DEST_FILE="HIV_20000.fa"
 # DEST_FILE="ecoli_1000.fa"
@@ -13,20 +13,22 @@ cd RawData
 gunzip *.gz
 
 # Constructing PanGraph from the Raw Sequences
-pangraph build $DEST_FILE | pangraph polish >out.json 2>out.nwk
+pangraph build $DEST_FILE >out.json 2>out.nwk
 awk '/tree/ {{split($0,a,"tree:  "); print a[2]}}' out.nwk > temp.newick && mv temp.newick out.nwk
 
 # Constructing GFA from raw genome sequences using PGGB
+samtools faidx $DEST_FILE
 pggb -i $DEST_FILE -t 32 -n num_sequences -o output_dir
+mv output_dir/*.gfa out.gfa
 
 # Constructing VG
-vg convert -p out.gfa -t 32 -v > out.vg 
+vg convert -g out.gfa -t 32 -v > out.vg 
 
 # Constructing GBZ
 vg gbwt -G out.gfa --num-threads 32 --gbz-format -g out.gbz
 
 # Constructing MSA from raw genome sequences
-mafft --auto --keeplength --addfragments $DEST_FILE > out.msa
+mafft --auto $DEST_FILE > out.msa
 
 # Constructing PanMANs from Pangraph alignment
 panmanUtils -P out.json -N out.nwk -o data
