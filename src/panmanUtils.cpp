@@ -90,6 +90,7 @@ po::positional_options_description globalPositionArgumentDesc;
 // program option descriptions of various command line functions
 po::options_description summaryDesc("Summary Command Line Arguments");
 po::options_description useDesc("Use Command Line Arguments");
+po::options_description imputeDesc("Imputation Command Line Arguments");
 po::options_description fastaDesc("FASTA Command Line Arguments");
 po::positional_options_description fastaPositionArgumentDesc;
 po::options_description fastaAlignDesc("FASTA Command Line Arguments");
@@ -134,6 +135,7 @@ void setupOptionDescriptions() {
     ("input-gfa,G", po::value< std::string >(), "Input GFA file to build a PanMAN")
     ("input-msa,M", po::value< std::string >(), "Input MSA file (FASTA format) to build a PanMAN")
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
+    ("impute", "Create new PanMAN with ambiguous sequences inputed")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
 
     // ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
@@ -184,6 +186,10 @@ void setupOptionDescriptions() {
     ("help", "produce help message")
     ("index", po::value< size_t >()->required(), "PanMAT index")
     ;
+
+    imputeDesc.add_options()
+        ("input-file", po::value< std::string >(), "Input file name")
+        ("output-file,o", po::value< std::string >(), "Output file name");
 
     summaryDesc.add_options()
         ("output-file,o", po::value< std::string >(), "Output file name");
@@ -314,6 +320,29 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::Tree *T) {
     std::cout << "\nNetwork Write execution time: " << writeTime.count()
               << " nanoseconds\n";
 
+}
+
+void impute(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // If command was impute, create a new PanMAN with imputed sequences
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    std::string fileName = globalVm["output-file"].as< std::string >();
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto imputeStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        tg.trees[i].impute();
+    }
+
+    auto imputeEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds imputeTime = imputeEnd - imputeStart;
+    std::cout << "\nImputation time: " << imputeTime.count() << " nanoseconds\n";
+
+    writePanMAN(globalVm, &tg);
 }
 
 void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
@@ -1449,6 +1478,9 @@ void parseAndExecute(int argc, char* argv[]) {
     } else if (globalVm.count("printTips")) {
         printTips(TG, globalVm, outputFile, buf);
         return;
+    } else if (globalVm.count("impute")) {
+        impute(TG, globalVm, outputFile, buf);
+        return;
     } else if(globalVm.count("fasta")) {
         fasta(TG, globalVm, outputFile, buf);
         return;
@@ -1530,8 +1562,14 @@ void parseAndExecute(int argc, char* argv[]) {
                     buf = std::cout.rdbuf();
                     std::ostream fout (buf);
                     TG->trees[0].printFASTA(fout, true, true);
-                } 
-                else if(strcmp(splitCommandArray[0], "summary") == 0) {
+                } else if(strcmp(splitCommandArray[0], "impute") == 0) {
+                    po::variables_map imputeVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(imputeDesc)
+                        .run(), imputeVm);
+
+                   impute(TG, imputeVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "summary") == 0) {
                     po::variables_map summaryVm;
                     po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
                         .options(summaryDesc)
