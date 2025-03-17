@@ -23,6 +23,26 @@
 
 namespace panmanUtils {
 
+// 4-bit int nucleotide codes
+enum NucCode {
+    A = 1,
+    C = 2,
+    G = 4,
+    T = 8,
+    R = 5,
+    Y = 10,
+    S = 6,
+    W = 9,
+    K = 12,
+    M = 3,
+    B = 14,
+    D = 13,
+    H = 11,
+    V = 7,
+    N = 15,
+    MISSING = 0
+};
+
 enum NucMutationType {
     // Nucleotide Substutution
     NS = 0,
@@ -68,7 +88,7 @@ struct NucMut {
         nucPosition = std::get<0>(mutationInfo);
         nucGapPosition = -1;
         mutInfo = (int)std::get<1>(mutationInfo) + (1 << 4);
-        nucs = ((int)std::get<2>(mutationInfo) << 20);
+        setSingleNucCode(std::get<2>(mutationInfo));
     }
     
     // Create SNP mutation
@@ -79,7 +99,7 @@ struct NucMut {
         nucPosition = std::get<2>(mutationInfo);
         nucGapPosition = std::get<3>(mutationInfo);
         mutInfo = std::get<4>(mutationInfo) + (1 << 4);
-        nucs = (std::get<5>(mutationInfo) << 20);
+        setSingleNucCode(std::get<5>(mutationInfo));
     }
 
     // Create non-SNP mutations from SNP mutations at consecutive positions for MSA
@@ -116,7 +136,7 @@ struct NucMut {
 
         nucs = 0;
         for(int i = start; i < end; i++) {
-            nucs += (std::get<2>(mutationArray[i]) << (4*(5-(i - start))));
+            addNucCode(std::get<2>(mutationArray[i]), i - start);
         }
 
         // if (nucPosition == 0){
@@ -161,7 +181,7 @@ struct NucMut {
 
         nucs = 0;
         for(int i = start; i < end; i++) {
-            nucs += (std::get<5>(mutationArray[i]) << (4*(5-(i - start))));
+            addNucCode(std::get<5>(mutationArray[i]), i - start);
         }
     }
 
@@ -206,7 +226,152 @@ struct NucMut {
         }
     }
 
+    // Make a 0-length substitution mutation with a given offset
+    NucMut(const NucMut& other, int i) {
+        primaryBlockId = other.primaryBlockId;
+        secondaryBlockId = other.secondaryBlockId;
+        mutInfo = panmanUtils::NucMutationType::NS;
+        nucs = 0;
+
+        // If gap=-1 then increment nucPosition, otherwise increment nucGapPosition
+        if (other.nucGapPosition == -1) {
+            nucPosition = other.nucPosition + i;
+            nucGapPosition = other.nucGapPosition;
+        } else {
+            nucPosition = other.nucPosition;
+            nucGapPosition = other.nucGapPosition + i;
+        }
+    }
+
+    // Get # of nucleotides
+    int length() const {
+        return (mutInfo >> 4);
+    }
+
+    // Get mutation type
+    uint32_t type() const {
+        return (mutInfo & 0x7);
+    }
+
+    // Get ith nucleotide code
+    int getNucCode(int i) const {
+        return (nucs >> (4*(5-i))) & 0xF;
+    }
+
+    // Get first nucleotide code (only nuc for NSNPX types)
+    int getFirstNucCode() const {
+        return getNucCode(0);
+    }
     
+    // Set ith nucleotide code
+    void addNucCode(int8_t newNuc, int i) {
+        nucs += (newNuc << (4*(5-i)));
+    }
+
+    // Append a nucleotide to the end of this mutation
+    void appendNuc(int8_t newNuc) {
+        addNucCode(newNuc, length());
+        // Update length as necessary
+        mutInfo += (1 << 4);
+    }
+
+    // Set to have a single nucleotide (for NSNPX types)
+    void setSingleNucCode(int8_t newNuc) {
+        nucs = 0;
+        addNucCode(newNuc, 0);
+    }
+
+    // Is this mutation either kind of substitution?
+    bool isSubstitution() const {
+        return (type() == panmanUtils::NucMutationType::NSNPS
+                || type() == panmanUtils::NucMutationType::NS);
+    }
+
+    // Is this mutation either kind of deletion?
+    bool isDeletion() const {
+        return (type() == panmanUtils::NucMutationType::NSNPD
+                || type() == panmanUtils::NucMutationType::ND);
+    }
+    
+    // Is this mutation either kind of insertion?
+    bool isInsertion() const {
+        return (type() == panmanUtils::NucMutationType::NSNPI
+                || type() == panmanUtils::NucMutationType::NI);
+    }
+
+    bool operator==(const NucMut& other) const {
+        return nucPosition == other.nucPosition &&
+               nucGapPosition == other.nucGapPosition &&
+               primaryBlockId == other.primaryBlockId &&
+               secondaryBlockId == other.secondaryBlockId &&
+               mutInfo == other.mutInfo &&
+               nucs == other.nucs;
+    }
+};
+
+// Struct for representing a PanMAT coordinate
+struct Coordinate {
+    int32_t nucPosition;
+    int32_t nucGapPosition;
+    int32_t primaryBlockId;
+    int32_t secondaryBlockId;
+
+    // Default constructor
+    Coordinate() {}
+
+    // Create a Coordinate with an offset from a NucMut
+    Coordinate(const NucMut& nm, int offset) {
+        nucPosition = nm.nucPosition;
+        nucGapPosition = nm.nucGapPosition;
+        primaryBlockId = nm.primaryBlockId;
+        secondaryBlockId = nm.secondaryBlockId;
+        if (nucGapPosition == -1) {
+            nucPosition += offset;
+        } else {
+            nucGapPosition += offset;
+        }
+    }
+
+    // Get base corresponding to this Coordinate's position within a sequence_t
+    char getSequenceBase(const sequence_t& sequence) const {
+        if(secondaryBlockId != -1) {
+            if(nucGapPosition != -1) {
+                return sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
+            } else {
+                return sequence[primaryBlockId].second[secondaryBlockId][nucPosition].first;
+            }
+        } else {
+            if(nucGapPosition != -1) {
+                return sequence[primaryBlockId].first[nucPosition].second[nucGapPosition];
+            } else {
+                return sequence[primaryBlockId].first[nucPosition].first;
+            }
+        }
+    }
+
+    // Set base corresponding to this Coordinate's position within a sequence_t
+    void setSequenceBase(sequence_t& seq, char newNuc) const {
+        if(secondaryBlockId != -1) {
+            if(nucGapPosition != -1) {
+                seq[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition] = newNuc;
+            } else {
+                seq[primaryBlockId].second[secondaryBlockId][nucPosition].first = newNuc;
+            }
+        } else {
+            if(nucGapPosition != -1) {
+                seq[primaryBlockId].first[nucPosition].second[nucGapPosition] = newNuc;
+            } else {
+                seq[primaryBlockId].first[nucPosition].first = newNuc;
+            }
+        }
+    }
+
+    bool operator==(const Coordinate& other) const {
+        return nucPosition == other.nucPosition &&
+               nucGapPosition == other.nucGapPosition &&
+               primaryBlockId == other.primaryBlockId &&
+               secondaryBlockId == other.secondaryBlockId;
+    }
 };
 
 // Struct for representing Block Mutations
@@ -269,7 +434,23 @@ struct BlockMut {
 
     BlockMut() {}
 
-    
+    // Readable way to check if this is an insertion
+    bool isInsertion() const { return blockMutInfo; }
+
+    // Readable way to check if this is a deletion
+    bool isDeletion() const { return !blockMutInfo && !inversion; }
+
+    // Readable way to check if this is a non-insertion inversion
+    bool isSimpleInversion() const { return !blockMutInfo && inversion; }
+
+    // Flip this mutation's inversion marker
+    void invert() {
+        inversion = !inversion;
+    }
+
+    uint64_t singleBlockID() const { 
+        return (primaryBlockId << 32) + secondaryBlockId;
+    }
 };
 
 // List of default blocks in the global coordinate system of the PanMAT
@@ -321,6 +502,25 @@ class Node {
     Node(std::string id, Node* par, float len);
 };
 
+// Given that the original state was oldNuc, can newNuc be imputed?
+bool canImpute(char oldNuc, int8_t newNuc);
+// Impute all substitutions with Ns within "nucMutation"
+// Accepts the original sequence as "sequence"
+// Erase mutation for maximum parsimony. Break up partially-N MNPs if needed
+// Returns the number of bases imputed
+int imputeSubstitutions(std::vector<NucMut>& nucMutation, const sequence_t& sequence);
+
+// Apply block mutations to block trackers, and return a summary to use when undoing
+std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > > applyBlockMut(
+    const std::vector<BlockMut>& blockMutation, blockExists_t& blockExists, blockStrand_t& blockStrand);
+// Apply nucleotide mutations to sequence, and return a summary to use when undoing
+std::vector< std::tuple< Coordinate, char, char > > applyNucMut(
+    const std::vector<NucMut>& nucMutation, sequence_t& sequence);
+// Undo block mutations to block trackers
+void undoBlockMut(blockExists_t& blockExists, blockStrand_t& blockStrand,
+    const std::vector< std::tuple< int32_t, int32_t, bool, bool, bool, bool > >& blockMutationInfo);
+// Undo nucleotide mutations to a sequence
+void undoNucMut(sequence_t& sequence, const std::vector< std::tuple< Coordinate, char, char > >& mutationInfo);
 
 // Data structure to represent a PangenomeMAT
 class Tree {
@@ -391,6 +591,8 @@ class Tree {
 
     // Iterate through mutations and combine mutations at the same position
     std::vector< NucMut > consolidateNucMutations(const std::vector< NucMut >& nucMutation);
+    // Iterate through mutations and combine mutations for the same block
+    std::vector<BlockMut> consolidateBlockMutations(const std::vector<BlockMut>& blockMutation);
 
     // Used to confirm that consolidateNucMutations worked correctly. Can be removed in
     // production
@@ -422,6 +624,9 @@ class Tree {
     bool panMATCoordinateLeq(const std::tuple< int, int, int, int >& coor1,
                              const std::tuple< int, int, int, int >& coor2, bool strand);
 
+    // Impute all substitutions in a subtree defined by root "node"
+    // Tracks the number of imputed bases by adding to "imputedBases"
+    void imputeSubtree(Node* node, sequence_t& sequence, int& imputedBases);
 
     std::string newInternalNodeId() {
         return "node_" + std::to_string(++m_currInternalNode);
@@ -469,6 +674,9 @@ class Tree {
 
     void protoMATToTree(const panman::Tree::Reader& mainTree);
     void protoMATToTree(const panmanOld::tree& mainTree);
+
+    // Impute ambiguous nucleotides in the Tree (meant for external use)
+    void impute();
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
@@ -898,3 +1106,16 @@ class TreeGroup {
 };
 
 };
+
+namespace std {
+    template <>
+    struct hash<panmanUtils::Coordinate> {
+        size_t operator()(const panmanUtils::Coordinate& coord) const {
+            size_t h1 = std::hash<int32_t>{}(coord.nucPosition);
+            size_t h2 = std::hash<int32_t>{}(coord.nucGapPosition);
+            size_t h3 = std::hash<int32_t>{}(coord.primaryBlockId);
+            size_t h4 = std::hash<int32_t>{}(coord.secondaryBlockId);
+            return h1 ^ (h2 << 1) ^ (h3 << 2) ^ (h4 << 3);
+        }
+    };
+}
