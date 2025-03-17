@@ -239,6 +239,8 @@ cd $PANMAN_HOME/build
 
 !!!Note
     For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](#construction).
+!!! Note
+    Users can reduce memory consumption by lowering the number of CPU threads (default set to 32) through the --threads option in panmanUtils, at a cost of higher latency.
 
 #### Summary extract
 The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.
