@@ -142,3 +142,14 @@ RUN conda install bioconda::mashtree
 RUN conda install bioconda::mafft
 RUN conda install conda-forge::gdown
 
+# TWILIGHT
+RUN git clone https://github.com/TurakhiaLab/TWILIGHT.git && \
+    mkdir ./TWILIGHT/build && \
+    cd ./TWILIGHT/build && \ 
+    wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz && \
+    tar -xvzf 2019_U9.tar.gz && \
+    cmake  -DTBB_DIR=${PWD}/oneTBB-2019_U9  -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake  .. && \
+    make -j && \
+    cp twilight /usr/local/bin
+
+RUN echo "export LD_LIBRARY_PATH=/home/TWILIGHT/build/tbb_cmake_build/tbb_cmake_build_subdir_release/:$LD_LIBRARY_PATH" >> ~/.bashrc
