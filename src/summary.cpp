@@ -1,108 +1,113 @@
 #include "panmanUtils.hpp"
 
-int getTotalParsimonyParallelHelper(panmanUtils::Node* root, panmanUtils::NucMutationType nucMutType, panmanUtils::BlockMutationType blockMutType) {
-    int totalMutations = 0;
+size_t getTotalParsimonyParallelHelper(panmanUtils::Node* root, panmanUtils::NucMutationType nucMutType, panmanUtils::BlockMutationType blockMutType) {
+    size_t totalMutations = 0;
 
     if(nucMutType != panmanUtils::NucMutationType::NNONE) {
-        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-            for(int i = r.begin(); i != r.end(); i++) {
+        totalMutations += tbb::parallel_reduce(tbb::blocked_range<size_t>(0, root->nucMutation.size()), 0, [&](tbb::blocked_range<size_t> r, size_t init) -> size_t{
+            for(size_t i = r.begin(); i != r.end(); i++) {
                 if(((root->nucMutation[i].mutInfo) & 0x7) == nucMutType) {
                     if(nucMutType == panmanUtils::NucMutationType::NS) {
-                        init += ((root->nucMutation[i].mutInfo) >> 4); // Length of contiguous mutation in case of substitution
+                        // init += ((root->nucMutation[i].mutInfo) >> 4); // Length of contiguous mutation in case of substitution
+                        init++;
                     } else {
                         init++;
                     }
                 }
             }
             return init;
-        }, [&](int x, int y) {
+        }, [&](size_t x, size_t y) {
             return x + y;
         });
     }
 
     if(blockMutType == panmanUtils::BlockMutationType::BIn) {
-        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-            for(int i = r.begin(); i != r.end(); i++) {
+        totalMutations += tbb::parallel_reduce(tbb::blocked_range<size_t>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<size_t> r, size_t init) -> size_t{
+            for(size_t i = r.begin(); i != r.end(); i++) {
                 if(root->blockMutation[i].inversion == true) {
                     init++;
                 }
             }
             return init;
-        }, [&](int x, int y) {
+        }, [&](size_t x, size_t y) {
             return x + y;
         });
     } else if(blockMutType != panmanUtils::BlockMutationType::NONE) {
-        totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-            for(int i = r.begin(); i != r.end(); i++) {
+        totalMutations += tbb::parallel_reduce(tbb::blocked_range<size_t>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<size_t> r, size_t init) -> size_t{
+            for(size_t i = r.begin(); i != r.end(); i++) {
                 // If not an inversion and mut type matches. Inversion is marked by blockMutInfo = deletion and inversion = true
                 if((blockMutType == panmanUtils::BlockMutationType::BI || root->blockMutation[i].inversion == false) && root->blockMutation[i].blockMutInfo == blockMutType) {
                     init++;
                 }
             }
             return init;
-        }, [&](int x, int y) {
+        }, [&](size_t x, size_t y) {
             return x + y;
         });
     }
 
-    totalMutations += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->children.size()), 0, [&](tbb::blocked_range<int>& r, int init) -> int{
-        for(int i = r.begin(); i != r.end(); i++) {
+    totalMutations += tbb::parallel_reduce(tbb::blocked_range<size_t>(0, root->children.size()), 0, [&](tbb::blocked_range<size_t>& r, size_t init) -> size_t{
+        for(size_t i = r.begin(); i != r.end(); i++) {
             init += getTotalParsimonyParallelHelper(root->children[i], nucMutType, blockMutType);
         }
         return init;
     },
-    [](int x, int y) -> int {
+    [](size_t x, size_t y) -> size_t {
         return x+y;
     });
 
     return totalMutations;
 }
 
-int panmanUtils::Tree::getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType) {
-
-    return getTotalParsimonyParallelHelper(root, nucMutType, blockMutType);
+size_t panmanUtils::Tree::getTotalParsimonyParallel(NucMutationType nucMutType, BlockMutationType blockMutType) {
+    size_t totalMutations = 0;
+    for (auto i=0; i<root->children.size(); i++) {
+        totalMutations += getTotalParsimonyParallelHelper(root->children[i], nucMutType, blockMutType);
+    }
+    return totalMutations;
+    // return getTotalParsimonyParallelHelper(root, nucMutType, blockMutType);
 
 }
 
-std::tuple<int, int, int> getBlockMutationsParallelHelper(panmanUtils::Node* root) {
-    std::tuple<int, int, int> muts(0,0,0);
+std::tuple<size_t, size_t, size_t> getBlockMutationsParallelHelper(panmanUtils::Node* root) {
+    std::tuple<size_t, size_t, size_t> muts(0,0,0);
 
-    std::get<0>(muts) += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-        for(int i = r.begin(); i != r.end(); i++) {
+    std::get<0>(muts) += tbb::parallel_reduce(tbb::blocked_range<size_t>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<size_t> r, size_t init) -> size_t{
+        for(size_t i = r.begin(); i != r.end(); i++) {
             if(root->blockMutation[i].blockMutInfo == panmanUtils::BlockMutationType::BI) {
                 init++;
             }
         }
         return init;
-    }, [&](int x, int y) {
+    }, [&](size_t x, size_t y) {
         return x + y;
     });
 
-    std::get<1>(muts) += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-        for(int i = r.begin(); i != r.end(); i++) {
+    std::get<1>(muts) += tbb::parallel_reduce(tbb::blocked_range<size_t>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<size_t> r, size_t init) -> size_t{
+        for(size_t i = r.begin(); i != r.end(); i++) {
             if(root->blockMutation[i].inversion == false && root->blockMutation[i].blockMutInfo == panmanUtils::BlockMutationType::BD) {
                 init++;
             }
         }
         return init;
-    }, [&](int x, int y) {
+    }, [&](size_t x, size_t y) {
         return x + y;
     });
     
-    std::get<2>(muts) += tbb::parallel_reduce(tbb::blocked_range<int>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<int> r, int init) -> int{
-        for(int i = r.begin(); i != r.end(); i++) {
+    std::get<2>(muts) += tbb::parallel_reduce(tbb::blocked_range<size_t>(0, root->blockMutation.size()), 0, [&](tbb::blocked_range<size_t> r, size_t init) -> size_t{
+        for(size_t i = r.begin(); i != r.end(); i++) {
             if(root->blockMutation[i].inversion == true && root->blockMutation[i].blockMutInfo == panmanUtils::BlockMutationType::BD) {
                 init++;
             }
         }
         return init;
-    }, [&](int x, int y) {
+    }, [&](size_t x, size_t y) {
         return x + y;
     });
     
 
     for (auto i=0; i< root->children.size(); i++) {
-        std::tuple<int, int, int> child_muts = getBlockMutationsParallelHelper(root->children[i]);
+        std::tuple<size_t, size_t, size_t> child_muts = getBlockMutationsParallelHelper(root->children[i]);
         std::get<0>(muts) += std::get<0>(child_muts);
         std::get<1>(muts) += std::get<1>(child_muts);
         std::get<2>(muts) += std::get<2>(child_muts);
@@ -111,14 +116,14 @@ std::tuple<int, int, int> getBlockMutationsParallelHelper(panmanUtils::Node* roo
     return muts;
 }
 
-std::tuple<int, int> getOtherBlockMutationsParallelHelper(
+std::tuple<size_t, size_t> getOtherBlockMutationsParallelHelper(
     panmanUtils::Node* root, 
     std::vector< bool >& blockExists,
     std::vector< bool >& blockStrand,
     std::vector<std::vector<uint32_t>>& dups,
     std::vector<uint32_t>& dupsPos) {
     
-    std::tuple<int, int> muts(0,0);
+    std::tuple<size_t, size_t> muts(0,0);
     std::vector< bool > blockExistsParent = blockExists;
     // For reversing block mutations - primary block id, secondary block id, old mutation, old strand, new mutation, new strand
     std::vector< std::tuple< int32_t, bool, bool, bool, bool > > blockMutationInfo;
@@ -192,7 +197,7 @@ std::tuple<int, int> getOtherBlockMutationsParallelHelper(
     }
 
     for(panmanUtils::Node* child: root->children) {
-        std::tuple<int, int> mutsChild = getOtherBlockMutationsParallelHelper(child, blockExists, blockStrand, dups, dupsPos);
+        std::tuple<size_t, size_t> mutsChild = getOtherBlockMutationsParallelHelper(child, blockExists, blockStrand, dups, dupsPos);
         std::get<0>(muts) += std::get<0>(mutsChild);
         std::get<1>(muts) += std::get<1>(mutsChild);
     }
@@ -211,7 +216,7 @@ struct VectorHash {
     std::size_t operator()(const std::vector<uint32_t>& vec) const {
         std::size_t hash = 0;
         for (uint32_t num : vec) {
-            hash ^= std::hash<int>()(num) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+            hash ^= std::hash<size_t>()(num) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
         }
         return hash;
     }
@@ -219,7 +224,7 @@ struct VectorHash {
 
 void panmanUtils::Tree::getBlockMutationsParallel() {
     //insertions, deletions, inversions
-    std::tuple<int, int, int> muts = getBlockMutationsParallelHelper(root);
+    std::tuple<size_t, size_t, size_t> muts = getBlockMutationsParallelHelper(root);
     std::cout << "Total Block Insertions: " <<  std::get<0>(muts) << std::endl;
     std::cout << "Total Block Deletions: " <<  std::get<1>(muts) << std::endl;
     std::cout << "Total Block Inversion: " <<  std::get<2>(muts) << std::endl;
@@ -231,11 +236,11 @@ void panmanUtils::Tree::getBlockMutationsParallel() {
         map_[consensus].push_back(blocks[i].primaryBlockId);
     }
 
-    std::unordered_map<std::vector<uint32_t>, int, VectorHash> mapIndex;
+    std::unordered_map<std::vector<uint32_t>, size_t, VectorHash> mapIndex;
     std::vector<std::vector<uint32_t>> dups(map_.size());
     std::vector<uint32_t> dupsPos(blocks.size());
 
-    int index = 0;
+    size_t index = 0;
     for(auto &a: map_){
         mapIndex[a.first] = index;
         for (auto &b: a.second){
@@ -249,7 +254,7 @@ void panmanUtils::Tree::getBlockMutationsParallel() {
     std::vector< bool >  blockExists(blocks.size(), false);
     std::vector< bool >  blockStrand(blocks.size(), true);
 
-    std::tuple<int, int> otherMuts = getOtherBlockMutationsParallelHelper(root, blockExists, blockStrand, dups, dupsPos);
+    std::tuple<size_t, size_t> otherMuts = getOtherBlockMutationsParallelHelper(root, blockExists, blockStrand, dups, dupsPos);
     std::cout << "Total Block Duplications: " <<  std::get<0>(otherMuts) << std::endl;
     std::cout << "Total Block Translocation: " <<  std::get<1>(otherMuts) << std::endl;
 }

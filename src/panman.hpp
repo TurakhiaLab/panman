@@ -337,7 +337,7 @@ class Tree {
                                 std::vector< panmanOld::node >& nodes);
 
     // Get the total number of mutations of given type
-    int getTotalParsimonyParallel(NucMutationType nucMutType,
+    size_t getTotalParsimonyParallel(NucMutationType nucMutType,
                                   BlockMutationType blockMutType = NONE);
     
     void getBlockMutationsParallel();
@@ -543,7 +543,7 @@ class Tree {
     void printMAFNew(std::ostream& fout);
     void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
     void printVCFParallel(std::string reference, std::ostream& fout);
-    void printVCFParallel(panmanUtils::Node* node, std::ostream& fout);
+    void printVCFParallel(panmanUtils::Node* node, std::string& fileName);
     void extractAminoAcidTranslations(std::ostream& fout, int64_t start, int64_t end);
 
     // Extract PanMAT representing a segment of the genome. The start and end coordinates

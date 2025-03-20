@@ -14,6 +14,7 @@
 
 
 static const int SANKOFF_INF = 100000001;
+static const int8_t SANKOFF_INF_8 = 127;
 
 typedef std::vector< // block id
             std::pair< 
