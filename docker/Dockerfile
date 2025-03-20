@@ -143,7 +143,9 @@ RUN conda install bioconda::mafft
 RUN conda install conda-forge::gdown
 
 # TWILIGHT
-RUN git clone https://github.com/TurakhiaLab/TWILIGHT.git && \
+RUN apt-get update && \ 
+    apt-get install -y wget git build-essential libboost-all-dev libtbb2 cmake protobuf-compiler
+RUN git clone https://github.com/TurakhiaLab/TWILIGHT.git -b experiment/sars && \
     mkdir ./TWILIGHT/build && \
     cd ./TWILIGHT/build && \ 
     wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz && \
@@ -153,3 +155,9 @@ RUN git clone https://github.com/TurakhiaLab/TWILIGHT.git && \
     cp twilight /usr/local/bin
 
 RUN echo "export LD_LIBRARY_PATH=/home/TWILIGHT/build/tbb_cmake_build/tbb_cmake_build_subdir_release/:$LD_LIBRARY_PATH" >> ~/.bashrc
+
+RUN wget https://mol.ax/rxiv/3seq_build_170612.zip && \
+    unzip 3seq_build_170612.zip && \
+    mv '3seq build 170612' 3Seq && \
+    cd 3Seq && make -j && cp 3seq /usr/local/bin && cd ../ && rm -r 3*
+   
