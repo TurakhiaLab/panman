@@ -1,7 +1,7 @@
 [license-badge]: https://img.shields.io/badge/License-MIT-yellow.svg
 [license-link]: [https://github.com/TurakhiaLab/panman/LICENSE](https://github.com/TurakhiaLab/panman/blob/main/LICENSE)
 [![License][license-badge]][license-link]
-[![DOI](https://img.shields.io/badge/DOI-https://zenodo.org/records/12630607-beige)](https://zenodo.org/records/12630607)
+[![DOI](https://img.shields.io/badge/DOI-https://zenodo.org/records/12630607-beige)](https://zenodo.org/records/15059329)
 [<img src="https://img.shields.io/badge/Install with-DockerHub-informational.svg?logo=Docker">](https://hub.docker.com/r/swalia14/panman)
 [<img src="https://img.shields.io/badge/Submitted to-bioRxiv-critical.svg?logo=LOGO">](https://doi.org/10.1101/2024.07.02.601807)
 [<img src="https://img.shields.io/badge/Build with-CMake-green.svg?logo=snakemake">](https://cmake.org)
