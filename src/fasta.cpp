@@ -226,7 +226,7 @@ std::string panmanUtils::printSequenceLinesNew(const std::vector<std::vector<std
         }
     }
 
-    // std::cout << line.size() << std::endl;
+    std::cout << line.size() << std::endl;
 
     // From offset to end
     std::string currentLine = "";

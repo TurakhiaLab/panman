@@ -138,7 +138,7 @@ void setupOptionDescriptions() {
 
     // ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
 
-    ("printTips", po::value< std::string >(),"Print PanMAN summary")
+    ("printTips", po::value< std::string >(),"Print PanMAN Tips")
     ("summary,s", "Print PanMAN summary")
     ("newick,t", "Print newick string of all trees in a PanMAN")
     ("fasta,f", "Print tip sequences (FASTA format)")
@@ -159,6 +159,7 @@ void setupOptionDescriptions() {
     // ("printRoot", "Print root sequence")
     // ("printNodePaths", "Print mutations from root to each node")
     ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
+    // ("samples",po::value< bool >() ,"Samples in the PanMAN")
     // ("protobuf2capnp", "Converts a Google Protobuf PanMAN to Capn' Proto PanMAN")
   
     ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
@@ -326,20 +327,23 @@ void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstr
     panmanUtils::TreeGroup tg = *TG;
 
     auto summaryStart = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < tg.trees.size(); i++) {
-        panmanUtils::Tree *T = &tg.trees[i];
-        if(globalVm.count("output-file")) {
-            std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".summary");
-            buf = outputFile.rdbuf();
-        } else {
-            buf = std::cout.rdbuf();
-        }
-        std::ostream fout (buf);
-        T->printSummary(fout);
-
-        if(globalVm.count("output-file")) outputFile.close();
+    
+    if(globalVm.count("output-file")) {
+        std::string fileName = globalVm["output-file"].as< std::string >();
+        outputFile.open("./info/" + fileName + "_" + std::to_string(0) + ".summary");
+        buf = outputFile.rdbuf();
+    } else {
+        buf = std::cout.rdbuf();
     }
+    std::ostream fout (buf);
+
+    fout << "PanMAN Summary\n";
+    fout << "No of Trees: " << tg.trees.size() << std::endl;
+
+    fout << "Tree 0 Summary\n";
+    panmanUtils::Tree *T = &tg.trees[0];
+    T->printSummary(fout);
+    if(globalVm.count("output-file")) outputFile.close();
 
     auto summaryEnd = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds summaryTime = summaryEnd - summaryStart;
@@ -388,7 +392,43 @@ void printTipsHelper(panmanUtils::Node* node) {
     }
 }
 
+void samples() {
+    
+}
+
 void printTips(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print raw sequences to output file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree *T  = &tg.trees[i];
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+        std::string tip = globalVm["printTips"].as< std::string >();
+        auto node = T->allNodes[tip];
+        printTipsHelper(node);
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+}
+
+void samples(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
     // Print raw sequences to output file
     if(TG == nullptr) {
         std::cout << "No PanMAN selected" << std::endl;
@@ -633,8 +673,9 @@ void vcf(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream 
         }
     } else reference = globalVm["reference"].as< std::string >();
 
+    std::string fileName="";
     if(globalVm.count("output-file")) {
-        std::string fileName = globalVm["output-file"].as< std::string >();
+        fileName = globalVm["output-file"].as< std::string >();
         outputFile.open("./info/" + fileName + ".vcf");
         buf = outputFile.rdbuf();
     } else {
@@ -651,7 +692,7 @@ void vcf(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream 
             break;
         }
     }
-    T->printVCFParallel(refNode, fout);
+    T->printVCFParallel(refNode, fileName);
 
     auto vcfEnd = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds vcfTime = vcfEnd - vcfStart;
@@ -953,7 +994,6 @@ void createNet(po::variables_map &globalVm, std::ofstream &outputFile, std::stre
         tg.push_back(&TG->trees[i]);
     }
 
-
     auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
     std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
@@ -1020,6 +1060,7 @@ void printMut(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofst
         std::ifstream reffin(refFileName);
         std::string ref;
         std::getline(reffin, ref);
+        std::cout << ref << std::endl;
         T->printMutationsNew(fout, ref);
     } else {
         T->printMutationsNew(fout);

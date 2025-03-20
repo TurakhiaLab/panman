@@ -429,7 +429,7 @@ panmanUtils::Node* panmanUtils::Tree::createTreeFromNewickString(std::string new
     }
 
     treeRoot->branchLength = 0.0;
-    std::cout << "Tree created with " << m_numLeaves << " leaves and " << allNodes.size() << " nodes\n";
+    // std::cout << "Tree created with " << m_numLeaves << " leaves and " << allNodes.size() << " nodes\n";
     return treeRoot;
 }
 
@@ -4052,7 +4052,75 @@ struct tuple_equal {
     }
 };
 
-void printMutationsNewHelper(panmanUtils::Node* node, std::unordered_map<std::tuple<int, int, int>, size_t, tuple_hash, tuple_equal>refPanMATToGlobalCoord, std::string& foutHelp) {
+void getParentSequence(panmanUtils::Node *node, std::string& parent_seq, panmanUtils::Tree* T) {
+    size_t primaryBlockID = 0;
+    size_t secBlockID = -1;
+
+    for(size_t j = 0; j < T->blocks[primaryBlockID].consensusSeq.size(); j++) {
+        bool endFlag = false;
+        for(size_t k = 0; k < 8; k++) {
+            const int nucCode = (((T->blocks[primaryBlockID].consensusSeq[j]) >> (4*(7 - k))) & 15);
+
+            if(nucCode == 0) {
+                endFlag = true;
+                break;
+            }
+            const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);            
+            parent_seq.push_back(nucleotide);
+        }
+        if(endFlag) {
+            break;
+        }
+    }
+
+    std::vector<panmanUtils::Node*> path;
+    panmanUtils::Node* it = node;
+    while(it != T->root) {
+        path.push_back(it);
+        it = it->parent;
+    }
+    path.push_back(T->root);
+    
+    // Apply nucleotide mutations
+    for(auto node = path.rend()-1; node >= path.rbegin(); node--) {
+        for(size_t i = 0; i < (*node)->nucMutation.size(); i++) {
+
+            int32_t primaryBlockId = (*node)->nucMutation[i].primaryBlockId;
+            int32_t secondaryBlockId = (*node)->nucMutation[i].secondaryBlockId;
+
+            if(secondaryBlockId != -1) {
+                    continue;
+            }
+
+            int32_t nucPosition = (*node)->nucMutation[i].nucPosition;
+            int32_t nucGapPosition = (*node)->nucMutation[i].nucGapPosition;
+            uint32_t type = ((*node)->nucMutation[i].mutInfo & 0x7);
+            char newVal = '-';
+
+            if(type < 3) {
+
+                int len = (((*node)->nucMutation[i].mutInfo) >> 4);
+                if(type == panmanUtils::NucMutationType::NS) {
+                    for(int j = 0; j < len; j++) {
+                        newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        parent_seq[nucPosition+j] = newVal;
+                    }
+                } else if(type == panmanUtils::NucMutationType::NI) {
+                    for(int j = 0; j < len; j++) {
+                        newVal = panmanUtils::getNucleotideFromCode((((*node)->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        parent_seq[nucPosition+j] = newVal;
+                    }
+                } else if(type == panmanUtils::NucMutationType::ND) {
+                    for(int j = 0; j < len; j++) {
+                        parent_seq[nucPosition+j] = '-';
+                    }
+                }
+            } 
+        }
+    }
+}
+
+void printMutationsNewHelper(panmanUtils::Tree* T, panmanUtils::Node* node, std::unordered_map<std::tuple<int, int, int>, size_t, tuple_hash, tuple_equal>refPanMATToGlobalCoord, std::string& foutHelp) {
 
     if (node == nullptr) {
         fprintf(stderr, "Node is null\n");
@@ -4061,6 +4129,9 @@ void printMutationsNewHelper(panmanUtils::Node* node, std::unordered_map<std::tu
     if (node->nucMutation.size() == 0) {
         return;
     }
+    if (node == T->root) return;
+    std::string parent_seq;
+    getParentSequence(node->parent, parent_seq, T);
     foutHelp += node->identifier + ":\t";
     auto mutation = node->nucMutation;
     for (int i=0; i<mutation.size(); i++) {
@@ -4112,11 +4183,10 @@ void printMutationsNewHelper(panmanUtils::Node* node, std::unordered_map<std::tu
             char newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
             if (newVal != 'N') {
                 foutHelp += nucType;
-                foutHelp += std::to_string(globalCoord) + ",";
+                foutHelp += parent_seq[globalCoord];
+                foutHelp += std::to_string(globalCoord) + newVal + ",";
             }
         }
-
-        
     }
 
     foutHelp += "\n";
@@ -4127,8 +4197,9 @@ void panmanUtils::Tree::printMutationsNew(std::ostream& fout, std::string &refer
     sequence_t rootSequence;
     blockExists_t rootBlockExists;
     blockStrand_t rootBlockStrand;
+    // std::cout << referenceString.size() << std::endl;
     getSequenceFromReference(rootSequence, rootBlockExists, rootBlockStrand, root->identifier);
-
+    // std::cout << rootSequence[0].first.size() << std::endl;
     // Get reference coordinate
     std::unordered_map<std::tuple<int, int, int>, size_t, tuple_hash, tuple_equal> refPanMATToGlobalCoord;
     size_t refCtr = 0;
@@ -4188,24 +4259,28 @@ void panmanUtils::Tree::printMutationsNew(std::ostream& fout, std::string &refer
             }
         }
     }
+    // std::cout << refCtr << " " << MSACtr << std::endl;
     std::unordered_map< std::string, std::mutex > nodeMutexes;
     for(auto u: allNodes) {
         nodeMutexes[u.first];
     }    
-    // for (auto node: allNodes) {
-    tbb::parallel_for_each(allNodes, [&](auto node) {
+    for (auto node: allNodes) {
+    // tbb::parallel_for_each(allNodes, [&](auto node) {
+        // std::cout << node.first << std::endl;
         std::string foutHelp = "";
-        printMutationsNewHelper(node.second, refPanMATToGlobalCoord, foutHelp);
+        printMutationsNewHelper(this, node.second, refPanMATToGlobalCoord, foutHelp);
         nodeMutexes[node.first].lock();
         fout << foutHelp;
         nodeMutexes[node.first].unlock();
-    });
+    // });
+    }
     
 }
 
 
 void panmanUtils::Tree::printMutationsNew(std::ostream& fout, std::vector<std::string>& nodesReq, std::string& referenceString) {
 
+    std::cout << referenceString << std::endl;
     // Get root sequence
     sequence_t rootSequence;
     blockExists_t rootBlockExists;
@@ -4657,17 +4732,16 @@ void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExis
 
     for(auto u: allNodes) {
         // printf("%s\n",u.first);
-        // std::cerr << u.first << std::endl;
+        // std::cerr << u.first << " " << reference << std::endl;
         if(u.first == reference) {
             referenceNode = u.second;
             break;
         }
     }
 
-    // printf(reference)
 
     if(referenceNode == nullptr) {
-        std::cerr << "Error: Reference sequence with matching name not found: " << reference << std::endl;
+        std::cerr << "Error: Reference sequence with matching name not found: " << reference << reference.size() << std::endl;
         return;
     }
 
@@ -4679,6 +4753,7 @@ void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExis
         it = it->parent;
     }
     path.push_back(root);
+
 
     // List of blocks. Each block has a nucleotide list. Along with each nucleotide is a gap list.
     sequence.resize(blocks.size() + 1);
@@ -4798,9 +4873,10 @@ void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExis
     // Apply nucleotide mutations
     for(auto node = path.rbegin(); node != path.rend(); node++) {
         for(size_t i = 0; i < (*node)->nucMutation.size(); i++) {
-
+            
             int32_t primaryBlockId = (*node)->nucMutation[i].primaryBlockId;
-            int32_t secondaryBlockId = (*node)->nucMutation[i].secondaryBlockId;
+            // int32_t secondaryBlockId = (*node)->nucMutation[i].secondaryBlockId;
+            int32_t secondaryBlockId = -1;
 
             if(secondaryBlockId != -1) {
                 if(!blockExists[primaryBlockId].second[secondaryBlockId]) {
@@ -4820,7 +4896,6 @@ void panmanUtils::Tree::getSequenceFromReference(sequence_t& sequence, blockExis
             if(type < 3) {
 
                 int len = (((*node)->nucMutation[i].mutInfo) >> 4);
-
                 if(type == panmanUtils::NucMutationType::NS) {
                     if(secondaryBlockId != -1) {
                         if(nucGapPosition != -1) {
@@ -5903,6 +5978,10 @@ panmanUtils::Tree::Tree(Node* newRoot, const std::vector< Block >& b,
 
 std::pair< panmanUtils::Tree, panmanUtils::Tree > panmanUtils::Tree::splitByComplexMutations(const std::string& nodeId3) {
 
+    // if (allNodes.find(nodeId3) == allNodes.end()) {
+    //     std::cout << "Could not find " << nodeId3 << std::endl;
+    //     return std::make_pair(nullptr, nullptr);
+    // }
     Node* newRoot = allNodes[nodeId3];
 
     // getting all prior mutations
@@ -6484,7 +6563,7 @@ std::pair<std::string, int> newTreeIDNodeID(panmanUtils::Node* node){
 
 bool checkCorrectness(const std::unordered_map<std::string, panmanUtils::Node*> allNodes ,std::string sequenceId1_, std::string sequenceId2_){
     bool correct = true;
-    panmanUtils::Node* node1;
+    panmanUtils::Node* node1=nullptr;
     for(auto a: allNodes){
         if (a.first == sequenceId1_){
             node1 = a.second;
@@ -6492,13 +6571,18 @@ bool checkCorrectness(const std::unordered_map<std::string, panmanUtils::Node*> 
         }
     } 
     
-    panmanUtils::Node* node2;
+    panmanUtils::Node* node2=nullptr;
     for(auto a: allNodes){
         if (a.first == sequenceId2_){
             node2 = a.second;
             break;
         }
     } 
+    std::cout << node1 << " " << node2 << std::endl;
+    if (node1 == nullptr || node2 == nullptr){
+        correct = false;
+        return correct;
+    }
     while (node1->parent != nullptr){
         if (node1->identifier == node2->identifier){
             correct = false;
@@ -6522,128 +6606,163 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutat
     // std::cout << trees[0].allNodes.size() << std::endl;
 
     // Predetermine tree ids
-    // std::vector<char> mutationType_;
-    // std::vector<size_t> treeIndex1_;
-    // std::vector<size_t> treeIndex2_;
-    // std::vector<size_t> treeIndex3_;
-    // std::vector<std::string> sequenceId1_;
-    // std::vector<std::string> sequenceId2_;
-    // std::vector<std::string> sequenceId3_;
-    // std::vector<size_t> startPoint1_;
-    // std::vector<size_t> endPoint1_;
-    // std::vector<size_t> startPoint2_;
-    // std::vector<size_t> endPoint2_;
+    std::vector<char> mutationType_;
+    std::vector<size_t> treeIndex1_;
+    std::vector<size_t> treeIndex2_;
+    std::vector<size_t> treeIndex3_;
+    std::vector<std::string> sequenceId1_;
+    std::vector<std::string> sequenceId2_;
+    std::vector<std::string> sequenceId3_;
+    std::vector<size_t> startPoint1_;
+    std::vector<size_t> endPoint1_;
+    std::vector<size_t> startPoint2_;
+    std::vector<size_t> endPoint2_;
 
-    // int cMutCount = 0;
-    // int treeCount = 0;
-    // unordered_map< std::string, std::pair<std::string,size_t>> treeIndexMap;
-    // std::string line;
-
-    // // set root at head
-    // tg[0]->root->isComMutHead = true;
-    // tg[0]->root->treeIndex = treeCount;
-
-    // while(getline(mutationFile, line, '\n')) {
-    //     std::vector< std::string > tokens;
-    //     stringSplit(line, '\t', tokens);
-        
-
-    //     try {
-    //         mutationType_.push_back(tokens[0][0]);
-    //         treeIndex1_.push_back(std::stoi(tokens[1]));
-    //         sequenceId1_.push_back(tokens[2]);
-    //         treeIndex2_.push_back(std::stoi(tokens[3]));
-    //         sequenceId2_.push_back(tokens[4]);
-    //         startPoint1_.push_back(std::stoi(tokens[5]));
-    //         endPoint1_.push_back(std::stoi(tokens[6]));
-    //         startPoint2_.push_back(std::stoi(tokens[7]));
-    //         endPoint2_.push_back(std::stoi(tokens[8]));
-    //         treeIndex3_.push_back(std::stoi(tokens[9]));
-    //         sequenceId3_.push_back(tokens[10]);
-    //     } catch (const std::invalid_argument& e) {
-    //         std::cerr << "Invalid argument: " << e.what() << " in line: " << line << std::endl;
-    //         exit; // Skip this line and continue with the next one
-    //     } catch (const std::out_of_range& e) {
-    //         std::cerr << "Out of range: " << e.what() << " in line: " << line << std::endl;
-    //         exit; // Skip this line and continue with the next one
-    //     }
-        
-    //     // if sequenceId_1 is child of seqeuenceId_3, then the mutation is not correct
-    //     bool correct = true;
-    //     if (treeIndex1_[cMutCount] == treeIndex3_[cMutCount]) {
-    //         bool correct1 = checkCorrectness(trees[treeIndex1_[cMutCount]].allNodes , sequenceId1_[cMutCount], sequenceId3_[cMutCount]);
-    //         if (!correct1) correct = correct1;
-    //         std::cout << correct << std::endl; 
-    //     }
-    //     if (treeIndex2_[cMutCount] == treeIndex3_[cMutCount]) {
-    //         bool correct2 = checkCorrectness(trees[treeIndex2_[cMutCount]].allNodes , sequenceId2_[cMutCount], sequenceId3_[cMutCount]);
-    //         if (!correct2) correct = correct2;
-    //         std::cout << correct << std::endl;
-    //     }
-
-
-    //     cMutCount++;
-    //     treeCount++;
-    //     tg[0]->allNodes[tokens[10]]->isComMutHead = true;
-    //     tg[0]->allNodes[tokens[10]]->treeIndex = treeCount;
-    //     if (treeCount >=2){
-    //         std::pair<std::string, int> treeIDNodeID1 = newTreeIDNodeID(tg[0]->allNodes[sequenceId1_[treeCount-1]]);
-    //         // sequenceId1_[treeCount-1] = treeIDNodeID1.first;
-    //         treeIndex1_[treeCount-1] = treeIDNodeID1.second;
-
-    //         std::pair<std::string, int> treeIDNodeID2 = newTreeIDNodeID(tg[0]->allNodes[sequenceId2_[treeCount-1]]);
-    //         // sequenceId2_[treeCount-1] = treeIDNodeID2.first;
-    //         treeIndex2_[treeCount-1] = treeIDNodeID2.second;
-
-    //         std::pair<std::string, int> treeIDNodeID3 = newTreeIDNodeID(tg[0]->allNodes[sequenceId3_[treeCount-1]]);
-    //         // sequenceId3_[treeCount-1] = treeIDNodeID3.first;
-    //         treeIndex3_[treeCount-1] = treeIDNodeID3.second;
-    //     }
-    //     std::cout << mutationType_[cMutCount-1] << " " << treeIndex1_[cMutCount-1] << " " << sequenceId1_[cMutCount-1] << " " << treeIndex2_[cMutCount-1] << " " << sequenceId2_[cMutCount-1] << " " << startPoint1_[cMutCount-1] << " " << endPoint1_[cMutCount-1] << " " << startPoint2_[cMutCount-1] << " " << endPoint2_[cMutCount-1] << " " << treeIndex3_[cMutCount-1] << " " << sequenceId3_[cMutCount-1] << std::endl;
-    // }
-
-    // exit(0);
-
-    // mutation file format: mutation type (H or R), tree_1 index, sequence_1 name, tree_2 index, sequence_2 name, start_point_1, end_point_1, start_point_2, end_point_2, tree_3 index (child tree), sequence_3 (child sequence) name
+    int cMutCount = 0;
+    int treeCount = 0;
+    unordered_map< std::string, std::pair<std::string,size_t>> treeIndexMap;
     std::string line;
+
+    // set root at head
+    tg[0]->root->isComMutHead = true;
+    tg[0]->root->treeIndex = treeCount;
+    int input_cmplx_count = 0;
     while(getline(mutationFile, line, '\n')) {
         std::vector< std::string > tokens;
         stringSplit(line, '\t', tokens);
-        // for (auto a: tokens) {
-        //     std::cout << a << std::endl;
-        // }
-        char mutationType = tokens[0][0];
-        size_t treeIndex1 = std::stoll(tokens[1]);
-        std::string sequenceId1 = tokens[2];
-        size_t treeIndex2 = std::stoll(tokens[3]);
-        std::string sequenceId2 = tokens[4];
-        size_t startPoint1 = std::stoll(tokens[5]);
-        size_t endPoint1 = std::stoll(tokens[6]);
-        size_t startPoint2 = std::stoll(tokens[7]);
-        size_t endPoint2 = std::stoll(tokens[8]);
-        size_t treeIndex3 = std::stoll(tokens[9]);
-        std::string sequenceId3 = tokens[10];
-        bool splitOccurred = false;
+        
+        std::cout << input_cmplx_count++ << std::endl;
+        try {
+            mutationType_.push_back(tokens[0][0]);
+            treeIndex1_.push_back(std::stoi(tokens[1]));
+            sequenceId1_.push_back(tokens[2]);
+            treeIndex2_.push_back(std::stoi(tokens[3]));
+            sequenceId2_.push_back(tokens[4]);
+            startPoint1_.push_back(std::stoi(tokens[5]));
+            endPoint1_.push_back(std::stoi(tokens[6]));
+            startPoint2_.push_back(std::stoi(tokens[7]));
+            endPoint2_.push_back(std::stoi(tokens[8]));
+            treeIndex3_.push_back(std::stoi(tokens[9]));
+            sequenceId3_.push_back(tokens[10]);
+        } catch (const std::invalid_argument& e) {
+            std::cerr << "Invalid argument: " << e.what() << " in line: " << line << std::endl;
+            exit; // Skip this line and continue with the next one
+        } catch (const std::out_of_range& e) {
+            std::cerr << "Out of range: " << e.what() << " in line: " << line << std::endl;
+            exit; // Skip this line and continue with the next one
+        }
+        std::cout << mutationType_[cMutCount] << " " << treeIndex1_[cMutCount] << " " << sequenceId1_[cMutCount] << " " << treeIndex2_[cMutCount] << " " << sequenceId2_[cMutCount] << " " << startPoint1_[cMutCount] << " " << endPoint1_[cMutCount] << " " << startPoint2_[cMutCount] << " " << endPoint2_[cMutCount] << " " << treeIndex3_[cMutCount] << " " << sequenceId3_[cMutCount] << std::endl;
+
+        bool correct = true;
+        if (tg[0]->allNodes.find(sequenceId1_[treeCount]) == tg[0]->allNodes.end())
+            correct = false;
+        if (tg[0]->allNodes.find(sequenceId2_[treeCount]) == tg[0]->allNodes.end())
+            correct = false;
+        if (tg[0]->allNodes.find(sequenceId3_[treeCount]) == tg[0]->allNodes.end())
+            correct = false;
+        std::cout << correct << std::endl;
+        // if sequenceId_1 is child of seqeuenceId_3, then the mutation is not correct
+        if (treeIndex1_[cMutCount] == treeIndex3_[cMutCount]) {
+            std::cout << treeIndex1_[cMutCount] << " " << treeIndex3_[cMutCount] << std::endl;
+            bool correct1 = checkCorrectness(trees[treeIndex1_[cMutCount]].allNodes , sequenceId1_[cMutCount], sequenceId3_[cMutCount]);
+            if (!correct1) correct = correct1;
+            std::cout << correct << std::endl; 
+        }
+        if (treeIndex2_[cMutCount] == treeIndex3_[cMutCount]) {
+            std::cout << treeIndex2_[cMutCount] << " " << treeIndex3_[cMutCount] << std::endl;
+            bool correct2 = checkCorrectness(trees[treeIndex2_[cMutCount]].allNodes , sequenceId2_[cMutCount], sequenceId3_[cMutCount]);
+            if (!correct2) correct = correct2;
+            std::cout << correct << std::endl;
+        }
+
+        
+
+        if (!correct) {
+            mutationType_.pop_back();
+            treeIndex1_.pop_back();
+            sequenceId1_.pop_back();
+            treeIndex2_.pop_back();
+            sequenceId2_.pop_back();
+            startPoint1_.pop_back();
+            endPoint1_.pop_back();
+            startPoint2_.pop_back();
+            endPoint2_.pop_back();
+            treeIndex3_.pop_back();
+            sequenceId3_.pop_back();
+            continue;
+        }
+
+        std::cout << "Correct" << std::endl;
+        cMutCount++;
+        treeCount++;
+        tg[0]->allNodes[tokens[10]]->isComMutHead = true;
+        tg[0]->allNodes[tokens[10]]->treeIndex = treeCount;
+        if (treeCount >=2){
+            std::pair<std::string, int> treeIDNodeID1 = newTreeIDNodeID(tg[0]->allNodes[sequenceId1_[treeCount-1]]);
+            std::cout << treeIDNodeID1.second <<std::endl;
+            treeIndex1_[treeCount-1] = treeIDNodeID1.second;
+
+            std::pair<std::string, int> treeIDNodeID2 = newTreeIDNodeID(tg[0]->allNodes[sequenceId2_[treeCount-1]]);
+            std::cout << treeIDNodeID2.second <<std::endl;
+            treeIndex2_[treeCount-1] = treeIDNodeID2.second;
+
+            std::pair<std::string, int> treeIDNodeID3 = newTreeIDNodeID(tg[0]->allNodes[sequenceId3_[treeCount-1]]);
+            std::cout << treeIDNodeID3.second <<std::endl;
+            treeIndex3_[treeCount-1] = treeIDNodeID3.second;
+        }
+        std::cout << mutationType_[cMutCount-1] << " " << treeIndex1_[cMutCount-1] << " " << sequenceId1_[cMutCount-1] << " " << treeIndex2_[cMutCount-1] << " " << sequenceId2_[cMutCount-1] << " " << startPoint1_[cMutCount-1] << " " << endPoint1_[cMutCount-1] << " " << startPoint2_[cMutCount-1] << " " << endPoint2_[cMutCount-1] << " " << treeIndex3_[cMutCount-1] << " " << sequenceId3_[cMutCount-1] << std::endl;
+    }
+
+
+    // mutation file format: mutation type (H or R), tree_1 index, sequence_1 name, tree_2 index, sequence_2 name, start_point_1, end_point_1, start_point_2, end_point_2, tree_3 index (child tree), sequence_3 (child sequence) name
+    // std::string line;
+    // while(getline(mutationFile, line, '\n')) {
+    //     std::vector< std::string > tokens;
+    //     stringSplit(line, '\t', tokens);
+    //     // for (auto a: tokens) {
+    //     //     std::cout << a << std::endl;
+    //     // }
+    //     char mutationType = tokens[0][0];
+    //     size_t treeIndex1 = std::stoll(tokens[1]);
+    //     std::string sequenceId1 = tokens[2];
+    //     size_t treeIndex2 = std::stoll(tokens[3]);
+    //     std::string sequenceId2 = tokens[4];
+    //     size_t startPoint1 = std::stoll(tokens[5]);
+    //     size_t endPoint1 = std::stoll(tokens[6]);
+    //     size_t startPoint2 = std::stoll(tokens[7]);
+    //     size_t endPoint2 = std::stoll(tokens[8]);
+    //     size_t treeIndex3 = std::stoll(tokens[9]);
+    //     std::string sequenceId3 = tokens[10];
+    //     bool splitOccurred = false;
 
     //     std::cout << sequenceId1 << ", " << sequenceId2 << ": " << sequenceId3 << std::endl;
 
-    // for (int i = 0; i < cMutCount; i++) {
-    //     std::cout << i << std::endl;
-    //     char mutationType = mutationType_[i];
-    //     size_t treeIndex1 = treeIndex1_[i];
-    //     std::string sequenceId1 = sequenceId1_[i];
-    //     size_t treeIndex2 = treeIndex2_[i];
-    //     std::string sequenceId2 = sequenceId2_[i];
-    //     size_t startPoint1 = startPoint1_[i];
-    //     size_t endPoint1 = endPoint1_[i];
-    //     size_t startPoint2 = startPoint2_[i];
-    //     size_t endPoint2 = endPoint2_[i];
-    //     size_t treeIndex3 = treeIndex3_[i];
-    //     std::string sequenceId3 = sequenceId3_[i];
-    //     bool splitOccurred = false; 
+    for (int i = 0; i < cMutCount; i++) {
+        std::cout << i << std::endl;
+        char mutationType = mutationType_[i];
+        size_t treeIndex1 = treeIndex1_[i];
+        std::string sequenceId1 = sequenceId1_[i];
+        size_t treeIndex2 = treeIndex2_[i];
+        std::string sequenceId2 = sequenceId2_[i];
+        size_t startPoint1 = startPoint1_[i];
+        size_t endPoint1 = endPoint1_[i];
+        size_t startPoint2 = startPoint2_[i];
+        size_t endPoint2 = endPoint2_[i];
+        size_t treeIndex3 = treeIndex3_[i];
+        std::string sequenceId3 = sequenceId3_[i];
+        bool splitOccurred = false; 
+        std::cout << mutationType_[i] << " " << treeIndex1_[i] << " " << sequenceId1_[i] << " " << treeIndex2_[i] << " " << sequenceId2_[i] << " " << startPoint1_[i] << " " << endPoint1_[i] << " " << startPoint2_[i] << " " << endPoint2_[i] << " " << treeIndex3_[i] << " " << sequenceId3_[i] << std::endl;
+
+        
 
         if(treeIndex3 == treeIndex1 && treeIndex3 == treeIndex2) {
             // If all three sequences are from the same tree, split this tree
+            if (trees[treeIndex1].allNodes.find(sequenceId1) == trees[treeIndex1].allNodes.end())
+                continue;
+            if (trees[treeIndex1].allNodes.find(sequenceId2) == trees[treeIndex1].allNodes.end())
+                continue;
+            if (trees[treeIndex1].allNodes.find(sequenceId3) == trees[treeIndex1].allNodes.end())
+                continue;
             std::pair< panmanUtils::Tree, panmanUtils::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
             splitOccurred = true;
             trees[treeIndex1] = parentAndChild.first;
@@ -6651,6 +6770,10 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutat
             treeIndex3 = trees.size()-1;
         } else if(treeIndex3 == treeIndex1) {
             // If child belongs to one parent's tree, split this tree
+            if (trees[treeIndex1].allNodes.find(sequenceId1) == trees[treeIndex1].allNodes.end())
+                continue;
+            if (trees[treeIndex1].allNodes.find(sequenceId3) == trees[treeIndex1].allNodes.end())
+                continue;
             std::pair< panmanUtils::Tree, panmanUtils::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
             splitOccurred = true;
             trees[treeIndex1] = parentAndChild.first;
@@ -6658,13 +6781,18 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutat
             treeIndex3 = trees.size()-1;
         } else if(treeIndex3 == treeIndex2) {
             // If child belongs to one parent's tree, split this tree
-            std::pair< panmanUtils::Tree, panmanUtils::Tree > parentAndChild = trees[treeIndex1].splitByComplexMutations(sequenceId3);
+            if (trees[treeIndex2].allNodes.find(sequenceId2) == trees[treeIndex2].allNodes.end())
+                continue;
+            if (trees[treeIndex2].allNodes.find(sequenceId3) == trees[treeIndex2].allNodes.end())
+                continue;
+            std::pair< panmanUtils::Tree, panmanUtils::Tree > parentAndChild = trees[treeIndex2].splitByComplexMutations(sequenceId3);
             splitOccurred = true;
             trees[treeIndex2] = parentAndChild.first;
             trees.push_back(parentAndChild.second);
             treeIndex3 = trees.size()-1;
         } else if (!trees[treeIndex3].allNodes[sequenceId3]->isComMutHead) {
             // If child is not a head
+            std::cout << "Not expected\n" << std::endl;
             std::pair< panmanUtils::Tree, panmanUtils::Tree > parentAndChild = trees[treeIndex3].splitByComplexMutations(sequenceId3);
             splitOccurred = true;
             trees[treeIndex3] = parentAndChild.first;
@@ -6672,6 +6800,9 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< Tree* >& tg, std::ifstream& mutat
             treeIndex3 = trees.size()-1;
         } else if (trees[treeIndex3].allNodes[sequenceId3]->isComMutHead) {
             // If child is a head
+            std::cout << "expected\n" << std::endl;
+            continue;
+        } else {
             continue;
         }
 

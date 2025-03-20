@@ -40,41 +40,41 @@ panmanUtils -G out.gfa -N out.nwk -o data
 panmanUtils -M out.msa -N out.nwk -o data
 
 # Extracting summary statistics from PanMANs
-panmanUtils -I out.panman --summary
+panmanUtils -I panman/out.panman --summary
 
 # Extracting raw sequences in FASTA format
-panmanUtils -I out.panman --fasta -o out
+panmanUtils -I panman/out.panman --fasta -o out
 
 # Extracting MSA in FASTA format
-panmanUtils -I out.panman --fasta-aligned -o out
+panmanUtils -I panman/out.panman --fasta-aligned -o out
 
 # Extracting variations in VCF format
-panmanUtils -I out.panman --vcf -o out
+panmanUtils -I panman/out.panman --vcf -o out
 
 # Converting PanMAN into a  variations in VCF format
-panmanUtils -I out.panman --gfa -o out
+panmanUtils -I panman/out.panman --gfa -o out
+
+# Recombinations in tb, klebs, ecoli
+panmanUtils -I panman/out.panman --fasta-aligned -o out
+3seq -gen-p ptable num_seq
+3seq -f info/out_0.msa -ptable ptable -id out
+python3 3seq2panman.py out.3s.rec out.3s.panman.rec info/out_0.msa
 
 ################ Experiments with 8M SARS COV-2 genomes #################
-
-wget https://zenodo.org/records/14633185/files/sars_8M.aln.gz.xz?download=1
-xz -d sars_8M.aln.gz.xz
-gunzip sars_8M.aln.gz
-
-TEMP_FILE="sars_8M_updated.fa"
-while read -r line; do
-    if [[ $line == ">"* ]]; then
-        echo $line | awk '{print $1}' | sed 's/[|].*//g' >> "$TEMP_FILE"
-        # replace_names "$line" >> "$TEMP_FILE"
-    else
-        echo "$line" >> "$TEMP_FILE"
-    fi
-done < "sars_8M.aln"
-
+T_OUT=twilight_out
 gdown --folder https://drive.google.com/drive/folders/10Vlycv5KBjwMB1RQfLR_CMBaqmniNpbf
-panmanUtils --input-msa $TEMP_FILE --input-newick SARS_8M/sars_8M.nwk -o sars_8M --low-mem-mode --refFile SARS_8M/wuhan.aln
-panmanUtils -I panman/sars_8M.panman --summary
+mkdir $T_OUT
+twilight -t SARS_8M/sars_8M.nwk -i <input sequences> -p y -v -r 1 --trans -8 -o $T_OUT/sars_8M_without_wuhan.msa --gap-open -60
+cp SARS_8M/wuhan.fa $T_OUT
+twilight -f $T_OUT -a l -p y -v -r 1 --trans -8 -o sars_8M.msa --gap-open -60
+grep -a -A 1 Wuhan-Hu-1 sars_8M.msa > wuhan.aln
+panmanUtils --input-msa sars_8M.msa --input-newick SARS_8M/sars_8M.nwk -o sars_8M --low-mem-mode --refFile wuhan.aln
 
-panmanUtils --create-network panman/sars_8M.panman --input-file SARS_8M/recombinations.txt -o sars_8M_network
+panmanUtils -I panman/sars_8M.panman --summary
+panmanUtils -I panman/sars_8M.panman --fasta
+panmanUtils -I panman/sars_8M.panman --vcf
+
+panmanUtils --create-network panman/sars_8M.panman --input-file SARS_8M/SARS_8M_cmut -o sars_8M_network
 panmanUtils -I panman/sars_8M_network.panman --summary
 
 
