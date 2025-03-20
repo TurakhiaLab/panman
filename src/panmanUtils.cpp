@@ -339,7 +339,7 @@ void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstr
 
     fout << "PanMAN Summary\n";
     fout << "No of Trees: " << tg.trees.size() << std::endl;
-
+    fout << "No of Recombinations: " << tg.complexMutations.size() << std::endl;
     fout << "Tree 0 Summary\n";
     panmanUtils::Tree *T = &tg.trees[0];
     T->printSummary(fout);
