@@ -204,7 +204,7 @@ void panmanUtils::Tree::printVCFParallel(panmanUtils::Node* refnode, std::string
             allNodes_vector.push_back(u.second);
     }
 
-    for (size_t nc=0; nc<allNodes_vector.size(); nc+=batch_size)
+    for (size_t nc=0; nc<allNodes_vector.size(); nc+=allNodes_vector.size())
     {
         size_t recordID = 0;
         std::ofstream outputFile;
