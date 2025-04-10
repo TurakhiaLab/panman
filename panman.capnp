@@ -19,6 +19,7 @@ struct Mutation
     blockMutInfo @3: Bool;
     blockInversion @4: Bool;
     nucMutation @5: List(NucMut);
+    chromosomeId @6: Int64;
 }
 
 struct Node
@@ -33,6 +34,7 @@ struct ConsensusSeqToBlockIds
     consensusSeq @1: List(UInt32);
     blockGapExist @2: List(Bool);
     chromosomeName @3: List(Text);
+    chromosomeId @4: List(Int64);
 }
 
 struct GapList
@@ -41,12 +43,14 @@ struct GapList
     blockGapExist @1: Bool;
     nucGapLength @2: List(Int32);
     nucPosition @3: List(Int32);
+    chromosomeId @4: Int64;
 }
 
 struct BlockGapList
 {
     blockPosition @0: List(Int32);
     blockGapLength @1: List(Int32);
+    chromosomeId @2: List(Int64);
 }
 
 struct CircularOffset
@@ -87,24 +91,28 @@ struct ComplexMutation {
     sequenceId1 @4: Text;
     sequenceId2 @5: Text;
 
+    chromosomeIdStart1 @27: Int64;
     blockIdStart1 @6: Int64;
     blockGapExistStart1 @7: Bool;
     nucPositionStart1 @8: Int32;
     nucGapPositionStart1 @9: Int32;
     nucGapExistStart1 @10: Bool;
 
+    chromosomeIdEnd1 @28: Int64;
     blockIdEnd1 @11: Int64;
     blockGapExistEnd1 @12: Bool;
     nucPositionEnd1 @13: Int32;
     nucGapPositionEnd1 @14: Int32;
     nucGapExistEnd1 @15: Bool;
 
+    chromosomeIdStart2 @29: Int64;
     blockIdStart2 @16: Int64;
     blockGapExistStart2 @17: Bool;
     nucPositionStart2 @18: Int32;
     nucGapPositionStart2 @19: Int32;
     nucGapExistStart2 @20: Bool;
 
+    chromosomeIdEnd2 @30: Int64;
     blockIdEnd2 @21: Int64;
     blockGapExistEnd2 @22: Bool;
     nucPositionEnd2 @23: Int32;

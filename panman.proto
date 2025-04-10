@@ -18,6 +18,7 @@ message mutation
     bool  blockMutInfo = 4;
     bool  blockInversion = 5;
     repeated nucMut nucMutation = 6;
+    int64 chromosomeId = 7;
 }
 
 message node
@@ -32,6 +33,7 @@ message consensusSeqToBlockIds
     repeated    uint32  consensusSeq = 2;
     repeated    bool    blockGapExist = 3;
     repeated    string  chromosomeName = 4;
+    repeated    int64   chromosomeId = 5;
 }
 
 message gapList
@@ -40,12 +42,14 @@ message gapList
     bool           blockGapExist = 2;
     repeated int32 nucGapLength = 3;
     repeated int32 nucPosition = 4;
+    int64          chromosomeId = 5;
 }
 
 message blockGapList
 {
     repeated int32  blockPosition = 1;
     repeated int32  blockGapLength = 2;
+    repeated int64  chromosomeId = 3;
 }
 
 message circularOffset
@@ -86,24 +90,28 @@ message complexMutation {
     string          sequenceId1 = 5;
     string          sequenceId2 = 6;
 
+    int64           chromosomeIdStart1 = 28;
     int64           blockIdStart1 = 7;
     bool            blockGapExistStart1 = 8;
     int32           nucPositionStart1 = 9;
     int32           nucGapPositionStart1 = 10;
     bool            nucGapExistStart1 = 11;
 
+    int64           chromosomeIdEnd1 = 29;
     int64           blockIdEnd1 = 12;
     bool            blockGapExistEnd1 = 13;
     int32           nucPositionEnd1 = 14;
     int32           nucGapPositionEnd1 = 15;
     bool            nucGapExistEnd1 = 16;
 
+    int64           chromosomeIdStart2 = 30;
     int64           blockIdStart2 = 17;
     bool            blockGapExistStart2 = 18;
     int32           nucPositionStart2 = 19;
     int32           nucGapPositionStart2 = 20;
     bool            nucGapExistStart2 = 21;
 
+    int64           chromosomeIdEnd2 = 31;
     int64           blockIdEnd2 = 22;
     bool            blockGapExistEnd2 = 23;
     int32           nucPositionEnd2 = 24;
