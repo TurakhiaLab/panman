@@ -303,6 +303,12 @@ struct BlockGapList {
 };
 
 
+struct ChromosomeInfo {
+    std::string name;
+    int32_t index;
+    std::vector< int32_t > blockIds;
+};
+
 // PanMAT tree node
 class Node {
   public:
@@ -449,6 +455,11 @@ class Tree {
 
     // Specifies whether sequence is inverted or not by the rotation algorithm
     std::unordered_map< std::string, bool > sequenceInverted;
+
+    // specifies chromosome information 
+    std::unordered_map< int32_t, shared_ptr<ChromosomeInfo> > blockToChromsome;
+    std::vector< shared_ptr<ChromosomeInfo> > chromosomes;
+
 
     std::unordered_map< std::string, Node* > allNodes;
 

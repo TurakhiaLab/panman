@@ -67,6 +67,12 @@ struct SequenceInverted
     inverted @1: Bool;
 }
 
+struct ChromosomeInfo {
+    idx @0: Int32;
+    name @1: Text;
+    blockIds @2: List(Int32);     
+}
+
 struct Tree
 {
     newick @0: Text;
@@ -77,6 +83,7 @@ struct Tree
     circularSequences @5: List(CircularOffset);
     rotationIndexes @6: List(RotationIndex);
     sequencesInverted @7: List(SequenceInverted);
+    chromosomes @8: List(ChromosomeInfo);
 }
 
 struct ComplexMutation {

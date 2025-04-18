@@ -1732,6 +1732,24 @@ void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
         blockGaps.blockGapLength.push_back(mainTree.getBlockGaps().getBlockGapLength()[i]);
     }
 
+    // Read chromosomes
+    // std::cout << "Assigning Chromosomes" << std::endl;
+    for(auto chromosomeFromTree: mainTree.getChromosomes()) {
+        std::vector< int32_t> blockIds(chromosomeFromTree.getBlockIds().size());
+        for (auto j=0; j<chromosomeFromTree.getBlockIds().size(); j++){
+            blockIds[j] = chromosomeFromTree.getBlockIds()[j];
+        }
+
+        chromosomes.emplace_back(
+            chromosomeFromTree.getName(),
+            chromosomeFromTree.getIdx(),
+            std::move(blockIds)
+        );
+        auto const& chromosome = chromosomes.back();
+        for (auto blockId: chromosome->blockIds) {
+            blockToChromsome[blockId] = chromosome;
+        }
+    }
 }
 
 panmanUtils::Tree::Tree(const panman::Tree::Reader& mainTree) {
@@ -1844,7 +1862,28 @@ void panmanUtils::Tree::protoMATToTree(const panmanOld::tree& mainTree) {
         blockGaps.blockPosition.push_back(mainTree.blockgaps().blockposition(i));
         blockGaps.blockGapLength.push_back(mainTree.blockgaps().blockgaplength(i));
     }
+
+    // Read chromosomes
+    // std::cout << "Assigning Chromosomes" << std::endl;
+    for(auto chromosomeFromTree: mainTree.chromosomes()) {
+        std::vector< int32_t> blockIds(chromosomeFromTree.blockids_size());
+        for (int j=0; j<chromosomeFromTree.blockids_size(); j++){
+            blockIds[j] = chromosomeFromTree.blockids(j);
+        }
+
+        chromosomes.emplace_back(
+            chromosomeFromTree.name(),
+            chromosomeFromTree.idx(),
+            std::move(blockIds)
+        );
+
+        auto const& chromosome = chromosomes.back();
+        for (auto blockId: chromosome->blockIds) {
+            blockToChromsome[blockId] = chromosome;
+        }
+    }
 }
+
 panmanUtils::Tree::Tree(const panmanOld::tree& mainTree) {
     protoMATToTree(mainTree);
 }
@@ -6934,6 +6973,7 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std::
 }
 
 panmanUtils::TreeGroup::TreeGroup(std::istream& fin, bool isOld) {
+    // TODO
     if (!isOld) {
         kj::std::StdInputStream kjInputStream(fin);
         capnp::InputStreamMessageReader messageReader(kjInputStream);
@@ -7083,6 +7123,19 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
             si.setInverted(u.second);
         }
         assert(sequenceInvertedCount == tree.sequenceInverted.size());
+
+        ::capnp::List<panman::ChromosomeInfo>::Builder chromosomeInfoBuilder = treeToWrite.initChromsomes(tree.chromosomes.size());
+        size_t chromosomes = 0;
+        for(auto u: tree.chromosomes) {
+            panman::ChromosomeInfo::Builder ci = chromosomeInfoBuilder[chromosomes++];
+            ci.setIdx(u.index);
+            ci.setName(u.name);
+            auto blocks = ci.initBlockIds(u.blockIds.size());
+            for(size_t i = 0; i < u.blockIds.size(); i++) {
+                blocks.set(i, u.blockIds[i]);
+            }
+        }
+        assert(chromosomes == tree.chromosomes.size());
     }
 
 

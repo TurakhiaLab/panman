@@ -66,6 +66,12 @@ message sequenceInverted
     bool            inverted = 2;
 }
 
+message chromosomeInfo {
+    int32 idx = 1;
+    string name = 2;
+    repeated int32 blockIds = 3;
+}
+
 message tree
 {
     string           newick = 1;
@@ -76,6 +82,7 @@ message tree
     repeated circularOffset circularSequences = 7;
     repeated rotationIndex rotationIndexes = 8;
     repeated sequenceInverted sequencesInverted = 9;
+    repeated chromosomeInfo chromosomes = 10;
 }
 
 message complexMutation {
