@@ -69,14 +69,14 @@ struct NucMut {
     }
 
     // Create SNP mutation
-    NucMut(const std::tuple<int, int, int, int, int, int>& mutationInfo) {
-        c.chromosomeId = 0;
-        c.primaryBlockId = std::get<0>(mutationInfo);
-        c.secondaryBlockId = std::get<1>(mutationInfo);
-        c.nucPosition = std::get<2>(mutationInfo);
-        c.nucGapPosition = std::get<3>(mutationInfo);
-        mutInfo = std::get<4>(mutationInfo) + (1 << 4);
-        nucs = (std::get<5>(mutationInfo) << 20);
+    NucMut(const std::tuple<int, int, int, int, int, int, int>& mutationInfo) {
+        c.chromosomeId = std::get<0>(mutationInfo);
+        c.primaryBlockId = std::get<1>(mutationInfo);
+        c.secondaryBlockId = std::get<2>(mutationInfo);
+        c.nucPosition = std::get<3>(mutationInfo);
+        c.nucGapPosition = std::get<4>(mutationInfo);
+        mutInfo = std::get<5>(mutationInfo) + (1 << 4);
+        nucs = (std::get<6>(mutationInfo) << 20);
     }
 
     // Create non-SNP mutations from SNP mutations at consecutive positions for MSA
@@ -114,12 +114,12 @@ struct NucMut {
     }
 
     // Create non-SNP mutations from SNP mutations at consecutive positions
-    NucMut(const std::vector<std::tuple<int, int, int, int, int, int>>& mutationArray, int start, int end) {
-        c.chromosomeId = 0;
-        c.primaryBlockId = std::get<0>(mutationArray[start]);
-        c.secondaryBlockId = std::get<1>(mutationArray[start]);
+    NucMut(const std::vector<std::tuple<int, int, int, int, int, int, int>>& mutationArray, int start, int end) {
+        c.chromosomeId = std::get<0>(mutationArray[start]);
+        c.primaryBlockId = std::get<1>(mutationArray[start]);
+        c.secondaryBlockId = std::get<2>(mutationArray[start]);
         mutInfo = ((end - start) << 4);
-        switch (std::get<4>(mutationArray[start])) {
+        switch (std::get<5>(mutationArray[start])) {
             case panmanUtils::NucMutationType::NSNPS:
                 mutInfo += panmanUtils::NucMutationType::NS;
                 break;
@@ -139,11 +139,11 @@ struct NucMut {
                 mutInfo += panmanUtils::NucMutationType::ND;
                 break;
         }
-        c.nucPosition = std::get<2>(mutationArray[start]);
-        c.nucGapPosition = std::get<3>(mutationArray[start]);
+        c.nucPosition = std::get<3>(mutationArray[start]);
+        c.nucGapPosition = std::get<4>(mutationArray[start]);
         nucs = 0;
         for (int i = start; i < end; i++) {
-            nucs += (std::get<5>(mutationArray[i]) << (4 * (5 - (i - start))));
+            nucs += (std::get<6>(mutationArray[i]) << (4 * (5 - (i - start))));
         }
     }
 
@@ -173,7 +173,9 @@ struct NucMut {
 
 // Struct for representing Block Mutations
 struct BlockMut {
-    Coordinate c;
+    int32_t chromosomeId;
+    int32_t primaryBlockId;
+    int32_t secondaryBlockId;
 
     // Whether mutation is an insertion or deletion - Strand inversions are marked by
     // `blockMutInfo=false`, but they are not deletions
@@ -184,12 +186,12 @@ struct BlockMut {
     bool inversion;
 
     void loadFromProtobuf(panman::Mutation::Reader mutation) {
-        c.chromosomeId = mutation.getChromosomeId();
-        c.primaryBlockId = (mutation.getBlockId() >> 32);
+        chromosomeId = mutation.getChromosomeId();
+        primaryBlockId = (mutation.getBlockId() >> 32);
         if (mutation.getBlockGapExist()) {
-            c.secondaryBlockId = (mutation.getBlockId() & 0xFFFFFFFF);
+            secondaryBlockId = (mutation.getBlockId() & 0xFFFFFFFF);
         } else {
-            c.secondaryBlockId = -1;
+            secondaryBlockId = -1;
         }
         blockMutInfo = mutation.getBlockMutInfo();
         // Whether the mutation is a block inversion or not. Inversion is marked by
@@ -198,12 +200,12 @@ struct BlockMut {
     }
 
     void loadFromProtobuf(panmanOld::mutation mutation) {
-        c.chromosomeId = mutation.chromosomeid();
-        c.primaryBlockId = (mutation.blockid() >> 32);
+        chromosomeId = mutation.chromosomeid();
+        primaryBlockId = (mutation.blockid() >> 32);
         if (mutation.blockgapexist()) {
-            c.secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
+            secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
         } else {
-            c.secondaryBlockId = -1;
+            secondaryBlockId = -1;
         }
         blockMutInfo = mutation.blockmutinfo();
         // Whether the mutation is a block inversion or not. Inversion is marked by
@@ -212,9 +214,9 @@ struct BlockMut {
     }
 
     BlockMut(size_t chromosomeId, size_t blockId, std::pair<BlockMutationType, bool> type, int secondaryBId = -1) {
-        c.chromosomeId = chromosomeId;
-        c.primaryBlockId = blockId;
-        c.secondaryBlockId = secondaryBId;
+        chromosomeId = chromosomeId;
+        primaryBlockId = blockId;
+        secondaryBlockId = secondaryBId;
         if (type.first == BlockMutationType::BI) {
             blockMutInfo = true;
         } else {
@@ -236,7 +238,9 @@ struct BlockMut {
 
 // List of default blocks in the global coordinate system of the PanMAT
 struct Block {
-    Coordinate c;
+    int32_t chromosomeId;
+    int32_t primaryBlockId;
+    int32_t secondaryBlockId;
 
     std::vector<uint32_t> consensusSeq;
     std::string chromosomeName;
@@ -249,7 +253,9 @@ struct Block {
 // List of gaps in the global coordinate system of the PanMAT
 struct GapList {
     std::vector<uint32_t> nucPosition;
-    Coordinate c;
+    int32_t chromosomeId;
+    int32_t primaryBlockId;
+    int32_t secondaryBlockId;
     std::vector<uint32_t> nucGapLength;
 };
 
