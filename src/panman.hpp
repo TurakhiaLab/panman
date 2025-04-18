@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <queue>
 #include <atomic>
+#include <memory>
 #include <tbb/concurrent_unordered_map.h>
 #include <tbb/task_scheduler_init.h>
 #include <boost/iostreams/filtering_stream.hpp>
@@ -457,8 +458,8 @@ class Tree {
     std::unordered_map< std::string, bool > sequenceInverted;
 
     // specifies chromosome information 
-    std::unordered_map< int32_t, shared_ptr<ChromosomeInfo> > blockToChromsome;
-    std::vector< shared_ptr<ChromosomeInfo> > chromosomes;
+    std::unordered_map< int32_t, std::shared_ptr<ChromosomeInfo> > blockToChromosome;
+    std::vector< std::shared_ptr<ChromosomeInfo> > chromosomes;
 
 
     std::unordered_map< std::string, Node* > allNodes;
