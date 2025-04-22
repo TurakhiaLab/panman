@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04, ubuntu-22.04, macos-13, macos-15]
 
     steps:
       - name: Checkout Code
@@ -38,16 +38,29 @@ jobs:
           pip install "mkdocs-material[imaging]"
           mkdocs gh-deploy --force
           
-      - name: switch to gcc-10 on linux
+      - name: Linux-specific steps
+        if: runner.os == 'Linux'
         run: |
+          sudo apt update
           sudo apt install gcc-10 g++-10
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
           sudo update-alternatives --set gcc /usr/bin/gcc-10
-
-      - name: install pre-reqs and build
-        run: |
           chmod +x install/installationUbuntu.sh
           sudo ./install/installationUbuntu.sh
+
+      # macOS-specific steps
+      - name: macOS-specific steps
+        if: runner.os == 'macOS'
+        run: |
+          brew install gcc@10
+          brew link --overwrite gcc@10 --force
+          echo 'export CC=/usr/local/bin/gcc-10' >> $GITHUB_ENV
+          echo 'export CXX=/usr/local/bin/g++-10' >> $GITHUB_ENV
+          gcc --version
+          g++ --version
+          chmod +x install/installationMacOS.sh
+          ./install/installationMacOS.sh
+          
       - name: test
         run: |
           cd build
