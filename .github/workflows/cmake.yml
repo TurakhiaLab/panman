@@ -10,8 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  Run panmanUtils on Linux:
-    name: Deploy Job
+  Run-panmanUtils-on-Linux:
+    name: Deploy Job on Linux
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -53,8 +53,8 @@ jobs:
           ./panmanUtils --help
 
 
-  Run panmanUtils on MacOS:
-    name: Deploy Job
+  Run-panmanUtils-on-MacOS:
+    name: Deploy Job on MacOS
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
