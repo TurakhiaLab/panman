@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install dependencies
-sudo brew install git cmake wget curl zip unzip tar boost pkg-config protobuf
+brew install git cmake wget curl zip unzip tar boost pkg-config protobuf
 
 # Set start directory
 startDir=$(pwd)
