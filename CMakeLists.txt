@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.8) 
+cmake_minimum_required (VERSION 3.10) 
 
 project(panmanUtils)
 
@@ -15,7 +15,10 @@ configure_file(src/version.hpp.in ${CMAKE_SOURCE_DIR}/src/version.hpp)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options -w -mavx512f") 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -w") 
+if(NOT APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx512f")
+endif()
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
 
 

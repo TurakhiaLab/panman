@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install dependencies
-brew install git cmake wget curl zip unzip tar boost pkg-config protobuf libtool automake autoconf nasm
+brew install git cmake wget curl zip unzip tar boost pkg-config protobuf libtool automake autoconf nasm tbb
 
 # wget https://github.com/intel/isa-l/archive/refs/tags/v2.30.0.tar.gz
 # tar -xvf v2.30.0.tar.gz
@@ -24,7 +24,7 @@ tar zxf capnproto-c++-1.0.2.tar.gz
 cd capnproto-c++-1.0.2
 sed -i '' 's/uint64_t traversalLimitInWords = 8 \* 1024 \* 1024;/uint64_t traversalLimitInWords = 8 \* 1024 \* 1024 \* 256;/' src/capnp/message.h
 ./configure
-make -j6 check
+make -j
 sudo make install
 which capnp
 cd ../
