@@ -91,8 +91,7 @@ docker run -it swalia14/panman:latest
 **Step 3:** Run panmanUtils
 ```bash
 # Insider docker container
-cd /home/panman/build
-./panmanUtils --help
+panmanUtils --help
 ```
 
 ###  <a name="file"></a> Using DockerFile
@@ -120,8 +119,7 @@ docker run -it panman
 **Step 4:** Run panmanUtils
 ```bash
 # Insider docker container
-cd /home/panman/build
-./panmanUtils --help
+panmanUtils --help
 ```
 
 ## <a name="construct"></a> PanMAN Construction
@@ -133,8 +131,7 @@ Once the package is installed, PanMANs can be constructed from PanGraph [or GFA 
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:
 
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
+panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
@@ -171,12 +168,12 @@ The summary feature extracts node and tree level statistics of a PanMAN, that co
 
 * Usage Syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
 cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman  --summary --output-file=sars_20
+panmanUtils -I panman/sars_20.panman  --summary --output-file=sars_20
 ```
 
 #### Variant Call Format (VCF) extract
@@ -184,12 +181,12 @@ Extract variations of all sequences from any PanMAT in a PanMAN in the form of a
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix of output file> (optional) 
+panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix of output file> (optional) 
 ```
 * Example
 ```bash
 cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
+panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
 ```
 
 
