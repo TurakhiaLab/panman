@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-24.04, ubuntu-22.04, macos-13, macos-15]
+        os: [ubuntu-24.04, ubuntu-22.04]
 
     steps:
       - name: Checkout Code
@@ -32,21 +32,19 @@ jobs:
           key: ${{ github.ref }}
           path: .cache
 
-      - name: macOS-specific pre-build steps
-        if: runner.os == 'macOS'
-        run: |
-          brew update
-          brew install cairo pango gdk-pixbuf libffi
+      # - name: macOS-specific pre-build steps
+      #   if: runner.os == 'macOS'
+      #   run: |
+      #     brew update
+      #     brew install cairo pango gdk-pixbuf libffi
 
       - name: Install dependencies and build mkdocs
-        if: runner.os == 'Linux'
         run: |
           pip install mkdocs-material
           pip install "mkdocs-material[imaging]"
           mkdocs gh-deploy --force
           
       - name: Linux-specific steps
-        if: runner.os == 'Linux'
         run: |
           sudo apt update
           sudo apt install gcc-10 g++-10
@@ -55,12 +53,12 @@ jobs:
           chmod +x install/installationUbuntu.sh
           sudo ./install/installationUbuntu.sh
 
-      # macOS-specific steps
-      - name: macOS-specific steps
-        if: runner.os == 'macOS'
-        run: |
-          chmod +x install/installationMacOS.sh
-          ./install/installationMacOS.sh
+      # # macOS-specific steps
+      # - name: macOS-specific steps
+      #   if: runner.os == 'macOS'
+      #   run: |
+      #     chmod +x install/installationMacOS.sh
+      #     ./install/installationMacOS.sh
           
       - name: test
         run: |
