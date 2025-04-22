@@ -59,12 +59,6 @@ jobs:
       - name: macOS-specific steps
         if: runner.os == 'macOS'
         run: |
-          brew install gcc@10
-          brew link --overwrite gcc@10 --force
-          echo 'export CC=/usr/local/bin/gcc-10' >> $GITHUB_ENV
-          echo 'export CXX=/usr/local/bin/g++-10' >> $GITHUB_ENV
-          gcc --version
-          g++ --version
           chmod +x install/installationMacOS.sh
           ./install/installationMacOS.sh
           

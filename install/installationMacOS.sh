@@ -3,6 +3,15 @@
 # Install dependencies
 brew install git cmake wget curl zip unzip tar boost pkg-config protobuf
 
+wget https://github.com/intel/isa-l/archive/refs/tags/v2.30.0.tar.gz
+tar -xvf v2.30.0.tar.gz
+pushd isa-l-2.30.0
+./autogen.sh
+./configure --prefix=$(brew --prefix) --libdir=$(brew --prefix)/lib
+make -j2
+make install
+popd
+
 # Set start directory
 startDir=$(pwd)
 cd "$(dirname "$0")"
@@ -29,12 +38,12 @@ cd ..
 ./vcpkg/vcpkg install jsoncpp
 
 # Download and extract oneTBB
-wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
-tar -xvzf 2019_U9.tar.gz
+wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz
+tar -xvzf tbb2019_20191006oss_mac.tgz
 
 # Run CMake
-cmake -DTBB_DIR=${PWD}/oneTBB-2019_U9 \
-      -DCMAKE_PREFIX_PATH=${PWD}/oneTBB-2019_U9/cmake \
+cmake -DTBB_DIR=${PWD}/tbb2019_20191006oss \
+      -DCMAKE_PREFIX_PATH=${PWD}/tbb2019_20191006oss/cmake \
       -DCMAKE_TOOLCHAIN_FILE=${PWD}/vcpkg/scripts/buildsystems/vcpkg.cmake ..
 
 # Build the project
