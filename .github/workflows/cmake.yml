@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  deploy:
+  Run panmanUtils on Linux:
     name: Deploy Job
     runs-on: ${{ matrix.os }}
     strategy:
@@ -32,12 +32,6 @@ jobs:
           key: ${{ github.ref }}
           path: .cache
 
-      # - name: macOS-specific pre-build steps
-      #   if: runner.os == 'macOS'
-      #   run: |
-      #     brew update
-      #     brew install cairo pango gdk-pixbuf libffi
-
       - name: Install dependencies and build mkdocs
         run: |
           pip install mkdocs-material
@@ -52,13 +46,46 @@ jobs:
           sudo update-alternatives --set gcc /usr/bin/gcc-10
           chmod +x install/installationUbuntu.sh
           sudo ./install/installationUbuntu.sh
+          
+      - name: test
+        run: |
+          cd build
+          ./panmanUtils --help
 
-      # # macOS-specific steps
-      # - name: macOS-specific steps
-      #   if: runner.os == 'macOS'
-      #   run: |
-      #     chmod +x install/installationMacOS.sh
-      #     ./install/installationMacOS.sh
+
+  Run panmanUtils on MacOS:
+    name: Deploy Job
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, macos-15]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          key: ${{ github.ref }}
+          path: .cache
+
+      - name: macOS-specific pre-build steps
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install cairo pango gdk-pixbuf libffi
+
+      - name: macOS-specific steps
+        if: runner.os == 'macOS'
+        run: |
+          chmod +x install/installationMacOS.sh
+          ./install/installationMacOS.sh
           
       - name: test
         run: |
