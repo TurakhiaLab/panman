@@ -30,16 +30,14 @@ cd ../
 
 # Clone and bootstrap vcpkg
 git clone https://github.com/microsoft/vcpkg.git
-cd vcpkg
-./bootstrap-vcpkg.sh
-cd ..
-
-# Install jsoncpp via vcpkg
+./vcpkg/bootstrap-vcpkg.sh
 ./vcpkg/vcpkg install jsoncpp
 
 # Download and extract oneTBB
 wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz
 tar -xvzf tbb2019_20191006oss_mac.tgz
+
+ls -lght 
 
 # Run CMake
 cmake -DTBB_DIR=${PWD}/tbb2019_20191006oss \
