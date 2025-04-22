@@ -12,6 +12,7 @@
 #include <fstream>
 
 #include "panmanUtils.hpp"
+#include "version.hpp"
 
 namespace po = boost::program_options;
 
@@ -128,6 +129,7 @@ void setupOptionDescriptions() {
     // Global option descriptions
     globalDesc.add_options()
     ("help,h", "Print help messages")
+    ("version,V", "Print panmanUtils version")
     ("input-panman,I", po::value< std::string >(), "Input PanMAN file path")
     // ("input-panmat,T", po::value< std::string >(), "Input PanMAT file path")
     ("input-pangraph,P", po::value< std::string >(), "Input PanGraph JSON file to build a PanMAN")
@@ -1267,6 +1269,9 @@ void parseAndExecute(int argc, char* argv[]) {
 
     if(globalVm.count("help")) {
         std::cout << globalDesc;
+        return;
+    } else if (globalVm.count("version")) {
+        std::cout << "panmanUtils Version " << PROJECT_VERSION << std::endl;
         return;
     } else if (globalVm.count("protobuf2capnp")) {
         protobuf2capnp(TG, globalVm);

@@ -2,8 +2,20 @@ cmake_minimum_required (VERSION 3.8)
 
 project(panmanUtils)
 
+# set version
+set(panmanUtils_VERSION "?.?.?")
+execute_process(COMMAND head -n1 ${CMAKE_SOURCE_DIR}/version.txt OUTPUT_VARIABLE VERSION)
+string(REGEX REPLACE "^v([0-9]+)\\..*" "\\1" VERSION_MAJOR "${VERSION}")
+string(REGEX REPLACE "^v[0-9]+\\.([0-9]+).*" "\\1" VERSION_MINOR "${VERSION}")
+string(REGEX REPLACE "^v[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" VERSION_PATCH "${VERSION}")
+if ("${VERSION_PATCH}" MATCHES "[0-9]+")
+    set(panmanUtils_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+endif()
+configure_file(src/version.hpp.in ${CMAKE_SOURCE_DIR}/src/version.hpp)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -pipe -g -ggdb3 -Wno-unused-function  -Wno-deprecated-declarations -lboost_filesystem -lboost_system -lboost_program_options -w -mavx512f") 
 set(CMAKE_INCLUDE_CURRENT_DIR ON) 
+
 
 
 # add google proto
