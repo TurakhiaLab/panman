@@ -36,7 +36,7 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 </div>
 
 ### Video Tutorial
-<iframe width="1000" height="600" src="https://www.youtube.com/embed/watch?v=eh9zQElrmLI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="1000" height="600" src="https://www.youtube.com/embed/eh9zQElrmLI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 <a name="install"></a>
 ## <b><i>panmanUtils</i> Installation Methods</b>
@@ -81,8 +81,7 @@ docker run -it swalia14/panman:latest
 3. Run <i>panmanUtils</i>
 ```bash
 # Insider docker container
-cd /home/panman/build
-./panmanUtils --help
+panmanUtils --help
 ```
 !!!Note
     The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.
@@ -110,8 +109,7 @@ docker run -it panman
 4. Run <i>panmanUtils</i>
 ```bash
 # Insider docker container
-cd /home/panman/build
-./panmanUtils --help
+panmanUtils --help
 ```
 <a name="construction"></a>
 ## <b>PanMAN Construction</b>
@@ -120,12 +118,7 @@ Here, we will learn to build PanMAN from various input formats.
 
 **Step 0:** The Steps below require <i>panmanUtils</i>, if not done so far, refer to [installation guide](#install) to install <i>panmanUtils</i>. To check if <i>panmanUtils</i> is properly installed or not, run the following command, and it should execute without error
 ```bash
-# enter into the panman directory (assuming $PANMAN directs to the panman repository directory)
-cd $PANMAN_HOME
-```
-```bash
-cd $PANMAN_HOME/build
-./panmanUtils --help
+panmanUtils --help
 ```
 ### Building PanMAN from Alignments (PanGraph/GFA/MSA)
 #### Building PanMAN from PanGraph
@@ -134,8 +127,7 @@ cd $PANMAN_HOME/build
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:
 
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
+panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
@@ -146,8 +138,7 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from GFA:
 
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -G $PANMAN_HOME/test/sars_20.gfa -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
+panmanUtils -G $PANMAN_HOME/test/sars_20.gfa -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
@@ -158,8 +149,7 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 **Step 2:** Run <i>panmanUtils</i> to build a panman from GFA using the following commands:
 
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -M $PANMAN_HOME/test/sars_20.msa -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
+panmanUtils -M $PANMAN_HOME/test/sars_20.msa -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
@@ -204,7 +194,7 @@ ToDO
 All panmanUtils functionality commands manipulate the input PanMAN file.
 ```bash
 cd $PANMAN_HOME/build
-./panmanUtils -I <path to PanMAN file> {opt}
+panmanUtils -I <path to PanMAN file> {opt}
 ```
 <div name="table1" align="center"> <b>Table 1:</b> List of functionalities supported by <i>panmanUtils</i> </div>
 
@@ -232,6 +222,7 @@ cd $PANMAN_HOME/build
 | `-d`, `--treeID`                 | Tree ID, required for `--vcf`                                                                                     |
 | `-i`, `--input-file`             | Path to the input file, required for `--subnet`, `--annotate`, and `--create-network`                             |
 | `-o`, `--output-file`            | Prefix of the output file name                                                                                    |
+| `-V`, `--version`            | panmanUtils Version                                     |
 
 
 
@@ -247,12 +238,11 @@ The summary feature extracts node and tree level statistics of a PanMAN, that co
 
 * Usage Syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman  --summary --output-file=sars_20
+panmanUtils -I panman/sars_20.panman  --summary --output-file=sars_20
 ```
 
 #### Newick extract
@@ -260,12 +250,11 @@ Extract Newick string of all trees in a PanMAN.
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --newick --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --newick --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --newick --output-file=sars_20
+panmanUtils -I panman/sars_20.panman --newick --output-file=sars_20
 ```
 
 #### Extended Newick extract
@@ -273,12 +262,11 @@ Extract network in Extended Newick format.
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --extended-newick --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --extended-newick --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --extended-newick --output-file=sars_20
+panmanUtils -I panman/sars_20.panman --extended-newick --output-file=sars_20
 ```
 
 #### Tip/internal node sequences extract
@@ -286,12 +274,11 @@ Extract tip and internal node sequences from a PanMAN in a FASTA format.
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --fasta --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --fasta --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --fasta --output-file=sars_20
+panmanUtils -I panman/sars_20.panman --fasta --output-file=sars_20
 ```
 
 #### Multiple Sequence Alignment (MSA) extract
@@ -299,12 +286,11 @@ Extract MSA of sequences for each PanMAT (with pseudo-root  coordinates) in a Pa
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --fasta-aligned --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --fasta-aligned --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --fasta-aligned --output-file=sars_20
+panmanUtils -I panman/sars_20.panman --fasta-aligned --output-file=sars_20
 ```
 
 #### Multiple Whole Genome Alignment (m-WGA) extract
@@ -312,12 +298,11 @@ Extract m-WGA for each PanMAT in a PanMAN in the form of a UCSC multiple alignme
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --maf --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --maf --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --maf --output-file=sars_20
+panmanUtils -I panman/sars_20.panman --maf --output-file=sars_20
 ```
 
 #### Variant Call Format (VCF) extract
@@ -325,12 +310,11 @@ Extract variations of all sequences from any PanMAT in a PanMAN in the form of a
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix of output file> (optional) 
+panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix of output file> (optional) 
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
+panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
 ```
 
 #### Graphical fragment assembly (GFA) extract
@@ -338,12 +322,11 @@ Convert any PanMAT in a PanMAN to a Graphical fragment assembly (GFA) file repre
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --gfa --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --gfa --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --gfa --output-file=sars_20 
+panmanUtils -I panman/sars_20.panman --gfa --output-file=sars_20 
 ```
 
 #### Subnetwork extract
@@ -351,12 +334,11 @@ Extract a subnetwork from a given PanMAN and write it to a new PanMAN file based
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --subnet --input-file=<path to a file containing list of nodes> --output-file=<prefix of output file>
+panmanUtils -I <path to PanMAN file> --subnet --input-file=<path to a file containing list of nodes> --output-file=<prefix of output file>
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --subnet --input-file=nodes.txt --output-file=sars_20_subnet
+panmanUtils -I panman/sars_20.panman --subnet --input-file=nodes.txt --output-file=sars_20_subnet
 ```
 
 #### Annotate
@@ -364,12 +346,11 @@ Annotate nodes in a PanMAN with a custom string, later searched by these annotat
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --annotate --input-file=<path to file containing list of annotations> --output-file=sars_20_annotate
+panmanUtils -I <path to PanMAN file> --annotate --input-file=<path to file containing list of annotations> --output-file=sars_20_annotate
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --annotate --input-file=annotations.tsv --output-file=sars_20_annotate
+panmanUtils -I panman/sars_20.panman --annotate --input-file=annotations.tsv --output-file=sars_20_annotate
 ```
 > **NOTE:** If output-file is not provided to <i>panmanUtils</i>, the annotated PanMAN will be written to the same file.
 
@@ -378,12 +359,11 @@ Extract amino acid translations from a PanMAN in TSV file.
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --aa-translations --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --aa-translations --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --aa-translations --output_file=sars_20
+panmanUtils -I panman/sars_20.panman --aa-translations --output_file=sars_20
 ```
 
 #### Range Query
@@ -391,21 +371,20 @@ cd $PANMAN_HOME/build
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --index no -x start -y end --reference=<ref sequence name>
+panmanUtils -I <path to PanMAN file> --index no -x start -y end --reference=<ref sequence name>
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I <path to PanMAN file> --index no -x 10 -y 100 --reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12"
+panmanUtils -I <path to PanMAN file> --index no -x 10 -y 100 --reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12"
 ```
 
 ### <i>panmanUtils</i> Interactive mode
 **Step 1:** Users can enter <i>panmanUtils</i>'s interactive mode by passing input panman as input using the following command:
 
 ```bash
-./panmanUtils -I <path to PanMAN file>
+panmanUtils -I <path to PanMAN file>
 ## Example
-./panmanUtils -I panman/sars_20.panman
+panmanUtils -I panman/sars_20.panman
 ```
 
 !!! Note
