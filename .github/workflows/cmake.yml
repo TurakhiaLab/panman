@@ -32,6 +32,12 @@ jobs:
           key: ${{ github.ref }}
           path: .cache
 
+      - name: macOS-specific pre-build steps
+        if: runner.os == 'macOS'
+        run: |
+          sudo brew update
+          sudo brew install cairo pango gdk-pixbuf libffi
+
       - name: Install dependencies and build mkdocs
         run: |
           pip install mkdocs-material
