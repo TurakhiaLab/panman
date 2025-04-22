@@ -172,7 +172,6 @@ panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output f
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
 panmanUtils -I panman/sars_20.panman  --summary --output-file=sars_20
 ```
 
@@ -185,7 +184,6 @@ panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix 
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
 panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
 ```
 
