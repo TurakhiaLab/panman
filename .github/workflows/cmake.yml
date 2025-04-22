@@ -12,7 +12,11 @@ permissions:
 jobs:
   deploy:
     name: Deploy Job
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-20.04, macos-latest]
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
