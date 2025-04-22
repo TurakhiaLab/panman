@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # Install dependencies
-brew install git cmake wget curl zip unzip tar boost pkg-config protobuf rsync openmpi libtool automake autoconf nasm
+brew install git cmake wget curl zip unzip tar boost pkg-config protobuf libtool automake autoconf nasm
 
-wget https://github.com/intel/isa-l/archive/refs/tags/v2.30.0.tar.gz
-tar -xvf v2.30.0.tar.gz
-pushd isa-l-2.30.0
-./autogen.sh
-./configure --prefix=$(brew --prefix) --libdir=$(brew --prefix)/lib
-make -j2
-make install
-popd
+# wget https://github.com/intel/isa-l/archive/refs/tags/v2.30.0.tar.gz
+# tar -xvf v2.30.0.tar.gz
+# pushd isa-l-2.30.0
+# ./autogen.sh
+# ./configure --prefix=$(brew --prefix) --libdir=$(brew --prefix)/lib
+# make -j2
+# make install
+# popd
 
 # Set start directory
 startDir=$(pwd)
@@ -22,9 +22,10 @@ cd ../build
 curl -O https://capnproto.org/capnproto-c++-1.0.2.tar.gz
 tar zxf capnproto-c++-1.0.2.tar.gz
 cd capnproto-c++-1.0.2
+sed -i '' 's/uint64_t traversalLimitInWords = 8 \* 1024 \* 1024;/uint64_t traversalLimitInWords = 8 \* 1024 \* 1024 \* 256;/' src/capnp/message.h
 ./configure
 make -j6 check
-sudo make install
+make install
 which capnp
 cd ../
 
