@@ -35,8 +35,8 @@ jobs:
       - name: macOS-specific pre-build steps
         if: runner.os == 'macOS'
         run: |
-          sudo brew update
-          sudo brew install cairo pango gdk-pixbuf libffi
+          brew update
+          brew install cairo pango gdk-pixbuf libffi
 
       - name: Install dependencies and build mkdocs
         run: |
@@ -58,10 +58,8 @@ jobs:
       - name: macOS-specific steps
         if: runner.os == 'macOS'
         run: |
-          sudo brew update
-          sudo brew install cairo pango gdk-pixbuf libffi
-          sudo brew install gcc@10
-          sudo brew link --overwrite gcc@10 --force
+          brew install gcc@10
+          brew link --overwrite gcc@10 --force
           echo 'export CC=/usr/local/bin/gcc-10' >> $GITHUB_ENV
           echo 'export CXX=/usr/local/bin/g++-10' >> $GITHUB_ENV
           gcc --version
