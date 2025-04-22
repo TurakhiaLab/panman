@@ -25,7 +25,7 @@ cd capnproto-c++-1.0.2
 sed -i '' 's/uint64_t traversalLimitInWords = 8 \* 1024 \* 1024;/uint64_t traversalLimitInWords = 8 \* 1024 \* 1024 \* 256;/' src/capnp/message.h
 ./configure
 make -j6 check
-make install
+sudo make install
 which capnp
 cd ../
 
@@ -41,9 +41,9 @@ tar -xvzf tbb2019_20191006oss_mac.tgz
 ls -lght 
 
 # Run CMake
-cmake -DTBB_DIR=${PWD}/tbb2019_20191006oss \
-      -DCMAKE_PREFIX_PATH=${PWD}/tbb2019_20191006oss/cmake \
-      -DCMAKE_TOOLCHAIN_FILE=${PWD}/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+cmake -DTBB_DIR=tbb2019_20191006oss \
+      -DCMAKE_PREFIX_PATH=tbb2019_20191006oss/cmake \
+      -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake ..
 
 # Build the project
 make -j
