@@ -52,13 +52,13 @@ include(${CMAKE_TOOLCHAIN_FILE}) # Needed if using vcpkg
 find_package(jsoncpp CONFIG REQUIRED)
 
 # TBB (skip if missing on macOS)
-if(EXISTS "${TBB_DIR}/cmake/TBBBuild.cmake")
+if(NOT APPLE)
     include(${TBB_DIR}/cmake/TBBBuild.cmake)
     tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
     find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
 else()
-    message(WARNING "TBB not found or TBB_DIR not set. Skipping TBB.")
-    set(TBB_IMPORTED_TARGETS "")
+	find_package(TBB REQUIRED)
+	target_link_libraries(panmanUtils PRIVATE TBB::tbb)
 endif()
 
 # ------------------ Source Files ------------------

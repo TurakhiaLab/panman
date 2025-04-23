@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install dependencies
-brew install git cmake wget curl zip unzip boost pkg-config protobuf libtool automake autoconf nasm 
+brew install git cmake wget curl zip unzip boost pkg-config protobuf libtool automake autoconf nasm tbb libtbb-dev
 
 # wget https://github.com/intel/isa-l/archive/refs/tags/v2.30.0.tar.gz
 # tar -xvf v2.30.0.tar.gz
