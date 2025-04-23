@@ -36,11 +36,9 @@ git clone https://github.com/microsoft/vcpkg.git
 ./vcpkg/vcpkg install abseil
 
 # Download and extract oneTBB
-# wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz
-# tar -xvzf tbb2019_20191006oss_mac.tgz
-wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
-tar -xzf 2019_U9.tar.gz
-cd oneTBB-2019_U9
+wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz
+tar -xvzf tbb2019_20191006oss_mac.tgz
+cd tbb2019_20191006oss
 make -j
 
 sudo cp -r include/tbb /usr/local/include/
