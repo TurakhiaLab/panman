@@ -36,13 +36,13 @@ git clone https://github.com/microsoft/vcpkg.git
 ./vcpkg/vcpkg install abseil
 
 # Download and extract oneTBB
-wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz
-tar -xvzf tbb2019_20191006oss_mac.tgz
+# wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz
+# tar -xvzf tbb2019_20191006oss_mac.tgz
 
 # Run CMake
-cmake -DTBB_DIR=${PWD}/tbb2019_20191006oss \
-      -DCMAKE_PREFIX_PATH=${PWD}/tbb2019_20191006oss/cmake \
-      -DCMAKE_TOOLCHAIN_FILE=${PWD}/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+# cmake -DTBB_DIR=${PWD}/tbb2019_20191006oss \
+#       -DCMAKE_PREFIX_PATH=${PWD}/tbb2019_20191006oss/cmake \
+cmake -DCMAKE_TOOLCHAIN_FILE=${PWD}/vcpkg/scripts/buildsystems/vcpkg.cmake ..
 
 # Build the project
 make -j
