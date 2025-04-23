@@ -39,8 +39,6 @@ git clone https://github.com/microsoft/vcpkg.git
 wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz
 tar -xvzf tbb2019_20191006oss_mac.tgz
 
-ls -lght 
-
 # Run CMake
 cmake -DTBB_DIR=${PWD}/tbb2019_20191006oss \
       -DCMAKE_PREFIX_PATH=${PWD}/tbb2019_20191006oss/cmake \
