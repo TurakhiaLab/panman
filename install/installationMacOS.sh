@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # Install dependencies
-brew install git cmake wget curl zip unzip boost pkg-config protobuf libtool automake autoconf nasm tbb
+brew install git cmake wget curl zip unzip boost pkg-config protobuf libtool automake autoconf nasm
 
-# wget https://github.com/intel/isa-l/archive/refs/tags/v2.30.0.tar.gz
-# tar -xvf v2.30.0.tar.gz
-# pushd isa-l-2.30.0
-# ./autogen.sh
-# ./configure --prefix=$(brew --prefix) --libdir=$(brew --prefix)/lib
-# make -j2
-# make install
-# popd
+wget https://github.com/intel/isa-l/archive/refs/tags/v2.30.0.tar.gz
+tar -xvf v2.30.0.tar.gz
+pushd isa-l-2.30.0
+./autogen.sh
+./configure --prefix=$(brew --prefix) --libdir=$(brew --prefix)/lib
+make -j2
+make install
+popd
 
 # Set start directory
 startDir=$(pwd)
