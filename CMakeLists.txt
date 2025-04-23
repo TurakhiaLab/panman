@@ -58,7 +58,6 @@ if(NOT APPLE)
     find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
 else()
 	find_package(TBB REQUIRED)
-	target_link_libraries(panmanUtils PRIVATE TBB::tbb)
 endif()
 
 # ------------------ Source Files ------------------
@@ -82,16 +81,7 @@ else()
     target_sources(panmanUtils PRIVATE ${CAPNP_SRCS} ${CAPNP_HDRS} ${PROTO_SRCS} ${PROTO_HDRS})
 endif()
 
-# ------------------ Linking ------------------
 target_compile_options(panmanUtils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
-target_link_libraries(panmanUtils PRIVATE
-    stdc++
-    JsonCpp::JsonCpp
-    ${Boost_LIBRARIES}
-    ${TBB_IMPORTED_TARGETS}
-    ${CAPNP_LIBRARIES}
-    ${Protobuf_LIBRARIES}
-)
 
 # Only link Abseil on macOS
 if(APPLE)
@@ -101,6 +91,17 @@ if(APPLE)
         absl::strings
         absl::base
     )
+	target_link_libraries(panmanUtils PRIVATE TBB::tbb)
 endif()
+
+# ------------------ Linking ------------------
+target_link_libraries(panmanUtils PRIVATE
+    stdc++
+    JsonCpp::JsonCpp
+    ${Boost_LIBRARIES}
+    ${TBB_IMPORTED_TARGETS}
+    ${CAPNP_LIBRARIES}
+    ${Protobuf_LIBRARIES}
+)
 
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
