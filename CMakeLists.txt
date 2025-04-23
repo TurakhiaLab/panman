@@ -91,6 +91,8 @@ if(APPLE)
         absl::strings
         absl::base
     )
+	include_directories(/usr/local/include)
+	link_directories(/usr/local/lib)
 	target_link_libraries(panmanUtils PRIVATE TBB::tbb)
 endif()
 

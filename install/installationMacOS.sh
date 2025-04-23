@@ -38,6 +38,13 @@ git clone https://github.com/microsoft/vcpkg.git
 # Download and extract oneTBB
 # wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz
 # tar -xvzf tbb2019_20191006oss_mac.tgz
+wget https://github.com/oneapi-src/oneTBB/archive/2019_U9.tar.gz
+tar -xzf 2019_U9.tar.gz
+cd oneTBB-2019_U9
+make -j
+
+sudo cp -r include/tbb /usr/local/include/
+sudo cp build/*_release/*.dylib /usr/local/lib/
 
 # Run CMake
 # cmake -DTBB_DIR=${PWD}/tbb2019_20191006oss \
