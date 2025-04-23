@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install dependencies
-brew install git cmake wget curl zip unzip boost pkg-config protobuf libtool automake autoconf nasm tbb
+brew install git cmake wget curl zip unzip boost pkg-config protobuf libtool automake autoconf nasm 
 
 # wget https://github.com/intel/isa-l/archive/refs/tags/v2.30.0.tar.gz
 # tar -xvf v2.30.0.tar.gz
@@ -41,9 +41,9 @@ tar -xvzf tbb2019_20191006oss_mac.tgz
 ls -lght 
 
 # Run CMake
-# cmake -DTBB_DIR=tbb2019_20191006oss \
-#       -DCMAKE_PREFIX_PATH=tbb2019_20191006oss/cmake \
-cmake -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake ..
+cmake -DTBB_DIR=tbb2019_20191006oss \
+      -DCMAKE_PREFIX_PATH=tbb2019_20191006oss/cmake \
+      -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake ..
 
 # Build the project
 make -j
