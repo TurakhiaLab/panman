@@ -51,14 +51,14 @@ include_directories(${Boost_INCLUDE_DIRS})
 include(${CMAKE_TOOLCHAIN_FILE}) # Needed if using vcpkg
 find_package(jsoncpp CONFIG REQUIRED)
 
-# TBB (skip if missing on macOS)
-if(NOT APPLE)
-    include(${TBB_DIR}/cmake/TBBBuild.cmake)
-    tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
-    find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
-else()
-	find_package(TBB REQUIRED)
-endif()
+# TBB
+# if(NOT APPLE)
+include(${TBB_DIR}/cmake/TBBBuild.cmake)
+tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
+find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
+# else()
+# 	find_package(TBB REQUIRED)
+# endif()
 
 # ------------------ Source Files ------------------
 file(GLOB PANMAT_SRCS
@@ -91,9 +91,7 @@ if(APPLE)
         absl::strings
         absl::base
     )
-	include_directories(/usr/local/include)
-	link_directories(/usr/local/lib)
-	target_link_libraries(panmanUtils PRIVATE TBB::tbb)
+	# target_link_libraries(panmanUtils PRIVATE TBB::tbb)
 endif()
 
 # ------------------ Linking ------------------
