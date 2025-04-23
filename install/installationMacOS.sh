@@ -33,6 +33,7 @@ cd ../
 git clone https://github.com/microsoft/vcpkg.git
 ./vcpkg/bootstrap-vcpkg.sh
 ./vcpkg/vcpkg install jsoncpp
+./vcpkg/vcpkg install abseil
 
 # Download and extract oneTBB
 wget https://github.com/oneapi-src/oneTBB/releases/download/2019_U9/tbb2019_20191006oss_mac.tgz

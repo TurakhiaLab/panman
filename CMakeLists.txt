@@ -59,6 +59,15 @@ include_directories(${Boost_INCLUDE_DIRS})
 include(${CMAKE_TOOLCHAIN_FILE})
 find_package(jsoncpp CONFIG REQUIRED)
 
+if(APPLE)
+    find_package(absl CONFIG REQUIRED)
+    target_link_libraries(panmanUtils
+        PRIVATE
+            absl::log
+            absl::strings
+            absl::base
+    )
+endif()
 
 file(GLOB PANMAT_SRCS "src/panmanUtils.cpp" "src/panman.cpp" "src/panmanUtils.hpp" "src/panman.hpp")
 
