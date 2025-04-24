@@ -41,76 +41,96 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 <a name="install"></a>
 ## <b><i>panmanUtils</i> Installation Methods</b>
 
-### Using installation script (requires sudo access)
+<b><i>panmanUtils</i></b> software can be installed using three different options: 
+1. Conda 
+2. Docker 
+3. Installation scripts 
 
-0. Dependencies
-    i. Git
+### Using conda (recommended)
+Users can install <i>panmanUtils</i> through installation of [panman conda package](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;), compatible with `linux-64` and `osx-64`.
+#### 1. Dependencies
+1. [Conda](https://docs.conda.io/en/latest/)
+#### 2. Install <i>panmanUtils</i> 
+```
+# Create and activate a new environment for panman
+conda create -n panman-env
+conda activate panman-env
 
-1. Clone the repository
+# Set up channels
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+# Install the panman package
+conda install panman
+```
+#### 3. Run <i>panmanUtils</i> 
+```
+panmanUtils --help
+```
+### Using Docker Image
+
+To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps.
+
+#### 1. Dependencies
+1. [Docker](https://docs.docker.com/engine/install/)
+#### 2. Pull and build the PanMAN docker image from DockerHub
+```bash
+docker run -it swalia14/panman:latest
+```
+#### 2. Run <i>panmanUtils</i>
+```bash
+# Insider docker container
+panmanUtils --help
+```
+!!!Note
+ The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.
+
+### Using DockerFile
+Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps.
+
+#### 1. Dependencies
+1. [Docker](https://docs.docker.com/engine/install/)
+2. [Git](https://git-scm.com/downloads)
+#### 2. Clone the repository and build a docker image
+```bash
+git clone https://github.com/TurakhiaLab/panman.git
+cd panman/docker
+docker build -t panman .
+```
+#### 3. Build and run the docker container
+```bash
+docker run -it panman
+```
+#### 4. Run <i>panmanUtils</i>
+```bash
+# Insider docker container
+panmanUtils --help
+```
+
+### Using installation script (Least recommended)
+We provide scripts to install panmanUtils from source code (requires `sudo` access, compatible with `Linux` only)
+#### 1. Dependencies
+1. [Git](https://git-scm.com/downloads)
+
+#### 2. Clone the repository
 ```bash
 git clone https://github.com/TurakhiaLab/panman.git
 cd panman
 ```
-2. Run the installation script
+#### 3. Run the installation script
 ```bash
 chmod +x install/installationUbuntu.sh
 ./install/installationUbuntu.sh
 ```
-3. Run <i>panmanUtils</i>
+#### 4. Run <i>panmanUtils</i>
 ```bash
 cd build
 ./panmanUtils --help
 ```
 !!!Note
-    <i>panmanUtils</i> is built using CMake and depends upon libraries such as Boost, cap'n proto, etc, which are also installed in `installationUbuntu.sh`. If users face version issues, try using the docker methods detailed below.
+    <i>panmanUtils</i> is built using CMake and depends upon libraries such as Boost, cap'n proto, etc, which are also installed in `installationUbuntu.sh`. If users face version issues, try using the conda or docker methods detailed above.
 
-### Using Docker Image
-
-To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps
-
-0. Dependencies
-    i. Docker
-1. Pull the PanMAN docker image from DockerHub
-```bash
-docker pull swalia14/panman:latest
-```
-2. Build and run the docker container
-```bash
-docker run -it swalia14/panman:latest
-```
-3. Run <i>panmanUtils</i>
-```bash
-# Insider docker container
-panmanUtils --help
-```
-!!!Note
-    The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.
-
-### Using DockerFile
-Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps
-
-0. Dependencies
-    i. Docker
-    ii. Git
-1. Clone the repository
-```bash
-git clone https://github.com/TurakhiaLab/panman.git
-cd panman
-```
-2. Build a docker image
-```bash
-cd docker
-docker build -t panman .
-```
-3. Build and run docker container
-```bash
-docker run -it panman
-```
-4. Run <i>panmanUtils</i>
-```bash
-# Insider docker container
-panmanUtils --help
-```
 <a name="construction"></a>
 ## <b>PanMAN Construction</b>
 
@@ -157,7 +177,7 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA format) or from fragment assemblies.
 
 !!!Note
-    The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](#install)).
+ The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](#install)).
 
 #### Building PanMAN from raw genome sequences
 **Step 1:** Run the following command to construct a panman from raw sequences.
@@ -229,9 +249,9 @@ panmanUtils -I <path to PanMAN file> {opt}
 > **Important:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
 
 !!!Note
-    For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](#construction).
+ For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](#construction).
 !!! Note
-    Users can reduce memory consumption by lowering the number of CPU threads (default set to 32) through the --threads option in panmanUtils, at a cost of higher latency.
+ Users can reduce memory consumption by lowering the number of CPU threads (default set to 32) through the --threads option in panmanUtils, at a cost of higher latency.
 
 #### Summary extract
 The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.
@@ -388,9 +408,9 @@ panmanUtils -I panman/sars_20.panman
 ```
 
 !!! Note
-    The interactive mode should look like the image attached below
+ The interactive mode should look like the image attached below
 
-    ![Interactive Mode](images/interactiveMode.png)
+ ![Interactive Mode](images/interactiveMode.png)
 
 **Step 2:** Use the commands listed in [Table 1](#table1) to perform desired operation
 
@@ -400,3 +420,4 @@ We welcome contributions from the community to enhance the capabilities of PanMA
 ## <b>Citing PanMAN</b>
 If you use the PanMANs or panmanUtils in your research or publications, we kindly request that you cite the following paper:<br> 
 * Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: [10.1101/2024.07.02.601807](https://doi.org/10.1101/2024.07.02.601807)
+
