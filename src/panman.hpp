@@ -61,7 +61,6 @@ struct NucMut {
     NucMut(const std::tuple<int, int8_t, int8_t>& mutationInfo) {
         c.chromosomeId = 0;
         c.primaryBlockId = 0;
-        c.secondaryBlockId = -1;
         c.nucPosition = std::get<0>(mutationInfo);
         c.nucGapPosition = -1;
         mutInfo = (int)std::get<1>(mutationInfo) + (1 << 4);
@@ -69,21 +68,19 @@ struct NucMut {
     }
 
     // Create SNP mutation
-    NucMut(const std::tuple<int, int, int, int, int, int, int>& mutationInfo) {
+    NucMut(const std::tuple<int, int, int, int, int, int>& mutationInfo) {
         c.chromosomeId = std::get<0>(mutationInfo);
         c.primaryBlockId = std::get<1>(mutationInfo);
-        c.secondaryBlockId = std::get<2>(mutationInfo);
-        c.nucPosition = std::get<3>(mutationInfo);
-        c.nucGapPosition = std::get<4>(mutationInfo);
-        mutInfo = std::get<5>(mutationInfo) + (1 << 4);
-        nucs = (std::get<6>(mutationInfo) << 20);
+        c.nucPosition = std::get<2>(mutationInfo);
+        c.nucGapPosition = std::get<3>(mutationInfo);
+        mutInfo = std::get<4>(mutationInfo) + (1 << 4);
+        nucs = (std::get<5>(mutationInfo) << 20);
     }
 
     // Create non-SNP mutations from SNP mutations at consecutive positions for MSA
     NucMut(const std::vector<std::tuple<int, int8_t, int8_t>>& mutationArray, int start, int end) {
         c.chromosomeId = 0;
         c.primaryBlockId = 0;
-        c.secondaryBlockId = -1;
         mutInfo = ((end - start) << 4);
         switch (std::get<1>(mutationArray[start])) {
             case panmanUtils::NucMutationType::NSNPS:
@@ -117,7 +114,6 @@ struct NucMut {
     NucMut(const std::vector<std::tuple<int, int, int, int, int, int, int>>& mutationArray, int start, int end) {
         c.chromosomeId = std::get<0>(mutationArray[start]);
         c.primaryBlockId = std::get<1>(mutationArray[start]);
-        c.secondaryBlockId = std::get<2>(mutationArray[start]);
         mutInfo = ((end - start) << 4);
         switch (std::get<5>(mutationArray[start])) {
             case panmanUtils::NucMutationType::NSNPS:
@@ -155,7 +151,6 @@ struct NucMut {
         mutInfo = (mutation.getMutInfo() & 0xFF);
         nucs = (mutation.getMutInfo() >> 8);
         nucs = ((nucs) << (24 - (mutInfo >> 4) * 4));
-        c.secondaryBlockId = blockGapExist ? (blockId & 0xFFFFFFFF) : -1;
         c.nucGapPosition = mutation.getNucGapExist() ? mutation.getNucGapPosition() : -1;
     }
 
@@ -175,7 +170,6 @@ struct NucMut {
 struct BlockMut {
     int32_t chromosomeId;
     int32_t primaryBlockId;
-    int32_t secondaryBlockId;
 
     // Whether mutation is an insertion or deletion - Strand inversions are marked by
     // `blockMutInfo=false`, but they are not deletions

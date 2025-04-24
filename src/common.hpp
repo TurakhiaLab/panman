@@ -46,7 +46,6 @@ enum FILE_TYPE {
 struct Coordinate {
     int32_t chromosomeId;
     int32_t primaryBlockId;
-    int32_t secondaryBlockId;
     int32_t nucPosition;
     int32_t nucGapPosition;
 };
