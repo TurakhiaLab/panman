@@ -50,7 +50,7 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 Users can install <i>panmanUtils</i> through installation of [panman conda package](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;), compatible with `linux-64` and `osx-64`.
 #### 1. Dependencies
 1. [Conda](https://docs.conda.io/en/latest/)
-#### 2. Install <i>panmanUtils</i> 
+#### 2. Install panman conda package 
 ```
 # Create and activate a new environment for panman
 conda create -n panman-env
