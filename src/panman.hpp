@@ -161,7 +161,6 @@ struct NucMut {
         mutInfo = (mutation.mutinfo() & 0xFF);
         nucs = (mutation.mutinfo() >> 8);
         nucs = ((nucs) << (24 - (mutInfo >> 4) * 4));
-        c.secondaryBlockId = blockGapExist ? (blockId & 0xFFFFFFFF) : -1;
         c.nucGapPosition = mutation.nucgapexist() ? mutation.nucgapposition() : -1;
     }
 };
@@ -182,11 +181,6 @@ struct BlockMut {
     void loadFromProtobuf(panman::Mutation::Reader mutation) {
         chromosomeId = mutation.getChromosomeId();
         primaryBlockId = (mutation.getBlockId() >> 32);
-        if (mutation.getBlockGapExist()) {
-            secondaryBlockId = (mutation.getBlockId() & 0xFFFFFFFF);
-        } else {
-            secondaryBlockId = -1;
-        }
         blockMutInfo = mutation.getBlockMutInfo();
         // Whether the mutation is a block inversion or not. Inversion is marked by
         // `blockMutInfo = deletion` and `inversion = true`
@@ -196,11 +190,6 @@ struct BlockMut {
     void loadFromProtobuf(panmanOld::mutation mutation) {
         chromosomeId = mutation.chromosomeid();
         primaryBlockId = (mutation.blockid() >> 32);
-        if (mutation.blockgapexist()) {
-            secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
-        } else {
-            secondaryBlockId = -1;
-        }
         blockMutInfo = mutation.blockmutinfo();
         // Whether the mutation is a block inversion or not. Inversion is marked by
         // `blockMutInfo = deletion` and `inversion = true`
@@ -210,7 +199,6 @@ struct BlockMut {
     BlockMut(size_t chromosomeId, size_t blockId, std::pair<BlockMutationType, bool> type, int secondaryBId = -1) {
         chromosomeId = chromosomeId;
         primaryBlockId = blockId;
-        secondaryBlockId = secondaryBId;
         if (type.first == BlockMutationType::BI) {
             blockMutInfo = true;
         } else {
@@ -234,14 +222,13 @@ struct BlockMut {
 struct Block {
     int32_t chromosomeId;
     int32_t primaryBlockId;
-    int32_t secondaryBlockId;
 
     std::vector<uint32_t> consensusSeq;
     std::string chromosomeName;
 
     Block(size_t chromosomeId, size_t primaryBlockId, std::string seq);
     // seq is a compressed form of the sequence where each nucleotide is stored in 4 bytes
-    Block(int32_t chromosomeId, int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector<uint32_t>& seq);
+    Block(int32_t chromosomeId, int32_t primaryBlockId, const std::vector<uint32_t>& seq);
 };
 
 // List of gaps in the global coordinate system of the PanMAT
@@ -249,14 +236,7 @@ struct GapList {
     std::vector<uint32_t> nucPosition;
     int32_t chromosomeId;
     int32_t primaryBlockId;
-    int32_t secondaryBlockId;
     std::vector<uint32_t> nucGapLength;
-};
-
-// @DEPRECATED. To be removed when secondary block ID is removed
-struct BlockGapList {
-    std::vector<uint32_t> blockPosition;
-    std::vector<uint32_t> blockGapLength;
 };
 
 // PanMAT tree node
@@ -526,14 +506,13 @@ class Tree {
     void printNodePaths(std::ostream& fout);
 
     void getBlockSequenceFromReference(block_t& sequence, bool& blockExists,
-                                       bool& blockStrand, std::string reference, int64_t primaryBlockId,
-                                       int64_t secondaryBlockId);
+                                       bool& blockStrand, std::string reference, int64_t primaryBlockId);
 
     // Split file provided as input.
     std::pair<Tree, Tree> splitByComplexMutations(const std::string& nodeId3);
 
     // get unaligned global coordinate
-    int32_t getUnalignedGlobalCoordinate(int32_t primaryBlockId, int32_t secondaryBlockId,
+    int32_t getUnalignedGlobalCoordinate(int32_t primaryBlockId, 
                                          int32_t pos, int32_t gapPos, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
                                          int circularOffset = 0, bool* check = nullptr);
@@ -552,7 +531,7 @@ class Tree {
     void convertToGFAEfficient(std::ostream& fout);
     void printFASTAFromGFA(std::ifstream& fin, std::ofstream& fout);
     void getNodesPreorder(panmanUtils::Node* root, capnp::List<panman::Node>::Builder& nodesBuilder, size_t& nodeIndex);
-    size_t getGlobalCoordinate(int primaryBlockId, int secondaryBlockId, int nucPosition,
+    size_t getGlobalCoordinate(int primaryBlockId, int nucPosition,
                                int nucGapPosition);
 
     // Transforms tree such that given node becomes child of new root
@@ -608,27 +587,21 @@ struct ComplexMutation {
 
         start1.chromosomeId = cm.getChromosomeIdStart1();
         start1.primaryBlockId = (cm.getBlockIdStart1() >> 32);
-        start1.secondaryBlockId = (cm.getBlockGapExistEnd1() ?
-                                   (cm.getBlockIdStart1() & (0xFFFFFFFF)) : -1);
         start1.nucPosition = cm.getNucPositionStart1();
         start1.nucGapPosition = (cm.getNucGapExistStart1() ? (cm.getNucGapPositionStart1()) : -1);
 
         start2.chromosomeId = cm.getChromosomeIdStart2();
         start2.primaryBlockId = (cm.getBlockIdStart2() >> 32);
-        start2.secondaryBlockId = (cm.getNucGapExistStart2() ?
-                                   (cm.getBlockIdStart2() & (0xFFFFFFFF)) : -1);
         start2.nucPosition = cm.getNucPositionStart2();
         start2.nucGapPosition = (cm.getNucGapExistStart2() ? (cm.getNucGapPositionStart2()) : -1);
 
         end1.chromosomeId = cm.getChromosomeIdEnd1();
         end1.primaryBlockId = (cm.getBlockIdEnd1() >> 32);
-        end1.secondaryBlockId = (cm.getBlockGapExistEnd1() ? (cm.getBlockIdEnd1() & (0xFFFFFFFF)) : -1);
         end1.nucPosition = cm.getNucPositionEnd1();
         end1.nucGapPosition = (cm.getNucGapExistEnd1() ? (cm.getNucGapPositionEnd1()) : -1);
 
         end2.chromosomeId = cm.getChromosomeIdEnd2();
         end2.primaryBlockId = (cm.getBlockIdEnd2() >> 32);
-        end2.secondaryBlockId = (cm.getBlockGapExistEnd2() ? (cm.getBlockIdEnd2() & (0xFFFFFFFF)) : -1);
         end2.nucPosition = cm.getNucPositionEnd2();
         end2.nucGapPosition = (cm.getNucGapExistEnd2() ? (cm.getNucGapPositionEnd2()) : -1);
     }
@@ -643,13 +616,8 @@ struct ComplexMutation {
         cm.setSequenceId3(sequenceId3);
 
         cm.setChromosomeIdStart1(start1.chromosomeId);
-        if (start1.secondaryBlockId != -1) {
-            cm.setBlockGapExistStart1(true);
-            cm.setBlockIdStart1(((int64_t)start1.primaryBlockId << 32) + start1.secondaryBlockId);
-        } else {
-            cm.setBlockGapExistStart1(false);
-            cm.setBlockIdStart1(((int64_t)start1.primaryBlockId << 32));
-        }
+        cm.setBlockGapExistStart1(false);
+        cm.setBlockIdStart1(((int64_t)start1.primaryBlockId << 32));
         cm.setNucPositionStart1(start1.nucPosition);
 
         if (start1.nucGapPosition != -1) {
@@ -658,13 +626,8 @@ struct ComplexMutation {
         }
 
         cm.setChromosomeIdStart2(start2.chromosomeId);
-        if (start2.secondaryBlockId != -1) {
-            cm.setBlockGapExistStart2(true);
-            cm.setBlockIdStart2(((int64_t)start2.primaryBlockId << 32) + start2.secondaryBlockId);
-        } else {
-            cm.setBlockGapExistStart2(false);
-            cm.setBlockIdStart2(((int64_t)start2.primaryBlockId << 32));
-        }
+        cm.setBlockGapExistStart2(false);
+        cm.setBlockIdStart2(((int64_t)start2.primaryBlockId << 32));
         cm.setNucPositionStart2(start2.nucPosition);
 
         if (start2.nucGapPosition != -1) {
@@ -673,13 +636,8 @@ struct ComplexMutation {
         }
 
         cm.setChromosomeIdEnd1(end1.chromosomeId);
-        if (end1.secondaryBlockId != -1) {
-            cm.setBlockGapExistEnd1(true);
-            cm.setBlockIdEnd1(((int64_t)end1.primaryBlockId << 32) + end1.secondaryBlockId);
-        } else {
-            cm.setBlockGapExistEnd1(false);
-            cm.setBlockIdEnd1(((int64_t)end1.primaryBlockId << 32));
-        }
+        cm.setBlockGapExistEnd1(false);
+        cm.setBlockIdEnd1(((int64_t)end1.primaryBlockId << 32));
         cm.setNucPositionEnd1(end1.nucPosition);
 
         if (end1.nucGapPosition != -1) {
@@ -688,13 +646,8 @@ struct ComplexMutation {
         }
 
         cm.setChromosomeIdEnd2(end2.chromosomeId);
-        if (end2.secondaryBlockId != -1) {
-            cm.setBlockGapExistEnd2(true);
-            cm.setBlockIdEnd2(((int64_t)end2.primaryBlockId << 32) + end2.secondaryBlockId);
-        } else {
-            cm.setBlockGapExistEnd2(false);
-            cm.setBlockIdEnd2(((int64_t)end2.primaryBlockId << 32));
-        }
+        cm.setBlockGapExistEnd2(false);
+        cm.setBlockIdEnd2(((int64_t)end2.primaryBlockId << 32));
         cm.setNucPositionEnd2(end2.nucPosition);
 
         if (end2.nucGapPosition != -1) {
@@ -714,27 +667,21 @@ struct ComplexMutation {
 
         start1.chromosomeId = cm.chromosomeidstart1();
         start1.primaryBlockId = (cm.blockidstart1() >> 32);
-        start1.secondaryBlockId = (cm.blockgapexiststart1() ?
-                                   (cm.blockidstart1() & (0xFFFFFFFF)) : -1);
         start1.nucPosition = cm.nucpositionstart1();
         start1.nucGapPosition = (cm.nucgapexiststart1() ? (cm.nucgappositionstart1()) : -1);
 
         start2.chromosomeId = cm.chromosomeidstart2();
         start2.primaryBlockId = (cm.blockidstart2() >> 32);
-        start2.secondaryBlockId = (cm.blockgapexiststart2() ?
-                                   (cm.blockidstart2() & (0xFFFFFFFF)) : -1);
         start2.nucPosition = cm.nucpositionstart2();
         start2.nucGapPosition = (cm.nucgapexiststart2() ? (cm.nucgappositionstart2()) : -1);
 
         end1.chromosomeId = cm.chromosomeidend1();
         end1.primaryBlockId = (cm.blockidend1() >> 32);
-        end1.secondaryBlockId = (cm.blockgapexistend1() ? (cm.blockidend1() & (0xFFFFFFFF)) : -1);
         end1.nucPosition = cm.nucpositionend1();
         end1.nucGapPosition = (cm.nucgapexistend1() ? (cm.nucgappositionend1()) : -1);
 
         end2.chromosomeId = cm.chromosomeidend2();
         end2.primaryBlockId = (cm.blockidend2() >> 32);
-        end2.secondaryBlockId = (cm.blockgapexistend2() ? (cm.blockidend2() & (0xFFFFFFFF)) : -1);
         end2.nucPosition = cm.nucpositionend2();
         end2.nucGapPosition = (cm.nucgapexistend2() ? (cm.nucgappositionend2()) : -1);
     }
@@ -750,13 +697,8 @@ struct ComplexMutation {
         cm.set_sequenceid3(sequenceId3);
 
         cm.set_chromosomeidstart1(start1.chromosomeId);
-        if (start1.secondaryBlockId != -1) {
-            cm.set_blockgapexiststart1(true);
-            cm.set_blockidstart1(((int64_t)start1.primaryBlockId << 32) + start1.secondaryBlockId);
-        } else {
-            cm.set_blockgapexiststart1(false);
-            cm.set_blockidstart1(((int64_t)start1.primaryBlockId << 32));
-        }
+        cm.set_blockgapexiststart1(false);
+        cm.set_blockidstart1(((int64_t)start1.primaryBlockId << 32));
         cm.set_nucpositionstart1(start1.nucPosition);
 
         if (start1.nucGapPosition != -1) {
@@ -765,13 +707,8 @@ struct ComplexMutation {
         }
 
         cm.set_chromosomeidstart2(start2.chromosomeId);
-        if (start2.secondaryBlockId != -1) {
-            cm.set_blockgapexiststart2(true);
-            cm.set_blockidstart2(((int64_t)start2.primaryBlockId << 32) + start2.secondaryBlockId);
-        } else {
-            cm.set_blockgapexiststart2(false);
-            cm.set_blockidstart2(((int64_t)start2.primaryBlockId << 32));
-        }
+        cm.set_blockgapexiststart2(false);
+        cm.set_blockidstart2(((int64_t)start2.primaryBlockId << 32));
         cm.set_nucpositionstart2(start2.nucPosition);
 
         if (start2.nucGapPosition != -1) {
@@ -780,13 +717,8 @@ struct ComplexMutation {
         }
 
         cm.set_chromosomeidend1(end1.chromosomeId);
-        if (end1.secondaryBlockId != -1) {
-            cm.set_blockgapexistend1(true);
-            cm.set_blockidend1(((int64_t)end1.primaryBlockId << 32) + end1.secondaryBlockId);
-        } else {
-            cm.set_blockgapexistend1(false);
-            cm.set_blockidend1(((int64_t)end1.primaryBlockId << 32));
-        }
+        cm.set_blockgapexistend1(false);
+        cm.set_blockidend1(((int64_t)end1.primaryBlockId << 32));
         cm.set_nucpositionend1(end1.nucPosition);
 
         if (end1.nucGapPosition != -1) {
@@ -795,13 +727,8 @@ struct ComplexMutation {
         }
 
         cm.set_chromosomeidend2(end2.chromosomeId);
-        if (end2.secondaryBlockId != -1) {
-            cm.set_blockgapexistend2(true);
-            cm.set_blockidend2(((int64_t)end2.primaryBlockId << 32) + end2.secondaryBlockId);
-        } else {
-            cm.set_blockgapexistend2(false);
-            cm.set_blockidend2(((int64_t)end2.primaryBlockId << 32));
-        }
+        cm.set_blockgapexistend2(false);
+        cm.set_blockidend2(((int64_t)end2.primaryBlockId << 32));
         cm.set_nucpositionend2(end2.nucPosition);
 
         if (end2.nucGapPosition != -1) {
