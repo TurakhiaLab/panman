@@ -82,5 +82,4 @@ jobs:
       - name: test-macOS
         if: runner.os == 'macOS'
         run: |
-          cd build
-          ./panmanUtils --help
+          panmanUtils --help
