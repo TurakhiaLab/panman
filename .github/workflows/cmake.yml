@@ -68,8 +68,8 @@ jobs:
       - name: Setup Conda Environment and Install PanMan
         if: runner.os == 'macOS'
         run: |
-          conda init
           conda create -n panman-env -y
+          conda init
           conda activate panman-env
           conda config --add channels defaults
           conda config --add channels bioconda
