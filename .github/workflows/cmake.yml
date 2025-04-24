@@ -60,27 +60,19 @@ jobs:
       - name: Install Conda
         if: runner.os == 'macOS'
         run: |
-          # Download Conda installer for macOS
           curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
-          # Make the installer executable
           chmod +x Miniconda3-latest-MacOSX-x86_64.sh
-          # Run the installer with -b (batch mode) and -p (prefix) options
           ./Miniconda3-latest-MacOSX-x86_64.sh -b -p $HOME/miniconda
-          # Add Conda to PATH
-          echo "::add-path::$HOME/miniconda/bin"
+          echo "::append-path::$HOME/miniconda/bin" >> $GITHUB_PATH
 
       - name: Setup Conda Environment and Install PanMan
         if: runner.os == 'macOS'
         run: |
-          # Create the conda environment
           conda create -n panman-env -y
-          # Activate the environment
           conda activate panman-env
-          # Add bioconda channels
           conda config --add channels defaults
           conda config --add channels bioconda
           conda config --add channels conda-forge
-          # Install panman
           conda install bioconda::panman -y
 
       - name: test-ubuntu
