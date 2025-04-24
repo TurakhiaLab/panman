@@ -20,9 +20,10 @@
   - [PanMANs](#panman)
   - [<i>panmanUtils</i>](#panmanUtils)
 - [Installation](#install)
-  - [Using Installation Script](#script)
+  - [Using Conda](#conda) (recommended)
   - [Using Docker Image](#image)
   - [Using DockerFile](#file)
+  - [Using Installation Script](#script)
 - [PanMAN Construction](#construct)
   - [From PanGraph/GFA/MSA](#pangraph)
   - [From Raw Sequences](#raw)
@@ -50,76 +51,86 @@ PanMAN or Pangenome Mutation-Annotated Network is a novel data representation fo
 
 
 ## <a name="install"></a> Installation
-### <a name="script"></a> Using installation script (requires sudo access)
 
-**Step 0:** Dependencies
+### Using conda (recommended) <a name="conda"></a>
+Users can install <i>panmanUtils</i> through installation of [panman conda package](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;), compatible with `linux-64` and `osx-64`.
+#### 1. Dependencies
+1. [Conda](https://docs.conda.io/en/latest/)
+#### 2. Install <i>panmanUtils</i> 
+```
+# Create and activate a new environment for panman
+conda create -n panman-env
+conda activate panman-env
+
+# Set up channels
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+# Install the panman package
+conda install panman
+```
+#### 3. Run <i>panmanUtils</i> 
+```
+panmanUtils --help
+```
+### Using Docker Image <a name="image"></a>
+
+To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps.
+
+#### 1. Dependencies
+1. [Docker](https://docs.docker.com/engine/install/)
+#### 2. Pull and build the PanMAN docker image from DockerHub
 ```bash
-Git
+docker run -it swalia14/panman:latest
+```
+#### 2. Run <i>panmanUtils</i>
+```bash
+# Insider docker container
+panmanUtils --help
 ```
 
-**Step 1:** Clone the repository
+### Using DockerFile <a name="file"></a>
+Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps.
+
+#### 1. Dependencies
+1. [Docker](https://docs.docker.com/engine/install/)
+2. [Git](https://git-scm.com/downloads)
+#### 2. Clone the repository and build a docker image
 ```bash
-git https://github.com/TurakhiaLab/panman.git
+git clone https://github.com/TurakhiaLab/panman.git
+cd panman/docker
+docker build -t panman .
+```
+#### 3. Build and run the docker container
+```bash
+docker run -it panman
+```
+#### 4. Run <i>panmanUtils</i>
+```bash
+# Insider docker container
+panmanUtils --help
+```
+
+### Using installation script (Least recommended)
+We provide scripts to install panmanUtils from source code (requires `sudo` access, compatible with `Linux` only)
+#### 1. Dependencies
+1. [Git](https://git-scm.com/downloads)
+
+#### 2. Clone the repository
+```bash
+git clone https://github.com/TurakhiaLab/panman.git
 cd panman
 ```
-**Step 2:** Run the installation script
+#### 3. Run the installation script <a name="script"></a>
 ```bash
 chmod +x install/installationUbuntu.sh
 ./install/installationUbuntu.sh
 ```
-**Step 3:** Run panmanUtils
+#### 4. Run <i>panmanUtils</i>
 ```bash
 cd build
 ./panmanUtils --help
-```
-### <a name="image"></a> Using Docker Image
-
-To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps
-
-**Step 0:** Dependencies
-```bash
-Docker
-```
-**Step 1:** Pull the PanMAN docker image from DockerHub
-```bash
-docker pull swalia14/panman:latest
-```
-**Step 2:** Build and run the docker container
-```bash
-docker run -it swalia14/panman:latest
-```
-**Step 3:** Run panmanUtils
-```bash
-# Insider docker container
-panmanUtils --help
-```
-
-###  <a name="file"></a> Using DockerFile
-Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps
-
-**Step 0:** Dependencies
-```bash
-Docker
-Git
-``` 
-**Step 1:** Clone the repository
-```bash
-git https://github.com/TurakhiaLab/panman.git
-cd panman
-```
-**Step 2:** Build a docker image
-```bash
-cd docker
-docker build -t panman .
-```
-**Step 3:** Build and run docker container
-```bash
-docker run -it panman
-```
-**Step 4:** Run panmanUtils
-```bash
-# Insider docker container
-panmanUtils --help
 ```
 
 ## <a name="construct"></a> PanMAN Construction

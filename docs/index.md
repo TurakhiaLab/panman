@@ -43,7 +43,7 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 
 <b><i>panmanUtils</i></b> software can be installed using three different options: 
 1. Conda 
-2. Docker  
+2. Docker 
 3. Installation scripts 
 
 ### Using conda (recommended)
