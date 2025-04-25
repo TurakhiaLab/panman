@@ -1,6 +1,6 @@
 
 #include "panmanUtils.hpp"
-#include <immintrin.h>
+// #include <immintrin.h>
 
 int panmanUtils::Tree::nucFitchForwardPassOpt(
     Node* node,

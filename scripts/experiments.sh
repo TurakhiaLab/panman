@@ -35,14 +35,14 @@ fi
 mafft --auto $DEST_FILE > out.msa
 
 # Constructing PanMANs from Pangraph alignment
-panmanUtils -P out.json -N out.nwk -o data
+panmanUtils -P out.json -N out.nwk -o out
 
 if [ "$ARCH" = "x86_64" ]; then
     # Constructing PanMANs from GFA
-    panmanUtils -G out.gfa -N out.nwk -o data
+    panmanUtils -G out.gfa -N out.nwk -o out
 
     # Constructing PanMANs from MSA
-    panmanUtils -M out.msa -N out.nwk -o data
+    panmanUtils -M out.msa -N out.nwk -o out
 fi
 
 # Extracting summary statistics from PanMANs
@@ -76,7 +76,8 @@ gunzip sars_8M.aln.gz
 sed '/^>/!s/-//g' sars_8M.aln > sars_8M.fa
 twilight -t SARS_8M/sars_8M.nwk -i sars_8M.fa -p y -v -r 1 --trans -8 -o $T_OUT/sars_8M_without_wuhan.msa --gap-open -60
 cp SARS_8M/wuhan.fa $T_OUT
-twilight -f $T_OUT -a l -p y -v -r 1 --trans -8 -o sars_8M.msa --gap-open -60
+
+twilight -f $T_OUT --gap-ends 0 -p y -v -r 1 --trans -8 -o sars_8M.msa --gap-open -60
 grep -a -A 1 Wuhan-Hu-1 sars_8M.msa > wuhan.aln
 panmanUtils --input-msa sars_8M.msa --input-newick SARS_8M/sars_8M.nwk -o sars_8M --low-mem-mode --refFile wuhan.aln
 
