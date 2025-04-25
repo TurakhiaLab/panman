@@ -1,4 +1,6 @@
 
+ARCH=$(uname -m)
+
 # Uncomment one of the following lines 
 DEST_FILE="rsv_4000.fa"
 # DEST_FILE="tb_400.fa"
@@ -16,16 +18,18 @@ gunzip *.gz
 pangraph build $DEST_FILE >out.json 2>out.nwk
 awk '/tree/ {{split($0,a,"tree:  "); print a[2]}}' out.nwk > temp.newick && mv temp.newick out.nwk
 
-# Constructing GFA from raw genome sequences using PGGB
-samtools faidx $DEST_FILE
-pggb -i $DEST_FILE -t 32 -n num_sequences -o output_dir
-mv output_dir/*.gfa out.gfa
+if [ "$ARCH" = "x86_64" ]; then
+    # Constructing GFA from raw genome sequences using PGGB
+    samtools faidx $DEST_FILE
+    pggb -i $DEST_FILE -t 32 -n 4000 -o output_dir # change 4000 to number of genomes for different datasets
+    mv output_dir/*.gfa out.gfa
 
-# Constructing VG
-vg convert -g out.gfa -t 32 -v > out.vg 
+    # Constructing VG
+    vg convert -g out.gfa -t 32 -v > out.vg 
 
-# Constructing GBZ
-vg gbwt -G out.gfa --num-threads 32 --gbz-format -g out.gbz
+    # Constructing GBZ
+    vg gbwt -G out.gfa --num-threads 32 --gbz-format -g out.gbz
+fi
 
 # Constructing MSA from raw genome sequences
 mafft --auto $DEST_FILE > out.msa
@@ -33,11 +37,13 @@ mafft --auto $DEST_FILE > out.msa
 # Constructing PanMANs from Pangraph alignment
 panmanUtils -P out.json -N out.nwk -o data
 
-# Constructing PanMANs from GFA
-panmanUtils -G out.gfa -N out.nwk -o data
+if [ "$ARCH" = "x86_64" ]; then
+    # Constructing PanMANs from GFA
+    panmanUtils -G out.gfa -N out.nwk -o data
 
-# Constructing PanMANs from MSA
-panmanUtils -M out.msa -N out.nwk -o data
+    # Constructing PanMANs from MSA
+    panmanUtils -M out.msa -N out.nwk -o data
+fi
 
 # Extracting summary statistics from PanMANs
 panmanUtils -I panman/out.panman --summary
@@ -56,7 +62,7 @@ panmanUtils -I panman/out.panman --gfa -o out
 
 # Recombinations in tb, klebs, ecoli
 panmanUtils -I panman/out.panman --fasta-aligned -o out
-3seq -gen-p ptable num_seq
+3seq -gen-p ptable 40 # change 40 to number of genomes for different datasets
 3seq -f info/out_0.msa -ptable ptable -id out
 python3 3seq2panman.py out.3s.rec out.3s.panman.rec info/out_0.msa
 
