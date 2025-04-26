@@ -71,13 +71,13 @@ panmanUtils --help
 ```
 ### 2. Using Docker Image
 
-To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps.
+To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps (compatible with `linux-64` and `osx-64`).
 
 #### i. Dependencies
 1. [Docker](https://docs.docker.com/engine/install/)
 #### ii. Pull and build the PanMAN docker image from DockerHub
 ```bash
-## Note: If the Docker image already exist locally, make sure to pull the latest version using 
+## Note: If the Docker image already exists locally, make sure to pull the latest version using 
 ## docker pull swalia14/panman:latest
 
 ## If the Docker image does not exist locally, the following command will pull and run the latest version
@@ -89,10 +89,10 @@ docker run -it swalia14/panman:latest
 panmanUtils --help
 ```
 !!!Note
-    The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.
+    <b>The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.</b>
 
 ### 3. Using DockerFile
-Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps.
+Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps (compatible with `linux-64` and `osx-64`).
 
 #### i. Dependencies
 1. [Docker](https://docs.docker.com/engine/install/)
@@ -134,7 +134,7 @@ cd build
 ./panmanUtils --help
 ```
 !!!Note
-    <i>panmanUtils</i> is built using CMake and depends upon libraries such as Boost, cap'n proto, etc, which are also installed in `installationUbuntu.sh`. If users face version issues, try using the conda or docker methods detailed above.
+    <b><i>panmanUtils</i> is built using CMake and depends upon libraries such as Boost, cap'n proto, etc, which are also installed in `installationUbuntu.sh`. If users face version issues, try using the conda or docker methods detailed above.</b>
 
 <a name="construction"></a>
 ## <b>PanMAN Construction</b>
@@ -182,7 +182,7 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA format) or from fragment assemblies.
 
 !!!Note
-    The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](#install)).
+    <b>The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](#install)).</b>
 
 #### Building PanMAN from raw genome sequences
 **Step 1:** Run the following command to construct a panman from raw sequences.
@@ -254,9 +254,9 @@ panmanUtils -I <path to PanMAN file> {opt}
 > **Important:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
 
 !!!Note
-    For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](#construction).
+    <b>For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](#construction).</b>
 !!! Note
-    Users can reduce memory consumption by lowering the number of CPU threads (default set to 32) through the --threads option in panmanUtils, at a cost of higher latency.
+    <b>Users can reduce memory consumption by lowering the number of CPU threads (default set to 32) through the --threads option in panmanUtils, at a cost of higher latency.</b>
 
 #### Summary extract
 The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.
@@ -307,7 +307,7 @@ panmanUtils -I panman/sars_20.panman --fasta --output-file=sars_20
 ```
 
 #### Multiple Sequence Alignment (MSA) extract
-Extract MSA of sequences for each PanMAT (with pseudo-root  coordinates) in a PanMAN in a FASTA format.
+Extract the MSA of sequences for each PanMAT (with pseudo-root  coordinates) in a PanMAN in a FASTA format.
 
 * Usage syntax
 ```bash
@@ -380,7 +380,7 @@ panmanUtils -I panman/sars_20.panman --annotate --input-file=annotations.tsv --o
 > **NOTE:** If output-file is not provided to <i>panmanUtils</i>, the annotated PanMAN will be written to the same file.
 
 #### Amino Acid Translation
-Extract amino acid translations from a PanMAN in TSV file.
+Extract amino acid translations from a PanMAN in a TSV file.
 
 * Usage syntax
 ```bash
@@ -413,7 +413,7 @@ panmanUtils -I panman/sars_20.panman
 ```
 
 !!! Note
-    The interactive mode should look like the image attached below
+    <b>The interactive mode should look like the image attached below</b>
 
  ![Interactive Mode](images/interactiveMode.png)
 

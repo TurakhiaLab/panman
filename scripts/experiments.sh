@@ -1,18 +1,19 @@
-# Scripts to generate PanMANs provided here: https://zenodo.org/records/15059329
+# Script to generate PanMANs provided here: https://zenodo.org/records/15059329
 
 ARCH=$(uname -m)
-
+if [ "$ARCH" = "linux/amd64" ] || [ "$ARCH" = "x86_64" ]; then
+    echo "Running on "$ARCH" architecture"
+else
+    echo "ERROR: Running on "$ARCH" architecture. Cannot proceed as the baseline tools (Pangraph v0.7.3, PGGB v0.6.0) are not supported on this architecture."
+    echo "Please use this script with an x86_64  processor."
+    return;
+fi
 
 gdown --folder https://drive.google.com/drive/folders/1bJ1GWOACNswomgK001WJCeQEkcoZhfGZ?usp=sharing
 cd RawData
 gunzip *.gz
 
-DEST_FILES="rsv_4000.fa"
-DEST_FILES+=" tb_400.fa"
-DEST_FILES+=" sars_20000.fa"
-DEST_FILES+=" HIV_20000.fa"
-DEST_FILES+=" ecoli_1000.fa"
-DEST_FILES+=" klebs_1000.fa"
+DEST_FILES="rsv_4000.fa tb_400.fa sars_20000.fa HIV_20000.fa ecoli_1000.fa klebs_1000.fa"
 
 for DEST_FILE in $DEST_FILES; do
     num=$(echo $DEST | cut -d '_' -f2 | cut -d '.' -f1)
@@ -52,14 +53,6 @@ for DEST_FILE in $DEST_FILES; do
 
     # Constructing PanMANs from Pangraph alignment
     panmanUtils -P out.json -N out.nwk -o out
-
-    if [ "$ARCH" = "x86_64" ]; then
-        # Constructing PanMANs from GFA
-        panmanUtils -G out.gfa -N out.nwk -o out
-
-        # Constructing PanMANs from MSA
-        panmanUtils -M out.msa -N out.nwk -o out
-    fi
 
     # Extracting summary statistics from PanMANs
     panmanUtils -I panman/out.panman --summary
@@ -105,5 +98,3 @@ panmanUtils -I panman/sars_8M.panman --vcf
 
 panmanUtils --create-network panman/sars_8M.panman --input-file SARS_8M/sars_8M_cmut -o sars_8M_network
 panmanUtils -I panman/sars_8M_network.panman --summary
-
-
