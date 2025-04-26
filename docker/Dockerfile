@@ -145,7 +145,7 @@ RUN pip install snakemake
 
 # PanMAN
 RUN wget https://github.com/TurakhiaLab/panman/archive/refs/tags/v0.1.3.zip && \
-    unzip v0.1.3.zip && mv panman-0.1.3 panman
+    unzip v0.1.3.zip && mv panman-0.1.3 panman && mkdir -p panman/build 
 # RUN git clone https://github.com/TurakhiaLab/panman.git && cd panman \
 #     && mkdir -p build && cd build
 RUN curl -O https://capnproto.org/capnproto-c++-1.0.2.tar.gz && tar zxf capnproto-c++-1.0.2.tar.gz && \
