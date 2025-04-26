@@ -41,7 +41,8 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 <a name="install"></a>
 ## <b><i>panmanUtils</i> Installation Methods</b>
 
-<b><i>panmanUtils</i></b> software can be installed using four different methods: 
+<b><i>panmanUtils</i></b> software can be installed using four different methods:
+ 
 1. Conda (Recommended) 
 2. Docker Image
 3. Dockerfile
@@ -221,7 +222,8 @@ All panmanUtils functionality commands manipulate the input PanMAN file.
 cd $PANMAN_HOME/build
 panmanUtils -I <path to PanMAN file> {opt}
 ```
-<div name="table1" align="center"> <b>Table 1:</b> List of functionalities supported by <i>panmanUtils</i> </div>
+<a name="install"></a>
+<div align="center"> <b>Table 1:</b> List of functionalities supported by <i>panmanUtils</i> </div>
 
 | **Option**                       | **Description**                                                                                                   |
 |----------------------------------|-------------------------------------------------------------------------------------------------------------------| 
