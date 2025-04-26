@@ -222,7 +222,7 @@ All panmanUtils functionality commands manipulate the input PanMAN file.
 cd $PANMAN_HOME/build
 panmanUtils -I <path to PanMAN file> {opt}
 ```
-<a name="install"></a>
+<a name="table1"></a>
 <div align="center"> <b>Table 1:</b> List of functionalities supported by <i>panmanUtils</i> </div>
 
 | **Option**                       | **Description**                                                                                                   |
