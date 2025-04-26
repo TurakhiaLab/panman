@@ -19,7 +19,7 @@ for DEST_FILE in $DEST_FILES; do
     echo "Processing $DEST_FILE with $num genomes"
     
     
-    if [ "$ARCH" = "linux/amd64" ] || [ "$ARCH" = "x86-64" ]; then
+    if [ "$ARCH" = "linux/amd64" ] || [ "$ARCH" = "x86_64" ]; then
         # Constructing PanGraph from the Raw Sequences
         pangraph build $DEST_FILE >out.json 2>out.nwk
         awk '/tree/ {{split($0,a,"tree:  "); print a[2]}}' out.nwk > temp.newick && mv temp.newick out.nwk
@@ -29,12 +29,12 @@ for DEST_FILE in $DEST_FILES; do
         pangraph build -o out.json $DEST_FILE 
         rm -rf mash temp_mash
         mkdir -p mash temp_mash
-        python3 /home/panman/scripts/mash_split.py --in_fasta $DEST_FILE --out-dir mash 
+        python3.10 /home/panman/scripts/mash_split.py --in_fasta $DEST_FILE --out-dir mash 
         mashtree --numcpus 32 --outtree out.nwk --tempdir temp_mash mash/*
     fi
     
     #  Note: PGGB has no support for ARM architecture. GFA, VG, and GBZ files are only generated for x86_64 architecture.
-    if [ "$ARCH" = "linux/amd64" ] || [ "$ARCH" = "x86-64" ]; then
+    if [ "$ARCH" = "linux/amd64" ] || [ "$ARCH" = "x86_64" ]; then
         # Constructing GFA from raw genome sequences using PGGB
         samtools faidx $DEST_FILE
         pggb -i $DEST_FILE -t 32 -n $num -o output_dir 
