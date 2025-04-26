@@ -12,7 +12,7 @@
 <!-- [<img src="https://img.shields.io/badge/Made with-Snakemake-aquamarine.svg?logo=snakemake">](https://snakemake.readthedocs.io/en/v7.19.1/index.html) -->
 
  
-# Pangenome Mutation Annotated Network (PanMAN)
+# Pangenome Mutation-Annotated Network (PanMAN)
 <div align="center">
   <img src="docs/images/logo.svg"/>
 </div>
@@ -82,7 +82,7 @@ panmanUtils --help
 ```
 ### 2. Using Docker Image <a name="image"></a>
 
-To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps.
+To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps (compatible with `linux-64` and `osx-64`).
 
 #### i. Dependencies
 1. [Docker](https://docs.docker.com/engine/install/)
@@ -101,7 +101,7 @@ panmanUtils --help
 ```
 
 ### 3. Using DockerFile <a name="file"></a>
-Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps.
+Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps (compatible with `linux-64` and `osx-64`).
 
 #### i. Dependencies
 1. [Docker](https://docs.docker.com/engine/install/)
