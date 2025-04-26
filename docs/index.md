@@ -1,6 +1,6 @@
 # <b>Welcome to PanMAN Wiki</b>
 <div align="center">
-    <img src="images/logo.svg"/>
+    <img src="images/logo.png"/>
 </div>
 
 ## <b>Introduction</b> 
@@ -41,16 +41,17 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 <a name="install"></a>
 ## <b><i>panmanUtils</i> Installation Methods</b>
 
-<b><i>panmanUtils</i></b> software can be installed using three different options: 
-1. Conda 
-2. Docker 
-3. Installation scripts 
+<b><i>panmanUtils</i></b> software can be installed using four different methods: 
+1. Conda (Recommended) 
+2. Docker Image
+3. Dockerfile
+4. Installation scripts 
 
-### Using conda (recommended)
+### 1. Using conda (recommended)
 Users can install <i>panmanUtils</i> through installation of [panman conda package](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;), compatible with `linux-64` and `osx-64`.
-#### 1. Dependencies
+#### i. Dependencies
 1. [Conda](https://docs.conda.io/en/latest/)
-#### 2. Install panman conda package 
+#### ii. Install panman conda package 
 ```
 # Create and activate a new environment for panman
 conda create -n panman-env
@@ -64,52 +65,56 @@ conda config --add channels conda-forge
 # Install the panman package
 conda install panman
 ```
-#### 3. Run <i>panmanUtils</i> 
+#### iii. Run <i>panmanUtils</i> 
 ```
 panmanUtils --help
 ```
-### Using Docker Image
+### 2. Using Docker Image
 
 To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps.
 
-#### 1. Dependencies
+#### i. Dependencies
 1. [Docker](https://docs.docker.com/engine/install/)
-#### 2. Pull and build the PanMAN docker image from DockerHub
+#### ii. Pull and build the PanMAN docker image from DockerHub
 ```bash
+## Note: If the Docker image already exist locally, make sure to pull the latest version using 
+## docker pull swalia14/panman:latest
+
+## If the Docker image does not exist locally, the following command will pull and run the latest version
 docker run -it swalia14/panman:latest
 ```
-#### 2. Run <i>panmanUtils</i>
+#### iii. Run <i>panmanUtils</i>
 ```bash
 # Insider docker container
 panmanUtils --help
 ```
 !!!Note
- The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.
+    The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.
 
-### Using DockerFile
+### 3. Using DockerFile
 Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps.
 
-#### 1. Dependencies
+#### i. Dependencies
 1. [Docker](https://docs.docker.com/engine/install/)
 2. [Git](https://git-scm.com/downloads)
-#### 2. Clone the repository and build a docker image
+#### ii. Clone the repository and build a docker image
 ```bash
 git clone https://github.com/TurakhiaLab/panman.git
 cd panman/docker
 docker build -t panman .
 ```
-#### 3. Build and run the docker container
+#### iii. Build and run the docker container
 ```bash
 docker run -it panman
 ```
-#### 4. Run <i>panmanUtils</i>
+#### iv. Run <i>panmanUtils</i>
 ```bash
 # Insider docker container
 panmanUtils --help
 ```
 
-### Using installation script (Least recommended)
-We provide scripts to install panmanUtils from source code (requires `sudo` access, compatible with `Linux` only)
+### 4. Using installation script (Least recommended)
+We provide scripts to install panmanUtils from source code (requires `sudo` access, compatible with `Linux` only). `Mac` users can use [MacOS specific installation script](https://github.com/TurakhiaLab/panman/blob/main/install/installationMacOS.sh), that uses `conda` to install <i>panmanUtils</i>.
 #### 1. Dependencies
 1. [Git](https://git-scm.com/downloads)
 
@@ -177,7 +182,7 @@ The above command will run <i>panmanUtils</i> program and build `sars_20.panman`
 We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA format) or from fragment assemblies.
 
 !!!Note
- The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](#install)).
+    The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided [here](#install)).
 
 #### Building PanMAN from raw genome sequences
 **Step 1:** Run the following command to construct a panman from raw sequences.
@@ -249,9 +254,9 @@ panmanUtils -I <path to PanMAN file> {opt}
 > **Important:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
 
 !!!Note
- For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](#construction).
+    For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](#construction).
 !!! Note
- Users can reduce memory consumption by lowering the number of CPU threads (default set to 32) through the --threads option in panmanUtils, at a cost of higher latency.
+    Users can reduce memory consumption by lowering the number of CPU threads (default set to 32) through the --threads option in panmanUtils, at a cost of higher latency.
 
 #### Summary extract
 The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.
@@ -408,14 +413,14 @@ panmanUtils -I panman/sars_20.panman
 ```
 
 !!! Note
- The interactive mode should look like the image attached below
+    The interactive mode should look like the image attached below
 
  ![Interactive Mode](images/interactiveMode.png)
 
 **Step 2:** Use the commands listed in [Table 1](#table1) to perform desired operation
 
 ## <b>Contributions</b>
-We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
+We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman/issues). For general inquiries and support, reach out to our team.
 
 ## <b>Citing PanMAN</b>
 If you use the PanMANs or panmanUtils in your research or publications, we kindly request that you cite the following paper:<br> 

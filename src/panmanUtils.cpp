@@ -1369,7 +1369,7 @@ void parseAndExecute(int argc, char* argv[]) {
         inputStream.close();
 
         writePanMAN(globalVm, TG);
-
+        return;
     } else if(globalVm.count("input-pangraph")) {
         // Create PanMAT from PanGraph and Newick files
 
@@ -1414,7 +1414,7 @@ void parseAndExecute(int argc, char* argv[]) {
         inputStream.close();
 
         writePanMAN(globalVm, TG);
-
+        return;
     } else if(globalVm.count("input-msa")) {
         // Create PanMAT from MSA and Newick files
 
@@ -1472,7 +1472,7 @@ void parseAndExecute(int argc, char* argv[]) {
         inputStream.close();
 
         writePanMAN(globalVm, TG);
-
+        return;
     } else if (globalVm.count("create-network")) {
         std::ofstream outputFile;
         std::streambuf * buf;
