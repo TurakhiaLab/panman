@@ -40,7 +40,7 @@ theme:
     - scheme: slate
       toggle:
         icon: material/weather-sunny
-        name: Swithc to light mode
+        name: Switch to light mode
       primary: navy blue
       accent: navy blue
 
