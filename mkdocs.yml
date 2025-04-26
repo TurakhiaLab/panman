@@ -28,12 +28,22 @@ theme:
   language: en
   
   palette:
+    # Light Mode
     - scheme: default
       primary: white
       accent: white
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
+
+    # Dark Mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Swithc to light mode
+      primary: navy blue
+      accent: navy blue
+
   favicon: images/icon.png
   logo: images/icon.png
 
