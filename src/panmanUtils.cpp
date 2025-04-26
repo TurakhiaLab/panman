@@ -12,6 +12,7 @@
 #include <fstream>
 
 #include "panmanUtils.hpp"
+#include "version.hpp"
 
 namespace po = boost::program_options;
 
@@ -128,6 +129,7 @@ void setupOptionDescriptions() {
     // Global option descriptions
     globalDesc.add_options()
     ("help,h", "Print help messages")
+    ("version,V", "Print panmanUtils version")
     ("input-panman,I", po::value< std::string >(), "Input PanMAN file path")
     // ("input-panmat,T", po::value< std::string >(), "Input PanMAT file path")
     ("input-pangraph,P", po::value< std::string >(), "Input PanGraph JSON file to build a PanMAN")
@@ -339,7 +341,7 @@ void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstr
 
     fout << "PanMAN Summary\n";
     fout << "No of Trees: " << tg.trees.size() << std::endl;
-
+    fout << "No of Recombinations: " << tg.complexMutations.size() << std::endl;
     fout << "Tree 0 Summary\n";
     panmanUtils::Tree *T = &tg.trees[0];
     T->printSummary(fout);
@@ -1268,6 +1270,9 @@ void parseAndExecute(int argc, char* argv[]) {
     if(globalVm.count("help")) {
         std::cout << globalDesc;
         return;
+    } else if (globalVm.count("version")) {
+        std::cout << "panmanUtils Version " << PROJECT_VERSION << std::endl;
+        return;
     } else if (globalVm.count("protobuf2capnp")) {
         protobuf2capnp(TG, globalVm);
     } else if(globalVm.count("input-panmat")) {
@@ -1364,7 +1369,7 @@ void parseAndExecute(int argc, char* argv[]) {
         inputStream.close();
 
         writePanMAN(globalVm, TG);
-
+        return;
     } else if(globalVm.count("input-pangraph")) {
         // Create PanMAT from PanGraph and Newick files
 
@@ -1409,7 +1414,7 @@ void parseAndExecute(int argc, char* argv[]) {
         inputStream.close();
 
         writePanMAN(globalVm, TG);
-
+        return;
     } else if(globalVm.count("input-msa")) {
         // Create PanMAT from MSA and Newick files
 
@@ -1467,7 +1472,7 @@ void parseAndExecute(int argc, char* argv[]) {
         inputStream.close();
 
         writePanMAN(globalVm, TG);
-
+        return;
     } else if (globalVm.count("create-network")) {
         std::ofstream outputFile;
         std::streambuf * buf;

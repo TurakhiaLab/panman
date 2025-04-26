@@ -2,12 +2,14 @@
 [license-link]: [https://github.com/TurakhiaLab/panman/LICENSE](https://github.com/TurakhiaLab/panman/blob/main/LICENSE)
 [![License][license-badge]][license-link]
 [![DOI](https://img.shields.io/badge/DOI-https://zenodo.org/records/15059329-beige)](https://zenodo.org/records/15059329)
-[<img src="https://img.shields.io/badge/Install with-DockerHub-informational.svg?logo=Docker">](https://hub.docker.com/r/swalia14/panman)
-[<img src="https://img.shields.io/badge/Submitted to-bioRxiv-critical.svg?logo=LOGO">](https://doi.org/10.1101/2024.07.02.601807)
-[<img src="https://img.shields.io/badge/Build with-CMake-green.svg?logo=snakemake">](https://cmake.org)
-[<img src="https://img.shields.io/badge/Made with-Snakemake-aquamarine.svg?logo=snakemake">](https://snakemake.readthedocs.io/en/v7.19.1/index.html)
+[<img src="https://img.shields.io/badge/Install with-Conda-aquamarine.svg?logo=Anaconda">](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;)
+[<img src="https://img.shields.io/badge/Install with-Docker-informational.svg?logo=Docker">](https://hub.docker.com/r/swalia14/panman)
+[<img src="https://img.shields.io/badge/Submitted to-bioRxiv-critical.svg?logo=arXiv">](https://doi.org/10.1101/2024.07.02.601807)
+[<img src="https://img.shields.io/badge/Build with-CMake-green.svg?logo=CMake">](https://github.com/TurakhiaLab/panman/blob/main/install/installationUbuntu.sh)
 [<img src="https://img.shields.io/badge/Watch it on-Youtube-FF0000.svg?logo=YouTube">](https://www.youtube.com/watch?v=eh9zQElrmLI)
 [![Build Status](https://github.com/TurakhiaLab/panman/actions/workflows/ci.yml/badge.svg)](https://github.com/TurakhiaLab/panman/actions)
+
+<!-- [<img src="https://img.shields.io/badge/Made with-Snakemake-aquamarine.svg?logo=snakemake">](https://snakemake.readthedocs.io/en/v7.19.1/index.html) -->
 
  
 # Pangenome Mutation Annotated Network (PanMAN)
@@ -20,9 +22,10 @@
   - [PanMANs](#panman)
   - [<i>panmanUtils</i>](#panmanUtils)
 - [Installation](#install)
-  - [Using Installation Script](#script)
+  - [Using Conda](#conda) (Recommended)
   - [Using Docker Image](#image)
   - [Using DockerFile](#file)
+  - [Using Installation Script](#script)
 - [PanMAN Construction](#construct)
   - [From PanGraph/GFA/MSA](#pangraph)
   - [From Raw Sequences](#raw)
@@ -50,77 +53,93 @@ PanMAN or Pangenome Mutation-Annotated Network is a novel data representation fo
 
 
 ## <a name="install"></a> Installation
-### <a name="script"></a> Using installation script (requires sudo access)
+<b><i>panmanUtils</i></b> software can be installed using four different methods: 
+1. Conda (Recommended) 
+2. Docker Image
+3. Dockerfile
+4. Installation scripts 
+### 1. Using conda (recommended) <a name="conda"></a>
+Users can install <i>panmanUtils</i> through installation of [panman conda package](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;), compatible with `linux-64` and `osx-64`.
+#### i. Dependencies
+1. [Conda](https://docs.conda.io/en/latest/)
+#### ii. Install panman conda package 
+```
+# Create and activate a new environment for panman
+conda create -n panman-env
+conda activate panman-env
 
-**Step 0:** Dependencies
+# Set up channels
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+
+# Install the panman package
+conda install panman
+```
+#### iii. Run <i>panmanUtils</i> 
+```
+panmanUtils --help
+```
+### 2. Using Docker Image <a name="image"></a>
+
+To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps.
+
+#### i. Dependencies
+1. [Docker](https://docs.docker.com/engine/install/)
+#### ii. Pull and build the PanMAN docker image from DockerHub
 ```bash
-Git
+## Note: If the Docker image already exist locally, make sure to pull the latest version using 
+## docker pull swalia14/panman:latest
+
+## If the Docker image does not exist locally, the following command will pull and run the latest version
+docker run -it swalia14/panman:latest
+```
+#### iii. Run <i>panmanUtils</i>
+```bash
+# Insider docker container
+panmanUtils --help
 ```
 
-**Step 1:** Clone the repository
+### 3. Using DockerFile <a name="file"></a>
+Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps.
+
+#### i. Dependencies
+1. [Docker](https://docs.docker.com/engine/install/)
+2. [Git](https://git-scm.com/downloads)
+#### ii. Clone the repository and build a docker image
 ```bash
-git https://github.com/TurakhiaLab/panman.git
+git clone https://github.com/TurakhiaLab/panman.git
+cd panman/docker
+docker build -t panman .
+```
+#### iii. Build and run the docker container
+```bash
+docker run -it panman
+```
+#### iv. Run <i>panmanUtils</i>
+```bash
+# Insider docker container
+panmanUtils --help
+```
+
+### 4. Using installation script (Least recommended)
+We provide scripts to install panmanUtils from source code (requires `sudo` access, compatible with `Linux` only). `Mac` users can use [MacOS specific installation script](https://github.com/TurakhiaLab/panman/blob/main/install/installationMacOS.sh), that uses `conda` to install <i>panmanUtils</i>.
+#### i. Dependencies
+1. [Git](https://git-scm.com/downloads)
+
+#### ii. Clone the repository
+```bash
+git clone https://github.com/TurakhiaLab/panman.git
 cd panman
 ```
-**Step 2:** Run the installation script
+#### iii. Run the installation script <a name="script"></a>
 ```bash
 chmod +x install/installationUbuntu.sh
 ./install/installationUbuntu.sh
 ```
-**Step 3:** Run panmanUtils
+#### iv. Run <i>panmanUtils</i>
 ```bash
 cd build
-./panmanUtils --help
-```
-### <a name="image"></a> Using Docker Image
-
-To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps
-
-**Step 0:** Dependencies
-```bash
-Docker
-```
-**Step 1:** Pull the PanMAN docker image from DockerHub
-```bash
-docker pull swalia14/panman:latest
-```
-**Step 2:** Build and run the docker container
-```bash
-docker run -it swalia14/panman:latest
-```
-**Step 3:** Run panmanUtils
-```bash
-# Insider docker container
-cd /home/panman/build
-./panmanUtils --help
-```
-
-###  <a name="file"></a> Using DockerFile
-Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps
-
-**Step 0:** Dependencies
-```bash
-Docker
-Git
-``` 
-**Step 1:** Clone the repository
-```bash
-git https://github.com/TurakhiaLab/panman.git
-cd panman
-```
-**Step 2:** Build a docker image
-```bash
-cd docker
-docker build -t panman .
-```
-**Step 3:** Build and run docker container
-```bash
-docker run -it panman
-```
-**Step 4:** Run panmanUtils
-```bash
-# Insider docker container
-cd /home/panman/build
 ./panmanUtils --help
 ```
 
@@ -133,8 +152,7 @@ Once the package is installed, PanMANs can be constructed from PanGraph [or GFA 
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:
 
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
+panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
@@ -171,12 +189,11 @@ The summary feature extracts node and tree level statistics of a PanMAN, that co
 
 * Usage Syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output file> (optional)
+panmanUtils -I <path to PanMAN file> --summary --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman  --summary --output-file=sars_20
+panmanUtils -I panman/sars_20.panman  --summary --output-file=sars_20
 ```
 
 #### Variant Call Format (VCF) extract
@@ -184,17 +201,16 @@ Extract variations of all sequences from any PanMAT in a PanMAN in the form of a
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix of output file> (optional) 
+panmanUtils -I <path to PanMAN file> --vcf -reference=ref --output-file=<prefix of output file> (optional) 
 ```
 * Example
 ```bash
-cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
+panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12" --output-file=sars_20 
 ```
 
 
 ## <a name="contri"></a> Contribute <br>
-We welcome contributions from the community to enhance the capabilities of PanMAN and <i>panmanUtils</i>. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
+We welcome contributions from the community to enhance the capabilities of PanMAN and <i>panmanUtils</i>. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman/issues). For general inquiries and support, reach out to our team.
 
 ## <a name="cite_panman"></a> Citing PanMAN <br>
 If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper: 
