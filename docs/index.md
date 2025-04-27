@@ -190,7 +190,6 @@ We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA f
 
 ```bash
 cd $PANMAN_HOME/workflows
-conda activate snakemake
 snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="[user_input]" SEQ_COUNT="Number of sequences" ASSEM="NONE" REF="NONE" TARGET="NONE"
 ```
 
@@ -199,7 +198,6 @@ snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="[user
 
 ```bash
 cd $PANMAN_HOME/workflows
-conda activate snakemake
 snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="None" SEQ_COUNT="Number of sequences" ASSEM="frag" REF="reference_file" TARGET="target.txt"
 ```
 Here, target.txt includes a list of files that contain the fragmented assemblies.
