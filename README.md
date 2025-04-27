@@ -152,7 +152,7 @@ Once the package is installed, PanMANs can be constructed from PanGraph [or GFA 
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:
 
 ```bash
-panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -O sars_20
+panmanUtils -P $PANMAN_HOME/test/sars_20.json -N $PANMAN_HOME/test/sars_20.nwk -o sars_20
 ```
 The above command will run <i>panmanUtils</i> program and build `sars_20.panman` in `$PANMAN_HOME/build/panman` directory.
 
