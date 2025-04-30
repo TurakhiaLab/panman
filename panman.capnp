@@ -14,7 +14,6 @@ struct NucMut
 struct Mutation
 {
     blockId @0: Int64;
-    blockGapExist @1: Bool;
     blockMutExist @2: Bool;
     blockMutInfo @3: Bool;
     blockInversion @4: Bool;
@@ -38,15 +37,8 @@ struct ConsensusSeqToBlockIds
 struct GapList
 {
     blockId @0: Int64;
-    blockGapExist @1: Bool;
     nucGapLength @2: List(Int32);
     nucPosition @3: List(Int32);
-}
-
-struct BlockGapList
-{
-    blockPosition @0: List(Int32);
-    blockGapLength @1: List(Int32);
 }
 
 struct CircularOffset
@@ -79,7 +71,6 @@ struct Tree
     nodes @1: List(Node);
     consensusSeqMap @2: List(ConsensusSeqToBlockIds);
     gaps @3: List(GapList);
-    blockGaps @4: BlockGapList;
     circularSequences @5: List(CircularOffset);
     rotationIndexes @6: List(RotationIndex);
     sequencesInverted @7: List(SequenceInverted);
@@ -95,25 +86,21 @@ struct ComplexMutation {
     sequenceId2 @5: Text;
 
     blockIdStart1 @6: Int64;
-    blockGapExistStart1 @7: Bool;
     nucPositionStart1 @8: Int32;
     nucGapPositionStart1 @9: Int32;
     nucGapExistStart1 @10: Bool;
 
     blockIdEnd1 @11: Int64;
-    blockGapExistEnd1 @12: Bool;
     nucPositionEnd1 @13: Int32;
     nucGapPositionEnd1 @14: Int32;
     nucGapExistEnd1 @15: Bool;
 
     blockIdStart2 @16: Int64;
-    blockGapExistStart2 @17: Bool;
     nucPositionStart2 @18: Int32;
     nucGapPositionStart2 @19: Int32;
     nucGapExistStart2 @20: Bool;
 
     blockIdEnd2 @21: Int64;
-    blockGapExistEnd2 @22: Bool;
     nucPositionEnd2 @23: Int32;
     nucGapPositionEnd2 @24: Int32;
     nucGapExistEnd2 @25: Bool;

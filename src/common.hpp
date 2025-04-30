@@ -16,20 +16,20 @@
 static const int SANKOFF_INF = 100000001;
 static const int8_t SANKOFF_INF_8 = 127;
 
-typedef std::vector< // block id
-            std::pair< 
-                std::vector< std::pair< char, std::vector< char > > >, // vector - nuc id, char - char at nuc id, vector <char> - nuc at gap id
-                std::vector< 
-                    std::vector< std::pair< char, std::vector< char > > > 
-                > 
-            > 
-        > sequence_t;
-// Individual block
-typedef std::vector< std::pair< char, std::vector< char > > > block_t;
+typedef
+    std::vector<                           // chromosome
+        std::vector<                               // block id
+            std::vector<                           // nucleotide id
+                std::pair<char, std::vector<char>> // nuc id, nuc at each gap
+            >
+        >
+    > sequence_t;
+// Individual block (among all chromosomes)
+typedef std::vector< std::vector < char > > block_t;
 
-typedef  std::vector< std::pair< bool, std::vector< bool > > > blockExists_t;
+typedef  std::vector< std::vector < bool > > blockExists_t;
 // Forward or reverse strand
-typedef  std::vector< std::pair< bool, std::vector< bool > > > blockStrand_t;
+typedef  std::vector< std::vector< bool > > blockStrand_t;
 
 namespace panmanUtils {
 
@@ -40,6 +40,13 @@ enum FILE_TYPE {
     MSA = 3,
     MSA_OPTIMIZE = 4,
     // FASTA = 5
+};
+
+struct Coordinate {
+    int32_t chromosomeId;
+    int32_t primaryBlockId;
+    int32_t nucPosition;
+    int32_t nucGapPosition;
 };
 
 

@@ -332,12 +332,11 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
         }   
     }
 
-    // For backtracking. primaryBlockId, secondaryBlockId, pos, gapPos, (oldVal, newVal) in substitution, ('-', newVal) in insertion, (oldVal, '-') in deletion
+    // For backtracking. primaryBlockId, pos, gapPos, (oldVal, newVal) in substitution, ('-', newVal) in insertion, (oldVal, '-') in deletion
     std::vector< std::tuple< int32_t, int, int, char, char > > mutationInfo;
 
     for (int i=0; i<node->nucMutation.size(); i++) {
         int32_t primaryBlockId = node->nucMutation[i].primaryBlockId;
-        int32_t secondaryBlockId = node->nucMutation[i].secondaryBlockId;
         int32_t nucPosition = node->nucMutation[i].nucPosition;
         int32_t nucGapPosition = node->nucMutation[i].nucGapPosition;
         uint32_t type = (node->nucMutation[i].mutInfo & 0x7);

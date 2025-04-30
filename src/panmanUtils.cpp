@@ -63,8 +63,7 @@ void checkFunction(panmanUtils::Tree *T) {
         for(auto &u: node->blockMutation) {
             std::cout << "\t" << u.blockMutInfo << " " <<
                                  u.inversion << " " <<
-                                 u.primaryBlockId << " " <<
-                                 u.secondaryBlockId << " " << std::endl;
+                                 u.primaryBlockId << " " << std::endl;
         }
 
         // Pring Nuc mutations

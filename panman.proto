@@ -37,15 +37,8 @@ message consensusSeqToBlockIds
 message gapList
 {
     int64          blockId = 1;
-    bool           blockGapExist = 2;
     repeated int32 nucGapLength = 3;
     repeated int32 nucPosition = 4;
-}
-
-message blockGapList
-{
-    repeated int32  blockPosition = 1;
-    repeated int32  blockGapLength = 2;
 }
 
 message circularOffset
@@ -78,7 +71,6 @@ message tree
     repeated node    nodes = 2;
     repeated consensusSeqToBlockIds consensusSeqMap = 4;
     repeated gapList gaps = 5;
-    blockGapList     blockGaps = 6;
     repeated circularOffset circularSequences = 7;
     repeated rotationIndex rotationIndexes = 8;
     repeated sequenceInverted sequencesInverted = 9;
@@ -94,25 +86,21 @@ message complexMutation {
     string          sequenceId2 = 6;
 
     int64           blockIdStart1 = 7;
-    bool            blockGapExistStart1 = 8;
     int32           nucPositionStart1 = 9;
     int32           nucGapPositionStart1 = 10;
     bool            nucGapExistStart1 = 11;
 
     int64           blockIdEnd1 = 12;
-    bool            blockGapExistEnd1 = 13;
     int32           nucPositionEnd1 = 14;
     int32           nucGapPositionEnd1 = 15;
     bool            nucGapExistEnd1 = 16;
 
     int64           blockIdStart2 = 17;
-    bool            blockGapExistStart2 = 18;
     int32           nucPositionStart2 = 19;
     int32           nucGapPositionStart2 = 20;
     bool            nucGapExistStart2 = 21;
 
     int64           blockIdEnd2 = 22;
-    bool            blockGapExistEnd2 = 23;
     int32           nucPositionEnd2 = 24;
     int32           nucGapPositionEnd2 = 25;
     bool            nucGapExistEnd2 = 26;

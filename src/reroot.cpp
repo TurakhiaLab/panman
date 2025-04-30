@@ -136,7 +136,7 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
         std::vector< char > consensusSeq;
         bool endFlag = false;
         for(size_t t1 = 0; t1 < blocks.size(); t1++) {
-            if(blocks[t1].primaryBlockId == (int)i && blocks[t1].secondaryBlockId == -1) {
+            if(blocks[t1].primaryBlockId == (int)i) {
                 for(size_t t2 = 0; t2 < blocks[t1].consensusSeq.size(); t2++) {
                     for(size_t t3 = 0; t3 < 8; t3++) {
                         const int nucCode = (((blocks[t1].consensusSeq[t2]) >> (4*(7 - t3))) & 15);

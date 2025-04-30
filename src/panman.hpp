@@ -54,10 +54,7 @@ enum BlockMutationType {
 
 // Struct for representing Nucleotide Mutation
 struct NucMut {
-    int32_t nucPosition;
-    int32_t nucGapPosition;
-    int32_t primaryBlockId;
-    int32_t secondaryBlockId;
+    Coordinate position;
     uint8_t mutInfo;
     uint32_t nucs;
 
@@ -75,10 +72,10 @@ struct NucMut {
     // Create SNP mutation
     NucMut( const std::tuple< int, int, int, int, int, int >& mutationInfo ) {
         // primaryBlockId, secondaryBlockId, pos, gapPos, type, char
-        primaryBlockId = std::get<0>(mutationInfo);
-        secondaryBlockId = std::get<1>(mutationInfo);
-        nucPosition = std::get<2>(mutationInfo);
-        nucGapPosition = std::get<3>(mutationInfo);
+        position.chromosomeId = std::get<0>(mutationInfo);
+        position.primaryBlockId = std::get<1>(mutationInfo);
+        position.nucPosition = std::get<2>(mutationInfo);
+        position.nucGapPosition = std::get<3>(mutationInfo);
         mutInfo = std::get<4>(mutationInfo) + (1 << 4);
         nucs = (std::get<5>(mutationInfo) << 20);
     }
@@ -86,8 +83,8 @@ struct NucMut {
     // Create non-SNP mutations from SNP mutations at consecutive positions for MSA
     NucMut(const std::vector< std::tuple< int, int8_t, int8_t > >& mutationArray,
            int start, int end) {
-        primaryBlockId = 0;
-        secondaryBlockId = -1;
+        position.chromosomeId = 0;
+        position.primaryBlockId = 0;
 
         mutInfo = ((end - start) << 4);
         // type
@@ -112,8 +109,8 @@ struct NucMut {
             break;
         }
 
-        nucPosition = (int)std::get<0>(mutationArray[start]);
-        nucGapPosition = -1;
+        position.nucPosition = (int)std::get<0>(mutationArray[start]);
+        position.nucGapPosition = -1;
 
         nucs = 0;
         for(int i = start; i < end; i++) {
@@ -131,8 +128,8 @@ struct NucMut {
     // Create non-SNP mutations from SNP mutations at consecutive positions
     NucMut(const std::vector< std::tuple< int, int, int, int, int, int > >& mutationArray,
            int start, int end) {
-        primaryBlockId = std::get<0>(mutationArray[start]);
-        secondaryBlockId = std::get<1>(mutationArray[start]);
+        position.chromosomeId= std::get<0>(mutationArray[start]);
+        position.primaryBlockId = std::get<1>(mutationArray[start]);
 
         mutInfo = ((end - start) << 4);
         // type
@@ -157,8 +154,8 @@ struct NucMut {
             break;
         }
 
-        nucPosition = std::get<2>(mutationArray[start]);
-        nucGapPosition = std::get<3>(mutationArray[start]);
+        position.nucPosition = std::get<2>(mutationArray[start]);
+        position.nucGapPosition = std::get<3>(mutationArray[start]);
 
         nucs = 0;
         for(int i = start; i < end; i++) {
@@ -167,53 +164,41 @@ struct NucMut {
     }
 
     // Extract mutation from protobuf nucMut object
-    NucMut(panman::NucMut::Reader mutation, int64_t blockId, bool blockGapExist) {
-        nucPosition = mutation.getNucPosition();
-        primaryBlockId = (blockId >> 32);
+    NucMut(panman::NucMut::Reader mutation, int64_t blockId, int64_t chromosomeId) {
+        position.nucPosition = mutation.getNucPosition();
+        position.chromosomeId = chromosomeId;
+        position.primaryBlockId = (blockId >> 32);
         mutInfo = (mutation.getMutInfo() & 0xFF);
         nucs = (mutation.getMutInfo() >> 8);
         nucs = ((nucs) << (24 - (mutInfo >> 4)*4));
 
-        if(blockGapExist) {
-            secondaryBlockId = (blockId & 0xFFFFFFFF);
-        } else {
-            secondaryBlockId = -1;
-        }
-
         if(mutation.getNucGapExist()) {
-            nucGapPosition = mutation.getNucGapPosition();
+            position.nucGapPosition = mutation.getNucGapPosition();
         } else {
-            nucGapPosition = -1;
+            position.nucGapPosition = -1;
         }
     }
 
-    NucMut(panmanOld::nucMut mutation, int64_t blockId, bool blockGapExist) {
-        nucPosition = mutation.nucposition();
-        primaryBlockId = (blockId >> 32);
+    NucMut(panmanOld::nucMut mutation, int64_t blockId, int64_t chromosomeId) {
+        position.nucPosition = mutation.nucposition();
+        position.chromosomeId = chromosomeId;
+        position.primaryBlockId = (blockId >> 32);
         mutInfo = (mutation.mutinfo() & 0xFF);
         nucs = (mutation.mutinfo() >> 8);
         nucs = ((nucs) << (24 - (mutInfo >> 4)*4));
 
-        if(blockGapExist) {
-            secondaryBlockId = (blockId & 0xFFFFFFFF);
-        } else {
-            secondaryBlockId = -1;
-        }
-
         if(mutation.nucgapexist()) {
-            nucGapPosition = mutation.nucgapposition();
+            position.nucGapPosition = mutation.nucgapposition();
         } else {
-            nucGapPosition = -1;
+            position.nucGapPosition = -1;
         }
     }
-
-    
 };
 
 // Struct for representing Block Mutations
 struct BlockMut {
+    int32_t chromosomeId;
     int32_t primaryBlockId;
-    int32_t secondaryBlockId;
 
     // Whether mutation is an insertion or deletion - Strand inversions are marked by
     // `blockMutInfo=false`, but they are not deletions
@@ -224,12 +209,8 @@ struct BlockMut {
     bool inversion;
 
     void loadFromProtobuf(panman::Mutation::Reader mutation) {
+        chromosomeId = mutation.getChromosomeId();
         primaryBlockId = (mutation.getBlockId() >> 32);
-        if(mutation.getBlockGapExist()) {
-            secondaryBlockId = (mutation.getBlockId() & 0xFFFFFFFF);
-        } else {
-            secondaryBlockId = -1;
-        }
         blockMutInfo = mutation.getBlockMutInfo();
         // Whether the mutation is a block inversion or not. Inversion is marked by
         // `blockMutInfo = deletion` and `inversion = true`
@@ -238,20 +219,16 @@ struct BlockMut {
 
     void loadFromProtobuf(panmanOld::mutation mutation) {
         primaryBlockId = (mutation.blockid() >> 32);
-        if(mutation.blockgapexist()) {
-            secondaryBlockId = (mutation.blockid() & 0xFFFFFFFF);
-        } else {
-            secondaryBlockId = -1;
-        }
+        chromosomeId = mutation.getChromosomeid();
         blockMutInfo = mutation.blockmutinfo();
         // Whether the mutation is a block inversion or not. Inversion is marked by
         // `blockMutInfo = deletion` and `inversion = true`
         inversion = mutation.blockinversion();
     }
 
-    BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1) {
+    BlockMut(size_t chromosomeId, size_t blockId, std::pair< BlockMutationType, bool > type) {
+        chromosomeId = chromosomeId;
         primaryBlockId = blockId;
-        secondaryBlockId = secondaryBId;
         if(type.first == BlockMutationType::BI) {
             blockMutInfo = true;
         } else {
@@ -275,34 +252,24 @@ struct BlockMut {
 
 // List of default blocks in the global coordinate system of the PanMAT
 struct Block {
+    int32_t chromosomeId;
     int32_t primaryBlockId;
-    int32_t secondaryBlockId;
 
     std::vector< uint32_t > consensusSeq;
     std::string chromosomeName;
 
-    Block(size_t primaryBlockId, std::string seq);
+    Block(size_t chromosomeId, size_t primaryBlockId, std::string seq);
     // seq is a compressed form of the sequence where each nucleotide is stored in 4 bytes
-    Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);  
+    Block(int32_t chromosomeId, int32_t primaryBlockId, const std::vector< uint32_t >& seq);  
 };
 
 // List of gaps in the global coordinate system of the PanMAT
 struct GapList {
     std::vector< uint32_t > nucPosition;
+    int32_t chromosomeId;
     int32_t primaryBlockId;
-    int32_t secondaryBlockId;
     std::vector< uint32_t > nucGapLength;
-
 };
-
-
-
-// @DEPRECATED. To be removed when secondary block ID is removed
-struct BlockGapList {
-    std::vector< uint32_t > blockPosition;
-    std::vector< uint32_t > blockGapLength;
-};
-
 
 struct ChromosomeInfo {
     std::string name;
@@ -444,9 +411,6 @@ class Tree {
     Node *root;
     std::vector< Block > blocks;
     std::vector< GapList > gaps;
-
-    // @DEPRECATED: To be removed with secondary block ID
-    BlockGapList blockGaps;
 
     // Specifies the circular offset required to print the original sequence
     std::unordered_map< std::string, int > circularSequences;
@@ -628,33 +592,12 @@ struct ComplexMutation {
     std::string sequenceId1, sequenceId2, sequenceId3;
 
     // coordinates of start in parent 1
-    int32_t primaryBlockIdStart1;
-    int32_t secondaryBlockIdStart1;
-    int32_t nucPositionStart1;
-    int32_t nucGapPositionStart1;
-
-    // coordinates of end in parent 1
-    int32_t primaryBlockIdEnd1;
-    int32_t secondaryBlockIdEnd1;
-    int32_t nucPositionEnd1;
-    int32_t nucGapPositionEnd1;
-
-    // coordinates of start in parent 2
-    int32_t primaryBlockIdStart2;
-    int32_t secondaryBlockIdStart2;
-    int32_t nucPositionStart2;
-    int32_t nucGapPositionStart2;
-
-    // coordinates of end in parent 2
-    int32_t primaryBlockIdEnd2;
-    int32_t secondaryBlockIdEnd2;
-    int32_t nucPositionEnd2;
-    int32_t nucGapPositionEnd2;
+    Coordinate start1, end1, start2, end2;
 
     ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1,
-                    std::string sId2, std::string sId3, std::tuple< int,int,int,int > t1,
-                    std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3,
-                    std::tuple< int,int,int,int > t4) {
+                    std::string sId2, std::string sId3, 
+                    Coordinate t1, Coordinate t2, 
+                    Coordinate t3, Coordinate t4) {
         mutationType = mutType;
         treeIndex1 = tIndex1;
         treeIndex2 = tIndex2;
@@ -665,24 +608,20 @@ struct ComplexMutation {
         sequenceId3 = sId3;
 
         primaryBlockIdStart1 = std::get<0>(t1);
-        secondaryBlockIdStart1 = std::get<1>(t1);
-        nucPositionStart1 = std::get<2>(t1);
-        nucGapPositionStart1 = std::get<3>(t1);
+        nucPositionStart1 = std::get<1>(t1);
+        nucGapPositionStart1 = std::get<2>(t1);
 
         primaryBlockIdEnd1 = std::get<0>(t2);
-        secondaryBlockIdEnd1 = std::get<1>(t2);
-        nucPositionEnd1 = std::get<2>(t2);
-        nucGapPositionEnd1 = std::get<3>(t2);
+        nucPositionEnd1 = std::get<1>(t2);
+        nucGapPositionEnd1 = std::get<2>(t2);
 
         primaryBlockIdStart2 = std::get<0>(t3);
-        secondaryBlockIdStart2 = std::get<1>(t3);
-        nucPositionStart2 = std::get<2>(t3);
-        nucGapPositionStart2 = std::get<3>(t3);
+        nucPositionStart2 = std::get<1>(t3);
+        nucGapPositionStart2 = std::get<2>(t3);
 
         primaryBlockIdEnd2 = std::get<0>(t4);
-        secondaryBlockIdEnd2 = std::get<1>(t4);
-        nucPositionEnd2 = std::get<2>(t4);
-        nucGapPositionEnd2 = std::get<3>(t4);
+        nucPositionEnd2 = std::get<1>(t4);
+        nucGapPositionEnd2 = std::get<2>(t4);
     }
 
     ComplexMutation(panman::ComplexMutation::Reader cm) {
