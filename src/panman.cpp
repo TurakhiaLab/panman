@@ -6235,6 +6235,16 @@ std::vector< size_t > panmanUtils::GfaGraph::getTopologicalSort() {
 
 
 panmanUtils::Pangraph::Pangraph(Json::Value& pangraphData, panmanUtils::Node* root) {
+    try {
+        size_t i;
+        i=pangraphData["paths"].size();
+        Json::Value path = pangraphData["paths"][(int)0];
+        i=path["blocks"].size();
+        bool j=path["circular"].asBool();
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: Incorrect JSON format found. Use JSON generated using PanGraph v0.7.3"<< std::endl;
+        exit(1);
+    }
     // load paths
     bool circular=false;
     for(size_t i = 0; i < pangraphData["paths"].size(); i++) {
@@ -6936,10 +6946,8 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std::
 panmanUtils::TreeGroup::TreeGroup(std::istream& fin, bool isOld) {
     if (!isOld) {
         kj::std::StdInputStream kjInputStream(fin);
-        capnp::ReaderOptions readerOptions;
-        readerOptions.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
-        readerOptions.nestingLimit = 1024;
-        capnp::InputStreamMessageReader messageReader(kjInputStream, readerOptions);
+        capnp::InputStreamMessageReader messageReader(kjInputStream);
+
 
         panman::TreeGroup::Reader TG = messageReader.getRoot<panman::TreeGroup>();
 
