@@ -46,6 +46,7 @@ for DEST_FILE in $DEST_FILES; do
 
         # Constructing GBZ
         vg gbwt -G out.gfa --num-threads 32 --gbz-format -g out.gbz
+    
     fi
 
     # Constructing MSA from raw genome sequences
