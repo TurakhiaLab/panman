@@ -16,7 +16,7 @@ gunzip *.gz
 DEST_FILES="rsv_4000.fa tb_400.fa sars_20000.fa HIV_20000.fa ecoli_1000.fa klebs_1000.fa"
 
 for DEST_FILE in $DEST_FILES; do
-    num=$(echo $DEST | cut -d '_' -f2 | cut -d '.' -f1)
+    num=$(echo $DEST_FILE | cut -d '_' -f2 | cut -d '.' -f1)
     echo "Processing $DEST_FILE with $num genomes"
     
     
