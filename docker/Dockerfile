@@ -178,6 +178,7 @@ RUN conda install bioconda::mashtree
 RUN conda install bioconda::minimap2
 RUN conda install bioconda::mmseqs2
 RUN conda install conda-forge::gdown
+RUN conda install conda-forge::multiqc
 # RUN conda install bioconda::twilight
 
 # TWILIGHT
