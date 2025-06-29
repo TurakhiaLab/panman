@@ -59,7 +59,7 @@ PanMAN or Pangenome Mutation-Annotated Network is a novel data representation fo
 3. Dockerfile
 4. Installation scripts 
 ### 1. Using conda (recommended) <a name="conda"></a>
-Users can install <i>panmanUtils</i> through installation of [panman conda package](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;), compatible with `linux-64` and `osx-64`.
+Users can install <i>panmanUtils</i> through installation of [panman conda package](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;), compatible with `linux-64` and `osx-64`. For modern macs using Apple silicon (arm64), you need to install Rosetta 2.
 #### i. Dependencies
 1. [Conda](https://docs.conda.io/en/latest/)
 #### ii. Install panman conda package 
@@ -72,6 +72,9 @@ conda activate panman-env
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
+
+# On macOS ARM:
+# conda config --env --set subdir osx-64
 
 # Install the panman package
 conda install panman
