@@ -148,7 +148,7 @@ cd build
 
 ## <a name="construct"></a> PanMAN Construction
 Once the package is installed, PanMANs can be constructed from PanGraph [or GFA or MSA] and Tree topology (Newick format) using <i>panmanUtils</i>. Here we provide examples for constructing PanMANs from PanGraph (JSON) and custom dataset. Alternatively, users can follow the instructions provided in [wiki](https://turakhia.ucsd.edu/panman/) for other methods.
-### Building PanMAN from PanGraph
+### <a name="pangraph">Building PanMAN from PanGraph
 
 **Step 1:** Check if `sars_20.json` and `sars_20.nwk` files exist in `test` directory. 
 
@@ -170,7 +170,6 @@ We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA f
 
 ```bash
 cd $PANMAN_HOME/workflows
-conda activate snakemake
 snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="[user_input]" SEQ_COUNT="Number of sequences" ASSEM="NONE" REF="NONE" TARGET="NONE"
 ```
 
@@ -179,7 +178,6 @@ snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="[user
 
 ```bash
 cd $PANMAN_HOME/workflows
-conda activate snakemake
 snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="None" SEQ_COUNT="Number of sequences" ASSEM="frag" REF="reference_file" TARGET="target.txt"
 ```
 Here, target.txt includes a list of files that contain the fragmented assemblies.
