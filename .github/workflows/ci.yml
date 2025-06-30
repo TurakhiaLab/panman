@@ -70,7 +70,9 @@ jobs:
           conda config --add channels defaults
           conda config --add channels bioconda
           conda config --add channels conda-forge
-          conda install bioconda::panman -y
+          # conda install bioconda::panman -y
+          conda create -n panenv python=3.11 panman -y
+          source activate panenv
 
       - name: test-ubuntu
         if: runner.os == 'Linux'
