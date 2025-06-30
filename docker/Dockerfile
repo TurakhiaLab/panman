@@ -45,7 +45,7 @@ RUN apt-get update && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
 
 RUN conda install python=3.10 
-RUN pip install Bio
+
 
 WORKDIR /home
 
@@ -141,7 +141,7 @@ fi
 RUN conda create -n panman -y
 RUN echo "source activate panman" >> ~/.bashrc
 SHELL ["conda", "run", "-n", "panman", "/bin/bash", "-c"]
-RUN pip install snakemake
+# RUN pip install snakemake
 
 # PanMAN
 RUN wget https://github.com/TurakhiaLab/panman/archive/refs/tags/v0.1.4.zip && \
@@ -179,7 +179,9 @@ RUN conda install bioconda::minimap2
 RUN conda install bioconda::mmseqs2
 RUN conda install conda-forge::gdown
 RUN conda install bioconda::multiqc
-# RUN conda install bioconda::twilight
+RUN conda install bioconda::snakemake
+RUN pip install Bio
+RUN pip install ete3
 
 # TWILIGHT
  RUN wget -O twilight.zip https://github.com/TurakhiaLab/TWILIGHT/archive/refs/tags/v0.1.2.zip  && unzip twilight.zip \
