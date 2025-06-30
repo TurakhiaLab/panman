@@ -11,9 +11,10 @@ theme:
     - content.tabs.link
     - toc.follow
     - toc.integrate
-    - navigation.sections
+    # - navigation.sections
+    - navigation.expand
     - navigation.path
-    - navigation.tabs
+    # - navigation.tabs
     - navigation.top
     - navigation.footer
     - search.highlight
@@ -22,7 +23,6 @@ theme:
     # - content.action.view
     # - content.tooltips
     # - navigation.tabs.sticky
-    # - navigation.expand
     # - navigation.instant.prefetch
     # - navigation.tracking
     # - search.share

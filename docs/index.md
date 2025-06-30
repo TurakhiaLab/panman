@@ -37,6 +37,12 @@ PanMAN utilizes Google’s protocol buffer (protobuf, [https://protobuf.dev/](ht
 ## Video Tutorial
 TBA
 
+## <b>Contributions</b>
+We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
+
+## <b>Citing PanMAN</b>
+If you use the PanMANs or panmanUtils in your research or publications, we kindly request that you cite the following paper:<br> 
+* Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: [10.1101/2024.07.02.601807](https://doi.org/10.1101/2024.07.02.601807)
 
 <!-- ### <b>Installation</b>
 panmanUtils can be installed using two different options, as described below: <br>
@@ -257,9 +263,4 @@ $ ./panmanUtils -I <path to PanMAN file> --aa-translations --output-file=<prefix
 $ ./panmanUtils -I ecoli_10.panman --aa-translations --output_file=ecoli_10
 ``` -->
 
-## <b>Contributions</b>
-We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman). For general inquiries and support, reach out to our team.
 
-## <b>Citing PanMAN</b>
-If you use the PanMANs or panmanUtils in your research or publications, we kindly request that you cite the following paper:<br> 
-* Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: [10.1101/2024.07.02.601807](https://doi.org/10.1101/2024.07.02.601807)

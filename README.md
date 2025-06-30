@@ -121,15 +121,10 @@ cd /home/panman/build
 ```
 
 ## <a name="construct"></a> PanMAN Construction
-Once the package is installed, PanMANs can be constructed from PanGraph [or GFA or MSA] and Tree topology (Newick format) using <i>panmanUtils</i>. Here we provide examples for constructing PanMANs from PanGraph (JSON), users can follow the instructions provided in [wiki](https://turakhia.ucsd.edu/panman/) for other methods.
-### Building PanMAN from the provided dataset
+Once the package is installed, PanMANs can be constructed from PanGraph [or GFA or MSA] and Tree topology (Newick format) using <i>panmanUtils</i>. Here we provide examples for constructing PanMANs from PanGraph (JSON) and custom dataset. Alternatively, users can follow the instructions provided in [wiki](https://turakhia.ucsd.edu/panman/) for other methods.
+### Building PanMAN from PanGraph
 
-**Step 1:** Check if `sars_20.json` and `sars_20.nwk` files exist in `test` directory. Otherwise, follow the instructions to download the dataset.
-
-```bash
-cd $PANMAN_HOME/dataset
-TODO
-```
+**Step 1:** Check if `sars_20.json` and `sars_20.nwk` files exist in `test` directory. 
 
 **Step 2:** Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:
 

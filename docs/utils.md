@@ -2,13 +2,13 @@
 
 Here, we will learn to use exploit various functionalities provided in <i>panmanUtils</i> software for downstream applications in epidemiological, microbiological, metagenomic, ecological, and evolutionary studies.
 
-**Step 0:** The Steps below require panmanUtils and a PanMAN. If not done so far, refer to [installation guide](install.md) to install panmanUtils and [construction](construction.md) instructions to build a PanMAN. Alternatively, users can download pre-built PanMANs using the following command
-```bash
+**Step 0:** The Steps below require panmanUtils and a PanMAN. We provide a pre-built panman (`sars_20.panman`), othewise, refer to [installation guide](install.md) to install panmanUtils and [construction](construction.md) instructions to build a PanMAN. 
+<!-- ```bash
 # Assuming $PANMAN directs to the panman repository directory
 cd $PANMAN_HOME
 mkdir -p build/panman && cd build/panman
 ToDO
-```
+``` -->
 
 ### Functionalities in <i>panmanUtils</i>
 All panmanUtils functionality commands manipulate the input PanMAN file.
@@ -16,8 +16,7 @@ All panmanUtils functionality commands manipulate the input PanMAN file.
 cd $PANMAN_HOME/build
 ./panmanUtils -I <path to PanMAN file> {opt}
 ```
-
-
+<div name="table1" align="center"> <b>Table 1:</b> List of functionalities supported by <i>panmanUtils</i> </div>
 
 | **Option**                       | **Description**                                                                                                   |
 |----------------------------------|-------------------------------------------------------------------------------------------------------------------| 
@@ -45,7 +44,8 @@ cd $PANMAN_HOME/build
 | `-o`, `--output-file`            | Prefix of the output file name                                                                                    |
 
 
-> **NOTE:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
+
+> **Important:** When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.
 
 !!!Note
     For all the examples below, `sars_20.panman` will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided [here](construction.md).
@@ -81,12 +81,12 @@ Extract network in Extended Newick format.
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> ----extended-newick --output-file=<prefix of output file> (optional)
+./panmanUtils -I <path to PanMAN file> --extended-newick --output-file=<prefix of output file> (optional)
 ```
 * Example
 ```bash
 cd $PANMAN_HOME/build
-./panmanUtils -I panman/sars_20.panman ----extended-newick --output-file=sars_20
+./panmanUtils -I panman/sars_20.panman --extended-newick --output-file=sars_20
 ```
 
 #### Tip/internal node sequences extract
@@ -172,7 +172,7 @@ Annotate nodes in a PanMAN with a custom string, later searched by these annotat
 
 * Usage syntax
 ```bash
-./panmanUtils -I <path to PanMAN file> --annotate <path to file containing list of annotations> --output-file=ecoli_10_annotate
+./panmanUtils -I <path to PanMAN file> --annotate --input-file=<path to file containing list of annotations> --output-file=ecoli_10_annotate
 ```
 * Example
 ```bash
@@ -193,3 +193,19 @@ Extract amino acid translations from a PanMAN in TSV file.
 cd $PANMAN_HOME/build
 ./panmanUtils -I panman/sars_20.panman --aa-translations --output_file=sars_20
 ```
+
+### <i>panmanUtils</i> Interactive mode
+**Step 1:** Users can enter <i>panmanUtils</i>'s interactive mode by passing input panman as input using the following command:
+
+```bash
+./panmanUtils -I <path to PanMAN file>
+## Example
+./panmanUtils -I panman/sars_20.panman
+```
+
+!!! Note
+    The interactive mode should look like the image attached below
+
+    ![Interactive Mode](images/interactiveMode.png)
+
+**Step 2:** Use the commands listed in [Table 1](#table1) to perform desired operation
