@@ -2,7 +2,6 @@ name: ci
 on:
   push:
     branches:
-      - base
       - main
       - capnp        
 
@@ -24,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.x
+          python-version: 3.11
 
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -71,7 +70,9 @@ jobs:
           conda config --add channels defaults
           conda config --add channels bioconda
           conda config --add channels conda-forge
-          conda install bioconda::panman -y
+          # conda install bioconda::panman -y
+          conda create -n panenv python=3.11 panman -y
+          source activate panenv
 
       - name: test-ubuntu
         if: runner.os == 'Linux'
