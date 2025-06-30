@@ -47,6 +47,8 @@ jobs:
           sudo update-alternatives --set gcc /usr/bin/gcc-10
           chmod +x install/installationUbuntu.sh
           sudo ./install/installationUbuntu.sh
+          cd build
+          ./panmanUtils --help
 
       # - name: macOS-specific steps
       #   if: runner.os == 'macOS'
@@ -73,14 +75,6 @@ jobs:
           # conda install bioconda::panman -y
           conda create -n panenv python=3.11 panman -y
           source activate panenv
-
-      - name: test-ubuntu
-        if: runner.os == 'Linux'
-        run: |
-          cd build
-          ./panmanUtils --help
-
-      - name: test-macOS
-        if: runner.os == 'macOS'
-        run: |
           panmanUtils --help
+
+
