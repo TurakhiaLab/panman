@@ -167,11 +167,17 @@ We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA f
 
 #### Building PanMAN from raw genome sequences
 **Step 1:** Run the following command to construct a panman from raw sequences.
-
+* Usage
 ```bash
 cd $PANMAN_HOME/workflows
 snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="[user_input]" SEQ_COUNT="Number of sequences" ASSEM="NONE" REF="NONE" TARGET="NONE"
 ```
+* Example
+```bash
+cd $PANMAN_HOME/workflows
+snakemake --use-conda --cores 8 --config RUNTYPE="pangraph" FASTA="$PANMAN_HOME/test/sars_20.fa" SEQ_COUNT="20" ASSEM="NONE" REF="NONE" TARGET="NONE"
+```
+
 
 #### <a name="frag"></a> Building PanMAN from fragment assemblies
 **Step 1:** Run the following command to construct a panman from fragment assemblies.
