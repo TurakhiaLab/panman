@@ -28,7 +28,7 @@ for DEST_FILE in $DEST_FILES; do
     
     # Constructing GFA from raw genome sequences using PGGB
     samtools faidx $DEST_FILE
-    pggb -i $DEST_FILE -t 32 -n $num -o output_dir
+    pggb -i $DEST_FILE -t 32 -n $num -o output_dir -X -b -v -t 32 -T 32
     mv output_dir/*.gfa ${type}.gfa
 
     # Constructing VG
