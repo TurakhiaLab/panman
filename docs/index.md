@@ -56,7 +56,7 @@ Users can install <i>panmanUtils</i> through installation of [panman conda packa
 #### ii. Install panman conda package 
 ```
 # Create and activate a new environment for panman
-conda create -n panman-env
+conda create -n panman-env python=3.11 -y
 conda activate panman-env
 
 # Set up channels
@@ -68,7 +68,7 @@ conda config --add channels conda-forge
 # conda config --env --set subdir osx-64
 
 # Install the panman package
-conda install panman
+conda install panman -y
 ```
 #### iii. Run <i>panmanUtils</i> 
 ```
