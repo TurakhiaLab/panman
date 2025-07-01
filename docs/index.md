@@ -200,7 +200,7 @@ snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="[user
 #### Building PanMAN from fragment assemblies
 **Step 1:** Run the following command to construct a panman from fragment assemblies.
 
-```bash
+```bash 
 cd $PANMAN_HOME/workflows
 snakemake --use-conda --cores 8 --config RUNTYPE="pangraph/gfa/msa" FASTA="None" SEQ_COUNT="Number of sequences" ASSEM="frag" REF="reference_file" TARGET="target.txt"
 ```
