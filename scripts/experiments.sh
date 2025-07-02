@@ -1,5 +1,6 @@
 # Script to generate PanMANs provided here: https://zenodo.org/records/15059329
 
+set -x
 ARCH=$(uname -m)
 if [ "$ARCH" = "linux/amd64" ] || [ "$ARCH" = "x86_64" ]; then
     echo "Running on "$ARCH" architecture"
