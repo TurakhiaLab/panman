@@ -31,7 +31,7 @@ for DEST_FILE in $DEST_FILES; do
     if [ "$type" = "tb" ] || [ "$type" = "ecoli" ] || [ "$type" = "klebs" ]; then
         pggb -i $DEST_FILE -t 32 -n $num -o output_dir -X -b -v -T 16 -B 10K
     else
-        pggb -i $DEST_FILE -t 32 -n $num -o output_dir -X -b -v -T 32
+        pggb -i $DEST_FILE -t 32 -n $num -o output_dir -X -b -v -T 32 -B 10K
     fi
     mv output_dir/*.gfa ${type}.gfa
 
