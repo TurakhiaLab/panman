@@ -40,7 +40,7 @@ def process_file(input_file, output_file, seqs):
         data = infile.readlines()
 
     output = []
-
+    map_ = dict()
     for line in data[1:]:
         # Split the line by whitespace (tab-separated format)
         row = line.strip().split()
@@ -56,6 +56,15 @@ def process_file(input_file, output_file, seqs):
         split_breakpoints2 = re.split('-', breakpoint2)
 
         seq = seqs[row[2]]
+        if (row[0] in map_):
+            continue
+        if (row[1] in map_):
+            continue
+        if (row[2] in map_):
+            continue
+        map_[row[0]]=1
+        map_[row[1]]=1
+        map_[row[2]]=1
 
         # Format the new row based on the transformation rules
         new_row = [
