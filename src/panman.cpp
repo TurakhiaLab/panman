@@ -404,16 +404,16 @@ panmanUtils::Node* panmanUtils::Tree::createTreeFromNewickString(std::string new
             branchLen[level].pop();
             level++;
 
-            if (allNodes.find(nid) != allNodes.end()) {
-                fprintf(stderr, "ERROR: Node with id %s already exists!\n", nid.c_str());
-            }
+            // if (allNodes.find(nid) != allNodes.end()) {
+            //     fprintf(stderr, "ERROR: Node with id %s already exists!\n", nid.c_str());
+            // }
             allNodes[nid] = newNode;
             parentStack.push(newNode);
             cc++;
         }
-        if (allNodes.find(leaf) != allNodes.end()) {
-            fprintf(stderr, "ERROR: Node with id %s already exists!\n", leaf.c_str());
-        }
+        // if (allNodes.find(leaf) != allNodes.end()) {
+        //     fprintf(stderr, "ERROR: Node with id %s already exists!\n", leaf.c_str());
+        // }
         Node* leafNode = new Node(leaf, parentStack.top(), branchLen[level].front());
         allNodes[leaf] = leafNode;
 
@@ -1912,7 +1912,7 @@ std::string panmanUtils::Tree::getNewickString(Node* node) {
     std::string newick;
 
     if (traversal.size() == 1) {
-        newick += node->identifier;
+        newick += "(" + node->identifier + ");";
         return newick;
     }
 
