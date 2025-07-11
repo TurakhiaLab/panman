@@ -10,6 +10,8 @@ else
     return;
 fi
 
+recomb=0
+
 gdown --folder https://drive.google.com/drive/folders/1pmSTV4akkB659P2RgNaMn5Tk9QetvoV-?usp=sharing
 cd RawData_small
 
@@ -58,6 +60,17 @@ for DEST_FILE in $DEST_FILES; do
 
     # Converting PanMAN into a  variations in VCF format
     # panmanUtils -I panman/${type}.panman --gfa -o ${type}
+
+    if [ $recomb -eq 1 ]; then
+        if [ "$type" = "tb" ] || [ "$type" = "ecoli" ] || [ "$type" = "klebs" ]; then
+            panmanUtils -I panman/${type}.panman --fasta-aligned -o ${type}
+            3seq -gen-p ptable $num 
+            3seq -f info/${type}_0.msa -ptable ptable -id ${type}
+            python3 3seq2panman.py ${type}.3s.rec ${type}.3s.panman.rec info/${type}_0.msa
+            panmanUtils --create-network panman/${type}.panman --input-file ${type}.3s.panman.rec -o ${type}_network
+            panmanUtils -I panman/${type}_network.panman --summary
+        fi
+    fi
 
 done
 
