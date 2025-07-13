@@ -68,9 +68,10 @@ for DEST_FILE in $DEST_FILES; do
             3seq -gen-p ${type}_ptable $num 
             if [ "$type" = "klebs" ]; then
                 awk '/^>/ {n++} n<=15' info/${type}_0.msa > info/${type}_small.msa
-                mv info/${type}_small.msa info/${type}_0.msa
+                3seq -f info/${type}_small.msa -ptable ${type}_ptable -id ${type}
+            else 
+                3seq -f info/${type}_0.msa -ptable ${type}_ptable -id ${type}
             fi
-            3seq -f info/${type}_0.msa -ptable ${type}_ptable -id ${type}
             python3 3seq2panman.py ${type}.3s.rec ${type}.3s.panman.rec info/${type}_0.msa
             panmanUtils --create-network panman/${type}.panman --input-file ${type}.3s.panman.rec -o ${type}_network
             panmanUtils -I panman/${type}_network.panman --summary
