@@ -10,6 +10,7 @@ else
     return;
 fi
 
+# Set recomb flag to 1 if you want to generate PanMANs with recombination
 recomb=0
 
 gdown --folder https://drive.google.com/drive/folders/1pmSTV4akkB659P2RgNaMn5Tk9QetvoV-?usp=sharing
@@ -64,8 +65,12 @@ for DEST_FILE in $DEST_FILES; do
     if [ $recomb -eq 1 ]; then
         if [ "$type" = "tb" ] || [ "$type" = "ecoli" ] || [ "$type" = "klebs" ]; then
             panmanUtils -I panman/${type}.panman --fasta-aligned -o ${type}
-            3seq -gen-p ptable $num 
-            3seq -f info/${type}_0.msa -ptable ptable -id ${type}
+            3seq -gen-p ${type}_ptable $num 
+            if [ "$type" = "klebs" ]; then
+                awk '/^>/ {n++} n<=25' info/${type}_0.msa > info/${type}_small.msa
+                mv info/${type}_small.msa info/${type}_0.msa
+            fi
+            3seq -f info/${type}_0.msa -ptable ${type}_ptable -id ${type}
             python3 3seq2panman.py ${type}.3s.rec ${type}.3s.panman.rec info/${type}_0.msa
             panmanUtils --create-network panman/${type}.panman --input-file ${type}.3s.panman.rec -o ${type}_network
             panmanUtils -I panman/${type}_network.panman --summary
