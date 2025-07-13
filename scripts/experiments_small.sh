@@ -67,7 +67,7 @@ for DEST_FILE in $DEST_FILES; do
             panmanUtils -I panman/${type}.panman --fasta-aligned -o ${type}
             3seq -gen-p ${type}_ptable $num 
             if [ "$type" = "klebs" ]; then
-                awk '/^>/ {n++} n<=25' info/${type}_0.msa > info/${type}_small.msa
+                awk '/^>/ {n++} n<=15' info/${type}_0.msa > info/${type}_small.msa
                 mv info/${type}_small.msa info/${type}_0.msa
             fi
             3seq -f info/${type}_0.msa -ptable ${type}_ptable -id ${type}
