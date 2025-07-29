@@ -5,6 +5,7 @@
 
 ## <b>Introduction</b> 
 ### What are PanMANs?
+<iframe width="1000" height="600" src="https://www.youtube.com/embed/VZFIg7x9tVw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 2b), and even structural mutations (Fig. 2a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 2c). PanMAN's representative power is compared against existing pangenomic formats in Fig. 1. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. 
 
 <div align="center">
@@ -17,6 +18,8 @@ PanMAN or Pangenome Mutation-Annotated Network is a novel data representation fo
     <img src="images/panman.svg" width="600" height="600"/><br>
     <b>Figure 2: Overview of the PanMAN data structure</b><br>
 </div>
+
+
 
 
 ### PanMAN's Protocol Buffer file format
