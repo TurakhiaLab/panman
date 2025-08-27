@@ -6946,8 +6946,11 @@ panmanUtils::TreeGroup::TreeGroup(std::vector< std::ifstream >& treeFiles, std::
 panmanUtils::TreeGroup::TreeGroup(std::istream& fin, bool isOld) {
     if (!isOld) {
         kj::std::StdInputStream kjInputStream(fin);
-        capnp::InputStreamMessageReader messageReader(kjInputStream);
-
+        
+	capnp::ReaderOptions readerOptions;
+        readerOptions.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
+        readerOptions.nestingLimit = 1024;
+        capnp::InputStreamMessageReader messageReader(kjInputStream, readerOptions);
 
         panman::TreeGroup::Reader TG = messageReader.getRoot<panman::TreeGroup>();
 
