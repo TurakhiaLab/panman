@@ -122,6 +122,7 @@ po::positional_options_description printPathsArgumentDesc;
 po::options_description indexDesc("Indexing Command Line Arguments");
 po::positional_options_description indexArgumentDesc;
 po::options_description printRootDesc("Root Printer Command Line Arguments");
+po::options_description printConsensusDesc("Consensus Printer Command Line Arguments");
 po::positional_options_description printRootPositionArgumentDesc;
 
 
@@ -158,7 +159,7 @@ void setupOptionDescriptions() {
     ("acr,q", "ACR method [fitch(default), mppa]")
     ("index",po::value< bool >(0), "Generating indexes and print sequence (passed as reference) between x:y")
     ("refFile",po::value< std::string >() ,"reference sequence file")
-    // ("printRoot", "Print root sequence")
+    ("printConsensus", "Print consensus sequences of each block in FASTA format")
     // ("printNodePaths", "Print mutations from root to each node")
     ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
     // ("samples",po::value< bool >() ,"Samples in the PanMAN")
@@ -259,6 +260,9 @@ void setupOptionDescriptions() {
         ("output-file,o", po::value< std::string >(), "Output file name");
 
     printRootDesc.add_options()
+        ("output-file,o", po::value< std::string >(), "Output file name");
+
+    printConsensusDesc.add_options()
         ("output-file,o", po::value< std::string >(), "Output file name");
 }
 
@@ -1208,6 +1212,39 @@ void printRoot(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofs
 
 }
 
+void printConsensus(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print raw sequences to output file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree * T = &tg.trees[i];
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+
+        T->printConsensus(fout);
+
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+
+}
+
 void toUsher(panmanUtils::TreeGroup *TG, po::variables_map &globalVm) {
     // Print raw sequences to output file
     if(TG == nullptr) {
@@ -1549,6 +1586,8 @@ void parseAndExecute(int argc, char* argv[]) {
     // } else if(globalVm.count("fasta-fast")){
     //     fastaFast(TG, globalVm, outputFile, buf);
     //     return;
+    } else if (globalVm.count("printConsensus")) {
+        printConsensus(TG, globalVm, outputFile, buf);
     } else {
         char** splitCommandArray;
 
@@ -1691,6 +1730,12 @@ void parseAndExecute(int argc, char* argv[]) {
                         .options(printRootDesc)
                         .run(), printRootVm);
                     printRoot(TG, printRootVm, outputFile, buf);
+                } else if(strcmp(splitCommandArray[0], "printConsensus") == 0) {
+                    po::variables_map printConsensusVm;
+                    po::store(po::command_line_parser((int)splitCommand.size(), splitCommandArray)
+                        .options(printConsensusDesc)
+                        .run(), printConsensusVm);
+                    printConsensus(TG, printConsensusVm, outputFile, buf);
                 } else if (strcmp(splitCommandArray[0], "exit") == 0 || strcmp(splitCommandArray[0], "q") == 0) {
                     return;
                 } else {

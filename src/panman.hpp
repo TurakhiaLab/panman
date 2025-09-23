@@ -545,7 +545,7 @@ class Tree {
     void printVCFParallel(std::string reference, std::ostream& fout);
     void printVCFParallel(panmanUtils::Node* node, std::string& fileName);
     void extractAminoAcidTranslations(std::ostream& fout, int64_t start, int64_t end);
-
+    void printConsensus(std::ostream& fout);
     // Extract PanMAT representing a segment of the genome. The start and end coordinates
     // are with respect to the root sequence. The strands of the terminal blocks in all
     // sequences are assumed to be the same as their strands in the root sequence for the

@@ -20,7 +20,9 @@
 #include <set>
 #include <boost/iostreams/filter/lzma.hpp>
 #include <typeinfo>
-
+#include <capnp/serialize.h>
+#include <kj/io.h>
+#include <limits>
 
 #include "chaining.cpp"
 #include "rotation.cpp"
@@ -35,6 +37,7 @@
 #include "reroot.cpp"
 #include "aaTrans.cpp"
 #include "panman2usher.cpp"
+#include "consensus.cpp"
 #include "panmanUtils.hpp"
 
 char panmanUtils::getNucleotideFromCode(int code) {
@@ -6950,9 +6953,9 @@ panmanUtils::TreeGroup::TreeGroup(std::istream& fin, bool isOld) {
 	capnp::ReaderOptions readerOptions;
         readerOptions.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
         readerOptions.nestingLimit = 1024;
-        capnp::InputStreamMessageReader messageReader(kjInputStream, readerOptions);
+	capnp::InputStreamMessageReader messageReader(kjInputStream, readerOptions);
 
-        panman::TreeGroup::Reader TG = messageReader.getRoot<panman::TreeGroup>();
+    	panman::TreeGroup::Reader TG = messageReader.getRoot<panman::TreeGroup>();
 
         int count=0;
         for (auto treeFromTG: TG.getTrees()){
