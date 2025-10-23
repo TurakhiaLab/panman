@@ -160,7 +160,7 @@ void setupOptionDescriptions() {
     ("index",po::value< bool >(0), "Generating indexes and print sequence (passed as reference) between x:y")
     ("refFile",po::value< std::string >() ,"reference sequence file")
     ("printConsensus", "Print consensus sequences of each block in FASTA format")
-    // ("printNodePaths", "Print mutations from root to each node")
+    ("ratioTest", "Ratio test based on ancestry")
     ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
     // ("samples",po::value< bool >() ,"Samples in the PanMAN")
     // ("protobuf2capnp", "Converts a Google Protobuf PanMAN to Capn' Proto PanMAN")
@@ -385,6 +385,37 @@ void fasta(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstrea
     auto fastaEnd = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
     std::cout << "\nFASTA execution time: " << fastaTime.count() << " nanoseconds\n";
+}
+
+void ratioTest(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    // Print raw sequences to output file
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto fastaStart = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree *T  = &tg.trees[i];
+        if(globalVm.count("output-file")) {
+            std::string fileName = globalVm["output-file"].as< std::string >();
+            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
+            buf = outputFile.rdbuf();
+        } else {
+            buf = std::cout.rdbuf();
+        }
+        std::ostream fout (buf);
+
+        T->ratioTest(fout);
+
+        if(globalVm.count("output-file")) outputFile.close();
+    }
+
+    auto fastaEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds fastaTime = fastaEnd - fastaStart;
+    std::cout << "\nRatio Test execution time: " << fastaTime.count() << " nanoseconds\n";
 }
 
 void printTipsHelper(panmanUtils::Node* node) {
@@ -1583,9 +1614,9 @@ void parseAndExecute(int argc, char* argv[]) {
     }  else if(globalVm.count("toUsher")) {
         toUsher(TG, globalVm);
         return;
-    // } else if(globalVm.count("fasta-fast")){
-    //     fastaFast(TG, globalVm, outputFile, buf);
-    //     return;
+    } else if(globalVm.count("ratioTest")){
+        ratioTest(TG, globalVm, outputFile, buf);
+        return;
     } else if (globalVm.count("printConsensus")) {
         printConsensus(TG, globalVm, outputFile, buf);
     } else {

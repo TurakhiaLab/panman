@@ -38,6 +38,7 @@
 #include "aaTrans.cpp"
 #include "panman2usher.cpp"
 #include "consensus.cpp"
+#include "ratioTest.cpp"
 #include "panmanUtils.hpp"
 
 char panmanUtils::getNucleotideFromCode(int code) {

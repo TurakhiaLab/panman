@@ -604,6 +604,7 @@ class Tree {
     // Transforms tree such that given node becomes child of new root
     void transform(Node* node);
     void reroot(std::string sequenceName);
+    void ratioTest(std::ostream& fout);
 
     
 
