@@ -1753,6 +1753,7 @@ void panmanUtils::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fou
 void getNodesFromTipToRoot(panmanUtils::Node* node, std::vector<panmanUtils::Node*> &nodesFromTipToRoot){
     panmanUtils::Node* currentNode = node;
     while(currentNode->parent != nullptr){
+        std::cout << currentNode->identifier << std::endl;
         nodesFromTipToRoot.push_back(currentNode);
         currentNode = currentNode->parent;
     }
@@ -2096,6 +2097,113 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
         // break;
     });
     // }
+}
+
+void panmanUtils::Tree::printFASTAUltraFastPartial(std::ostream& fout, std::string& nodeID, bool aligned) {
+
+    if (this->allNodes.find(nodeID) == this->allNodes.end()){
+        std::cerr << "Node ID not found\n";
+        exit(1);
+    }
+    // std::cout << "writing fasta" << std::endl;    
+    panmanUtils::Node* node = this->allNodes[nodeID];
+    
+    // Get block sequnece of the node
+    std::vector< bool >  blockSequence(blocks.size() + 1, false, {});
+    std::vector<panmanUtils::Node*> nodesFromTipToRoot;
+    // std::cout << "node list" << std::endl;    
+    getNodesFromTipToRoot(node, nodesFromTipToRoot);
+    // std::cout << "block sequences" << std::endl;    
+    getBlockSequence(nodesFromTipToRoot, blockSequence);
+    // std::cout << "Printing" << std::endl; 
+    // Blocks length
+    std::unordered_map<int, int> blockLengths;
+
+    // Expanding blocks only if exist in tip 
+    std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence(blocks.size() + 1);
+    std::vector< bool >  blockExists(blocks.size() + 1, false, {});
+    std::vector< bool >  blockStrand(blocks.size() + 1, true, {});
+
+
+    int32_t maxBlockId = 0;
+
+    // Create consensus sequence of blocks
+    for(size_t i = 0; i < blocks.size(); i++) {
+        int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
+        blockLengths[primaryBlockId] = 0;
+        maxBlockId = std::max(maxBlockId, primaryBlockId);
+        if (blockSequence[primaryBlockId]) {
+            // int len = 0;
+            for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
+                bool endFlag = false;
+                for(size_t k = 0; k < 8; k++) {
+                    const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+
+                    if(nucCode == 0) {
+                        endFlag = true;
+                        break;
+                    }
+                    // len++;
+                    const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                    sequence[primaryBlockId].push_back({nucleotide, {}});
+                }
+
+                if(endFlag) {
+                    break;
+                }
+            }
+            // End character to incorporate for gaps at the end
+            sequence[primaryBlockId].push_back({'x', {}});
+            // blockLengths[primaryBlockId] += len;
+        } else {
+            int len = 0;
+            for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
+                bool endFlag = false;
+                for(size_t k = 0; k < 8; k++) {
+                    const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+                    if(nucCode == 0) {
+                        endFlag = true;
+                        break;
+                    }
+                    len++;
+                    const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                }
+
+                if(endFlag) {
+                    break;
+                }
+            }
+            blockLengths[primaryBlockId] += len;
+        }
+    }
+
+    sequence.resize(maxBlockId + 1);
+    blockExists.resize(maxBlockId + 1);
+    blockStrand.resize(maxBlockId + 1);
+
+    // Assigning nucleotide gaps in blocks
+    for(size_t i = 0; i < gaps.size(); i++) {
+        int32_t primaryBId = (gaps[i].primaryBlockId);
+        int32_t secondaryBId = (gaps[i].secondaryBlockId);
+        if (blockSequence[primaryBId]){
+            for(size_t j = 0; j < gaps[i].nucPosition.size(); j++) {
+                int len = gaps[i].nucGapLength[j];
+                int pos = gaps[i].nucPosition[j];
+                sequence[primaryBId][pos].second.resize(len, '-');
+                // blockLengths[primaryBId] += len;
+            }
+        } else {
+            int len=0;
+            for(size_t j = 0; j < gaps[i].nucPosition.size(); j++) {
+                len += gaps[i].nucGapLength[j];
+            }
+            blockLengths[primaryBId] += len;
+        }
+    }
+
+    std::string line = printFASTAUltraFastHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, false, std::make_tuple(-1,-1,-1,-1), std::make_tuple(-1,-1,-1,-1), false);
+    fout << line << "\n";
+    return;
 }
 
 std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extractSequenceHelper(

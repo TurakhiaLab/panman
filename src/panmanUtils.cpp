@@ -162,8 +162,8 @@ void setupOptionDescriptions() {
     ("printConsensus", "Print consensus sequences of each block in FASTA format")
     ("ratioTest", "Ratio test based on ancestry")
     ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
-    // ("samples",po::value< bool >() ,"Samples in the PanMAN")
-    // ("protobuf2capnp", "Converts a Google Protobuf PanMAN to Capn' Proto PanMAN")
+    ("nodeID",po::value< std::string >() ,"nodeID in the PanMAN")
+    ("partial-load", "load PanMAN partially")
   
     ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
     ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
@@ -366,20 +366,39 @@ void fasta(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstrea
     panmanUtils::TreeGroup tg = *TG;
 
     auto fastaStart = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < tg.trees.size(); i++) {
-        panmanUtils::Tree *T  = &tg.trees[i];
+
+    if (globalVm.count("partial-load")){
+        panmanUtils::Tree *T  = &tg.trees[0];
         if(globalVm.count("output-file")) {
             std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
+            outputFile.open("./info/" + fileName + "_" + std::to_string(0) + ".fasta");
             buf = outputFile.rdbuf();
         } else {
             buf = std::cout.rdbuf();
         }
         std::ostream fout (buf);
-
-        T->printFASTAUltraFast(fout, false, false);
+        std::string nodeid = globalVm["nodeID"].as< std::string >();
+        T->printFASTAUltraFastPartial(fout, nodeid, false);
 
         if(globalVm.count("output-file")) outputFile.close();
+        
+    } else {
+
+        for(int i = 0; i < tg.trees.size(); i++) {
+            panmanUtils::Tree *T  = &tg.trees[i];
+            if(globalVm.count("output-file")) {
+                std::string fileName = globalVm["output-file"].as< std::string >();
+                outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".fasta");
+                buf = outputFile.rdbuf();
+            } else {
+                buf = std::cout.rdbuf();
+            }
+            std::ostream fout (buf);
+
+            T->printFASTAUltraFast(fout, false, false);
+
+            if(globalVm.count("output-file")) outputFile.close();
+        }
     }
 
     auto fastaEnd = std::chrono::high_resolution_clock::now();
@@ -506,24 +525,42 @@ void fastaAligned(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::
     }
 
     panmanUtils::TreeGroup tg = *TG;
-
     auto fastaStart = std::chrono::high_resolution_clock::now();
-    for(int i = 0; i < tg.trees.size(); i++) {
-        panmanUtils::Tree *T  = &tg.trees[i];
+    
+    if (globalVm.count("partial-load")){
+        panmanUtils::Tree *T  = &tg.trees[0];
         if(globalVm.count("output-file")) {
             std::string fileName = globalVm["output-file"].as< std::string >();
-            outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".msa");
+            outputFile.open("./info/" + fileName + "_" + std::to_string(0) + ".fasta");
             buf = outputFile.rdbuf();
         } else {
             buf = std::cout.rdbuf();
         }
         std::ostream fout (buf);
-
-
-        T->printFASTAUltraFast(fout, true);
-
+        std::string nodeid = globalVm["nodeID"].as< std::string >();
+        T->printFASTAUltraFastPartial(fout, nodeid, true);
 
         if(globalVm.count("output-file")) outputFile.close();
+        
+    } else {
+        
+        for(int i = 0; i < tg.trees.size(); i++) {
+            panmanUtils::Tree *T  = &tg.trees[i];
+            if(globalVm.count("output-file")) {
+                std::string fileName = globalVm["output-file"].as< std::string >();
+                outputFile.open("./info/" + fileName + "_" + std::to_string(i) + ".msa");
+                buf = outputFile.rdbuf();
+            } else {
+                buf = std::cout.rdbuf();
+            }
+            std::ostream fout (buf);
+
+
+            T->printFASTAUltraFast(fout, true);
+
+
+            if(globalVm.count("output-file")) outputFile.close();
+        }
     }
 
     auto fastaEnd = std::chrono::high_resolution_clock::now();
@@ -1389,8 +1426,25 @@ void parseAndExecute(int argc, char* argv[]) {
         inPMATBuffer.push(inputFile);
         std::istream inputStream(&inPMATBuffer);
 
+        /* Check if it's a partial load */
+        bool partial_load = false;
+        std::string nodeID, treeID;
+        if (globalVm.count("partial-load")) {
+            if (globalVm.count("nodeID") && globalVm.count("treeID")){
+                nodeID = globalVm["nodeID"].as< std::string >();
+                treeID = globalVm["treeID"].as< std::string >();
+                partial_load=true;
+            } else{
+                std::cerr << "Node ID and Tree ID are required for partial load\n";
+                return;
+            }            
+        }
+
         std::cout << "starting reading panman" << std::endl;
-        TG = new panmanUtils::TreeGroup(inputStream);
+        if (partial_load)
+            TG = new panmanUtils::TreeGroup(inputStream, 0, true, treeID, nodeID);
+        else
+            TG = new panmanUtils::TreeGroup(inputStream);
 
         auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;

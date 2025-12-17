@@ -315,6 +315,7 @@ class Node {
     std::vector< BlockMut > blockMutation;
     std::vector< std::string > annotations;
     bool isComMutHead = false;
+    bool isLoaded = true; /* will be set to false for partial loads */
     int treeIndex = -1;
 
     Node(std::string id, float len);
@@ -453,6 +454,7 @@ class Tree {
     std::unordered_map< std::string, Node* > allNodes;
 
     Tree(const panman::Tree::Reader& mainTree);
+    Tree(const panman::Tree::Reader& mainTree, std::string& nodeID);
     Tree(const panmanOld::tree& mainTree);
     Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
     Tree(std::ifstream& fin, std::ifstream& secondFin,
@@ -468,6 +470,7 @@ class Tree {
     
 
     void protoMATToTree(const panman::Tree::Reader& mainTree);
+    void protoMATToTree(const panman::Tree::Reader& mainTree, std::string& nodeID);
     void protoMATToTree(const panmanOld::tree& mainTree);
 
     // Fitch Algorithm on Nucleotide mutations
@@ -534,6 +537,8 @@ class Tree {
     void printFASTA(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
     void printFASTANew(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
     void printFASTAUltraFast(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
+    void printFASTAUltraFastPartial(std::ostream& fout, std::string& nodeID, bool aligned = false);
+    
     void printSingleNode(std::ostream& fout, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
                                          std::string nodeIdentifier, std::tuple< int, int, int, int > &panMATStart, std::tuple< int, int, int, int > &panMATEnd);
@@ -885,7 +890,7 @@ class TreeGroup {
     // List of complex mutations linking PanMATs
     std::vector< ComplexMutation > complexMutations;
 
-    TreeGroup(std::istream& fin, bool isOld = false);
+    TreeGroup(std::istream& fin, bool isOld = false, bool partial=false, std::string treeID="", std::string nodeID="");
     // List of PanMAT files and a file with all the complex mutations relating these files
     TreeGroup(std::vector< std::ifstream >& treeFiles, std::ifstream& mutationFile);
     TreeGroup(std::vector< Tree* >& t);
