@@ -1,5 +1,5 @@
 #include "fitchSankoff.cuh"
-
+#include <iostream>
 char getNucleotideFromCode(int code) {
     switch(code) {
     case 1:
@@ -218,7 +218,7 @@ void fs_fwd(
 __global__ 
 void fs_bwd(
     int32_t *d_ancestor[],
-    int8_t  *d_bwd_states,
+    int8_t  *d_bwd_states_array[],
     char * d_ref, 
     int * d_leaf_or_not, 
     int * d_child_map, 
@@ -254,11 +254,13 @@ void fs_bwd(
                     if (local_order == max_order) //root
                     {
                         v = char2int(d_ref[i]);
-                        d_bwd_states[states_start_idx+j] = v;
+                        d_bwd_states_array[i][j] = v;
+                        // d_bwd_states[states_start_idx+j] = v;
                     }
                     if (leaf_or_not != -1) // internal nodes
                     {
-                        v=d_bwd_states[states_start_idx+j];
+                        v=d_bwd_states_array[i][j];
+                        // v=d_bwd_states[states_start_idx+j];
                         int child_id = leaf_or_not;
                         while (child_id != -1)
                         {
@@ -283,7 +285,8 @@ void fs_bwd(
                                     min_ptr = k;
                                 }
                             }
-                            d_bwd_states[states_start_idx+child_id] = min_ptr;
+                            d_bwd_states_array[i][child_id] = min_ptr;
+                            // d_bwd_states[states_start_idx+child_id] = min_ptr;
                             child_id = d_child_map[child_id];
                         }
                     }
@@ -299,7 +302,7 @@ void fs_bwd(
 
 __global__
 void fs_assign_mut(
-    int8_t * d_bwd_states,
+    int8_t * d_bwd_states_array[],
     int * d_leaf_or_not, 
     int * d_child_map, 
     int * d_order,
@@ -307,7 +310,7 @@ void fs_assign_mut(
     int num_leaves,
     int sites,
     int max_order,
-    int8_t * d_muts
+    int8_t * d_muts_array[]
 ){
     int tx = threadIdx.x;
     int bx = blockIdx.x;
@@ -332,14 +335,17 @@ void fs_assign_mut(
                     int leaf_or_not = d_leaf_or_not[node_id];
                     if(leaf_or_not != -1) // internal nodes
                     {
-                        int32_t node_state = d_bwd_states[states_start_idx + j]; 
+                        int32_t node_state = d_bwd_states_array[i][j]; 
+                        // int32_t node_state = d_bwd_states[states_start_idx + j]; 
                         if (node_state==-1)
-                            d_muts[mut_start_idx+j]=-1;
+                            d_muts_array[i][j]=-1;
+                            // d_muts[mut_start_idx+j]=-1;
                         else {
                             int child_id = leaf_or_not;
                             while(child_id > -1)
                             {
-                                int32_t child_state = d_bwd_states[states_start_idx+child_id];
+                                int32_t child_state = d_bwd_states_array[i][child_id];
+                                // int32_t child_state = d_bwd_states[states_start_idx+child_id];
                                 if (node_state != child_state) 
                                 {
                                     if (node_state == 0) // insertion
@@ -348,11 +354,13 @@ void fs_assign_mut(
                                         type = 1;
                                     else // subs
                                         type = 0;
-                                    d_muts[mut_start_idx+child_id] = (type<<4 | child_state);
+                                    d_muts_array[i][child_id] = (type<<4 | child_state);
+                                    // d_muts[mut_start_idx+child_id] = (type<<4 | child_state);
                                 } 
                                 else 
                                 {
-                                    d_muts[mut_start_idx+child_id] = -1;
+                                    d_muts_array[i][child_id] = -1;
+                                    // d_muts[mut_start_idx+child_id] = -1;
                                 }
                                 child_id = d_child_map[child_id];
                             }
@@ -368,7 +376,10 @@ void fs_assign_mut(
 }
 
 void allocate_mem_and_run(std::unordered_map<std::string, std::string>& seqs, int* leaf_or_not, int* child_map, int* order, std::unordered_map<std::string, std::pair<int, int>>& node_id_map,utility::util* u, std::unordered_map<int, std::string>&reverse_node_id_map, std::unordered_map<int, int>& internal_node_id_map){
-    FILE *file = fopen("mutations.txt", "w");
+    printf("%s\n", u->ref_seq.c_str());
+    std::string file_name = "mutations_8M_" + std::to_string(u->start_coordinate) + ".txt";
+    const char * c = file_name.c_str();
+    FILE *file = fopen(c, "w+");
     std::string error;
     
     int num_seq = u->num_tips;
@@ -385,7 +396,7 @@ void allocate_mem_and_run(std::unordered_map<std::string, std::string>& seqs, in
     }
 
     if (u->ref_name == ""){
-        printf("Currently the program requires users to pass reference to perform fitch-Sankoff\n");
+        fprintf(stderr,"Currently the program requires users to pass reference to perform fitch-Sankoff\n");
         exit(0);
     }
     
@@ -393,18 +404,14 @@ void allocate_mem_and_run(std::unordered_map<std::string, std::string>& seqs, in
     char *d_seqs,    *h_seqs,    *h_seqs_global;
     char *d_ref_seq, *h_ref_seq, *h_ref_seq_global;
     int32_t *d_ancestor[u->local_batch_size];
-    int8_t  *d_bwd_states;
-    // [u->local_batch_size];
-    int8_t  *d_muts;
-    // [u->local_batch_size];
+    int8_t  *d_bwd_states[u->local_batch_size];
+    int8_t  *d_muts[u->local_batch_size];
     int *d_leaf_or_not = new int [u->num_nodes];
     int *d_child_map   = new int [u->num_nodes];
     int *d_order       = new int [u->num_nodes];
     int *d_leaf_map    = new int [u->num_nodes];
     
     // allocate memory on CPU
-    // h_seqs_global    = (char *)malloc(u->global_batch_size*num_seq*sizeof(char));
-    // h_ref_seq_global = (char *)malloc(u->global_batch_size*num_seq*sizeof(char));
     h_seqs           = (char *)malloc(u->local_batch_size*num_seq*sizeof(char));
     h_ref_seq        = (char *)malloc(u->local_batch_size*sizeof(char));
     h_internal_node_id_map = (int*) malloc(u->num_nodes*sizeof(int));
@@ -415,16 +422,16 @@ void allocate_mem_and_run(std::unordered_map<std::string, std::string>& seqs, in
     // allocate memory on GPU
     size_t freeMemory, totalMemory;
     cudaMemGetInfo(&freeMemory, &totalMemory);
-    printf("============= Memory Usage on GPU ===============\n");
-    printf("Total memory on GPU:%lf GB\n", (double)totalMemory/(1024*1024*1024));
-    printf("Available memory: %lf GB\n", (double)freeMemory/(1024*1024*1024));
+    fprintf(stderr,"============= Memory Usage on GPU ===============\n");
+    fprintf(stderr,"Total memory on GPU:%lf GB\n", (double)totalMemory/(1024*1024*1024));
+    fprintf(stderr,"Available memory: %lf GB\n", (double)freeMemory/(1024*1024*1024));
     
-    printf("Allocating %lf GB for Seqs on GPU\n", (double)num_seq*u->local_batch_size/(1024*1024*1024));
-    printf("Allocating %lf GB for Tree structure on GPU\n", (double)u->num_nodes*5*4/(1024*1024*1024));
-    printf("Allocating %lf GB for Fitch forward states on GPU\n",((double)16*(u->num_nodes-u->num_tips)*u->local_batch_size*4 + u->local_batch_size * 8)/(1024*1024*1024));
-    printf("Allocating %lf GB for Ref seq on GPU\n", (double)u->local_batch_size/(1024*1024*1024));
-    printf("Allocating %lf GB for Fitch bwd states seq on GPU\n", (double)u->local_batch_size*u->num_nodes/(1024*1024*1024));
-    printf("Allocating %lf GB for Fitch mutation seq on GPU\n", (double)u->num_nodes*u->local_batch_size/(1024*1024*1024)); 
+    fprintf(stderr,"Allocating %lf GB for Seqs on GPU\n", (double)num_seq*u->local_batch_size/(1024*1024*1024));
+    fprintf(stderr,"Allocating %lf GB for Tree structure on GPU\n", (double)u->num_nodes*5*4/(1024*1024*1024));
+    fprintf(stderr,"Allocating %lf GB for Fitch forward states on GPU\n",((double)16*(u->num_nodes-u->num_tips)*u->local_batch_size*4 + u->local_batch_size * 8)/(1024*1024*1024));
+    fprintf(stderr,"Allocating %lf GB for Ref seq on GPU\n", (double)u->local_batch_size/(1024*1024*1024));
+    fprintf(stderr,"Allocating %lf GB for Fitch bwd states seq on GPU\n", (double)u->local_batch_size*u->num_nodes/(1024*1024*1024));
+    fprintf(stderr,"Allocating %lf GB for Fitch mutation seq on GPU\n", (double)u->num_nodes*u->local_batch_size/(1024*1024*1024)); 
     double total_usage = (double)num_seq*u->local_batch_size/(1024*1024*1024) + \
                          (double)u->num_nodes*5*4/(1024*1024*1024) + \
                          ((double)16*(u->num_nodes-u->num_tips)*u->local_batch_size*4 + u->local_batch_size *8)/(1024*1024*1024) + \
@@ -432,45 +439,47 @@ void allocate_mem_and_run(std::unordered_map<std::string, std::string>& seqs, in
                          (double)u->local_batch_size*u->num_nodes/(1024*1024*1024) + \
                          (double)u->num_nodes*u->local_batch_size/(1024*1024*1024);        
 
-    printf("\nTotal Usage: %lf GB\n", total_usage);
+    fprintf(stderr,"\nTotal Usage: %lf GB\n", total_usage);
     
     for (int i=0; i<u->local_batch_size; i++)
     {
         cudaMalloc(&d_ancestor[i], 16*(u->num_nodes-u->num_tips)*sizeof(int32_t));
-        // cudaMalloc(&d_bwd_states[i], u->num_nodes*sizeof(int8_t));
-        // cudaMalloc(&d_muts[i], u->num_nodes*sizeof(int8_t));
+        cudaMalloc(&d_bwd_states[i], u->num_nodes*sizeof(int8_t));
+        cudaMalloc(&d_muts[i], u->num_nodes*sizeof(int8_t));
     }
     
     int32_t** d_vectorsArray;
     int8_t** d_bwd_states_array;
     int8_t** d_muts_array;
     cudaMalloc(&d_vectorsArray, u->local_batch_size * sizeof(int32_t*));
-    // cudaMalloc(&d_bwd_states_array, u->local_batch_size * sizeof(int8_t*));
-    // cudaMalloc(&d_muts_array, u->local_batch_size * sizeof(int8_t*));
+    cudaMalloc(&d_bwd_states_array, u->local_batch_size * sizeof(int8_t*));
+    cudaMalloc(&d_muts_array, u->local_batch_size * sizeof(int8_t*));
     
     cudaMemcpy(d_vectorsArray, d_ancestor, u->local_batch_size * sizeof(int32_t*), cudaMemcpyHostToDevice);
-    // cudaMemcpy(d_bwd_states_array, d_bwd_states, u->local_batch_size * sizeof(int8_t*), cudaMemcpyHostToDevice);
-    // cudaMemcpy(d_muts_array, d_muts, u->local_batch_size * sizeof(int8_t*), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bwd_states_array, d_bwd_states, u->local_batch_size * sizeof(int8_t*), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_muts_array, d_muts, u->local_batch_size * sizeof(int8_t*), cudaMemcpyHostToDevice);
 
     error = cudaGetErrorString(cudaGetLastError()); 
     if (error != "no error") 
     {
-        printf("ERROR: cudaMallocPitch %s!\n", error.c_str());
+        fprintf(stderr,"ERROR: cudaMallocPitch %s!\n", error.c_str());
         exit(0);
     }
     cudaMalloc(&d_seqs, num_seq*u->local_batch_size*sizeof(char));
+    cudaMalloc(&d_ref_seq, u->local_batch_size*sizeof(char));
+    error = cudaGetErrorString(cudaGetLastError()); 
+    if (error != "no error") fprintf(stderr,"ERROR: Cuda Malloc Seqs %s!\n", error.c_str());
     cudaMalloc(&d_leaf_or_not, u->num_nodes*sizeof(int));
     cudaMalloc(&d_child_map, u->num_nodes*sizeof(int));
     cudaMalloc(&d_order, u->num_nodes*sizeof(int));
     cudaMalloc(&d_leaf_map, u->num_nodes*sizeof(int));
-    cudaMalloc(&d_ref_seq, u->local_batch_size*sizeof(char));
-    cudaMalloc(&d_bwd_states, u->local_batch_size*u->num_nodes*sizeof(int8_t));
-    cudaMalloc(&d_muts, u->num_nodes*u->local_batch_size*sizeof(int8_t));
     cudaMalloc(&d_internal_node_id_map, u->num_nodes*sizeof(int));
+    error = cudaGetErrorString(cudaGetLastError()); 
+    if (error != "no error") fprintf(stderr,"ERROR: Cuda Malloc Tree Structure %s!\n", error.c_str());
 
     cudaMemGetInfo(&freeMemory, &totalMemory);
-    printf("Free memory after allocation: %lf GB\n", (double)freeMemory/(1024*1024*1024));
-    printf("=================================================\n");
+    fprintf(stderr,"Free memory after allocation: %lf GB\n", (double)freeMemory/(1024*1024*1024));
+    fprintf(stderr,"=================================================\n");
 
     // Requires one time transfer
     cudaMemcpy(d_leaf_or_not, leaf_or_not, u->num_nodes*sizeof(int), cudaMemcpyHostToDevice);
@@ -479,13 +488,16 @@ void allocate_mem_and_run(std::unordered_map<std::string, std::string>& seqs, in
     cudaMemcpy(d_leaf_map, h_leaf_map, u->num_nodes*sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_internal_node_id_map, h_internal_node_id_map, u->num_nodes*sizeof(int), cudaMemcpyHostToDevice);
     
+    if (h_internal_node_id_map) free(h_internal_node_id_map);
+
     error = cudaGetErrorString(cudaGetLastError()); 
-    if (error != "no error") printf("ERROR: Cuda memcpy Trees structure %s!\n", error.c_str());
+    if (error != "no error") fprintf(stderr,"ERROR: Cuda memcpy %s!\n", error.c_str());
     
 
     size_t fitch_global_position = 0;
     while (fitch_global_position<u->ref_seq.size())
     {
+        
         auto batch_start = std::chrono::high_resolution_clock::now();
         if (u->ref_seq.size()-fitch_global_position<u->global_batch_size)
             u->global_batch_size = u->ref_seq.size()-fitch_global_position;
@@ -500,10 +512,11 @@ void allocate_mem_and_run(std::unordered_map<std::string, std::string>& seqs, in
         fprintf(stderr, "Reading Sequence took %lf mins\n", ((double)read_time.count()/1000000000)/60);
     
         size_t fitch_local_position = 0;
+        size_t local_batch_size = u->local_batch_size;
         while (fitch_local_position<u->global_batch_size)
         {
-            if (fitch_local_position+u->local_batch_size>u->global_batch_size)
-                u->local_batch_size = u->global_batch_size-fitch_local_position;
+            if (fitch_local_position+local_batch_size>u->global_batch_size)
+                local_batch_size = u->global_batch_size-fitch_local_position;
             fprintf(stderr, "%d...", fitch_local_position);
             for (auto s: node_id_map) {
                 int leaf_id             = s.second.second;
@@ -511,94 +524,104 @@ void allocate_mem_and_run(std::unordered_map<std::string, std::string>& seqs, in
                 std::string node_name   = s.first;
                 if (leaf_id>-1){
                     std::string seq = seqs[node_name];
-                    for (int i=0;i<u->local_batch_size;i++)
-                        h_seqs[leaf_id*u->local_batch_size+i]=seq[fitch_local_position+i];
+                    for (int i=0;i<local_batch_size;i++)
+                        h_seqs[leaf_id*local_batch_size+i]=seq[fitch_local_position+i];
                 }
             }
 
-            for (int i=0; i<u->local_batch_size;i++)
+            for (int i=0; i<local_batch_size;i++)
                 h_ref_seq[i]=u->ref_seq[fitch_global_position+fitch_local_position+i];
 
-            cudaMemcpy(d_seqs, h_seqs, num_seq*u->local_batch_size*sizeof(char), cudaMemcpyHostToDevice);
-            cudaMemcpy(d_ref_seq, h_ref_seq, u->local_batch_size*sizeof(char), cudaMemcpyHostToDevice);
+            cudaMemcpy(d_seqs, h_seqs, num_seq*local_batch_size*sizeof(char), cudaMemcpyHostToDevice);
+            cudaMemcpy(d_ref_seq, h_ref_seq, local_batch_size*sizeof(char), cudaMemcpyHostToDevice);
             
             error = cudaGetErrorString(cudaGetLastError()); 
-            if (error != "no error") printf("ERROR: Cuda memcpy %s!\n", error.c_str());
+            if (error != "no error") fprintf(stderr,"ERROR: Cuda memcpy %s!\n", error.c_str());
 
             auto fwd_start = std::chrono::high_resolution_clock::now();
-            fs_fwd<<<1024,1024>>>(d_seqs, d_leaf_map, d_leaf_or_not, d_child_map, d_order, u->num_nodes, seqs.size(), u->local_batch_size, u->max_order, d_vectorsArray, d_internal_node_id_map);
-            cudaDeviceSynchronize();
+            fs_fwd<<<1024,1024>>>(d_seqs, d_leaf_map, d_leaf_or_not, d_child_map, d_order, u->num_nodes, seqs.size(), local_batch_size, u->max_order, d_vectorsArray, d_internal_node_id_map);
+	    // std::cout << "fwd done" << std::endl;
+	        cudaDeviceSynchronize();
             auto fwd_end = std::chrono::high_resolution_clock::now();
             std::chrono::nanoseconds fwd_time = fwd_end - fwd_start;
             error = cudaGetErrorString(cudaGetLastError());
             if (error != "no error")
-                printf("ERROR: After fs_fwd - %s!\n", error.c_str());
+                fprintf(stderr,"ERROR: After fs_fwd - %s!\n", error.c_str());
 
 if (0)
 {
-    int16_t * h_ancestor = new int16_t[u->local_batch_size*u->num_nodes*16];    
-    cudaMemcpy(h_ancestor,    d_ancestor,    (u->local_batch_size*u->num_nodes*16)*sizeof(int16_t), cudaMemcpyDeviceToHost);
+    int16_t * h_ancestor = new int16_t[local_batch_size*u->num_nodes*16];    
+    cudaMemcpy(h_ancestor,    d_ancestor,    (local_batch_size*u->num_nodes*16)*sizeof(int16_t), cudaMemcpyDeviceToHost);
     error = cudaGetErrorString(cudaGetLastError());
     if (error != "no error")
-        printf("ERROR: After Copy to Host %s!\n", error.c_str());
+        fprintf(stderr,"ERROR: After Copy to Host %s!\n", error.c_str());
     for(auto n:node_id_map){
         int node_id = n.second.first;
-        printf("%s\n",n.first.c_str());
+        fprintf(stderr,"%s\n",n.first.c_str());
         for (int j=0;j<16;j++){
-            printf("%d\t", h_ancestor[node_id*16+j]);
+            fprintf(stderr,"%d\t", h_ancestor[node_id*16+j]);
         }
-        printf("\n");
+        fprintf(stderr,"\n");
     }
 }
         
 
             auto bwd_start = std::chrono::high_resolution_clock::now();
-            fs_bwd<<<1024,1024>>>(d_vectorsArray, d_bwd_states, d_ref_seq, d_leaf_or_not, d_child_map, d_order, u->num_nodes, seqs.size(), u->local_batch_size, u->max_order, d_seqs, d_leaf_map, d_internal_node_id_map);
-            cudaDeviceSynchronize();
+            fs_bwd<<<1024,1024>>>(d_vectorsArray, d_bwd_states_array, d_ref_seq, d_leaf_or_not, d_child_map, d_order, u->num_nodes, seqs.size(), local_batch_size, u->max_order, d_seqs, d_leaf_map, d_internal_node_id_map);
+            // std::cout << "bwd done" << std::endl;
+	        cudaDeviceSynchronize();
             auto bwd_end = std::chrono::high_resolution_clock::now();
             std::chrono::nanoseconds bwd_time = bwd_end-bwd_start;
 
             error = cudaGetErrorString(cudaGetLastError());
             if (error != "no error")
-                printf("ERROR: After fs_bwd - %s!\n", error.c_str());
+                fprintf(stderr,"ERROR: After fs_bwd - %s!\n", error.c_str());
 
 if (0)
 {
-    int16_t * h_states = new int16_t[u->local_batch_size*u->num_nodes];    
-    cudaMemcpy(h_states,    d_bwd_states,    (u->local_batch_size*u->num_nodes)*sizeof(int16_t), cudaMemcpyDeviceToHost);
+    int16_t * h_states = new int16_t[local_batch_size*u->num_nodes];    
+    cudaMemcpy(h_states,    d_bwd_states,    (local_batch_size*u->num_nodes)*sizeof(int16_t), cudaMemcpyDeviceToHost);
     error = cudaGetErrorString(cudaGetLastError());
     if (error != "no error")
-        printf("ERROR: After Copy to Host %s!\n", error.c_str());
+        fprintf(stderr,"ERROR: After Copy to Host %s!\n", error.c_str());
     int position = 0;
     for(auto n:node_id_map){
         int node_id = n.second.first;
         int16_t v = h_states[node_id + position*u->num_nodes];
-        printf("%d %s\n",node_id, n.first.c_str());
-        printf("%d\t",v);
+        fprintf(stderr,"%d %s\n",node_id, n.first.c_str());
+        fprintf(stderr,"%d\t",v);
         
-        printf("\n");
+        fprintf(stderr,"\n");
     }
 }
            
 
             auto mut_start = std::chrono::high_resolution_clock::now();
-            fs_assign_mut<<<1024,1024>>>(d_bwd_states, d_leaf_or_not, d_child_map, d_order, u->num_nodes, seqs.size(), u->local_batch_size, u->max_order, d_muts);
-            cudaDeviceSynchronize();
+            fs_assign_mut<<<1024,1024>>>(d_bwd_states_array, d_leaf_or_not, d_child_map, d_order, u->num_nodes, seqs.size(), local_batch_size, u->max_order, d_muts_array);
+            // std::cout << "mut done" << std::endl;
+	        cudaDeviceSynchronize();
             auto mut_end = std::chrono::high_resolution_clock::now();
             std::chrono::nanoseconds mut_time = mut_end-mut_start;
             error = cudaGetErrorString(cudaGetLastError());
             if (error != "no error")
-                printf("ERROR: After fs_assign_mut - %s!\n", error.c_str());
+                fprintf(stderr,"ERROR: After fs_assign_mut - %s!\n", error.c_str());
 
 if(1)
 {
 
-    int8_t * h_muts = new int8_t[u->num_nodes*u->local_batch_size];
-    cudaMemcpy(h_muts,    d_muts,    (u->num_nodes*u->local_batch_size)*sizeof(int8_t), cudaMemcpyDeviceToHost);
+    int8_t * h_muts[local_batch_size]; 
+    for (int i=0; i<local_batch_size;i++)
+    {
+        h_muts[i] = new int8_t[u->num_nodes];
+        cudaMemcpy(h_muts[i],    d_muts[i],    (u->num_nodes)*sizeof(int8_t), cudaMemcpyDeviceToHost);
+    }
+    // = new int8_t[u->num_nodes*local_batch_size];
+    // cudaMemcpy(h_muts,    d_muts,    (u->num_nodes*local_batch_size)*sizeof(int8_t), cudaMemcpyDeviceToHost);
 
     error = cudaGetErrorString(cudaGetLastError());
     if (error != "no error")
-        printf("ERROR: After Copy to Host %s!\n", error.c_str());
+        fprintf(stderr,"ERROR: After Copy to Host %s!\n", error.c_str());
+    std::cout << "writing mutations to file" << std::endl;
     for(auto n:node_id_map){
         int node_id = n.second.first;
         if (reverse_node_id_map[node_id] == "node_1")
@@ -608,9 +631,10 @@ if(1)
         // s+= reverse_node_id_map[node_id];
         // s += ":\t";
         int count_mutations=0;
-        for (int i=0; i<u->local_batch_size; i++)
+        for (int i=0; i<local_batch_size; i++)
         {
-            int8_t v = h_muts[i*u->num_nodes + node_id];
+            int8_t v = h_muts[i][node_id];
+            // int8_t v = h_muts[i*u->num_nodes + node_id];
             if (v!=-1)
             {
                 count_mutations++;
@@ -620,7 +644,8 @@ if(1)
                 if (type == 0) s+= 'S';
                 if (type == 1) s+= 'D';
                 if (type == 2) s+= 'I';
-                s += std::to_string(fitch_global_position+fitch_local_position+i);
+                // s += std::to_string(fitch_global_position+fitch_local_position+i);
+                s += std::to_string(fitch_global_position+fitch_local_position+i+u->start_coordinate);
                 s += getNucleotideFromCode(c);
                 s += '\t';
             }
@@ -634,35 +659,42 @@ if(1)
             mutations[reverse_node_id_map[node_id]].append(s);
         }
     }
+    for (int i=0; i<local_batch_size;i++)
+        delete[] h_muts[i];
 }
-            fitch_local_position += u->local_batch_size;
+            fitch_local_position += local_batch_size;
         }
         fprintf(stderr,"%d...\n", fitch_local_position);
         auto batch_end = std::chrono::high_resolution_clock::now();
         std::chrono::nanoseconds batch_time = batch_end - batch_start;
         fprintf(stderr,"Batch completed in %lf mins\n", ((double)batch_time.count()/1000000000)/60);
+        
+        auto consensus_start = std::chrono::high_resolution_clock::now();
 
-        for (int i=0; i<u->global_batch_size; i++)
-        {
-            char c = u->ref_seq[fitch_global_position+i];
-            if (c=='-')
-            {
+        tbb::parallel_for(tbb::blocked_range<int>(0, u->global_batch_size), [&](tbb::blocked_range<int> r) {
+            for (int i = r.begin(); i < r.end(); i++) {
                 bool found = false;
-                for (auto s: seqs) {
-                    if (s.second[i] != '-')
-                    {
-                        u->consensus[fitch_global_position+i] = s.second[i];
-                        found = true;
-                        break;
+                char c = u->ref_seq[fitch_global_position+i];
+                if (c=='-')
+                {
+                    for(auto s: seqs) {
+                        if (s.second[i] != '-')
+                        {
+                            u->consensus[fitch_global_position+i] = s.second[i];
+                            found = true;
+                            break;
+                        }
+                    }
+                    if(!found) {
+                        fprintf(stderr,"Error: Position %d has all -\n", i);
+                        exit(0);
                     }
                 }
-                if (found == false) 
-                {
-                    printf("Error: Position %d has all -\n", i);
-                    exit(0);
-                }
             }
-        }
+        });
+        auto consensus_end = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds consensus_time = consensus_end-consensus_start;
+        fprintf(stderr,"Consensus found in %lf mins\n", ((double)consensus_time.count()/1000000000)/60);
 
 if (1)
 {
@@ -691,7 +723,7 @@ if (1){
                 s += 'D';
             else // subs
                 s += 'S';
-            s+=std::to_string(i);
+            s+=std::to_string(i+u->start_coordinate);
             s+=child_state;
             s+='\t';
         } 
@@ -701,7 +733,9 @@ if (1){
 }
     fclose(file);
 
-    file = fopen("consensus.txt", "w"); 
+    std::string c_file_name = "consensus_8M_" + std::to_string(u->start_coordinate) + ".txt";
+    const char * cc = c_file_name.c_str();
+    file = fopen(cc, "w+"); 
     fprintf(file, "%s",u->consensus.c_str());
     fclose(file);
 
@@ -715,14 +749,18 @@ if (1){
     cudaFree(d_order);
     cudaFree(d_leaf_map);
     cudaFree(d_muts);
-    // cudaFree(d_muts_array);
-    // cudaFree(d_bwd_states_array);
+    
+    // free host buffers
+    delete[] h_leaf_map;
+    free(h_seqs);
+    free(h_ref_seq);
+    
 
     return;
 }
 
 void fitch_sankoff_on_gpu(panmanUtils::Tree* T, std::unordered_map<std::string, std::string>& seqs, utility::util* u) {
-    printf("Creating Tree for Device\n");
+    fprintf(stderr,"Creating Tree for Device\n");
     int *leaf_or_not,*child_map, *order;
     leaf_or_not = (int*)malloc(T->allNodes.size()*sizeof(int));
     child_map = (int*)malloc(T->allNodes.size()*sizeof(int));
@@ -744,12 +782,13 @@ void fitch_sankoff_on_gpu(panmanUtils::Tree* T, std::unordered_map<std::string, 
     u->max_order = max_order;
     u->num_nodes = id;
     u->num_tips = leaf_id;
-    
+
+
 if (0) {
     for (auto node: T->allNodes) {
         int new_id = node_id_map[node.first.c_str()].first;
-        printf("%d: %s, is a leaf: %d and has children: %d, and order: %d\n", new_id, node.first.c_str(), leaf_or_not[new_id], child_map[new_id], order[new_id]);
-        printf("Position %d - char %c\n", 0, seqs[node.first][0]);
+        fprintf(stderr,"%d: %s, is a leaf: %d and has children: %d, and order: %d\n", new_id, node.first.c_str(), leaf_or_not[new_id], child_map[new_id], order[new_id]);
+        fprintf(stderr,"Position %d - char %c\n", 0, seqs[node.first][0]);
     }
 }  
 

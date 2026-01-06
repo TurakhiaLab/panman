@@ -219,7 +219,11 @@ int main(int argc, char**argv){
     std::ifstream newick_file_istream (argv[1]); // newick file
     std::string fname = argv[2]; // MSA fasta file
     std::string ref_file = argv[3]; // ref alignment fasta file
-
+    int start_coordinate = std::stoi(argv[4]);
+    int gpu_id = std::stoi(argv[5]);
+    if (gpu_id>1 & gpu_id<0)
+	    std::cout << "GPU id should be 0/1" << std::endl;
+    cudaSetDevice(gpu_id);
     auto start = std::chrono::high_resolution_clock::now();
     
     panmanUtils::Tree* T = new panmanUtils::Tree(newick_file_istream);
@@ -233,8 +237,9 @@ if (1) {
     if(ref_file != "")
         read_seqs(ref_file, refs);
 
-    utility::util *u = new utility::util(10000, 300, 0, 0);
+    utility::util *u = new utility::util(4000, 100, 0, 0);
     u->seq_file_name = fname;
+    u->start_coordinate = start_coordinate;
 
     for (auto &a: refs)
     {
@@ -243,6 +248,9 @@ if (1) {
         u->msa_len = a.second.size();
         u->consensus = a.second;
     }
+
+    // make_seqs_equal(fname, seqs, 1, 16119);
+    // exit(0);
 
     fitch_sankoff_on_gpu(T, seqs, u);
     auto end = std::chrono::high_resolution_clock::now();
