@@ -430,6 +430,5 @@ panmanUtils -I panman/sars_20.panman
 We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman/issues). For general inquiries and support, reach out to our team.
 
 ## <b>Citing PanMAN</b>
-If you use the PanMANs or panmanUtils in your research or publications, we kindly request that you cite the following paper:<br> 
-* Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: [10.1101/2024.07.02.601807](https://doi.org/10.1101/2024.07.02.601807)
-
+If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper:
+* Walia S., Motwani H., Tseng YH., Smith K., Corbett-Detig R., Turakhia Y., <i>Compressive pangenomics using mutation-annotated networks</i>. <b>Nat Genet</b> (2026). [https://doi.org/10.1038/s41588-025-02478-7](https://doi.org/10.1038/s41588-025-02478-7)

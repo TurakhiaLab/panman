@@ -4,7 +4,7 @@
 [![DOI](https://img.shields.io/badge/DOI-https://zenodo.org/records/17781629-beige)](https://zenodo.org/records/17781629)
 [<img src="https://img.shields.io/badge/Install with-Conda-aquamarine.svg?logo=Anaconda">](https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;)
 [<img src="https://img.shields.io/badge/Install with-Docker-informational.svg?logo=Docker">](https://hub.docker.com/r/swalia14/panman)
-[<img src="https://img.shields.io/badge/Submitted to-bioRxiv-critical.svg?logo=arXiv">](https://doi.org/10.1101/2024.07.02.601807)
+[<img src="https://img.shields.io/badge/Published in-Nature Genetics-red">](https://doi.org/10.1038/s41588-025-02478-7)
 [<img src="https://img.shields.io/badge/Build with-CMake-green.svg?logo=CMake">](https://github.com/TurakhiaLab/panman/blob/main/install/installationUbuntu.sh)
 [<img src="https://img.shields.io/badge/Watch it on-Youtube-FF0000.svg?logo=YouTube">](https://www.youtube.com/watch?v=eh9zQElrmLI)
 [![Build Status](https://github.com/TurakhiaLab/panman/actions/workflows/ci.yml/badge.svg)](https://github.com/TurakhiaLab/panman/actions)
@@ -220,6 +220,6 @@ panmanUtils -I panman/sars_20.panman --vcf -reference="Switzerland/SO-ETHZ-50014
 We welcome contributions from the community to enhance the capabilities of PanMAN and <i>panmanUtils</i>. If you encounter any issues or have suggestions for improvement, please open an issue on [PanMAN GitHub page](https://github.com/TurakhiaLab/panman/issues). For general inquiries and support, reach out to our team.
 
 ## <a name="cite_panman"></a> Citing PanMAN <br>
-If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper: 
-* Sumit Walia, Harsh Motwani, Kyle Smith, Russell Corbett-Detig, Yatish Turakhia, "<i>Compressive Pangenomics Using Mutation-Annotated Networks</i>", bioRxiv 2024.07.02.601807; doi: [10.1101/2024.07.02.601807](https://doi.org/10.1101/2024.07.02.601807)
+If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper:
+* Walia S., Motwani H., Tseng YH., Smith K., Corbett-Detig R., Turakhia Y., <i>Compressive pangenomics using mutation-annotated networks</i>. <b>Nat Genet</b> (2026). [https://doi.org/10.1038/s41588-025-02478-7](https://doi.org/10.1038/s41588-025-02478-7)
 
