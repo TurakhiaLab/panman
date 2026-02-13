@@ -1,0 +1,1529 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="images/icon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>PanMAN</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="white">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#welcome-to-panman-wiki" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="PanMAN" class="md-header__button md-logo" aria-label="PanMAN" data-md-component="logo">
+      
+  <img src="images/icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PanMAN
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="white"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="navy-blue" data-md-color-accent="navy-blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/TurakhiaLab/panman" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TurakhiaLab/panman
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="index.html" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="PanMAN" class="md-nav__button md-logo" aria-label="PanMAN" data-md-component="logo">
+      
+  <img src="images/icon.png" alt="logo">
+
+    </a>
+    PanMAN
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/TurakhiaLab/panman" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TurakhiaLab/panman
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="index.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Introduction
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Introduction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-are-panmans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What are PanMANs?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#panmans-protocol-buffer-file-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PanMAN's Protocol Buffer file format
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#panmanutils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        panmanUtils
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#video-tutorial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Video Tutorial
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#panmanutils-installation-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        panmanUtils Installation Methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="panmanUtils Installation Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-using-conda-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Using conda (recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Using conda (recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        i. Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ii-install-panman-conda-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ii. Install panman conda package
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#iii-run-panmanutils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        iii. Run panmanUtils
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-using-docker-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Using Docker Image
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Using Docker Image">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-dependencies_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        i. Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ii-pull-and-build-the-panman-docker-image-from-dockerhub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ii. Pull and build the PanMAN docker image from DockerHub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#iii-run-panmanutils_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        iii. Run panmanUtils
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-using-dockerfile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Using DockerFile
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Using DockerFile">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-dependencies_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        i. Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ii-clone-the-repository-and-build-a-docker-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ii. Clone the repository and build a docker image
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#iii-build-and-run-the-docker-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        iii. Build and run the docker container
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#iv-run-panmanutils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        iv. Run panmanUtils
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-using-installation-script-least-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Using installation script (Least recommended)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Using installation script (Least recommended)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Dependencies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-clone-the-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Clone the repository
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-run-the-installation-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Run the installation script
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-run-panmanutils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Run panmanUtils
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#panman-construction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PanMAN Construction
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PanMAN Construction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building-panman-from-alignments-pangraphgfamsa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building PanMAN from Alignments (PanGraph/GFA/MSA)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Building PanMAN from Alignments (PanGraph/GFA/MSA)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building-panman-from-pangraph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building PanMAN from PanGraph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#building-panman-from-gfa" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building PanMAN from GFA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#building-panman-from-msa-fasta-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building PanMAN from MSA (FASTA format)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#building-panman-from-raw-genome-sequences-or-fragment-assemblies-using-snakemake-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building PanMAN from raw genome sequences or fragment assemblies using Snakemake Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Building PanMAN from raw genome sequences or fragment assemblies using Snakemake Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#building-panman-from-raw-genome-sequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building PanMAN from raw genome sequences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#building-panman-from-fragment-assemblies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building PanMAN from fragment assemblies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exploring-utilities-in-panmanutils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exploring utilities in panmanUtils
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Exploring utilities in panmanUtils">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#functionalities-in-panmanutils" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functionalities in panmanUtils
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functionalities in panmanUtils">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#summary-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#newick-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Newick extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extended-newick-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extended Newick extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tipinternal-node-sequences-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tip/internal node sequences extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multiple-sequence-alignment-msa-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple Sequence Alignment (MSA) extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multiple-whole-genome-alignment-m-wga-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple Whole Genome Alignment (m-WGA) extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#variant-call-format-vcf-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variant Call Format (VCF) extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#graphical-fragment-assembly-gfa-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graphical fragment assembly (GFA) extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subnetwork-extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subnetwork extract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#annotate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#amino-acid-translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Amino Acid Translation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#range-query" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Range Query
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#panmanutils-interactive-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        panmanUtils Interactive mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#citing-panman" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Citing PanMAN
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/TurakhiaLab/panman/edit/master/docs/index.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/TurakhiaLab/panman/raw/master/docs/index.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
+    </a>
+  
+
+
+<h1 id="welcome-to-panman-wiki"><b>Welcome to PanMAN Wiki</b></h1>
+<div align="center">
+    <img src="images/logo.png"/>
+</div>
+
+<h2 id="introduction"><b>Introduction</b></h2>
+<h3 id="what-are-panmans">What are PanMANs?</h3>
+<iframe width="1000" height="600" src="https://www.youtube.com/embed/VZFIg7x9tVw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<p>PanMAN or Pangenome Mutation-Annotated Network is a novel data representation for pangenomes that provides massive leaps in both representative power and storage efficiency. Specifically, PanMANs are composed of mutation-annotated trees, called PanMATs, which, in addition to substitutions, also annotate inferred indels (Fig. 2b), and even structural mutations (Fig. 2a) on the different branches. Multiple PanMATs are connected in the form of a network using edges to generate a PanMAN (Fig. 2c). PanMAN's representative power is compared against existing pangenomic formats in Fig. 1. PanMANs are the most compressible pangenomic format for the different microbial datasets (SARS-CoV-2, RSV, HIV, Mycobacterium. Tuberculosis, E. Coli, and Klebsiella pneumoniae), providing 2.9 to 559-fold compression over standard pangenomic formats. </p>
+<div align="center">
+    <img src="images/figure1.svg" width="600" height="600"/><br>
+    <b>Figure 1: Comparison of representative power of PanMAN against other pangenomic formats (yellow ticks indicate partial representative ability)</b><br>
+</div>
+<p><br>
+<br></p>
+<div align="center">
+    <img src="images/panman.svg" width="600" height="600"/><br>
+    <b>Figure 2: Overview of the PanMAN data structure</b><br>
+</div>
+
+<h3 id="panmans-protocol-buffer-file-format">PanMAN's Protocol Buffer file format</h3>
+<p>PanMAN utilizes Google’s protocol buffer (protobuf, <a href="https://protobuf.dev/">https://protobuf.dev/</a>), a binary serialization file format, to compactly store PanMAN's data structure in a file. Fig. 3 provides the .proto file defining the PanMAN’s structure. At the top level, the file format of PanMANs encodes a list (declared as a repeated identifier in the .protof file) of PanMATs. Each PanMAT object stores the following data elements: (a) a unique identifier, (b) a phylogenetic tree stored as a string in Newick format, (c) a list of mutations on each branch ordered according to the pre-order traversal of the tree topology, (d) a block mapping object to record homologous segments identified as duplications and rearrangements, which are mapped against their common consensus sequence; the block-mapping object is also used to derive the pseudo-root, e) a gap list to store the position and length of gaps corresponding to each block's consensus sequence. Each mutation object encodes the node's block and nucleotide mutations that are inferred on the branches leading to that node. If a block mutation exists at a position described by the Block-ID field (int32), the block mutation field (bool) is set to 1, otherwise set to 0, and its type is stored as a substitution to and from a gap in Block mutation type field (bool), encoded as 0 or 1, respectively. In PanMAN, each nucleotide mutation within a block inferred on a branch has four pieces of information, i.e., position (middle coordinate), gap position (last coordinate), mutation type, and mutated characters. To reduce redundancy in the file, consecutive mutations of the same type are packed together and stored as a mutation info (int32) field, where mutation type, mutation length, and mutated characters use 3, 5, and 24 bits, respectively. PanMAN stores each character using one-hot encoding, hence, one "Nucleotide Mutations" object can store up to 6 consecutive mutations of the same type. PanMAN's file also stores the complex mutation object to encode the type of complex mutation and its metadata such as PanMATs' and nodes' identifiers, breakpoint coordinates, etc. The entire file is then compressed using XZ (<a href="https://github.com/tukaani-project/xz">https://github.com/tukaani-project/xz</a>) to enhance storage efficiency.</p>
+<div align="center">
+    <img src="images/pb.svg" width="600" height="600"/><br>
+    <b>Figure 3: PanMAN's file format</b>
+</div>
+
+<h3 id="panmanutils"><i>panmanUtils</i></h3>
+<p><i>panmanUtils</i> includes multiple algorithms to construct PanMANs and to support various functionalities to modify and extract useful information from PanMANs (Fig. 4). </p>
+<div align="center">
+    <img src="images/utility.svg" width="600" height="600"/><br>
+    <b>Figure 4:  Overview of panmanUtils' functionalities</b>
+</div>
+
+<h3 id="video-tutorial">Video Tutorial</h3>
+<iframe width="1000" height="600" src="https://www.youtube.com/embed/eh9zQElrmLI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+<p><a name="install"></a></p>
+<h2 id="panmanutils-installation-methods"><b><i>panmanUtils</i> Installation Methods</b></h2>
+<p><b><i>panmanUtils</i></b> software can be installed using four different methods:</p>
+<ol>
+<li>Conda (Recommended) </li>
+<li>Docker Image</li>
+<li>Dockerfile</li>
+<li>Installation scripts </li>
+</ol>
+<h3 id="1-using-conda-recommended">1. Using conda (recommended)</h3>
+<p>Users can install <i>panmanUtils</i> through installation of <a href="https://bioconda.github.io/recipes/panman/README.html#package-package%20&#x27;panman&#x27;">panman conda package</a>, compatible with <code>linux-64</code> and <code>osx-64</code>. For modern macs using Apple silicon (arm64), you need to install Rosetta 2.</p>
+<h4 id="i-dependencies">i. Dependencies</h4>
+<ol>
+<li><a href="https://docs.conda.io/en/latest/">Conda</a></li>
+</ol>
+<h4 id="ii-install-panman-conda-package">ii. Install panman conda package</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a># Create and activate a new environment for panman
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>conda create -n panman-env python=3.11 -y
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>conda activate panman-env
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a># Set up channels
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>conda config --add channels defaults
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>conda config --add channels bioconda
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>conda config --add channels conda-forge
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a># On macOS ARM:
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a># conda config --env --set subdir osx-64
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a># Install the panman package
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>conda install panman -y
+</code></pre></div>
+<h4 id="iii-run-panmanutils">iii. Run <i>panmanUtils</i></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>panmanUtils --help
+</code></pre></div>
+<h3 id="2-using-docker-image">2. Using Docker Image</h3>
+<p>To use <i>panmanUtils</i> in a docker container, users can create a docker container from a docker image, by following these steps (compatible with <code>linux-64</code> and <code>osx-64</code>).</p>
+<h4 id="i-dependencies_1">i. Dependencies</h4>
+<ol>
+<li><a href="https://docs.docker.com/engine/install/">Docker</a></li>
+</ol>
+<h4 id="ii-pull-and-build-the-panman-docker-image-from-dockerhub">ii. Pull and build the PanMAN docker image from DockerHub</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">## Note: If the Docker image already exists locally, make sure to pull the latest version using </span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1">## docker pull swalia14/panman:latest</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1">## If the Docker image does not exist locally, the following command will pull and run the latest version</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>swalia14/panman:latest
+</code></pre></div>
+<h4 id="iii-run-panmanutils_1">iii. Run <i>panmanUtils</i></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Insider docker container</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>panmanUtils<span class="w"> </span>--help
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><b>The docker image comes with preinstalled <i>panmanUtils</i> and other tools such as PanGraph, PGGB, and RIVET.</b></p>
+</div>
+<h3 id="3-using-dockerfile">3. Using DockerFile</h3>
+<p>Docker container with preinstalled <i>panmanUtils</i> can also be built from DockerFile by following these steps (compatible with <code>linux-64</code> and <code>osx-64</code>).</p>
+<h4 id="i-dependencies_2">i. Dependencies</h4>
+<ol>
+<li><a href="https://docs.docker.com/engine/install/">Docker</a></li>
+<li><a href="https://git-scm.com/downloads">Git</a></li>
+</ol>
+<h4 id="ii-clone-the-repository-and-build-a-docker-image">ii. Clone the repository and build a docker image</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/TurakhiaLab/panman.git
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">cd</span><span class="w"> </span>panman/docker
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>panman<span class="w"> </span>.
+</code></pre></div>
+<h4 id="iii-build-and-run-the-docker-container">iii. Build and run the docker container</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-it<span class="w"> </span>panman
+</code></pre></div>
+<h4 id="iv-run-panmanutils">iv. Run <i>panmanUtils</i></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Insider docker container</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>panmanUtils<span class="w"> </span>--help
+</code></pre></div>
+<h3 id="4-using-installation-script-least-recommended">4. Using installation script (Least recommended)</h3>
+<p>We provide scripts to install panmanUtils from source code (requires <code>sudo</code> access, compatible with <code>Linux</code> only). <code>Mac</code> users can use <a href="https://github.com/TurakhiaLab/panman/blob/main/install/installationMacOS.sh">MacOS specific installation script</a>, that uses <code>conda</code> to install <i>panmanUtils</i>.</p>
+<h4 id="1-dependencies">1. Dependencies</h4>
+<ol>
+<li><a href="https://git-scm.com/downloads">Git</a></li>
+</ol>
+<h4 id="2-clone-the-repository">2. Clone the repository</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/TurakhiaLab/panman.git
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">cd</span><span class="w"> </span>panman
+</code></pre></div>
+<h4 id="3-run-the-installation-script">3. Run the installation script</h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>chmod<span class="w"> </span>+x<span class="w"> </span>install/installationUbuntu.sh
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>./install/installationUbuntu.sh
+</code></pre></div>
+<h4 id="4-run-panmanutils">4. Run <i>panmanUtils</i></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>build
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>./panmanUtils<span class="w"> </span>--help
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><b><i>panmanUtils</i> is built using CMake and depends upon libraries such as Boost, cap'n proto, etc, which are also installed in <code>installationUbuntu.sh</code>. If users face version issues, try using the conda or docker methods detailed above.</b></p>
+</div>
+<p><a name="construction"></a></p>
+<h2 id="panman-construction"><b>PanMAN Construction</b></h2>
+<p>Here, we will learn to build PanMAN from various input formats.</p>
+<p><strong>Step 0:</strong> The Steps below require <i>panmanUtils</i>, if not done so far, refer to <a href="#install">installation guide</a> to install <i>panmanUtils</i>. To check if <i>panmanUtils</i> is properly installed or not, run the following command, and it should execute without error
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>panmanUtils<span class="w"> </span>--help
+</code></pre></div></p>
+<h3 id="building-panman-from-alignments-pangraphgfamsa">Building PanMAN from Alignments (PanGraph/GFA/MSA)</h3>
+<h4 id="building-panman-from-pangraph">Building PanMAN from PanGraph</h4>
+<p><strong>Step 1:</strong> Check if <code>sars_20.json</code> and <code>sars_20.nwk</code> files exist in <code>test</code> directory. Alternatively, users can provide custom PanGraph (JSON) and tree topology (Newick format) files to build a panman. </p>
+<p><strong>Step 2:</strong> Run <i>panmanUtils</i> with the following command to build a panman from PanGraph:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>panmanUtils<span class="w"> </span>-P<span class="w"> </span><span class="nv">$PANMAN_HOME</span>/test/sars_20.json<span class="w"> </span>-N<span class="w"> </span><span class="nv">$PANMAN_HOME</span>/test/sars_20.nwk<span class="w"> </span>-o<span class="w"> </span>sars_20
+</code></pre></div>
+The above command will run <i>panmanUtils</i> program and build <code>sars_20.panman</code> in <code>$PANMAN_HOME/build/panman</code> directory.</p>
+<h4 id="building-panman-from-gfa">Building PanMAN from GFA</h4>
+<p><strong>Step 1:</strong> Check if <code>sars_20.gfa</code> and <code>sars_20.nwk</code> files exist in <code>test</code> directory. Alternatively, users can provide custom GFA and tree topology (Newick format) files to build a panman. </p>
+<p><strong>Step 2:</strong> Run <i>panmanUtils</i> with the following command to build a panman from GFA:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>panmanUtils<span class="w"> </span>-G<span class="w"> </span><span class="nv">$PANMAN_HOME</span>/test/sars_20.gfa<span class="w"> </span>-N<span class="w"> </span><span class="nv">$PANMAN_HOME</span>/test/sars_20.nwk<span class="w"> </span>-o<span class="w"> </span>sars_20
+</code></pre></div>
+The above command will run <i>panmanUtils</i> program and build <code>sars_20.panman</code> in <code>$PANMAN_HOME/build/panman</code> directory.</p>
+<h4 id="building-panman-from-msa-fasta-format">Building PanMAN from MSA (FASTA format)</h4>
+<p><strong>Step 1:</strong> Check if <code>sars_20.msa</code> and <code>sars_20.nwk</code> files exist in <code>test</code> directory. Alternatively, users can provide custom MSA (FASTA format) and tree topology (Newick format) files to build a panman. </p>
+<p><strong>Step 2:</strong> Run <i>panmanUtils</i> to build a panman from GFA using the following commands:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>panmanUtils<span class="w"> </span>-M<span class="w"> </span><span class="nv">$PANMAN_HOME</span>/test/sars_20.msa<span class="w"> </span>-N<span class="w"> </span><span class="nv">$PANMAN_HOME</span>/test/sars_20.nwk<span class="w"> </span>-o<span class="w"> </span>sars_20
+</code></pre></div>
+The above command will run <i>panmanUtils</i> program and build <code>sars_20.panman</code> in <code>$PANMAN_HOME/build/panman</code> directory.</p>
+<h3 id="building-panman-from-raw-genome-sequences-or-fragment-assemblies-using-snakemake-workflow">Building PanMAN from raw genome sequences or fragment assemblies using Snakemake Workflow</h3>
+<p>We provide a Snakemake workflow to construct PanMANs from raw sequences (FASTA format) or from fragment assemblies.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><b>The Snakemake workflow uses various tools such as PanGraph tool, PGGB, MAFFT, and MashTree to build input PanGraph, GFA, MSA, and Tree topology files, respectively and it is particularly designed to be used in the docker container build from either the provided docker image or the DockerFile (instructions provided <a href="#install">here</a>).</b></p>
+</div>
+<h4 id="building-panman-from-raw-genome-sequences">Building PanMAN from raw genome sequences</h4>
+<p><strong>Step 1:</strong> Run the following command to construct a panman from raw sequences.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nb">cd</span><span class="w"> </span><span class="nv">$PANMAN_HOME</span>/workflows
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>snakemake<span class="w"> </span>--use-conda<span class="w"> </span>--cores<span class="w"> </span><span class="m">8</span><span class="w"> </span>--config<span class="w"> </span><span class="nv">RUNTYPE</span><span class="o">=</span><span class="s2">&quot;pangraph/gfa/msa&quot;</span><span class="w"> </span><span class="nv">FASTA</span><span class="o">=</span><span class="s2">&quot;[user_input]&quot;</span><span class="w"> </span><span class="nv">SEQ_COUNT</span><span class="o">=</span><span class="s2">&quot;Number of sequences&quot;</span><span class="w"> </span><span class="nv">ASSEM</span><span class="o">=</span><span class="s2">&quot;NONE&quot;</span><span class="w"> </span><span class="nv">REF</span><span class="o">=</span><span class="s2">&quot;NONE&quot;</span><span class="w"> </span><span class="nv">TARGET</span><span class="o">=</span><span class="s2">&quot;NONE&quot;</span>
+</code></pre></div>
+<h4 id="building-panman-from-fragment-assemblies">Building PanMAN from fragment assemblies</h4>
+<p><strong>Step 1:</strong> Run the following command to construct a panman from fragment assemblies.</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nb">cd</span><span class="w"> </span><span class="nv">$PANMAN_HOME</span>/workflows
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>snakemake<span class="w"> </span>--use-conda<span class="w"> </span>--cores<span class="w"> </span><span class="m">8</span><span class="w"> </span>--config<span class="w"> </span><span class="nv">RUNTYPE</span><span class="o">=</span><span class="s2">&quot;pangraph/gfa/msa&quot;</span><span class="w"> </span><span class="nv">FASTA</span><span class="o">=</span><span class="s2">&quot;None&quot;</span><span class="w"> </span><span class="nv">SEQ_COUNT</span><span class="o">=</span><span class="s2">&quot;Number of sequences&quot;</span><span class="w"> </span><span class="nv">ASSEM</span><span class="o">=</span><span class="s2">&quot;frag&quot;</span><span class="w"> </span><span class="nv">REF</span><span class="o">=</span><span class="s2">&quot;reference_file&quot;</span><span class="w"> </span><span class="nv">TARGET</span><span class="o">=</span><span class="s2">&quot;target.txt&quot;</span>
+</code></pre></div>
+Here, target.txt includes a list of files that contain the fragmented assemblies.</p>
+<h2 id="exploring-utilities-in-panmanutils"><b>Exploring utilities in <i>panmanUtils</i></b></h2>
+<p>Here, we will learn to use various functionalities provided in <i>panmanUtils</i> software for downstream applications in epidemiological, microbiological, metagenomic, ecological, and evolutionary studies.</p>
+<p><strong>Step 0:</strong> The Steps below require panmanUtils and a PanMAN. We provide a pre-built panman (<code>sars_20.panman</code>), otherwise, refer to <a href="#install">installation guide</a> to install panmanUtils and <a href="#construction">construction</a> instructions to build a PanMAN. </p>
+<!-- ```bash
+# Assuming $PANMAN directs to the panman repository directory
+cd $PANMAN_HOME
+mkdir -p build/panman && cd build/panman
+ToDO
+``` -->
+
+<h3 id="functionalities-in-panmanutils">Functionalities in <i>panmanUtils</i></h3>
+<p>All panmanUtils functionality commands manipulate the input PanMAN file.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nb">cd</span><span class="w"> </span><span class="nv">$PANMAN_HOME</span>/build
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">{</span>opt<span class="o">}</span>
+</code></pre></div>
+<a name="table1"></a></p>
+<div align="center"> <b>Table 1:</b> List of functionalities supported by <i>panmanUtils</i> </div>
+
+<table>
+<thead>
+<tr>
+<th><strong>Option</strong></th>
+<th><strong>Description</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-I</code>, <code>--input-panman</code></td>
+<td>Input PanMAN file path</td>
+</tr>
+<tr>
+<td><code>-s</code>, <code>--summary</code></td>
+<td>Print PanMAN summary</td>
+</tr>
+<tr>
+<td><code>-t</code>, <code>--newick</code></td>
+<td>Print Newick string of all trees in a PanMAN</td>
+</tr>
+<tr>
+<td><code>-f</code>, <code>--fasta</code></td>
+<td>Print tip/internal sequences (FASTA format)</td>
+</tr>
+<tr>
+<td><code>-m</code>, <code>--fasta-aligned</code></td>
+<td>Print MSA of sequences for each PanMAT in a PanMAN (FASTA format)</td>
+</tr>
+<tr>
+<td><code>-b</code>, <code>--subnet</code></td>
+<td>Extract subnet of given PanMAN to a new PanMAN file based on the list of nodes provided in the input file</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--vcf</code></td>
+<td>Print variations of all sequences from any PanMAT in a PanMAN (VCF format)</td>
+</tr>
+<tr>
+<td><code>-g</code>, <code>--gfa</code></td>
+<td>Convert any PanMAT in a PanMAN to a GFA file</td>
+</tr>
+<tr>
+<td><code>-w</code>, <code>--maf</code></td>
+<td>Print m-WGA for each PanMAT in a PanMAN (MAF format)</td>
+</tr>
+<tr>
+<td><code>-a</code>, <code>--annotate</code></td>
+<td>Annotate nodes of the input PanMAN based on the list provided in the input file</td>
+</tr>
+<tr>
+<td><code>-r</code>, <code>--reroot</code></td>
+<td>Reroot a PanMAT in a PanMAN based on the input sequence id (<code>--reference</code>)</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--aa-translation</code></td>
+<td>Extract amino acid translations in tsv file</td>
+</tr>
+<tr>
+<td><code>-e</code>, <code>--extended-newick</code></td>
+<td>Print PanMAN's network in extended-newick format</td>
+</tr>
+<tr>
+<td><code>-k</code>, <code>--create-network</code></td>
+<td>Create PanMAN with network of trees from single or multiple PanMAN files</td>
+</tr>
+<tr>
+<td><code>-p</code>, <code>--printMutations</code></td>
+<td>Create PanMAN with network of trees from single or multiple PanMAN files</td>
+</tr>
+<tr>
+<td><code>-q</code>, <code>--acr</code></td>
+<td>ACR method <code>[fitch(default), mppa]</code></td>
+</tr>
+<tr>
+<td><code>-n</code>, <code>--reference</code></td>
+<td>Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)</td>
+</tr>
+<tr>
+<td><code>-s</code>, <code>--start</code></td>
+<td>Start coordinate of protein translation</td>
+</tr>
+<tr>
+<td><code>-e</code>, <code>--end</code></td>
+<td>End coordinate of protein translation</td>
+</tr>
+<tr>
+<td><code>-d</code>, <code>--treeID</code></td>
+<td>Tree ID, required for <code>--vcf</code></td>
+</tr>
+<tr>
+<td><code>-i</code>, <code>--input-file</code></td>
+<td>Path to the input file, required for <code>--subnet</code>, <code>--annotate</code>, and <code>--create-network</code></td>
+</tr>
+<tr>
+<td><code>-o</code>, <code>--output-file</code></td>
+<td>Prefix of the output file name</td>
+</tr>
+<tr>
+<td><code>-V</code>, <code>--version</code></td>
+<td>panmanUtils Version</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Important:</strong> When output-file argument is optional and is not provided to <i>panmanUtils</i>, the output will be printed in the terminal.</p>
+</blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><b>For all the examples below, <code>sars_20.panman</code> will be used as input panman. Alternatively, users can provide custom build panman using the instructions provided <a href="#construction">here</a>.</b></p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><b>Users can reduce memory consumption by lowering the number of CPU threads (default set to 32) through the --threads option in panmanUtils, at a cost of higher latency.</b></p>
+</div>
+<h4 id="summary-extract">Summary extract</h4>
+<p>The summary feature extracts node and tree level statistics of a PanMAN, that contains a summary of its geometric and parsimony information.</p>
+<ul>
+<li>Usage Syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--summary<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w">  </span>--summary<span class="w"> </span>--output-file<span class="o">=</span>sars_20
+</code></pre></div></li>
+</ul>
+<h4 id="newick-extract">Newick extract</h4>
+<p>Extract Newick string of all trees in a PanMAN.</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--newick<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--newick<span class="w"> </span>--output-file<span class="o">=</span>sars_20
+</code></pre></div></li>
+</ul>
+<h4 id="extended-newick-extract">Extended Newick extract</h4>
+<p>Extract network in Extended Newick format.</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--extended-newick<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--extended-newick<span class="w"> </span>--output-file<span class="o">=</span>sars_20
+</code></pre></div></li>
+</ul>
+<h4 id="tipinternal-node-sequences-extract">Tip/internal node sequences extract</h4>
+<p>Extract tip and internal node sequences from a PanMAN in a FASTA format.</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--fasta<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--fasta<span class="w"> </span>--output-file<span class="o">=</span>sars_20
+</code></pre></div></li>
+</ul>
+<h4 id="multiple-sequence-alignment-msa-extract">Multiple Sequence Alignment (MSA) extract</h4>
+<p>Extract the MSA of sequences for each PanMAT (with pseudo-root  coordinates) in a PanMAN in a FASTA format.</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--fasta-aligned<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--fasta-aligned<span class="w"> </span>--output-file<span class="o">=</span>sars_20
+</code></pre></div></li>
+</ul>
+<h4 id="multiple-whole-genome-alignment-m-wga-extract">Multiple Whole Genome Alignment (m-WGA) extract</h4>
+<p>Extract m-WGA for each PanMAT in a PanMAN in the form of a UCSC multiple alignment format (MAF).</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--maf<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--maf<span class="w"> </span>--output-file<span class="o">=</span>sars_20
+</code></pre></div></li>
+</ul>
+<h4 id="variant-call-format-vcf-extract">Variant Call Format (VCF) extract</h4>
+<p>Extract variations of all sequences from any PanMAT in a PanMAN in the form of a VCF file with respect to <i>any</i> reference sequence (ref) in the PanMAT.</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--vcf<span class="w"> </span>-reference<span class="o">=</span>ref<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span><span class="w"> </span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--vcf<span class="w"> </span>-reference<span class="o">=</span><span class="s2">&quot;Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12&quot;</span><span class="w"> </span>--output-file<span class="o">=</span>sars_20<span class="w"> </span>
+</code></pre></div></li>
+</ul>
+<h4 id="graphical-fragment-assembly-gfa-extract">Graphical fragment assembly (GFA) extract</h4>
+<p>Convert any PanMAT in a PanMAN to a Graphical fragment assembly (GFA) file representing the pangenome.</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--gfa<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--gfa<span class="w"> </span>--output-file<span class="o">=</span>sars_20<span class="w"> </span>
+</code></pre></div></li>
+</ul>
+<h4 id="subnetwork-extract">Subnetwork extract</h4>
+<p>Extract a subnetwork from a given PanMAN and write it to a new PanMAN file based on the list of nodes provided in the input-file.</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--subnet<span class="w"> </span>--input-file<span class="o">=</span>&lt;path<span class="w"> </span>to<span class="w"> </span>a<span class="w"> </span>file<span class="w"> </span>containing<span class="w"> </span>list<span class="w"> </span>of<span class="w"> </span>nodes&gt;<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--subnet<span class="w"> </span>--input-file<span class="o">=</span>nodes.txt<span class="w"> </span>--output-file<span class="o">=</span>sars_20_subnet
+</code></pre></div></li>
+</ul>
+<h4 id="annotate">Annotate</h4>
+<p>Annotate nodes in a PanMAN with a custom string, later searched by these annotations, using an input TSV file containing a list of nodes and their corresponding custom annotations. </p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--annotate<span class="w"> </span>--input-file<span class="o">=</span>&lt;path<span class="w"> </span>to<span class="w"> </span>file<span class="w"> </span>containing<span class="w"> </span>list<span class="w"> </span>of<span class="w"> </span>annotations&gt;<span class="w"> </span>--output-file<span class="o">=</span>sars_20_annotate
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--annotate<span class="w"> </span>--input-file<span class="o">=</span>annotations.tsv<span class="w"> </span>--output-file<span class="o">=</span>sars_20_annotate
+</code></pre></div><blockquote>
+<p><strong>NOTE:</strong> If output-file is not provided to <i>panmanUtils</i>, the annotated PanMAN will be written to the same file.</p>
+</blockquote>
+</li>
+</ul>
+<h4 id="amino-acid-translation">Amino Acid Translation</h4>
+<p>Extract amino acid translations from a PanMAN in a TSV file.</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--aa-translations<span class="w"> </span>--output-file<span class="o">=</span>&lt;prefix<span class="w"> </span>of<span class="w"> </span>output<span class="w"> </span>file&gt;<span class="w"> </span><span class="o">(</span>optional<span class="o">)</span>
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman<span class="w"> </span>--aa-translations<span class="w"> </span>--output_file<span class="o">=</span>sars_20
+</code></pre></div></li>
+</ul>
+<h4 id="range-query">Range Query</h4>
+<p><i>panmanUtils</i> allow extracting alignment of all the sequences of a single PanMAT in a PanMAN (FASTA format) with respect to a user-defined reference sequence between positions [start:end]</p>
+<ul>
+<li>Usage syntax
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--index<span class="w"> </span>no<span class="w"> </span>-x<span class="w"> </span>start<span class="w"> </span>-y<span class="w"> </span>end<span class="w"> </span>--reference<span class="o">=</span>&lt;ref<span class="w"> </span>sequence<span class="w"> </span>name&gt;
+</code></pre></div></li>
+<li>Example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;<span class="w"> </span>--index<span class="w"> </span>no<span class="w"> </span>-x<span class="w"> </span><span class="m">10</span><span class="w"> </span>-y<span class="w"> </span><span class="m">100</span><span class="w"> </span>--reference<span class="o">=</span><span class="s2">&quot;Switzerland/SO-ETHZ-500145/2020|OU000199.2|2020-11-12&quot;</span>
+</code></pre></div></li>
+</ul>
+<h3 id="panmanutils-interactive-mode"><i>panmanUtils</i> Interactive mode</h3>
+<p><strong>Step 1:</strong> Users can enter <i>panmanUtils</i>'s interactive mode by passing input panman as input using the following command:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>&lt;path<span class="w"> </span>to<span class="w"> </span>PanMAN<span class="w"> </span>file&gt;
+<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a><span class="c1">## Example</span>
+<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a>panmanUtils<span class="w"> </span>-I<span class="w"> </span>panman/sars_20.panman
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><b>The interactive mode should look like the image attached below</b></p>
+</div>
+<p><img alt="Interactive Mode" src="images/interactiveMode.png" /></p>
+<p><strong>Step 2:</strong> Use the commands listed in <a href="#table1">Table 1</a> to perform desired operation</p>
+<h2 id="contributions"><b>Contributions</b></h2>
+<p>We welcome contributions from the community to enhance the capabilities of PanMAN and panmanUtils. If you encounter any issues or have suggestions for improvement, please open an issue on <a href="https://github.com/TurakhiaLab/panman/issues">PanMAN GitHub page</a>. For general inquiries and support, reach out to our team.</p>
+<h2 id="citing-panman"><b>Citing PanMAN</b></h2>
+<p>If you use the PanMANs or <i>panmanUtils</i> in your research or publications, we kindly request that you cite the following paper:
+* Walia S., Motwani H., Tseng YH., Smith K., Corbett-Detig R., Turakhia Y., <i>Compressive pangenomics using mutation-annotated networks</i>. <b>Nat Genet</b> (2026). <a href="https://doi.org/10.1038/s41588-025-02478-7">https://doi.org/10.1038/s41588-025-02478-7</a></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      &copy; 2024 <a href="https://github.com/TurakhiaLab"  target="_blank" rel="noopener">Turakhia Lab</a>
+
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/TurakhiaLab/panman" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["content.tabs.link", "content.code.annotation", "content.code.copy", "content.action.edit", "content.action.view", "content.tooltips", "toc.follow", "toc.integrate", "navigation.tabs", "navigation.sections", "navigation.path", "navigation.tabs.sticky", "navigation.instant.prefetch", "navigation.tracking", "navigation.footer", "navigation.expand", "search.highlight", "search.suggest"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
