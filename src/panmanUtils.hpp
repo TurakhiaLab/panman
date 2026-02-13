@@ -64,6 +64,7 @@ std::string stripString(std::string s);
 void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
 void panmanToUsher(panmanUtils::Tree* panmanTree, std::string refName, std::string filename, std::string refSeq="");
+void panmanToUsher(panmanUtils::Tree* panmanTree, std::string filename);
 
 
 // Represents input PanGraph information for PanMAT generation

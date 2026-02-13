@@ -13,6 +13,7 @@ struct NucMut
 
 struct Mutation
 {
+    chrIdx @6: Int64;
     blockId @0: Int64;
     blockGapExist @1: Bool;
     blockMutExist @2: Bool;
@@ -49,6 +50,13 @@ struct BlockGapList
     blockGapLength @1: List(Int32);
 }
 
+struct ChrList
+{
+    chrIdx @0: Int64;
+    chrName @1: Text;
+    blockIds @2: List(Int64);
+}
+
 struct CircularOffset
 {
     sequenceId @0: Text;
@@ -77,6 +85,7 @@ struct Tree
     circularSequences @5: List(CircularOffset);
     rotationIndexes @6: List(RotationIndex);
     sequencesInverted @7: List(SequenceInverted);
+    chrLists @8: List(ChrList);
 }
 
 struct ComplexMutation {

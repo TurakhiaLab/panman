@@ -1298,12 +1298,13 @@ void toUsher(panmanUtils::TreeGroup *TG, po::variables_map &globalVm) {
         std::string refName;
         if(globalVm.count("reference")) {
             refName = globalVm["reference"].as< std::string >();
+            panmanUtils::panmanToUsher(T, refName, fileName);
         } else {
             std::cout << "Reference not provided" << std::endl;
-            return;
+            panmanUtils::panmanToUsher(T, fileName);
         }
 
-        panmanUtils::panmanToUsher(T, refName, fileName);
+        
 
     }
 
@@ -1422,7 +1423,8 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new panmanUtils::Tree(inputStream, newickInputStream, panmanUtils::FILE_TYPE::GFA);
+        T = new panmanUtils::Tree(inputStream, newickInputStream, panmanUtils::FILE_TYPE::GFA_HUMAN);
+        
 
         std::vector<panmanUtils::Tree*> tg;
         tg.push_back(T);

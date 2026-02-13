@@ -1,5 +1,26 @@
 #include "panmanUtils.hpp"
 
+int getCodeFromNucUsher(char c){
+    switch (c)
+    {
+    case 'A':
+        return 0;
+        break;
+    case 'C':
+        return 1;
+        break;
+    case 'G':
+        return 2;
+        break;
+    case 'T':
+        return 3;
+        break;
+    default:
+        return 0;
+        break;
+    }
+}
+
 void getCoordMap(panmanUtils::Tree* panmanTree, std::vector<std::vector<std::pair<int, std::vector<int>>>> &globalCoords_t) {
     const std::vector<panmanUtils::Block> &blocks = panmanTree->blocks;
     const std::vector<panmanUtils::GapList> &gaps = panmanTree->gaps;
@@ -85,6 +106,41 @@ void getPseudoRoot(panmanUtils::Tree* panmanTree, std::vector<std::vector<std::p
         }
     }
     
+    return;
+
+}
+
+void getPseudoRootCompact(panmanUtils::Tree* panmanTree, std::vector<std::vector<char>> &pseudoRoot, std::vector<std::vector<int>> &globalCoor_t) {
+    const std::vector<panmanUtils::Block> &blocks = panmanTree->blocks;
+    int index=1; // MAT index starts from 1
+
+    for (size_t block_id = 0; block_id < blocks.size(); block_id++) {
+        int32_t blockId = ((int32_t)blocks[block_id].primaryBlockId);
+        std::vector<char> blockSequence;
+        std::vector<int> blockCoord;
+        for (size_t nuc_pos = 0; nuc_pos < blocks[block_id].consensusSeq.size(); nuc_pos++) {
+            bool endFlag = false;
+            for (size_t k = 0; k < 8; k++) {
+                const int nucCode = (((blocks[block_id].consensusSeq[nuc_pos]) >> (4 * (7 - k))) & 15);
+                if (nucCode == 0) {
+                    endFlag = true;
+                    break;
+                }
+                const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                blockSequence.push_back(nucleotide);
+                blockCoord.push_back(index++);
+                std::cout << nucleotide;
+            }
+            if (endFlag){
+                break;
+            }
+        }
+        blockSequence.push_back('x');
+        blockCoord.push_back(index++);
+        pseudoRoot.push_back(blockSequence);
+        globalCoor_t.push_back(blockCoord);
+    }
+    std::cout << '\n';    
     return;
 
 }
@@ -561,6 +617,137 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
     }
 }
 
+void getNodeDFSCompact(Parsimony::data &data, panmanUtils::Node* node, 
+    std::vector<std::vector<int>> &globalCoords_t, 
+    std::vector<std::vector<char>> &pseudoRoot, 
+    std::vector<std::vector<char>> &sequence,
+    std::vector< bool >  &blockExists,
+    std::vector< bool >  &blockStrand,
+    std::unordered_set<int>& nonACGTPositions ){
+    // write nuc mutations 
+    auto mutation_list = data.add_node_mutations();
+
+    std::vector< std::tuple< int32_t, bool, bool, bool, bool > > blockMutationInfo;
+
+    // Block Mutations
+    for(auto mutation: node->blockMutation) {
+        int32_t primaryBlockId = mutation.primaryBlockId;
+        bool type = mutation.blockMutInfo;
+        bool inversion = mutation.inversion;
+        if(type == 1) {
+            // insertion
+            bool oldStrand;
+            bool oldMut;
+            oldStrand = blockStrand[primaryBlockId];
+            oldMut = blockExists[primaryBlockId];
+            blockExists[primaryBlockId] = true;
+            // if insertion of inverted block takes place, the strand is backwards
+            blockStrand[primaryBlockId] = !inversion;
+            blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, oldMut, oldStrand, true, !inversion) );
+        } else {
+            bool oldMut;
+            bool oldStrand;
+            if(inversion) {
+                // This means that this is not a deletion, but instead an inversion
+                oldStrand = blockStrand[primaryBlockId];
+                oldMut = blockExists[primaryBlockId];
+                blockStrand[primaryBlockId] = !oldStrand;
+                
+                if(oldMut != true) {
+                    // std::cout << "There was a problem in PanMAT generation. Please Report." << std::endl;
+                }
+                blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, oldMut, oldStrand, oldMut, !oldStrand) );
+            } else {
+                // Actually a deletion
+                oldStrand = blockStrand[primaryBlockId];
+                oldMut = blockExists[primaryBlockId];
+                blockExists[primaryBlockId] = false;
+
+                // resetting strand to true during deletion
+                blockStrand[primaryBlockId] = true;
+            }
+            blockMutationInfo.push_back( std::make_tuple(mutation.primaryBlockId, oldMut, oldStrand, false, true) );
+
+        }   
+    }
+
+    // For backtracking. primaryBlockId, secondaryBlockId, pos, gapPos, (oldVal, newVal) in substitution, ('-', newVal) in insertion, (oldVal, '-') in deletion
+    std::vector< std::tuple< int32_t, int, int, char, char > > mutationInfo;
+
+    for (int i=0; i<node->nucMutation.size(); i++) {
+        int32_t primaryBlockId = node->nucMutation[i].primaryBlockId;
+        int32_t secondaryBlockId = node->nucMutation[i].secondaryBlockId;
+        int32_t nucPosition = node->nucMutation[i].nucPosition;
+        int32_t nucGapPosition = node->nucMutation[i].nucGapPosition;
+        uint32_t type = (node->nucMutation[i].mutInfo & 0x7);
+        char newVal = '-';
+
+        if(type < 3) {
+            // Either S, I or D
+            int len = ((node->nucMutation[i].mutInfo) >> 4);
+
+            if(type == panmanUtils::NucMutationType::NS) {
+                // Substitution
+                if(nucGapPosition == -1) {
+                    for(int j = 0; j < len; j++) {
+                        if (nonACGTPositions.find(globalCoords_t[primaryBlockId][nucPosition+j]) != nonACGTPositions.end()) continue;
+                        auto mut = mutation_list->add_mutation();
+                        char oldVal = sequence[primaryBlockId][nucPosition+j];
+                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        sequence[primaryBlockId][nucPosition+j] = newVal;
+                        mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
+                        
+                        mut->set_position(globalCoords_t[primaryBlockId][nucPosition+j]);
+                        mut->set_par_nuc(getCodeFromNucUsher(oldVal));
+                        mut->set_ref_nuc(getCodeFromNucUsher(pseudoRoot[primaryBlockId][nucPosition+j]));
+                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                            mut->add_mut_nuc(nuc);
+                        }
+                    }
+                }
+            }
+        } else {
+            if(type == panmanUtils::NucMutationType::NSNPS) {
+                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                if (nucGapPosition == -1 && nonACGTPositions.find(nucPosition) == nonACGTPositions.end() ) {
+                    auto mut = mutation_list->add_mutation();
+                    char oldVal = sequence[primaryBlockId][nucPosition];
+                    sequence[primaryBlockId][nucPosition] = newVal;
+                    mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
+                    
+                    mut->set_position(globalCoords_t[primaryBlockId][nucPosition]);
+                    mut->set_par_nuc(getCodeFromNucUsher(oldVal));
+                    mut->set_ref_nuc(getCodeFromNucUsher(pseudoRoot[primaryBlockId][nucPosition]));
+                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                        mut->add_mut_nuc(nuc);
+                    }
+                }
+            }
+        }
+    }
+
+    for(panmanUtils::Node* child: node->children) {
+        getNodeDFSCompact(data, child, globalCoords_t, pseudoRoot, sequence, blockExists, blockStrand, nonACGTPositions);
+    }
+
+    // Undo block mutations when current node and its subtree have been processed
+    for(auto it = blockMutationInfo.rbegin(); it != blockMutationInfo.rend(); it++) {
+        auto mutation = *it;
+        blockExists[std::get<0>(mutation)] = std::get<1>(mutation);
+        blockStrand[std::get<0>(mutation)] = std::get<2>(mutation);
+
+    }
+
+    // Undo nuc mutations when current node and its subtree have been processed
+    for(auto it = mutationInfo.rbegin(); it != mutationInfo.rend(); it++) {
+        auto mutation = *it;
+        if(std::get<2>(mutation) == -1) {
+            sequence[std::get<0>(mutation)][std::get<1>(mutation)] = std::get<3>(mutation);
+        }
+
+    }
+}
+
 void panmanUtils::panmanToUsher(panmanUtils::Tree* panmanTree, std::string refName, std::string filename,std::string refSeq) {
     std::vector<std::vector<std::pair<int, std::vector<int>>>> globalCoords_t;
     std::vector<std::vector<std::pair<char, std::vector<char>>>> pseudoRoot;
@@ -580,6 +767,81 @@ void panmanUtils::panmanToUsher(panmanUtils::Tree* panmanTree, std::string refNa
     data.set_newick(panmanTree->getNewickString(root));
 
     getNodeDFS(data, root, globalCoords_t, pseudoRoot, sequence, blockExists, blockStrand);
+
+    std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+    boost::iostreams::filtering_streambuf< boost::iostreams::output> outbuf;
+
+    if (filename.find(".gz\0") != std::string::npos) {
+        try {
+            outbuf.push(boost::iostreams::gzip_compressor());
+            outbuf.push(outfile);
+            std::ostream outstream(&outbuf);
+            data.SerializeToOstream(&outstream);
+            boost::iostreams::close(outbuf);
+            outfile.close();
+        } catch(const boost::iostreams::gzip_error& e) {
+            std::cout << e.what() << '\n';
+        }
+    } else {
+        data.SerializeToOstream(&outfile);
+        outfile.close();
+    }
+
+    return;
+}
+
+void panmanUtils::panmanToUsher(panmanUtils::Tree* panmanTree, std::string filename) {
+    std::vector<std::vector<int>> globalCoords_t;
+    std::vector<std::vector<char>> pseudoRoot;
+    
+    getPseudoRootCompact(panmanTree, pseudoRoot, globalCoords_t);
+
+    std::vector<std::vector<char>> sequence = pseudoRoot;
+
+    std::vector< bool >  blockExists(panmanTree->blocks.size() + 1, false, {});
+    std::vector< bool >  blockStrand(panmanTree->blocks.size() + 1, true, {});
+
+    panmanUtils::Node* root = panmanTree->root;
+
+    /* collect positions with non-ACGT mutation */
+    std::unordered_set<int> nonACGTPositions;
+    for (auto& node: panmanTree->allNodes){
+        for (const auto& mut: node.second->nucMutation){
+            int32_t primaryBlockId = mut.primaryBlockId;
+            int32_t nucPosition = mut.nucPosition;
+            int32_t nucGapPosition = mut.nucGapPosition;
+            uint32_t type = (mut.mutInfo & 0x7);
+            int len = ((mut.mutInfo) >> 4);
+            char newVal = '-';
+
+            if(nucGapPosition == -1) {
+                for(int j = 0; j < len; j++) {
+                    newVal = panmanUtils::getNucleotideFromCode(((mut.nucs) >> (4*(5-j))) & 0xF);
+                    if (newVal == 'N') nonACGTPositions.insert(globalCoords_t[primaryBlockId][nucPosition+j]);
+                }
+            }
+
+        }
+    }
+
+    std::cout << nonACGTPositions.size() << std::endl;
+
+    /* collect positions with non-ACGT char in psuedo-root */
+    for (int i=0;i<pseudoRoot.size();i++){
+        auto blk=pseudoRoot[i];
+        for (int j=0; j<blk.size(); j++){
+            if (blk[j]=='N') nonACGTPositions.insert(globalCoords_t[i][j]);
+        }
+    }
+   
+
+    std::cout << nonACGTPositions.size() << std::endl;
+    
+    // Write Usher
+    Parsimony::data data;
+    data.set_newick(panmanTree->getNewickString(root));
+
+    getNodeDFSCompact(data, root, globalCoords_t, pseudoRoot, sequence, blockExists, blockStrand, nonACGTPositions);
 
     std::ofstream outfile(filename, std::ios::out | std::ios::binary);
     boost::iostreams::filtering_streambuf< boost::iostreams::output> outbuf;

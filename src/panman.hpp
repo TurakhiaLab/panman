@@ -213,6 +213,7 @@ struct NucMut {
 struct BlockMut {
     int32_t primaryBlockId;
     int32_t secondaryBlockId;
+    int chrIdx=0;
 
     // Whether mutation is an insertion or deletion - Strand inversions are marked by
     // `blockMutInfo=false`, but they are not deletions
@@ -233,6 +234,9 @@ struct BlockMut {
         // Whether the mutation is a block inversion or not. Inversion is marked by
         // `blockMutInfo = deletion` and `inversion = true`
         inversion = mutation.getBlockInversion();
+        /* if chrIdx exists, set it */
+        chrIdx = mutation.getChrIdx();
+
     }
 
     void loadFromProtobuf(panmanOld::mutation mutation) {
@@ -248,7 +252,7 @@ struct BlockMut {
         inversion = mutation.blockinversion();
     }
 
-    BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1) {
+    BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1, int chrIdxInput = -1) {
         primaryBlockId = blockId;
         secondaryBlockId = secondaryBId;
         if(type.first == BlockMutationType::BI) {
@@ -265,6 +269,8 @@ struct BlockMut {
         } else {
             inversion = false;
         }
+
+        if (chrIdxInput!=-1) chrIdx=chrIdxInput;
     }
 
     BlockMut() {}
@@ -321,6 +327,29 @@ class Node {
     Node(std::string id, Node* par, float len);
 };
 
+struct Chr {
+    int64_t chrIdx=0;
+    std::string chrName;
+    std::vector< int64_t > blockIds;
+
+    void loadFromProtobuf(panman::ChrList::Reader chrList) {
+        chrIdx = chrList.getChrIdx();
+        chrName = chrList.getChrName();
+        for(auto blockId: chrList.getBlockIds()) {
+            blockIds.push_back(blockId);
+        }
+    }
+
+    Chr(int64_t chrIdxInput, std::vector< int64_t >& blockIdsInput){
+        chrIdx=chrIdxInput;
+        for(int i=0; i<blockIdsInput.size(); i++){
+            blockIds.push_back(blockIdsInput[i]);
+        }
+    }
+
+    Chr(){};
+
+};
 
 // Data structure to represent a PangenomeMAT
 class Tree {
@@ -435,6 +464,7 @@ class Tree {
     std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
   public:
     Node *root;
+    std::vector< Chr > chrList;
     std::vector< Block > blocks;
     std::vector< GapList > gaps;
 
@@ -546,6 +576,7 @@ class Tree {
     void printVCFParallel(panmanUtils::Node* node, std::string& fileName);
     void extractAminoAcidTranslations(std::ostream& fout, int64_t start, int64_t end);
     void printConsensus(std::ostream& fout);
+    void printPseduoRoot(std::ostream& fout);
     // Extract PanMAT representing a segment of the genome. The start and end coordinates
     // are with respect to the root sequence. The strands of the terminal blocks in all
     // sequences are assumed to be the same as their strands in the root sequence for the

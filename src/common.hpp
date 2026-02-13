@@ -39,7 +39,7 @@ enum FILE_TYPE {
     PANGRAPH=2,
     MSA = 3,
     MSA_OPTIMIZE = 4,
-    // FASTA = 5
+    GFA_HUMAN = 5
 };
 
 
