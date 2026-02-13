@@ -69,7 +69,7 @@ struct SequenceInverted
 
 struct Tree
 {
-    newick @0: Text;
+    newick @0: List(Text);
     nodes @1: List(Node);
     consensusSeqMap @2: List(ConsensusSeqToBlockIds);
     gaps @3: List(GapList);

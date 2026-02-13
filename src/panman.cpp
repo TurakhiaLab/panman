@@ -41,6 +41,8 @@
 #include "ratioTest.cpp"
 #include "panmanUtils.hpp"
 
+constexpr size_t NEWICK_CHUNK_SIZE = 1 * 1024 * 1024;
+
 char panmanUtils::getNucleotideFromCode(int code) {
     switch(code) {
     case 1:
@@ -1646,9 +1648,21 @@ int doPreOrderLoop(panmanUtils::Node* node){
     return c;
 }
 
+std::string reconstructNewick(const panman::Tree::Reader& tree) {
+    std::string result;
+    auto newickList = tree.getNewick();
+
+    for (auto chunk : newickList) {
+        result.append(chunk.cStr());
+    }
+
+    return result;
+}
+
 void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
     // Create tree
-    root = createTreeFromNewickString(mainTree.getNewick().cStr());
+    std::string newickString = reconstructNewick(mainTree);
+    root = createTreeFromNewickString(newickString);
     // std::cout << "Size of nodes: " << allNodes.size() << std::endl; 
     // std::cout << doPreOrderLoop(root) << std::endl;
 
@@ -2616,6 +2630,19 @@ void panmanUtils::Tree::extractPanMATIndex(std::ostream& fout, int64_t start, in
     return;
 }
 
+std::vector<std::string> splitNewick(const std::string& newick) {
+    std::vector<std::string> chunks;
+    chunks.reserve((newick.size() / NEWICK_CHUNK_SIZE) + 1);
+
+    for (size_t i = 0; i < newick.size(); i += NEWICK_CHUNK_SIZE) {
+        chunks.emplace_back(
+            newick.substr(i, NEWICK_CHUNK_SIZE)
+        );
+    }
+
+    return chunks;
+}
+
 void panmanUtils::Tree::extractPanMATSegment(kj::std::StdOutputStream& fout, int64_t start, int64_t end) {
     sequence_t rootSequence;
     blockExists_t rootBlockExists;
@@ -2773,8 +2800,12 @@ void panmanUtils::Tree::extractPanMATSegment(kj::std::StdOutputStream& fout, int
 
     std::string newick = getNewickString(newRoot);
     std::string newick2 = getNewickString(root);
-
-    treeToWrite.setNewick(newick);
+	
+    auto chunks = splitNewick(newick);
+    auto newickList = treeToWrite.initNewick(chunks.size());
+    for (size_t i = 0; i < chunks.size(); ++i) {
+            newickList.set(i, chunks[i]);
+    }
 
     std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > >
     consensusSeqToBlockIds;
@@ -2941,8 +2972,12 @@ void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils:
     assert(nodeIndex==allNodes.size());
 
     std::string newick = getNewickString(node);
-
-    treeToWrite.setNewick(newick);
+	
+    auto chunks = splitNewick(newick);
+    auto newickList = treeToWrite.initNewick(chunks.size());
+    for (size_t i = 0; i < chunks.size(); ++i) {
+            newickList.set(i, chunks[i]);
+    }
 
     std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > > consensusSeqToBlockIds;
 
@@ -6988,6 +7023,7 @@ void panmanUtils::TreeGroup::printFASTA(std::ofstream& fout, bool rootSeq ) {
     }
 }
 
+
 void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
     capnp::MallocMessageBuilder message;
     panman::TreeGroup::Builder treeGroupToWrite = message.initRoot<panman::TreeGroup>();
@@ -7009,7 +7045,11 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
         assert(nodeIndex == tree.allNodes.size());
 
         std::string newick = tree.getNewickString(node);
-        treeToWrite.setNewick(newick);
+        auto chunks = splitNewick(newick);
+        auto newickList = treeToWrite.initNewick(chunks.size());
+        for (size_t i = 0; i < chunks.size(); ++i) {
+                newickList.set(i, chunks[i]);
+        }
         std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > >
         consensusSeqToBlockIds;
 
