@@ -12,6 +12,7 @@ message nucMut
 
 message mutation
 {
+    int64 chrIdx = 7;
     int64 blockId = 1;
     bool  blockGapExist = 2;
     bool  blockMutExist = 3;
@@ -48,6 +49,13 @@ message blockGapList
     repeated int32  blockGapLength = 2;
 }
 
+message chrList
+{
+    int64          chrIdx = 1;
+    string         chrName = 2;
+    repeated int64  blockIds = 3;
+}
+
 message circularOffset
 {
     string          sequenceId = 1;
@@ -76,6 +84,7 @@ message tree
     repeated circularOffset circularSequences = 7;
     repeated rotationIndex rotationIndexes = 8;
     repeated sequenceInverted sequencesInverted = 9;
+    repeated chrList chrLists = 10;
 }
 
 message complexMutation {

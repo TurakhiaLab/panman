@@ -264,14 +264,14 @@ void panmanUtils::stringSplit (std::string const& s, char delim, std::vector<std
                 temp_pos = start_pos;
             }
             else {
-                words.emplace_back(sub);
+                if (sub!="") words.emplace_back(sub);
             }
         }
         else {
             sub = s.substr(temp_pos, end_pos-temp_pos);
             if (std::count(sub.begin(), sub.end(), '\'') % 2 == 0) {
                 temp_pos = 0;
-                words.emplace_back(sub);
+                if (sub!="") words.emplace_back(sub);
             }
         }
         // words.emplace_back(s.substr(start_pos, end_pos-start_pos));
@@ -712,36 +712,104 @@ size_t readFastaInBatch(std::ifstream& fin, std::map< std::string, std::string >
     return nextStartIndex;
 }
 
-void splitPath(std::string& s, std::vector< std::pair<string, bool> >& result, char delim1 = '>', char delim2 = '<') {
-    bool strand = true;          // true = '>', false = '<'
-    std::string current;
+// void splitPath(std::string& s, std::vector< std::pair<string, bool> >& result, char delim1 = '>', char delim2 = '<') {
+//     bool strand = true;          // true = '>', false = '<'
+//     std::string current;
 
-    for (char c : s) {
-        if (c == delim1 || c == delim2) {
-            // Finish previous token
-            if (!current.empty()) {
-                result.push_back(std::make_pair(current, strand));
+//     for (char c : s) {
+//         if (c == delim1 || c == delim2) {
+//             // Finish previous token
+//             if (!current.empty()) {
+//                 result.push_back(std::make_pair(current, strand));
+//                 current.clear();
+//             }
+
+//             // Set new strand
+//             strand = (c == delim1) ? true : false;
+//         } else {
+//             current.push_back(c);
+//         }
+//     }
+
+//     if (!current.empty()) {
+//         result.push_back(std::make_pair(current, strand));
+//     }
+
+//     return;
+// }
+
+void splitPath(const std::string& s,
+               std::vector<std::pair<std::string, bool>>& result)
+{
+    std::string current;
+    bool strand = true;
+
+    for (char c : s)
+    {
+        if (c == '<' || c == '>' || c == ',' )
+        {
+            if (!current.empty())
+            {
+                result.emplace_back(current, strand);
                 current.clear();
             }
 
-            // Set new strand
-            strand = (c == delim1) ? true : false;
-        } else {
+            if (c == '<') strand = false;
+            if (c == '>') strand = true;
+        }
+        else if (c == '+')
+        {
+            strand = true;
+        }
+        else if (c == '-')
+        {
+            strand = false;
+        }
+        else
+        {
             current.push_back(c);
         }
     }
 
-    if (!current.empty()) {
-        result.push_back(std::make_pair(current, strand));
-    }
+    if (!current.empty())
+        result.emplace_back(current, strand);
+}
 
-    return;
+struct Walk {
+    std::string sample;
+    std::vector<std::pair<int, char>> nodes;
+};
+
+std::vector<std::pair<int, char>> parseWalk(const std::string& walkStr) {
+    std::vector<std::pair<int, char>> nodes;
+    
+    int i = 0;
+    while (i < walkStr.length()) {
+        char strand = walkStr[i];
+        if (strand != '<' && strand != '>') {
+            i++;
+            continue;
+        }
+        
+        i++;
+        std::string nodeStr;
+        while (i < walkStr.length() && std::isdigit(walkStr[i])) {
+            nodeStr += walkStr[i];
+            i++;
+        }
+        
+        if (!nodeStr.empty()) {
+            int nodeId = std::stoi(nodeStr);
+            nodes.push_back({nodeId, strand});
+        }
+    }
+    
+    return nodes;
 }
 
 
-
 panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE ftype,
-                        std::string reference) {
+                        std::string reference, std::string refSeqFile) {
     if(ftype == panmanUtils::FILE_TYPE::GFA) {
         std::map< std::string, std::string > nodes;
         std::map< std::string, std::vector< std::pair<std::string, bool> > > paths;
@@ -843,6 +911,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         std::string referenceSample;
         std::map< std::string, std::string > nodes;
         std::vector<std::map< std::string, std::vector< std::pair<std::string, bool>>>> paths;
+        std::unordered_map<std::string, std::vector<Walk>> walks;
         std::string line;
         int chr=0;
         /* Read nodes */
@@ -851,37 +920,91 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             stringSplit(line, '\t', separatedLine);
             if(separatedLine[0] == "S") {
                 nodes[separatedLine[1]] = separatedLine[2];
-            } else{
-                break;
-            }  
+            } 
         }
         /* Read Paths and Walks */
         fin.clear(); fin.seekg(0, std::ios::beg);
         while(getline(fin, line, '\n')) {
             std::vector< std::string > separatedLine;
             stringSplit(line, '\t', separatedLine);
-            if(separatedLine[0] == "P") { // get reference sequence path
+            if (separatedLine[0] != "W") {
+                continue;
+            }
+            if(separatedLine[1] == "GRCh38") { // get reference sequence path
                 std::vector< std::pair< std::string, bool > > v;
                 std::vector< std::pair< std::string, bool > > currentPath;
-                splitPath(separatedLine[2], currentPath, '+', '-');
+                // splitPath(separatedLine[2], currentPath);
 
-                std::vector<std::string> refNameSplit;
-                stringSplit(separatedLine[1], '.', refNameSplit);
-                referenceSample = refNameSplit[0];
+                // std::vector<std::string> refNameSplit;
+                // stringSplit(separatedLine[1], '.', refNameSplit);
+                // referenceSample = refNameSplit[0];
+
+                Walk walk;
+                std::vector< std::pair<std::string, bool>> refWalk;
+                walk.sample = separatedLine[1];
+                walk.nodes = parseWalk(separatedLine[6]);
+                for (const auto& node : walk.nodes) {
+                    refWalk.push_back(std::make_pair(std::to_string(node.first), node.second));
+                }
                 std::map< std::string, std::vector< std::pair<std::string, bool>>> chrPaths;
-                chrPaths[refNameSplit[0]] = currentPath;
+                chrPaths[walk.sample] = refWalk;
                 paths.push_back(chrPaths);
-                std::cout << "chr " << chr << " has " << paths[chr]["CHM13"].size() << " nodes in reference" << std::endl;
-                chr++;
-            } else if (separatedLine[0] == "W") {
+                std::cout << "chr " << chr << " has " << paths[chr][walk.sample].size() << " nodes in reference" << std::endl;
+                
+                for (auto &w:walks){
+                    std::sort(w.second.begin(), w.second.end(), 
+                        [](const Walk& a, const Walk& b) {
+                            if (a.nodes.empty() && b.nodes.empty()) return false;
+                            if (a.nodes.empty()) return true;
+                            if (b.nodes.empty()) return false;
+                            return a.nodes[0].first < b.nodes[0].first;
+                        });
+                    
+                    std::vector< std::pair<std::string, bool>> finalWalk;
+                    std::unordered_map<int, bool> uniqueNodes;
+                    int lastNode=-1;
+                    for (const auto& currentWalk : w.second) {
+                        for (const auto& node : currentWalk.nodes) {
+                            if (lastNode > node.first) {
+                                continue;
+                            } else if (uniqueNodes.find(node.first) == uniqueNodes.end()) {
+                                finalWalk.push_back(std::make_pair(std::to_string(node.first), node.second));
+                                uniqueNodes[node.first] = true;
+                                lastNode = node.first;
+                            }
+                        }
+                    }
+                    paths[chr][w.first] = finalWalk;
+                    std::cout << finalWalk.size() << " nodes in final walk for sample " << w.first << " in chr " << chr << std::endl;
+                    chr++;
+                }
+                if (chr==1) break;
+            } else {
                 std::vector< std::pair< std::string, bool > > currentPath;
-                splitPath(separatedLine[6], currentPath, '>', '<');
-                paths[chr-1][separatedLine[1]] = currentPath;
+                splitPath(separatedLine[6], currentPath);
+                std::string sampleName = separatedLine[1] + "." + separatedLine[2];
+                // if (paths[chr-1].find(sampleName) != paths[chr-1].end()) {
+                //     paths[chr-1][sampleName] = currentPath;
+                // } else {
+                //     for (auto &p: currentPath){
+                //         paths[chr-1][sampleName].push_back(p);
+                //     }
+                // }
+                Walk walk;
+                walk.sample = separatedLine[1]+"." + separatedLine[2];
+                walk.nodes = parseWalk(separatedLine[6]);
+                if (walks.find(walk.sample) != walks.end()) {
+                    walks[walk.sample].push_back(walk);
+                } else {
+                    walks[walk.sample] = std::vector<Walk>{walk};
+                }
             }
         }
+
+        
         
         size_t globalBlockIdx = 0;
-        for (int chrIdx=0; chrIdx<chr; chrIdx++){
+        for (int chrIdx=0; chrIdx<1; chrIdx++){
             std::vector< std::vector< std::pair< std::string, bool > > > stringSequences;
             std::vector< std::string > sequenceIds;
             for(auto p: paths[chrIdx]) {
@@ -900,6 +1023,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             std::unordered_map< std::string, std::vector< int64_t > > pathIdToSequence;
             std::unordered_map< std::string, std::vector< int > > pathIdToStrandSequence;
             for(size_t i = 0; i < g.pathIds.size(); i++) {
+                std::cout << "Path " << g.pathIds[i] << " has aligned sequence of length " << alignedSequences[i].size() << std::endl;
                 pathIdToSequence[g.pathIds[i]] = alignedSequences[i];
                 pathIdToStrandSequence[g.pathIds[i]] = alignedStrandSequences[i];
             }
@@ -913,10 +1037,13 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
             tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string,
                 std::pair< BlockMutationType, bool > > > globalMutations;
 
-            tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
+            std::cout << topoArray.size() << std::endl;
+            // tbb::parallel_for((size_t)0, topoArray.size(), [&](size_t i) {
+            for (int i=0; i<topoArray.size(); i++){
                 std::unordered_map< std::string, int > states;
                 std::unordered_map< std::string, std::pair< BlockMutationType, bool > > mutations;
                 for(const auto& u: pathIdToSequence) {
+                    if (i==0) std::cout << u.first << " " << pathIdToStrandSequence[u.first][i] << std::endl;
                     if(u.second[i] == -1) {
                         states[u.first] = 1;
                     } else if(pathIdToStrandSequence[u.first][i]) {
@@ -931,7 +1058,14 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                 blockFitchBackwardPassNew(root, states, 1);
                 blockFitchAssignMutationsNew(root, states, mutations, 1);
                 globalMutations[i+globalBlockIdx] = mutations;
-            });
+                if (i==0){
+                    std::cout << mutations.size() << std::endl;
+                    for (auto &m: mutations){
+                        std::cout << "Mutation for block " << i+globalBlockIdx << " node " << m.first << " mutation type " << m.second.first << " strand " << m.second.second << std::endl;
+                    }
+                }
+            // });
+            }
 
             std::unordered_map< std::string, std::mutex > nodeMutexes;
 
@@ -945,6 +1079,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
                     if(mutations.find(node.first) != mutations.end()) {
                         nodeMutexes[node.first].lock();
                         node.second->blockMutation.emplace_back(pos.first, mutations[node.first], -1, chrIdx);
+                        std::cout << pos.first << " " << node.first << " " << mutations[node.first].first << std::endl;
                         nodeMutexes[node.first].unlock();
                     }
                 }
@@ -1465,7 +1600,7 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
 
 
         std::cout << lineLength << std::endl;
-	std::set< size_t > emptyPositions;
+	    std::set< size_t > emptyPositions;
         std::mutex m;
         auto safe_insert = [&](int x) {
                 std::lock_guard<std::mutex> lock(m);
@@ -1793,6 +1928,312 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         });
 
 
+    } else if (ftype == panmanUtils::FILE_TYPE::VCF_MUTICHROMO) {
+        /* Read newick string (Tree) */
+        std::string newickString;
+        std::getline(secondFin, newickString);
+        root = createTreeFromNewickString(newickString);
+
+        /* Read reference sequences */
+        std::unordered_map<std::string, std::string> refChrSequences;
+        std::string line;
+        std::ifstream refFin(refSeqFile.c_str());
+        std::string currentSequenceId;
+        std::string currentSequence;
+        int lineLength = 0;
+        
+        while(getline(refFin,line,'\n')) {
+            if(line.length() == 0) {
+                continue;
+            }
+            if(line[0] == '>') {
+                if(currentSequence.length()) {
+                    std::vector< std::string > splitLine;
+                    stringSplit(currentSequenceId,'\r',splitLine);
+                    refChrSequences[currentSequenceId] = currentSequence;
+                }
+                std::vector< std::string > splitLine;
+                stringSplit(line,' ',splitLine);
+                currentSequenceId = splitLine[0].substr(1);
+                currentSequence = "";
+            } else {
+                std::vector< std::string > splitLine;
+                stringSplit(line,'\r',splitLine);
+                currentSequence += splitLine[0];
+            }
+        }
+
+        if(currentSequence.length()) {
+            refChrSequences[currentSequenceId] = currentSequence;
+        }
+
+        std::cout << "Reference sequences read: " << refChrSequences.size() << std::endl;
+        for(auto &refChrSequence: refChrSequences) {
+            std::cout << refChrSequence.first << ": " << refChrSequence.second.length() << std::endl;
+        }
+
+        /* Read VCF file to determine MSA length */
+        std::string lastChr;
+        std::vector<size_t> chromLengths;
+        size_t chrLength=0;
+        std::vector<std::string> chromNames;
+        std::unordered_map<std::string, std::string> individualSequences;
+        std::unordered_map<int, std::string> sequenceIndexInVCF;
+
+        while(getline(fin, line, '\n')) {
+            if(line.length() == 0) continue;
+            if (line.substr(0,6) == "#CHROM") {
+                std::vector< std::string > separatedLine;
+                stringSplit(line, '\t', separatedLine);
+                for(size_t i=10; i<separatedLine.size(); i++) {
+                    individualSequences[separatedLine[i]+".1"] = "";
+                    individualSequences[separatedLine[i]+".2"] = "";
+                    sequenceIndexInVCF[i] = separatedLine[i];
+                }
+            }
+            if(line[0] == '#') continue;
+            std::vector< std::string > separatedLine;
+            stringSplit(line, '\t', separatedLine);
+            if (lastChr == "") { 
+                lastChr = separatedLine[0];
+                if (refChrSequences.find(lastChr) != refChrSequences.end())
+                    chromNames.push_back(lastChr);
+            } else if (lastChr != separatedLine[0]) {
+                if (refChrSequences.find(lastChr) != refChrSequences.end())
+                    chromLengths.push_back(chrLength+refChrSequences[lastChr].length());
+                lastChr = separatedLine[0];
+                if (refChrSequences.find(lastChr) != refChrSequences.end())
+                    chromNames.push_back(lastChr);
+                chrLength = 0;
+            } else if (lastChr == separatedLine[0]) {
+                std::vector< std::string > altAlleles;
+                stringSplit(separatedLine[4], ',', altAlleles);
+
+                size_t maxLength = separatedLine[3].length();
+                size_t diffLength = 0;
+                for(auto altAllele: altAlleles) {
+                    if(altAllele.length() > maxLength) {
+                        maxLength = altAllele.length();
+                    }
+                }
+                if(maxLength > separatedLine[3].length()) {
+                    diffLength = maxLength - separatedLine[3].length();
+                }
+                chrLength += diffLength;
+            }       
+        }
+        if (chrLength > 0 && refChrSequences.find(lastChr) != refChrSequences.end()) {
+            chromLengths.push_back(chrLength+refChrSequences[lastChr].length());
+        }
+
+        std::cout << "Chromosomes found: " << chromNames.size() << std::endl;
+        for (size_t i=0; i<chromNames.size(); i++) {
+            std::cout << chromNames[i] << ": " << chromLengths[i] << std::endl;
+        }
+
+        
+        std::vector<int> varPositions;
+        std::string consensus;
+        std::string refChrSequence;
+        for (size_t i=0; i<chromNames.size(); i++){
+            varPositions.clear();
+            consensus.clear();
+            refChrSequence.clear();
+            for (auto &individualSequence: individualSequences) {
+                individualSequence.second.clear();
+            }
+
+            consensus.resize(chromLengths[i]);
+            refChrSequence.resize(chromLengths[i]);
+            for (auto &individualSequence: individualSequences) {
+                individualSequence.second.resize(chromLengths[i]);
+            }
+            size_t msaIndex = 0;
+            size_t rawIndex = 0;
+            size_t gapLength = 0;
+            fin.clear(); fin.seekg(0, std::ios::beg);
+            while(getline(fin, line, '\n')) {
+                if(line.length() == 0) continue;
+                if(line[0] == '#') continue;
+
+                std::vector< std::string > separatedLine;
+                stringSplit(line, '\t', separatedLine);
+                
+                if (separatedLine[0] != chromNames[i]) continue;
+                std::string chrName = separatedLine[0];
+                size_t position = std::stoi(separatedLine[1]);
+                
+                /* Filling positions with no variations */
+                for (size_t j=0; j<position-1-rawIndex; j++) {
+                    consensus[msaIndex + j] = refChrSequences[chrName][j+rawIndex];
+                    refChrSequence[msaIndex + j] = refChrSequences[chrName][j+rawIndex];
+                    // for(auto& individualSequence: individualSequences) {
+                    //     individualSequence.second[msaIndex +j] = refChrSequences[chrName][j+rawIndex];
+                    // }
+                }
+
+                std::vector< std::string > altAlleles;
+                stringSplit(separatedLine[4], ',', altAlleles);
+                size_t maxLength = separatedLine[3].length();
+                size_t diffLength = 0;
+                std::string maxLengthAltAllele = separatedLine[3];
+                for(auto altAllele: altAlleles) {
+                    if(altAllele.length() > maxLength) {
+                        maxLength = altAllele.length();
+                        maxLengthAltAllele = altAllele;
+                    }
+                }
+                if(maxLength > separatedLine[3].length()) {
+                    diffLength = maxLength - separatedLine[3].length();
+                    gapLength += diffLength;
+                }
+                
+
+                /* Fill consensus sequence */
+                for(size_t j=0; j<separatedLine[3].length(); j++) {
+                    consensus[msaIndex + position-1 - rawIndex + j] = separatedLine[3][j];
+                    refChrSequence[msaIndex + position-1 - rawIndex + j] = separatedLine[3][j];
+                    varPositions.push_back(msaIndex + position-1 - rawIndex + j);
+                }
+                for(size_t j=separatedLine[3].length(); j<maxLength; j++) {
+                    consensus[msaIndex + position-1 - rawIndex + j] = maxLengthAltAllele[j];
+                    refChrSequence[msaIndex + position-1 - rawIndex + j] = '-';
+                    varPositions.push_back(msaIndex + position-1 - rawIndex + j);
+                }
+                
+                /* Fill individual sequences */
+                int samplesCount = individualSequences.size()/2;
+                for(int sampleIdx = 10; sampleIdx < samplesCount+10; sampleIdx++) {
+                    std::string sampleName = sequenceIndexInVCF[sampleIdx];
+                    std::string genotypeStr = separatedLine[sampleIdx];
+                    
+                    // Parse genotype (e.g., "0|1", "1|1", ".|.", etc.)
+                    std::vector<std::string> haplotypes;
+                    std::string hap;
+                    for(char c : genotypeStr) {
+                        if(c == '|') {
+                            haplotypes.push_back(hap);
+                            hap = "";
+                        } else {
+                            hap += c;
+                        }
+                    }
+                    if(!hap.empty()) haplotypes.push_back(hap);
+                    
+                    // Process each haplotype
+                    for(size_t hapIdx = 0; hapIdx < haplotypes.size(); hapIdx++) {
+                        std::string hapName = sampleName + "." + std::to_string(hapIdx + 1);
+                        assert(individualSequences.find(hapName) != individualSequences.end());
+                        std::string& hapSeq = individualSequences[hapName];
+
+                        if(haplotypes[hapIdx] == ".") {
+                            // Missing data - use reference
+                            for(size_t j = 0; j < maxLength; j++) hapSeq[msaIndex + position-1 - rawIndex + j] = refChrSequence[msaIndex + position-1 - rawIndex + j];
+                        } else {
+                            assert(std::stoi(haplotypes[hapIdx]) >= 0 && std::stoi(haplotypes[hapIdx]) <= altAlleles.size());
+                            int alleleIdx = std::stoi(haplotypes[hapIdx]);
+                            if(alleleIdx == 0) {
+                                // Reference allele
+                                for(size_t j = 0; j < maxLength; j++) hapSeq[msaIndex + position-1 - rawIndex + j] = refChrSequence[msaIndex + position-1 - rawIndex + j];
+                            } else {
+                                // Alternative allele
+                                std::string alt = altAlleles[alleleIdx - 1];
+                                for(size_t j = 0; j < alt.length(); j++) hapSeq[msaIndex + position-1 - rawIndex + j] = alt[j];
+                                for(size_t j = alt.length(); j < maxLength; j++) hapSeq[msaIndex + position-1 - rawIndex + j] = '-';
+                            }
+                        }
+
+                    }
+
+
+                }
+
+                msaIndex = gapLength + position - 1;
+                rawIndex = position - 1;
+            }
+
+            std::cout << "Chromosome " << chromNames[i] << " processed. Length: " << consensus.length() << " Variants: " << varPositions.size() << std::endl;
+
+            tbb::concurrent_unordered_map< std::string, std::vector< std::tuple< int,int8_t,int8_t > > > nonGapMutationsMSA;
+            std::unordered_map< std::string, std::mutex > nodeMutexes;
+            std::unordered_map< size_t, std::mutex > posMutexes;
+
+            for(auto u: allNodes) {
+                nodeMutexes[u.first];
+            }
+
+            for (auto j=0; j<consensus.length(); j++) {
+                posMutexes[j];
+            }
+            int positionCount = 0;
+
+
+            // tbb::parallel_for((size_t)0, consensus.length(), [&](size_t i) {
+            /* Apply fitch at positions with variations */
+            tbb::parallel_for_each(varPositions.begin(), varPositions.end(), [&](size_t varPosition) {
+                std::unordered_map< std::string, int > states;
+                std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
+                for(const auto& u: individualSequences) {
+                    if(u.second[varPosition] != '-') {
+                        states.insert({u.first, (1 << getCodeFromNucleotide(u.second[varPosition]))});
+                    } else {
+                        states.insert({u.first, 1});
+                    }
+                }  
+
+                int refState = 1<<getCodeFromNucleotide(refChrSequence[varPosition]);
+                nucFitchForwardPass(root, states, refState);
+                // for (const auto &a: states) std::cout << a.first.c_str() <<  ": " << a.second << std::endl;
+                // exit(0);
+                // std::cout << i << "\t" << states[root->identifier] << std::endl;
+                nucFitchBackwardPass(root, states, (1 << getCodeFromNucleotide(consensus[varPosition])));
+                nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensus[varPosition])));
+                for(auto mutation: mutations) {
+                    nodeMutexes[mutation.first].lock();
+                    nonGapMutationsMSA[mutation.first].push_back(std::make_tuple(varPosition, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                    nodeMutexes[mutation.first].unlock();
+                }
+                posMutexes[varPosition].lock();
+                posMutexes[varPosition].unlock(); 
+            });
+
+            std::cout << "Fitch algorithm completed on MSA" << std::endl;
+
+            // std::cout << root->identifier << std::endl;
+            // std::cout << consensusSeq << std::endl;
+            blocks.emplace_back(i, consensus);
+            root->blockMutation.emplace_back(i, std::make_pair(BlockMutationType::BI, false), -1, 0);
+            std::vector<int64_t> chrBlocks;
+            chrBlocks.push_back(i);
+
+            individualSequences.clear(); // saving memory
+
+            tbb::parallel_for_each(nonGapMutationsMSA, [&](auto& u) {
+                nodeMutexes[u.first].lock();
+                std::sort(u.second.begin(), u.second.end());
+                nodeMutexes[u.first].unlock();
+                size_t currentStart = 0;
+                for(size_t j = 1; j < u.second.size(); j++) {
+                    if(j - currentStart == 6 || std::get<0>(u.second[j]) != std::get<0>(u.second[j-1])+1 || std::get<1>(u.second[j]) != std::get<1>(u.second[j-1])) {
+                        nodeMutexes[u.first].lock();
+                        allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, j);
+                        nodeMutexes[u.first].unlock();
+                        currentStart = j;
+                        continue;
+                    }
+                }
+                nodeMutexes[u.first].lock();
+                allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
+                nodeMutexes[u.first].unlock();
+            });
+
+            Chr chrLocal(i, chrBlocks);
+            this->chrList.push_back(chrLocal);
+
+            std::cout << "Mutations stored for " << chromNames[i] << std::endl;
+        }
+        
+        return;
     }
 }
 
@@ -6347,6 +6788,7 @@ panmanUtils::GfaGraph::GfaGraph(const std::vector< std::string >& pathNames, con
     }
 
     for(size_t i = 0; i < reorder; i++) {
+        // std::cout << i << " " << nodeIdToString[i]<< " " << nodes[nodeIdToString[i]].size() << std::endl;
         intNodeToSequence.push_back(nodes[nodeIdToString[i]]);
     }
 }

@@ -139,7 +139,7 @@ void setupOptionDescriptions() {
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
 
-    // ("optimize", "currently UNSUPPORTED: whether given msa file should be optimized or not")
+    ("test", "Only for test purposes, not for users")
 
     ("printTips", po::value< std::string >(),"Print PanMAN Tips")
     ("summary,s", "Print PanMAN summary")
@@ -163,7 +163,7 @@ void setupOptionDescriptions() {
     ("ratioTest", "Ratio test based on ancestry")
     ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
     // ("samples",po::value< bool >() ,"Samples in the PanMAN")
-    // ("protobuf2capnp", "Converts a Google Protobuf PanMAN to Capn' Proto PanMAN")
+    ("chrID", po::value< std::string >(), "Chromosome ID for indexing")
   
     ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
     ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
@@ -377,7 +377,17 @@ void fasta(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstrea
         }
         std::ostream fout (buf);
 
-        T->printFASTAUltraFast(fout, false, false);
+        int chrID = -1;
+        if (globalVm.count("chrID")) {
+            std::string chrIDStr = globalVm["chrID"].as< std::string >();
+            try {
+                chrID = std::stoi(chrIDStr);
+            } catch (const std::invalid_argument& e) {
+                panmanUtils::printError("Invalid chromosome ID provided. It should be an integer.");
+                exit(1);
+            }
+        }
+        T->printFASTAUltraFast(fout, false, false, {-1,-1,-1,-1}, {-1,-1,-1,-1}, false, chrID);
 
         if(globalVm.count("output-file")) outputFile.close();
     }
@@ -1314,6 +1324,24 @@ void toUsher(panmanUtils::TreeGroup *TG, po::variables_map &globalVm) {
 
 }
 
+void test(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
+    if(TG == nullptr) {
+        std::cout << "No PanMAN selected" << std::endl;
+        return;
+    }
+
+    panmanUtils::TreeGroup tg = *TG;
+
+    auto start = std::chrono::high_resolution_clock::now();
+    for(int i = 0; i < tg.trees.size(); i++) {
+        panmanUtils::Tree * T = &tg.trees[i];
+        T->test();
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds time = end - start;
+    std::cout << "\nTest execution time: " << time.count() << " nanoseconds\n";
+}
+
 void parseAndExecute(int argc, char* argv[]) {
 
     // Setup boost::program_options
@@ -1421,9 +1449,16 @@ void parseAndExecute(int argc, char* argv[]) {
         std::ifstream inputStream(fileName);
         std::ifstream newickInputStream(newickFileName);
 
-        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+        if(!globalVm.count("refFile")) {
+            panmanUtils::printError("Reference file not provided!");
+            std::cout << globalDesc;
+            return;
+        }
 
-        T = new panmanUtils::Tree(inputStream, newickInputStream, panmanUtils::FILE_TYPE::GFA_HUMAN);
+        std::string refFileName = globalVm["refFile"].as< std::string >();
+
+        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+        T = new panmanUtils::Tree(inputStream, newickInputStream, panmanUtils::FILE_TYPE::VCF_MUTICHROMO, "", refFileName);
         
 
         std::vector<panmanUtils::Tree*> tg;
@@ -1561,6 +1596,9 @@ void parseAndExecute(int argc, char* argv[]) {
 
     if(globalVm.count("summary")) {
         summary(TG, globalVm, outputFile, buf);
+        return;
+    } else if (globalVm.count("test")){
+        test(TG, globalVm, outputFile, buf);
         return;
     } else if (globalVm.count("printTips")) {
         printTips(TG, globalVm, outputFile, buf);
