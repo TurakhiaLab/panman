@@ -49,7 +49,8 @@ std::string printSequenceLinesNew(const std::vector<std::vector<std::pair<char,s
                           std::unordered_map<int, int>& blockLengths,
                           const std::vector<bool>& blockExists, 
                           const std::vector<bool>& blockStrand, size_t lineSize,
-                        bool aligned, int offset = 0, bool debug = false);
+                        bool aligned, int offset = 0, bool debug = false,
+                        const std::vector<size_t>& chrBlockLengths = {}, int chrID = -1);
 void printSubsequenceLines(const sequence_t& sequence,\
                                      const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, 
                                      const std::tuple<int, int, int, int>& panMATStart, 
@@ -64,6 +65,7 @@ std::string stripString(std::string s);
 void stringSplit (std::string const& s, char delim, std::vector<std::string>& words);
 
 void panmanToUsher(panmanUtils::Tree* panmanTree, std::string refName, std::string filename, std::string refSeq="");
+void panmanToUsher(panmanUtils::Tree* panmanTree, std::string filename);
 
 
 // Represents input PanGraph information for PanMAT generation

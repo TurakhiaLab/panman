@@ -213,6 +213,7 @@ struct NucMut {
 struct BlockMut {
     int32_t primaryBlockId;
     int32_t secondaryBlockId;
+    int chrIdx=0;
 
     // Whether mutation is an insertion or deletion - Strand inversions are marked by
     // `blockMutInfo=false`, but they are not deletions
@@ -233,6 +234,9 @@ struct BlockMut {
         // Whether the mutation is a block inversion or not. Inversion is marked by
         // `blockMutInfo = deletion` and `inversion = true`
         inversion = mutation.getBlockInversion();
+        /* if chrIdx exists, set it */
+        chrIdx = mutation.getChrIdx();
+
     }
 
     void loadFromProtobuf(panmanOld::mutation mutation) {
@@ -248,7 +252,7 @@ struct BlockMut {
         inversion = mutation.blockinversion();
     }
 
-    BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1) {
+    BlockMut(size_t blockId, std::pair< BlockMutationType, bool > type, int secondaryBId = -1, int chrIdxInput = -1) {
         primaryBlockId = blockId;
         secondaryBlockId = secondaryBId;
         if(type.first == BlockMutationType::BI) {
@@ -265,6 +269,8 @@ struct BlockMut {
         } else {
             inversion = false;
         }
+
+        if (chrIdxInput!=-1) chrIdx=chrIdxInput;
     }
 
     BlockMut() {}
@@ -321,6 +327,29 @@ class Node {
     Node(std::string id, Node* par, float len);
 };
 
+struct Chr {
+    int64_t chrIdx=0;
+    std::string chrName;
+    std::vector< int64_t > blockIds;
+
+    void loadFromProtobuf(panman::ChrList::Reader chrList) {
+        chrIdx = chrList.getChrIdx();
+        chrName = chrList.getChrName();
+        for(auto blockId: chrList.getBlockIds()) {
+            blockIds.push_back(blockId);
+        }
+    }
+
+    Chr(int64_t chrIdxInput, std::vector< int64_t >& blockIdsInput){
+        chrIdx=chrIdxInput;
+        for(int i=0; i<blockIdsInput.size(); i++){
+            blockIds.push_back(blockIdsInput[i]);
+        }
+    }
+
+    Chr(){};
+
+};
 
 // Data structure to represent a PangenomeMAT
 class Tree {
@@ -365,7 +394,7 @@ class Tree {
                           std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
                           std::vector<bool>& blockExists, 
                           std::vector<bool>& blockStrand, 
-                          bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false);
+                          bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false, int chrID = -1);
     
     std::pair<std::vector<std::string>, std::vector<int>> extractSequenceHelper(
                           const std::vector<bool>& blockSequence,
@@ -421,7 +450,8 @@ class Tree {
     // different, the strand information does not change the result
     bool panMATCoordinateLeq(const std::tuple< int, int, int, int >& coor1,
                              const std::tuple< int, int, int, int >& coor2, bool strand);
-
+    
+    
 
     std::string newInternalNodeId() {
         return "node_" + std::to_string(++m_currInternalNode);
@@ -435,6 +465,7 @@ class Tree {
     std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
   public:
     Node *root;
+    std::vector< Chr > chrList;
     std::vector< Block > blocks;
     std::vector< GapList > gaps;
 
@@ -456,7 +487,7 @@ class Tree {
     Tree(const panmanOld::tree& mainTree);
     Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
     Tree(std::ifstream& fin, std::ifstream& secondFin,
-         FILE_TYPE ftype = FILE_TYPE::GFA, std::string reference = "");
+         FILE_TYPE ftype = FILE_TYPE::GFA, std::string reference = "", std::string refSeqFile = "");
 
     // Copy blocks from current tree into new tree which is rooted at one of the internal
     // nodes of the current tree. Used in split for PanMAN
@@ -469,6 +500,7 @@ class Tree {
 
     void protoMATToTree(const panman::Tree::Reader& mainTree);
     void protoMATToTree(const panmanOld::tree& mainTree);
+    void test();
 
     // Fitch Algorithm on Nucleotide mutations
     int nucFitchForwardPass(Node* node, std::unordered_map< std::string, int >& states, int refState=-1);
@@ -533,7 +565,7 @@ class Tree {
     void printBfs(Node* node = nullptr);
     void printFASTA(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
     void printFASTANew(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
-    void printFASTAUltraFast(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
+    void printFASTAUltraFast(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false, int chrID = -1);
     void printSingleNode(std::ostream& fout, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
                                          std::string nodeIdentifier, std::tuple< int, int, int, int > &panMATStart, std::tuple< int, int, int, int > &panMATEnd);
@@ -546,6 +578,7 @@ class Tree {
     void printVCFParallel(panmanUtils::Node* node, std::string& fileName);
     void extractAminoAcidTranslations(std::ostream& fout, int64_t start, int64_t end);
     void printConsensus(std::ostream& fout);
+    void printPseduoRoot(std::ostream& fout);
     // Extract PanMAT representing a segment of the genome. The start and end coordinates
     // are with respect to the root sequence. The strands of the terminal blocks in all
     // sequences are assumed to be the same as their strands in the root sequence for the

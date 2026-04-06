@@ -155,12 +155,18 @@ void panmanUtils::printSequenceLines(const sequence_t& sequence,\
 std::string panmanUtils::printSequenceLinesNew(const std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
                           std::unordered_map<int, int>& blockLengths,
                           const std::vector<bool>& blockExists, 
-                          const std::vector<bool>& blockStrand, size_t lineSize, bool aligned, int offset, bool debug) {
+                          const std::vector<bool>& blockStrand, size_t lineSize, bool aligned, int offset, bool debug,
+                          const std::vector<size_t>& chrBlockLengths,
+                          int chrID) {
 
     // String that stores the sequence to be printed
     std::string line;
-
-    for(size_t i = 0; i < blockExists.size(); i++) {
+    size_t startID=0, endID=blockLengths.size();
+    if (chrID !=-1){
+        startID = chrID==0?0:chrBlockLengths[chrID-1];
+        endID = chrBlockLengths[chrID];
+    }
+    for(size_t i = startID; i < endID; i++) {
         // Non-gap block - the only type being used currently
         if(blockExists[i]) {
             // line += ">" + std::to_string(i) + "\n";
@@ -1792,7 +1798,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
                             const std::vector<panmanUtils::Node*>& nodesFromTipToRoot, 
                             std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
                             std::vector<bool>& blockExists, 
-                            std::vector<bool>& blockStrand, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex) {
+                            std::vector<bool>& blockStrand, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex, int chrID) {
 
     
     for (auto node: nodesFromTipToRoot){
@@ -1937,8 +1943,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
     
     // Store sequence
     panmanUtils::Node* tipNode = nodesFromTipToRoot[nodesFromTipToRoot.size()-1];
-    std::string line="";
-    line += '>' + tipNode->identifier + '\n';
+    
     
 
     int offset = 0;
@@ -1974,11 +1979,30 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
         reverse(blockStrandPrint.begin(), blockStrandPrint.end());
     }
     
-    line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false);
+    
+    std::string line="";
+
+    if (chrList.size() == 0){
+        line += '>' + tipNode->identifier + '\n';
+        line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false, std::vector<size_t>(), -1);
+    } else {
+        std::vector<size_t> chrBlockLenghts(chrList.size(), 0);
+        for(size_t i=0; i<chrList.size();i++){
+            chrBlockLenghts[i] = chrList[i].blockIds.size();
+            if (i>0) chrBlockLenghts[i] += chrBlockLenghts[i-1];
+        }
+        for (int i=0; i<chrList.size();i++){
+            if (chrID != -1 && i != chrID) continue;
+            line += '>' + tipNode->identifier + "\tchr" + std::to_string(i) + '\n';
+            line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false, chrBlockLenghts, i);
+            line += '\n';   
+        }
+    }
+
     return line;
 }
 
-void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex) {
+void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex, int chrID) {
 
     std::unordered_map< std::string, std::mutex > nodeMutexes;
     for(auto u: allNodes) {
@@ -1989,12 +2013,12 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
 
     std::mutex printMutex;
 	int counting=0;
-    // for (auto &keyValue: allNodes) {
-    tbb::parallel_for_each(allNodes.begin(), allNodes.end(), [&](const std::pair<std::string, panmanUtils::Node*>& keyValue) {
+    for (auto &keyValue: allNodes) {
+    // tbb::parallel_for_each(allNodes.begin(), allNodes.end(), [&](const std::pair<std::string, panmanUtils::Node*>& keyValue) {
         panmanUtils::Node* node = keyValue.second;
         // Create a stringstream for each thread to avoid race conditions on fout
         if (node->children.size() != 0) {
-            return;
+            continue;
         }
 
         // Get block sequnece of the Tip
@@ -2015,12 +2039,13 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
         int32_t maxBlockId = 0;
 
         // Create consensus sequence of blocks
+        size_t seqlen=0;
         for(size_t i = 0; i < blocks.size(); i++) {
             int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
             blockLengths[primaryBlockId] = 0;
             maxBlockId = std::max(maxBlockId, primaryBlockId);
             if (blockSequence[primaryBlockId]) {
-                // int len = 0;
+                std::cout << "Expanding block: " << primaryBlockId << std::endl;
                 for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
                     bool endFlag = false;
                     for(size_t k = 0; k < 8; k++) {
@@ -2030,7 +2055,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
                             endFlag = true;
                             break;
                         }
-                        // len++;
+                        seqlen+=1;
                         const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
                         sequence[primaryBlockId].push_back({nucleotide, {}});
                     }
@@ -2064,6 +2089,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
             }
         }
 
+        std::cout << seqlen << std::endl;
         sequence.resize(maxBlockId + 1);
         blockExists.resize(maxBlockId + 1);
         blockStrand.resize(maxBlockId + 1);
@@ -2088,14 +2114,14 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
             }
         }
 
-        std::string line = printFASTAUltraFastHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex);
+        std::string line = printFASTAUltraFastHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex, chrID);
         // nodeMutexes[node->identifier].lock();
         std::lock_guard<std::mutex> guard(printMutex);
         fout << line << "\n";
         // nodeMutexes[node->identifier].unlock();
-        // break;
-    });
-    // }
+        break;
+    // });
+    }
 }
 
 std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extractSequenceHelper(
@@ -2390,4 +2416,26 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
     }
 
     return extractSequenceHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex);
+}
+
+
+void panmanUtils::Tree::test(){
+    std::cout << "Testing" << std::endl;
+    std::cout << "number of blocks: " << blocks.size() << std::endl;
+    std::cout << "number of chrs: " << chrList.size() << std::endl;
+    
+    for (int i=0; i<chrList.size();i++){
+        std::cout << "chr: " << chrList[i].chrIdx << " length: " << chrList[i].blockIds.size() << std::endl;
+        // for (int j=0; j<chrList[i].blockIds.size();j++){
+        //     std::cout << chrList[i].blockIds[j] << "\t" << blocks[chrList[i].blockIds[j]].consensusSeq.size() << std::endl;
+        // }
+        
+        std::cout << blocks[chrList[i].blockIds[0]].consensusSeq.size() << std::endl;
+    }
+
+    for (auto node: allNodes){
+        std::cout << "Node: " << node.first << std::endl;
+        std::cout << "Block Mutations: " << node.second->blockMutation.size() << std::endl;
+    }
+
 }
