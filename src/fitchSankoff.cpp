@@ -147,7 +147,7 @@ void panmanUtils::Tree::nucFitchAssignMutations(Node* node,
             }
             code--;
 
-            char nuc = getNucleotideFromCode(code);
+            char nuc = getSymbolFromCode(code, alphabet);
             mutations[node->identifier] = std::make_pair(NucMutationType::NI, nuc);
         } else if(states[node->identifier] == 1) {
             // deletion
@@ -161,7 +161,7 @@ void panmanUtils::Tree::nucFitchAssignMutations(Node* node,
             }
             code--;
 
-            char nuc = getNucleotideFromCode(code);
+            char nuc = getSymbolFromCode(code, alphabet);
             mutations[node->identifier] = std::make_pair(NucMutationType::NS, nuc);
         }
     }
@@ -194,7 +194,7 @@ void panmanUtils::Tree::nucFitchAssignMutationsOpt(
             }
             code--;
 
-            char nuc = getNucleotideFromCode(code);
+            char nuc = getSymbolFromCode(code, alphabet);
             mutations[node->identifier] = std::make_pair(NucMutationType::NI, nuc);
         } else if(states[node->identifier] == 1) {
             // deletion
@@ -211,7 +211,7 @@ void panmanUtils::Tree::nucFitchAssignMutationsOpt(
             }
             code--;
 
-            char nuc = getNucleotideFromCode(code);
+            char nuc = getSymbolFromCode(code, alphabet);
             mutations[node->identifier] = std::make_pair(NucMutationType::NS, nuc);
         }
     }
@@ -310,10 +310,11 @@ void panmanUtils::Tree::blockFitchAssignMutationsNew(Node* node,
 
 std::vector< int > panmanUtils::Tree::nucSankoffForwardPassOpt(Node* node,
         std::unordered_map< std::string, std::vector< int > >& stateSets) {
+    const int stateCount = getCodec(alphabet).stateCount;
 
     if(node->children.size() == 0) {
         if(stateSets.find(node->identifier) == stateSets.end()) {
-            std::vector< int > blankState(16, SANKOFF_INF);
+            std::vector< int > blankState(stateCount, SANKOFF_INF);
             stateSets[node->identifier] = blankState;
         }
         return stateSets[node->identifier];
@@ -327,7 +328,7 @@ std::vector< int > panmanUtils::Tree::nucSankoffForwardPassOpt(Node* node,
 
     bool minExists = false;
     for(size_t j = 0; j < childStates.size(); j++) {
-        for(int k = 0; k < 16; k++) {
+        for(int k = 0; k < stateCount; k++) {
             if(childStates[j][k] < SANKOFF_INF) {
                 minExists = true;
                 break;
@@ -336,15 +337,15 @@ std::vector< int > panmanUtils::Tree::nucSankoffForwardPassOpt(Node* node,
     }
 
     if(!minExists) {
-        std::vector< int > currentState(16, SANKOFF_INF);
+        std::vector< int > currentState(stateCount, SANKOFF_INF);
         return stateSets[node->identifier] = currentState;
     }
 
-    std::vector< int > currentState(16, 0);
-    for(int i = 0; i < 16; i++) {
+    std::vector< int > currentState(stateCount, 0);
+    for(int i = 0; i < stateCount; i++) {
         for(size_t j = 0; j < childStates.size(); j++) {
             int minVal = SANKOFF_INF;
-            for(int k = 0; k < 16; k++) {
+            for(int k = 0; k < stateCount; k++) {
                 minVal = std::min(minVal, (i != k) + childStates[j][k]);
             }
             if(minVal < SANKOFF_INF) {
@@ -358,10 +359,11 @@ std::vector< int > panmanUtils::Tree::nucSankoffForwardPassOpt(Node* node,
 
 std::vector< int > panmanUtils::Tree::nucSankoffForwardPass(Node* node,
         std::unordered_map< std::string, std::vector< int > >& stateSets) {
+    const int stateCount = getCodec(alphabet).stateCount;
 
     if(node->children.size() == 0) {
         if(stateSets.find(node->identifier) == stateSets.end()) {
-            std::vector< int > blankState(16, SANKOFF_INF);
+            std::vector< int > blankState(stateCount, SANKOFF_INF);
             stateSets[node->identifier] = blankState;
         }
         return stateSets[node->identifier];
@@ -375,7 +377,7 @@ std::vector< int > panmanUtils::Tree::nucSankoffForwardPass(Node* node,
 
     bool minExists = false;
     for(size_t j = 0; j < childStates.size(); j++) {
-        for(int k = 0; k < 16; k++) {
+        for(int k = 0; k < stateCount; k++) {
             if(childStates[j][k] < SANKOFF_INF) {
                 minExists = true;
                 break;
@@ -384,15 +386,15 @@ std::vector< int > panmanUtils::Tree::nucSankoffForwardPass(Node* node,
     }
 
     if(!minExists) {
-        std::vector< int > currentState(16, SANKOFF_INF);
+        std::vector< int > currentState(stateCount, SANKOFF_INF);
         return stateSets[node->identifier] = currentState;
     }
 
-    std::vector< int > currentState(16, 0);
-    for(int i = 0; i < 16; i++) {
+    std::vector< int > currentState(stateCount, 0);
+    for(int i = 0; i < stateCount; i++) {
         for(size_t j = 0; j < childStates.size(); j++) {
             int minVal = SANKOFF_INF;
-            for(int k = 0; k < 16; k++) {
+            for(int k = 0; k < stateCount; k++) {
                 minVal = std::min(minVal, (i != k) + childStates[j][k]);
             }
             if(minVal < SANKOFF_INF) {
@@ -488,6 +490,7 @@ void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
         std::unordered_map< std::string, std::vector< int > >& stateSets,
         std::unordered_map< std::string, int >& states, int parentPtr,
         int defaultValue) {
+    const int stateCount = getCodec(alphabet).stateCount;
 
     if(node == root && defaultValue != (1 << 28)) {
         states[node->identifier] = defaultValue;
@@ -495,7 +498,7 @@ void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
         if(node == root) {
             int minVal = SANKOFF_INF;
             int minPtr = -1;
-            for(int i = 0; i < 16; i++) {
+            for(int i = 0; i < stateCount; i++) {
                 // std::cout << stateSets[node->identifier][i] << " " << SANKOFF_INF << std::endl;
                 if(stateSets[node->identifier][i] < minVal) {
                     minVal = stateSets[node->identifier][i];
@@ -518,7 +521,7 @@ void panmanUtils::Tree::nucSankoffBackwardPass(Node* node,
         for(auto child: node->children) {
             int minPtr = -1;
             int minVal = SANKOFF_INF;
-            for(int i = 0; i < 16; i++) {
+            for(int i = 0; i < stateCount; i++) {
                 if((i != states[node->identifier]) + stateSets[child->identifier][i] < minVal) {
                     minVal = (i != states[node->identifier]) + stateSets[child->identifier][i];
                     minPtr = i;
@@ -599,6 +602,7 @@ void panmanUtils::Tree::nucSankoffBackwardPassOpt(Node* node,
         std::unordered_map< std::string, std::vector< int > >& stateSets,
         std::unordered_map< std::string, int >& states, int parentPtr,
         int defaultValue) {
+    const int stateCount = getCodec(alphabet).stateCount;
 
     if(node == root && defaultValue != (1 << 28)) {
         states[node->identifier] = defaultValue;
@@ -606,7 +610,7 @@ void panmanUtils::Tree::nucSankoffBackwardPassOpt(Node* node,
         if(node == root) {
             int minVal = SANKOFF_INF;
             int minPtr = -1;
-            for(int i = 0; i < 16; i++) {
+            for(int i = 0; i < stateCount; i++) {
                 if(stateSets[node->identifier][i] < minVal) {
                     minVal = stateSets[node->identifier][i];
                     minPtr = i;
@@ -629,7 +633,7 @@ void panmanUtils::Tree::nucSankoffBackwardPassOpt(Node* node,
         for(auto child: node->children) {
             int minPtr = -1;
             int minVal = SANKOFF_INF;
-            for(int i = 0; i < 16; i++) {
+            for(int i = 0; i < stateCount; i++) {
                 if((i != states[node->identifier]) + stateSets[child->identifier][i] < minVal) {
                     minVal = (i != states[node->identifier]) + stateSets[child->identifier][i];
                     minPtr = i;
@@ -654,7 +658,7 @@ void panmanUtils::Tree::nucSankoffAssignMutationsOpt(Node* node,
         if(parentState == 0) {
             // insertion
             int code = states[node->identifier];
-            char nuc = getNucleotideFromCode(code);
+            char nuc = getSymbolFromCode(code, alphabet);
             mutations[node->identifier] = std::make_pair(NucMutationType::NI, nuc);
         } else if(states[node->identifier] == 0) {
             // deletion
@@ -662,7 +666,7 @@ void panmanUtils::Tree::nucSankoffAssignMutationsOpt(Node* node,
         } else {
             // substitution
             int code = states[node->identifier];
-            char nuc = getNucleotideFromCode(code);
+            char nuc = getSymbolFromCode(code, alphabet);
             mutations[node->identifier] = std::make_pair(NucMutationType::NS, nuc);
         }
     }
@@ -684,7 +688,7 @@ void panmanUtils::Tree::nucSankoffAssignMutations(Node* node,
         if(parentState == 0) {
             // insertion
             int code = states[node->identifier];
-            char nuc = getNucleotideFromCode(code);
+            char nuc = getSymbolFromCode(code, alphabet);
             mutations[node->identifier] = std::make_pair(NucMutationType::NI, nuc);
         } else if(states[node->identifier] == 0) {
             // deletion
@@ -692,7 +696,7 @@ void panmanUtils::Tree::nucSankoffAssignMutations(Node* node,
         } else {
             // substitution
             int code = states[node->identifier];
-            char nuc = getNucleotideFromCode(code);
+            char nuc = getSymbolFromCode(code, alphabet);
             mutations[node->identifier] = std::make_pair(NucMutationType::NS, nuc);
         }
     }

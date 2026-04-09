@@ -24,14 +24,16 @@ int getCodeFromNucUsher(char c){
 void getCoordMap(panmanUtils::Tree* panmanTree, std::vector<std::vector<std::pair<int, std::vector<int>>>> &globalCoords_t) {
     const std::vector<panmanUtils::Block> &blocks = panmanTree->blocks;
     const std::vector<panmanUtils::GapList> &gaps = panmanTree->gaps;
+    const auto treeAlphabet = panmanTree->alphabet;
 
     // blocks
     for (size_t block_id = 0; block_id < blocks.size(); block_id++) {
         int32_t blockId = ((int32_t)blocks[block_id].primaryBlockId);
         for (size_t nuc_pos = 0; nuc_pos < blocks[block_id].consensusSeq.size(); nuc_pos++) {
             bool endFlag = false;
-            for (size_t k = 0; k < 8; k++) {
-                const int nucCode = (((blocks[block_id].consensusSeq[nuc_pos]) >> (4 * (7 - k))) & 15);
+            for (size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(treeAlphabet); k++) {
+                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(
+                    blocks[block_id].consensusSeq[nuc_pos], k, treeAlphabet));
                 if (nucCode == 0) {
                     endFlag = true;
                     break;
@@ -74,19 +76,21 @@ void getCoordMap(panmanUtils::Tree* panmanTree, std::vector<std::vector<std::pai
 void getPseudoRoot(panmanUtils::Tree* panmanTree, std::vector<std::vector<std::pair<char, std::vector<char>>>> &pseudoRoot) {
     const std::vector<panmanUtils::Block> &blocks = panmanTree->blocks;
     const std::vector<panmanUtils::GapList> &gaps = panmanTree->gaps;
+    const auto treeAlphabet = panmanTree->alphabet;
 
     // blocks
     for (size_t block_id = 0; block_id < blocks.size(); block_id++) {
         int32_t blockId = ((int32_t)blocks[block_id].primaryBlockId);
         for (size_t nuc_pos = 0; nuc_pos < blocks[block_id].consensusSeq.size(); nuc_pos++) {
             bool endFlag = false;
-            for (size_t k = 0; k < 8; k++) {
-                const int nucCode = (((blocks[block_id].consensusSeq[nuc_pos]) >> (4 * (7 - k))) & 15);
+            for (size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(treeAlphabet); k++) {
+                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(
+                    blocks[block_id].consensusSeq[nuc_pos], k, treeAlphabet));
                 if (nucCode == 0) {
                     endFlag = true;
                     break;
                 }
-                const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, treeAlphabet);
                 pseudoRoot[blockId].push_back({nucleotide, {}});
             }
             if (endFlag){
@@ -112,6 +116,7 @@ void getPseudoRoot(panmanUtils::Tree* panmanTree, std::vector<std::vector<std::p
 
 void getPseudoRootCompact(panmanUtils::Tree* panmanTree, std::vector<std::vector<char>> &pseudoRoot, std::vector<std::vector<int>> &globalCoor_t) {
     const std::vector<panmanUtils::Block> &blocks = panmanTree->blocks;
+    const auto treeAlphabet = panmanTree->alphabet;
     int index=1; // MAT index starts from 1
 
     for (size_t block_id = 0; block_id < blocks.size(); block_id++) {
@@ -120,13 +125,14 @@ void getPseudoRootCompact(panmanUtils::Tree* panmanTree, std::vector<std::vector
         std::vector<int> blockCoord;
         for (size_t nuc_pos = 0; nuc_pos < blocks[block_id].consensusSeq.size(); nuc_pos++) {
             bool endFlag = false;
-            for (size_t k = 0; k < 8; k++) {
-                const int nucCode = (((blocks[block_id].consensusSeq[nuc_pos]) >> (4 * (7 - k))) & 15);
+            for (size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(treeAlphabet); k++) {
+                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(
+                    blocks[block_id].consensusSeq[nuc_pos], k, treeAlphabet));
                 if (nucCode == 0) {
                     endFlag = true;
                     break;
                 }
-                const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, treeAlphabet);
                 blockSequence.push_back(nucleotide);
                 blockCoord.push_back(index++);
                 std::cout << nucleotide;
@@ -413,14 +419,14 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     for(int j = 0; j < len; j++) {
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, panmanUtils::getActiveAlphabet())), panmanUtils::getActiveAlphabet());
                         sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         
                         mut->set_position(globalCoords_t[primaryBlockId][nucPosition].second[nucGapPosition+j]);
-                        mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                        mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition+j]));
-                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                        mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                        mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition+j], panmanUtils::getActiveAlphabet()));
+                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                             mut->add_mut_nuc(nuc);
                         }
                     }
@@ -428,14 +434,14 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     for(int j = 0; j < len; j++) {
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, panmanUtils::getActiveAlphabet())), panmanUtils::getActiveAlphabet());
                         sequence[primaryBlockId][nucPosition+j].first = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         
                         mut->set_position(globalCoords_t[primaryBlockId][nucPosition+j].first);
-                        mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                        mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition+j].first));
-                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                        mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                        mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition+j].first, panmanUtils::getActiveAlphabet()));
+                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                             mut->add_mut_nuc(nuc);
                         }
                     }
@@ -446,14 +452,14 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     for(int j = 0; j < len; j++) {
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, panmanUtils::getActiveAlphabet())), panmanUtils::getActiveAlphabet());
                         sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         
                         mut->set_position(globalCoords_t[primaryBlockId][nucPosition].second[nucGapPosition+j]);
-                        mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                        mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition+j]));
-                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                        mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                        mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition+j], panmanUtils::getActiveAlphabet()));
+                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                             mut->add_mut_nuc(nuc);
                         }
                     }
@@ -461,14 +467,14 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     for(int j = 0; j < len; j++) {
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, panmanUtils::getActiveAlphabet())), panmanUtils::getActiveAlphabet());
                         sequence[primaryBlockId][nucPosition+j].first = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         
                         mut->set_position(globalCoords_t[primaryBlockId][nucPosition+j].first);
-                        mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                        mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition+j].first));
-                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                        mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                        mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition+j].first, panmanUtils::getActiveAlphabet()));
+                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                             mut->add_mut_nuc(nuc);
                         }
                     }
@@ -483,9 +489,9 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j, oldVal, '-'));
                         
                         mut->set_position(globalCoords_t[primaryBlockId][nucPosition].second[nucGapPosition+j]);
-                        mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                        mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition+j]));
-                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                        mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                        mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition+j], panmanUtils::getActiveAlphabet()));
+                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                             mut->add_mut_nuc(nuc);
                         }
                     }
@@ -497,9 +503,9 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, '-'));
                         
                         mut->set_position(globalCoords_t[primaryBlockId][nucPosition+j].first);
-                        mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                        mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition+j].first));
-                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                        mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                        mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition+j].first, panmanUtils::getActiveAlphabet()));
+                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                             mut->add_mut_nuc(nuc);
                         }
                     }
@@ -508,7 +514,7 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
         } else {
             if(type == panmanUtils::NucMutationType::NSNPS) {
                 // SNP Substitution
-                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, panmanUtils::getActiveAlphabet())), panmanUtils::getActiveAlphabet());
                 if(nucGapPosition != -1) {
                     auto mut = mutation_list->add_mutation();
                     char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
@@ -516,9 +522,9 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
                     
                     mut->set_position(globalCoords_t[primaryBlockId][nucPosition].second[nucGapPosition]);
-                    mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                    mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition]));
-                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                    mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                    mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition], panmanUtils::getActiveAlphabet()));
+                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                         mut->add_mut_nuc(nuc);
                     }
                 } else {
@@ -528,15 +534,15 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
                     
                     mut->set_position(globalCoords_t[primaryBlockId][nucPosition].first);
-                    mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                    mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].first));
-                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                    mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                    mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].first, panmanUtils::getActiveAlphabet()));
+                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                         mut->add_mut_nuc(nuc);
                     }
                 }
             } else if(type == panmanUtils::NucMutationType::NSNPI) {
                 // SNP Insertion
-                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, panmanUtils::getActiveAlphabet())), panmanUtils::getActiveAlphabet());
                 if(nucGapPosition != -1) {
                     auto mut = mutation_list->add_mutation();
                     char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
@@ -544,9 +550,9 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
                     
                     mut->set_position(globalCoords_t[primaryBlockId][nucPosition].second[nucGapPosition]);
-                    mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                    mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition]));
-                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                    mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                    mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition], panmanUtils::getActiveAlphabet()));
+                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                         mut->add_mut_nuc(nuc);
                     }
                 } else {
@@ -556,9 +562,9 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition, oldVal, newVal));
                     
                     mut->set_position(globalCoords_t[primaryBlockId][nucPosition].first);
-                    mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                    mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].first));
-                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                    mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                    mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].first, panmanUtils::getActiveAlphabet()));
+                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                         mut->add_mut_nuc(nuc);
                     }
                 }
@@ -571,9 +577,9 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition, oldVal, '-'));
                     
                     mut->set_position(globalCoords_t[primaryBlockId][nucPosition].second[nucGapPosition]);
-                    mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                    mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition]));
-                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                    mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                    mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].second[nucGapPosition], panmanUtils::getActiveAlphabet()));
+                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                         mut->add_mut_nuc(nuc);
                     }
                 } else {
@@ -583,9 +589,9 @@ void getNodeDFS(Parsimony::data &data, panmanUtils::Node* node,
                     mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition, oldVal, '-'));
                     
                     mut->set_position(globalCoords_t[primaryBlockId][nucPosition].first);
-                    mut->set_par_nuc(panmanUtils::getCodeFromNucleotide(oldVal));
-                    mut->set_ref_nuc(panmanUtils::getCodeFromNucleotide(pseudoRoot[primaryBlockId][nucPosition].first));
-                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                    mut->set_par_nuc(panmanUtils::getCodeFromSymbol(oldVal, panmanUtils::getActiveAlphabet()));
+                    mut->set_ref_nuc(panmanUtils::getCodeFromSymbol(pseudoRoot[primaryBlockId][nucPosition].first, panmanUtils::getActiveAlphabet()));
+                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                         mut->add_mut_nuc(nuc);
                     }
                 }
@@ -693,14 +699,14 @@ void getNodeDFSCompact(Parsimony::data &data, panmanUtils::Node* node,
                         if (nonACGTPositions.find(globalCoords_t[primaryBlockId][nucPosition+j]) != nonACGTPositions.end()) continue;
                         auto mut = mutation_list->add_mutation();
                         char oldVal = sequence[primaryBlockId][nucPosition+j];
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, panmanUtils::getActiveAlphabet())), panmanUtils::getActiveAlphabet());
                         sequence[primaryBlockId][nucPosition+j] = newVal;
                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         
                         mut->set_position(globalCoords_t[primaryBlockId][nucPosition+j]);
                         mut->set_par_nuc(getCodeFromNucUsher(oldVal));
                         mut->set_ref_nuc(getCodeFromNucUsher(pseudoRoot[primaryBlockId][nucPosition+j]));
-                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                        for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                             mut->add_mut_nuc(nuc);
                         }
                     }
@@ -708,7 +714,7 @@ void getNodeDFSCompact(Parsimony::data &data, panmanUtils::Node* node,
             }
         } else {
             if(type == panmanUtils::NucMutationType::NSNPS) {
-                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, panmanUtils::getActiveAlphabet())), panmanUtils::getActiveAlphabet());
                 if (nucGapPosition == -1 && nonACGTPositions.find(nucPosition) == nonACGTPositions.end() ) {
                     auto mut = mutation_list->add_mutation();
                     char oldVal = sequence[primaryBlockId][nucPosition];
@@ -718,7 +724,7 @@ void getNodeDFSCompact(Parsimony::data &data, panmanUtils::Node* node,
                     mut->set_position(globalCoords_t[primaryBlockId][nucPosition]);
                     mut->set_par_nuc(getCodeFromNucUsher(oldVal));
                     mut->set_ref_nuc(getCodeFromNucUsher(pseudoRoot[primaryBlockId][nucPosition]));
-                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromNucleotide(newVal))) {
+                    for (auto nuc: get_nuc_vec_from_id(panmanUtils::getCodeFromSymbol(newVal, panmanUtils::getActiveAlphabet()))) {
                         mut->add_mut_nuc(nuc);
                     }
                 }
@@ -749,6 +755,7 @@ void getNodeDFSCompact(Parsimony::data &data, panmanUtils::Node* node,
 }
 
 void panmanUtils::panmanToUsher(panmanUtils::Tree* panmanTree, std::string refName, std::string filename,std::string refSeq) {
+    panmanUtils::setActiveAlphabet(panmanTree->alphabet);
     std::vector<std::vector<std::pair<int, std::vector<int>>>> globalCoords_t;
     std::vector<std::vector<std::pair<char, std::vector<char>>>> pseudoRoot;
     
@@ -791,6 +798,7 @@ void panmanUtils::panmanToUsher(panmanUtils::Tree* panmanTree, std::string refNa
 }
 
 void panmanUtils::panmanToUsher(panmanUtils::Tree* panmanTree, std::string filename) {
+    panmanUtils::setActiveAlphabet(panmanTree->alphabet);
     std::vector<std::vector<int>> globalCoords_t;
     std::vector<std::vector<char>> pseudoRoot;
     
@@ -816,7 +824,7 @@ void panmanUtils::panmanToUsher(panmanUtils::Tree* panmanTree, std::string filen
 
             if(nucGapPosition == -1) {
                 for(int j = 0; j < len; j++) {
-                    newVal = panmanUtils::getNucleotideFromCode(((mut.nucs) >> (4*(5-j))) & 0xF);
+                    newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(mut.nucs, j, panmanTree->alphabet)), panmanTree->alphabet);
                     if (newVal == 'N') nonACGTPositions.insert(globalCoords_t[primaryBlockId][nucPosition+j]);
                 }
             }

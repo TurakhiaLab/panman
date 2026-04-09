@@ -29,9 +29,14 @@ char getNucleotideFromCode(int code);
 // Get 4-bit PanMAT code from nucleotide character
 char getCodeFromNucleotide(char nuc);
 
+// Generic alphabet-aware symbol conversion helpers
+char getSymbolFromCode(int code, Alphabet alphabet);
+char getCodeFromSymbol(char symbol, Alphabet alphabet);
+
 // Get complement Nucleotide character of given nucleotide character. Used to compute reverse
 // complement
 char getComplementCharacter(char nuc);
+char getComplementCharacter(char symbol, Alphabet alphabet);
 
 // Given a sequence and block presence/strand information, print the sequence in FASTA format
 // where each line has length lineSize

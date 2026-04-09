@@ -8,6 +8,7 @@
 #include <tbb/task_scheduler_init.h>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+#include "alphabetCodec.hpp"
 
 #define PMAT_VERSION "2.0-beta"
 #define VCF_VERSION "4.2"

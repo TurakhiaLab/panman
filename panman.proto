@@ -74,6 +74,12 @@ message sequenceInverted
     bool            inverted = 2;
 }
 
+enum alphabetType
+{
+    DNA = 0;
+    PROTEIN = 1;
+}
+
 message tree
 {
     string           newick = 1;
@@ -85,6 +91,7 @@ message tree
     repeated rotationIndex rotationIndexes = 8;
     repeated sequenceInverted sequencesInverted = 9;
     repeated chrList chrLists = 10;
+    alphabetType alphabet = 11;
 }
 
 message complexMutation {

@@ -232,8 +232,6 @@ std::string panmanUtils::printSequenceLinesNew(const std::vector<std::vector<std
         }
     }
 
-    std::cout << line.size() << std::endl;
-
     // From offset to end
     std::string currentLine = "";
     int c=0;
@@ -562,14 +560,14 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
                     if(nucGapPosition != -1) {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j];
-                            newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         }
                     } else {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first;
-                            newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         }
@@ -579,14 +577,14 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
                     if(nucGapPosition != -1) {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j];
-                            newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         }
                     } else {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].first[nucPosition+j].first;
-                            newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].first[nucPosition+j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         }
@@ -598,14 +596,14 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
                     if(nucGapPosition != -1) {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition + j];
-                            newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         }
                     } else {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first;
-                            newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         }
@@ -615,14 +613,14 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
                     if(nucGapPosition != -1) {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j];
-                            newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         }
                     } else {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].first[nucPosition+j].first;
-                            newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].first[nucPosition+j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         }
@@ -664,7 +662,7 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
         } else {
             if(type == panmanUtils::NucMutationType::NSNPS) {
                 // SNP Substitution
-                newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(root->nucMutation[i].nucs, alphabet)), alphabet);
                 if(secondaryBlockId != -1) {
                     if(nucGapPosition != -1) {
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
@@ -688,7 +686,7 @@ void panmanUtils::Tree::printFASTAHelper(panmanUtils::Node* root, sequence_t& se
                 }
             } else if(type == panmanUtils::NucMutationType::NSNPI) {
                 // SNP Insertion
-                newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(root->nucMutation[i].nucs, alphabet)), alphabet);
                 if(secondaryBlockId != -1) {
                     if(nucGapPosition != -1) {
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
@@ -978,14 +976,14 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
                     if(nucGapPosition != -1) {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j];
-                            newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         }
                     } else {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first;
-                            newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         }
@@ -995,14 +993,14 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
                     if(nucGapPosition != -1) {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j];
-                            newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         }
                     } else {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].first[nucPosition+j].first;
-                            newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].first[nucPosition+j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         }
@@ -1014,14 +1012,14 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
                     if(nucGapPosition != -1) {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition + j];
-                            newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         }
                     } else {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first;
-                            newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].second[secondaryBlockId][nucPosition + j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         }
@@ -1031,14 +1029,14 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
                     if(nucGapPosition != -1) {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j];
-                            newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].first[nucPosition].second[nucGapPosition+j] = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
                         }
                     } else {
                         for(int j = 0; j < len; j++) {
                             char oldVal = sequence[primaryBlockId].first[nucPosition+j].first;
-                            newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                            newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                             sequence[primaryBlockId].first[nucPosition+j].first = newVal;
                             mutationInfo.push_back(std::make_tuple(primaryBlockId, secondaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
                         }
@@ -1080,7 +1078,7 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
         } else {
             if(type == panmanUtils::NucMutationType::NSNPS) {
                 // SNP Substitution
-                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, alphabet)), alphabet);
                 if(secondaryBlockId != -1) {
                     if(nucGapPosition != -1) {
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
@@ -1104,7 +1102,7 @@ void panmanUtils::Tree::printSingleNodeHelper(std::vector<panmanUtils::Node*> &n
                 }
             } else if(type == panmanUtils::NucMutationType::NSNPI) {
                 // SNP Insertion
-                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, alphabet)), alphabet);
                 if(secondaryBlockId != -1) {
                     if(nucGapPosition != -1) {
                         char oldVal = sequence[primaryBlockId].second[secondaryBlockId][nucPosition].second[nucGapPosition];
@@ -1251,14 +1249,14 @@ void panmanUtils::Tree::printFASTA(std::ostream& fout, bool aligned, bool rootSe
 
         for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
             bool endFlag = false;
-            for(size_t k = 0; k < 8; k++) {
-                const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+            for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
 
                 if(nucCode == 0) {
                     endFlag = true;
                     break;
                 }
-                const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
 
                 if(secondaryBlockId != -1) {
                     sequence[primaryBlockId].second[secondaryBlockId].push_back({nucleotide, {}});
@@ -1342,14 +1340,14 @@ void panmanUtils::Tree::printSingleNode(std::ostream& fout, const sequence_t& se
 
         for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
             bool endFlag = false;
-            for(size_t k = 0; k < 8; k++) {
-                const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+            for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
 
                 if(nucCode == 0) {
                     endFlag = true;
                     break;
                 }
-                const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
 
                 if(secondaryBlockId != -1) {
                     sequence[primaryBlockId].second[secondaryBlockId].push_back({nucleotide, {}});
@@ -1537,14 +1535,14 @@ void panmanUtils::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fou
 //                 if(nucGapPosition != -1) {
 //                     for(int j = 0; j < len; j++) {
 //                         char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-//                         newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+//                         newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
 //                         sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
 //                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
 //                     }
 //                 } else {
 //                     for(int j = 0; j < len; j++) {
 //                         char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-//                         newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+//                         newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
 //                         sequence[primaryBlockId][nucPosition+j].first = newVal;
 //                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
 //                     }
@@ -1554,14 +1552,14 @@ void panmanUtils::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fou
 //                 if(nucGapPosition != -1) {
 //                     for(int j = 0; j < len; j++) {
 //                         char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-//                         newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+//                         newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
 //                         sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
 //                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition, nucGapPosition+j, oldVal, newVal));
 //                     }
 //                 } else {
 //                     for(int j = 0; j < len; j++) {
 //                         char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-//                         newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+//                         newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(root->nucMutation[i].nucs, j, alphabet)), alphabet);
 //                         sequence[primaryBlockId][nucPosition+j].first = newVal;
 //                         mutationInfo.push_back(std::make_tuple(primaryBlockId, nucPosition + j, nucGapPosition, oldVal, newVal));
 //                     }
@@ -1585,7 +1583,7 @@ void panmanUtils::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fou
 //         } else {
 //             if(type == panmanUtils::NucMutationType::NSNPS) {
 //                 // SNP Substitution
-//                 newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
+//                 newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(root->nucMutation[i].nucs, alphabet)), alphabet);
 //                 if(nucGapPosition != -1) {
 //                     char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
 //                     sequence[primaryBlockId][nucPosition].second[nucGapPosition] = newVal;
@@ -1597,7 +1595,7 @@ void panmanUtils::Tree::printFASTAFromGFA(std::ifstream& fin, std::ofstream& fou
 //                 }
 //             } else if(type == panmanUtils::NucMutationType::NSNPI) {
 //                 // SNP Insertion
-//                 newVal = panmanUtils::getNucleotideFromCode(((root->nucMutation[i].nucs) >> 20) & 0xF);
+//                 newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(root->nucMutation[i].nucs, alphabet)), alphabet);
 //                 if(nucGapPosition != -1) {
 //                     char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
 //                     sequence[primaryBlockId][nucPosition].second[nucGapPosition] = newVal;
@@ -1865,13 +1863,13 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
                         if(nucGapPosition != -1) {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-                                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                                 sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-                                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                                 sequence[primaryBlockId][nucPosition+j].first = newVal;
                             }
                         }
@@ -1880,13 +1878,13 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
                         if(nucGapPosition != -1) {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-                                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                                 sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-                                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                                 sequence[primaryBlockId][nucPosition+j].first = newVal;
                             }
                         }
@@ -1907,7 +1905,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
                 } else {
                     if(type == panmanUtils::NucMutationType::NSNPS) {
                         // SNP Substitution
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, alphabet)), alphabet);
                         if(nucGapPosition != -1) {
                             char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
                             sequence[primaryBlockId][nucPosition].second[nucGapPosition] = newVal;
@@ -1917,7 +1915,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
                         }
                     } else if(type == panmanUtils::NucMutationType::NSNPI) {
                         // SNP Insertion
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, alphabet)), alphabet);
                         if(nucGapPosition != -1) {
                             char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
                             sequence[primaryBlockId][nucPosition].second[nucGapPosition] = newVal;
@@ -1981,8 +1979,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
     
     
     std::string line="";
-
-    if (chrList.size() == 0){
+    if (chrID == -1){
         line += '>' + tipNode->identifier + '\n';
         line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false, std::vector<size_t>(), -1);
     } else {
@@ -2037,7 +2034,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
 
 
         int32_t maxBlockId = 0;
-
+        std::string consensusSeq_string = "";
         // Create consensus sequence of blocks
         size_t seqlen=0;
         for(size_t i = 0; i < blocks.size(); i++) {
@@ -2045,19 +2042,19 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
             blockLengths[primaryBlockId] = 0;
             maxBlockId = std::max(maxBlockId, primaryBlockId);
             if (blockSequence[primaryBlockId]) {
-                std::cout << "Expanding block: " << primaryBlockId << std::endl;
                 for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
                     bool endFlag = false;
-                    for(size_t k = 0; k < 8; k++) {
-                        const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+                    for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                        const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
 
                         if(nucCode == 0) {
                             endFlag = true;
                             break;
                         }
                         seqlen+=1;
-                        const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                        const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
                         sequence[primaryBlockId].push_back({nucleotide, {}});
+                        consensusSeq_string += nucleotide;
                     }
 
                     if(endFlag) {
@@ -2071,14 +2068,14 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
                 int len = 0;
                 for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
                     bool endFlag = false;
-                    for(size_t k = 0; k < 8; k++) {
-                        const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+                    for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                        const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
                         if(nucCode == 0) {
                             endFlag = true;
                             break;
                         }
+                        consensusSeq_string += nucCode;
                         len++;
-                        const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
                     }
 
                     if(endFlag) {
@@ -2089,7 +2086,8 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
             }
         }
 
-        std::cout << seqlen << std::endl;
+        // std::cout << "consensusSeq_string: " << consensusSeq_string << std::endl;
+
         sequence.resize(maxBlockId + 1);
         blockExists.resize(maxBlockId + 1);
         blockStrand.resize(maxBlockId + 1);
@@ -2119,7 +2117,6 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
         std::lock_guard<std::mutex> guard(printMutex);
         fout << line << "\n";
         // nodeMutexes[node->identifier].unlock();
-        break;
     // });
     }
 }
@@ -2193,22 +2190,19 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
                     // Either S, I or D
                     int len = ((node->nucMutation[i].mutInfo) >> 4);
 
-                    if(primaryBlockId >= sequence.size()) {
-                        std::cout << primaryBlockId << " " << sequence.size() << std::endl;
-                    }
 
                     if(type == panmanUtils::NucMutationType::NS) {
                         // Substitution
                         if(nucGapPosition != -1) {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-                                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                                 sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-                                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                                 sequence[primaryBlockId][nucPosition+j].first = newVal;
                             }
                         }
@@ -2217,13 +2211,13 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
                         if(nucGapPosition != -1) {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition+j];
-                                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                                 sequence[primaryBlockId][nucPosition].second[nucGapPosition+j] = newVal;
                             }
                         } else {
                             for(int j = 0; j < len; j++) {
                                 char oldVal = sequence[primaryBlockId][nucPosition+j].first;
-                                newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> (4*(5-j))) & 0xF);
+                                newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::packedMutationSymbolAt(node->nucMutation[i].nucs, j, alphabet)), alphabet);
                                 sequence[primaryBlockId][nucPosition+j].first = newVal;
                             }
                         }
@@ -2244,7 +2238,7 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
                 } else {
                     if(type == panmanUtils::NucMutationType::NSNPS) {
                         // SNP Substitution
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, alphabet)), alphabet);
                         if(nucGapPosition != -1) {
                             char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
                             sequence[primaryBlockId][nucPosition].second[nucGapPosition] = newVal;
@@ -2254,7 +2248,7 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
                         }
                     } else if(type == panmanUtils::NucMutationType::NSNPI) {
                         // SNP Insertion
-                        newVal = panmanUtils::getNucleotideFromCode(((node->nucMutation[i].nucs) >> 20) & 0xF);
+                        newVal = panmanUtils::getSymbolFromCode(static_cast<int>(panmanUtils::singleMutationSymbol(node->nucMutation[i].nucs, alphabet)), alphabet);
                         if(nucGapPosition != -1) {
                             char oldVal = sequence[primaryBlockId][nucPosition].second[nucGapPosition];
                             sequence[primaryBlockId][nucPosition].second[nucGapPosition] = newVal;
@@ -2350,15 +2344,15 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
             int len = 0;
             for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
                 bool endFlag = false;
-                for(size_t k = 0; k < 8; k++) {
-                    const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+                for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                    const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
 
                     if(nucCode == 0) {
                         endFlag = true;
                         break;
                     }
                     len++;
-                    const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                    const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
 
                     sequence[primaryBlockId].push_back({nucleotide, {}});
                 }
@@ -2374,8 +2368,8 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
             int len = 0;
             for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
                 bool endFlag = false;
-                for(size_t k = 0; k < 8; k++) {
-                    const int nucCode = (((blocks[i].consensusSeq[j]) >> (4*(7 - k))) & 15);
+                for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                    const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
                     if(nucCode == 0) {
                         endFlag = true;
                         break;

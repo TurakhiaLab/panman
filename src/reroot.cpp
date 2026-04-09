@@ -138,13 +138,14 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
         for(size_t t1 = 0; t1 < blocks.size(); t1++) {
             if(blocks[t1].primaryBlockId == (int)i && blocks[t1].secondaryBlockId == -1) {
                 for(size_t t2 = 0; t2 < blocks[t1].consensusSeq.size(); t2++) {
-                    for(size_t t3 = 0; t3 < 8; t3++) {
-                        const int nucCode = (((blocks[t1].consensusSeq[t2]) >> (4*(7 - t3))) & 15);
+                    for(size_t t3 = 0; t3 < panmanUtils::consensusSymbolsPerPackedWord(alphabet); t3++) {
+                        const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(
+                            blocks[t1].consensusSeq[t2], t3, alphabet));
                         if(nucCode == 0) {
                             endFlag = true;
                             break;
                         }
-                        const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                        const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
 
                         consensusSeq.push_back(nucleotide);
                     }
@@ -175,14 +176,14 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
                 std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
                 for(const auto& u: nodeIdToSequence) {
                     if(u.second[i].first[k].second[w] != '-' && u.second[i].first[k].second[w] != 'x') {
-                        states[u.first] = (1 << getCodeFromNucleotide(u.second[i].first[k].second[w]));
+                        states[u.first] = (1 << getCodeFromSymbol(u.second[i].first[k].second[w], alphabet));
                     }  else {
                         states[u.first] = 1;
                     }
                 }
                 int nucleotideCode = 1;
                 if(sequence[i].first[k].second[w] != '-' && sequence[i].first[k].second[w] != 'x') {
-                    nucleotideCode = (1 << getCodeFromNucleotide(sequence[i].first[k].second[w]));
+                    nucleotideCode = (1 << getCodeFromSymbol(sequence[i].first[k].second[w], alphabet));
                 }
 
                 nucFitchForwardPass(root, states);
@@ -191,7 +192,7 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
 
                 for(auto mutation: mutations) {
                     nodeMutexes[mutation.first].lock();
-                    gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, k, w, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                    gapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, k, w, mutation.second.first, getCodeFromSymbol(mutation.second.second, alphabet)));
                     nodeMutexes[mutation.first].unlock();
                 }
             });
@@ -201,23 +202,23 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
 
             for(const auto& u: nodeIdToSequence) {
                 if(u.second[i].first[k].first != '-' && u.second[i].first[k].first != 'x') {
-                    states[u.first] = (1 << getCodeFromNucleotide(u.second[i].first[k].first));
+                    states[u.first] = (1 << getCodeFromSymbol(u.second[i].first[k].first, alphabet));
                 }  else {
                     states[u.first] = 1;
                 }
             }
             int nucleotideCode = 1;
             if(sequence[i].first[k].first != '-' && sequence[i].first[k].first != 'x') {
-                nucleotideCode = (1 << getCodeFromNucleotide(sequence[i].first[k].first));
+                nucleotideCode = (1 << getCodeFromSymbol(sequence[i].first[k].first, alphabet));
             }
 
             nucFitchForwardPass(root, states);
             nucFitchBackwardPass(root, states, nucleotideCode, nucleotideCode);
-            nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromNucleotide(consensusSeq[k])));
+            nucFitchAssignMutations(root, states, mutations, (1 << getCodeFromSymbol(consensusSeq[k], alphabet)));
 
             for(auto mutation: mutations) {
                 nodeMutexes[mutation.first].lock();
-                nonGapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, k, -1, mutation.second.first, getCodeFromNucleotide(mutation.second.second)));
+                nonGapMutations[mutation.first].push_back(std::make_tuple((int)i, -1, k, -1, mutation.second.first, getCodeFromSymbol(mutation.second.second, alphabet)));
                 nodeMutexes[mutation.first].unlock();
             }
         });
@@ -229,7 +230,7 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
         nodeMutexes[u.first].unlock();
         size_t currentStart = 0;
         for(size_t i = 1; i < u.second.size(); i++) {
-            if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<1>(u.second[i]) != std::get<1>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
+            if(i - currentStart == panmanUtils::mutationPayloadCapacity(alphabet) || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<1>(u.second[i]) != std::get<1>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
                 nodeMutexes[u.first].lock();
                 allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
                 nodeMutexes[u.first].unlock();
@@ -247,7 +248,7 @@ void panmanUtils::Tree::reroot(std::string sequenceName) {
         nodeMutexes[u.first].unlock();
         size_t currentStart = 0;
         for(size_t i = 1; i < u.second.size(); i++) {
-            if(i - currentStart == 6 || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<1>(u.second[i]) != std::get<1>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1]) || std::get<3>(u.second[i]) != std::get<3>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
+            if(i - currentStart == panmanUtils::mutationPayloadCapacity(alphabet) || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<1>(u.second[i]) != std::get<1>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1]) || std::get<3>(u.second[i]) != std::get<3>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
                 nodeMutexes[u.first].lock();
                 allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
                 nodeMutexes[u.first].unlock();

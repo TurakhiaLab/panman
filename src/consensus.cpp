@@ -13,14 +13,14 @@ void panmanUtils::Tree::printConsensus(std::ostream& fout){
 
         for(size_t j = 0; j < eachBlock.consensusSeq.size(); j++) {
             bool endFlag = false;
-            for(size_t k = 0; k < 8; k++) {
-                const int nucCode = (((eachBlock.consensusSeq[j]) >> (4*(7 - k))) & 15);
+            for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(eachBlock.consensusSeq[j], k, alphabet));
 
                 if(nucCode == 0) {
                     endFlag = true;
                     break;
                 }
-                const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
                 consensus.push_back(nucleotide);
             }
             if(endFlag) {
@@ -46,14 +46,14 @@ void panmanUtils::Tree::printPseduoRoot(std::ostream& fout){
 
         for(size_t j = 0; j < eachBlock.consensusSeq.size(); j++) {
             bool endFlag = false;
-            for(size_t k = 0; k < 8; k++) {
-                const int nucCode = (((eachBlock.consensusSeq[j]) >> (4*(7 - k))) & 15);
+            for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(eachBlock.consensusSeq[j], k, alphabet));
 
                 if(nucCode == 0) {
                     endFlag = true;
                     break;
                 }
-                const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
                 consensus.push_back(nucleotide);
             }
             if(endFlag) {

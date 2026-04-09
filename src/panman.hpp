@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <iostream>
 #include <fstream>
 #include <unordered_map>
 #include <queue>
@@ -62,29 +63,35 @@ struct NucMut {
 
     // Create SNP mutation for MSA (optimized for memory)
     NucMut( const std::tuple< int, int8_t, int8_t>& mutationInfo ) {
+        const auto& codec = getCodec(getActiveAlphabet());
+        const int payloadShift = codec.bitsPerSymbol * ((24 / codec.bitsPerSymbol) - 1);
         // primaryBlockId, secondaryBlockId, pos, gapPos, type, char
         primaryBlockId = 0;
         secondaryBlockId = -1;
         nucPosition = std::get<0>(mutationInfo);
         nucGapPosition = -1;
         mutInfo = (int)std::get<1>(mutationInfo) + (1 << 4);
-        nucs = ((int)std::get<2>(mutationInfo) << 20);
+        nucs = ((int)std::get<2>(mutationInfo) << payloadShift);
     }
     
     // Create SNP mutation
     NucMut( const std::tuple< int, int, int, int, int, int >& mutationInfo ) {
+        const auto& codec = getCodec(getActiveAlphabet());
+        const int payloadShift = codec.bitsPerSymbol * ((24 / codec.bitsPerSymbol) - 1);
         // primaryBlockId, secondaryBlockId, pos, gapPos, type, char
         primaryBlockId = std::get<0>(mutationInfo);
         secondaryBlockId = std::get<1>(mutationInfo);
         nucPosition = std::get<2>(mutationInfo);
         nucGapPosition = std::get<3>(mutationInfo);
         mutInfo = std::get<4>(mutationInfo) + (1 << 4);
-        nucs = (std::get<5>(mutationInfo) << 20);
+        nucs = (std::get<5>(mutationInfo) << payloadShift);
     }
 
     // Create non-SNP mutations from SNP mutations at consecutive positions for MSA
     NucMut(const std::vector< std::tuple< int, int8_t, int8_t > >& mutationArray,
            int start, int end) {
+        const auto& codec = getCodec(getActiveAlphabet());
+        const int payloadCapacity = 24 / codec.bitsPerSymbol;
         primaryBlockId = 0;
         secondaryBlockId = -1;
 
@@ -115,8 +122,10 @@ struct NucMut {
         nucGapPosition = -1;
 
         nucs = 0;
+
         for(int i = start; i < end; i++) {
-            nucs += (std::get<2>(mutationArray[i]) << (4*(5-(i - start))));
+            nucs += (std::get<2>(mutationArray[i])
+                    << (codec.bitsPerSymbol * (payloadCapacity - 1 - (i - start))));
         }
 
         // if (nucPosition == 0){
@@ -130,6 +139,8 @@ struct NucMut {
     // Create non-SNP mutations from SNP mutations at consecutive positions
     NucMut(const std::vector< std::tuple< int, int, int, int, int, int > >& mutationArray,
            int start, int end) {
+        const auto& codec = getCodec(getActiveAlphabet());
+        const int payloadCapacity = 24 / codec.bitsPerSymbol;
         primaryBlockId = std::get<0>(mutationArray[start]);
         secondaryBlockId = std::get<1>(mutationArray[start]);
 
@@ -161,17 +172,20 @@ struct NucMut {
 
         nucs = 0;
         for(int i = start; i < end; i++) {
-            nucs += (std::get<5>(mutationArray[i]) << (4*(5-(i - start))));
+            nucs += (std::get<5>(mutationArray[i])
+                    << (codec.bitsPerSymbol * (payloadCapacity - 1 - (i - start))));
         }
     }
 
     // Extract mutation from protobuf nucMut object
     NucMut(panman::NucMut::Reader mutation, int64_t blockId, bool blockGapExist) {
+        const uint32_t rawMutInfo = mutation.getMutInfo();
         nucPosition = mutation.getNucPosition();
         primaryBlockId = (blockId >> 32);
-        mutInfo = (mutation.getMutInfo() & 0xFF);
-        nucs = (mutation.getMutInfo() >> 8);
-        nucs = ((nucs) << (24 - (mutInfo >> 4)*4));
+        mutInfo = (rawMutInfo & 0xFF);
+        nucs = (rawMutInfo >> 8);
+        nucs = expandMutationPayloadFromWire(nucs, static_cast<uint8_t>(mutInfo >> 4),
+                                            getActiveAlphabet());
 
         if(blockGapExist) {
             secondaryBlockId = (blockId & 0xFFFFFFFF);
@@ -191,7 +205,8 @@ struct NucMut {
         primaryBlockId = (blockId >> 32);
         mutInfo = (mutation.mutinfo() & 0xFF);
         nucs = (mutation.mutinfo() >> 8);
-        nucs = ((nucs) << (24 - (mutInfo >> 4)*4));
+        nucs = expandMutationPayloadFromWire(nucs, static_cast<uint8_t>(mutInfo >> 4),
+                                            getActiveAlphabet());
 
         if(blockGapExist) {
             secondaryBlockId = (blockId & 0xFFFFFFFF);
@@ -286,7 +301,7 @@ struct Block {
     std::vector< uint32_t > consensusSeq;
     std::string chromosomeName;
 
-    Block(size_t primaryBlockId, std::string seq);
+    Block(size_t primaryBlockId, std::string seq, Alphabet alphabet = getActiveAlphabet());
     // seq is a compressed form of the sequence where each nucleotide is stored in 4 bytes
     Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);  
 };
@@ -465,6 +480,7 @@ class Tree {
     std::unordered_map<std::string, std::vector< std::string > > annotationsToNodes;
   public:
     Node *root;
+    Alphabet alphabet = Alphabet::DNA;
     std::vector< Chr > chrList;
     std::vector< Block > blocks;
     std::vector< GapList > gaps;
@@ -487,7 +503,8 @@ class Tree {
     Tree(const panmanOld::tree& mainTree);
     Tree(std::istream& fin, FILE_TYPE ftype = FILE_TYPE::PANMAT);
     Tree(std::ifstream& fin, std::ifstream& secondFin,
-         FILE_TYPE ftype = FILE_TYPE::GFA, std::string reference = "", std::string refSeqFile = "");
+         FILE_TYPE ftype = FILE_TYPE::GFA, std::string reference = "", std::string refSeqFile = "",
+         Alphabet alphabetInput = getActiveAlphabet());
 
     // Copy blocks from current tree into new tree which is rooted at one of the internal
     // nodes of the current tree. Used in split for PanMAN

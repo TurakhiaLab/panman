@@ -18,12 +18,12 @@ void panmanUtils::Tree::convertToGFA(std::ostream& fout) {
             int64_t secondaryBlockId = block.secondaryBlockId;
             std::string sequenceString;
             for(auto u: block.consensusSeq) {
-                for(size_t k = 0; k < 8; k++) {
-                    const int nucCode = (((u) >> (4*(7 - k))) & 15);
+                for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                    const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(u, k, alphabet));
                     if(nucCode == 0) {
                         break;
                     }
-                    const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                    const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
                     sequenceString += nucleotide;
                 }
             }
@@ -517,12 +517,12 @@ void panmanUtils::Tree::convertToGFAEfficient(std::ostream& fout) {
             int64_t secondaryBlockId = block.secondaryBlockId;
             std::string sequenceString;
             for(auto u: block.consensusSeq) {
-                for(size_t k = 0; k < 8; k++) {
-                    const int nucCode = (((u) >> (4*(7 - k))) & 15);
+                for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                    const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(u, k, alphabet));
                     if(nucCode == 0) {
                         break;
                     }
-                    const char nucleotide = panmanUtils::getNucleotideFromCode(nucCode);
+                    const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
                     sequenceString += nucleotide;
                 }
             }

@@ -37,18 +37,31 @@ std::string printNucMut(int32_t mutInfo){
     return s;
 }
 
-std::string printNucs(int32_t mutInfo, int32_t nucs){
+std::string printNucs(int32_t mutInfo, int32_t nucs, panmanUtils::Alphabet alphabet) {
     std::string s = " Chars: ";
-    int len = mutInfo >> 4;
-    for (int i=0; i<len; i++) {
-        s += std::to_string(nucs&0x4);
+    const int len = static_cast<int>(mutInfo >> 4);
+    const int ty = mutInfo & 0x7;
+    const uint32_t payload = static_cast<uint32_t>(nucs);
+    if(ty >= static_cast<int>(panmanUtils::NucMutationType::NSNPS)) {
+        const int code = static_cast<int>(panmanUtils::singleMutationSymbol(payload, alphabet));
+        s += panmanUtils::getSymbolFromCode(code, alphabet);
         s += " ";
-        nucs = nucs >> 4;
+    } else {
+        const size_t cap = panmanUtils::mutationPayloadCapacity(alphabet);
+        for(int i = 0; i < len && static_cast<size_t>(i) < cap; i++) {
+            const int code = static_cast<int>(panmanUtils::packedMutationSymbolAt(
+                payload, static_cast<size_t>(i), alphabet));
+            s += panmanUtils::getSymbolFromCode(code, alphabet);
+            if(i + 1 < len) {
+                s += " ";
+            }
+        }
     }
     return s;
 }
 
 void checkFunction(panmanUtils::Tree *T) {
+    panmanUtils::setActiveAlphabet(T->alphabet);
     std::cout << T->root->identifier << std::endl;
     std::ofstream o("new.fa");
     T->printFASTA(o);
@@ -74,7 +87,7 @@ void checkFunction(panmanUtils::Tree *T) {
             std::cout << "\t Position " << u.nucPosition << " Gap-position " <<
                                  u.nucGapPosition << " " <<
                                  printNucMut(u.mutInfo) << " " <<
-                                 printNucs(u.mutInfo, u.nucs) << " " << std::endl;
+                                 printNucs(u.mutInfo, u.nucs, T->alphabet) << " " << std::endl;
         }
         node = node->parent;
     }
@@ -137,6 +150,7 @@ void setupOptionDescriptions() {
     ("input-gfa,G", po::value< std::string >(), "Input GFA file to build a PanMAN")
     ("input-msa,M", po::value< std::string >(), "Input MSA file (FASTA format) to build a PanMAN")
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
+    ("protein", "Enable protein alphabet mode for sequence encoding/decoding")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
 
     ("test", "Only for test purposes, not for users")
@@ -1352,6 +1366,12 @@ void parseAndExecute(int argc, char* argv[]) {
     po::store(po::command_line_parser(argc, argv).options(globalDesc)
               .positional(globalPositionArgumentDesc).allow_unregistered().run(), globalVm);
     po::notify(globalVm);
+
+    if(globalVm.count("protein")) {
+        panmanUtils::setActiveAlphabet(panmanUtils::Alphabet::PROTEIN);
+    } else {
+        panmanUtils::setActiveAlphabet(panmanUtils::Alphabet::DNA);
+    }
 
     int threads = 64;
     if (globalVm.count("threads")) threads = globalVm["threads"].as<std::int32_t>();

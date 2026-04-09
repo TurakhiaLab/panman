@@ -75,6 +75,11 @@ struct SequenceInverted
     inverted @1: Bool;
 }
 
+enum Alphabet {
+    dna @0;
+    protein @1;
+}
+
 struct Tree
 {
     newick @0: List(Text);
@@ -86,6 +91,7 @@ struct Tree
     rotationIndexes @6: List(RotationIndex);
     sequencesInverted @7: List(SequenceInverted);
     chrLists @8: List(ChrList);
+    alphabet @9: Alphabet = dna;
 }
 
 struct ComplexMutation {
