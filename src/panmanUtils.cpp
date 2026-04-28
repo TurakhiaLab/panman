@@ -137,6 +137,8 @@ void setupOptionDescriptions() {
     ("input-gfa,G", po::value< std::string >(), "Input GFA file to build a PanMAN")
     ("input-msa,M", po::value< std::string >(), "Input MSA file (FASTA format) to build a PanMAN")
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
+    ("concatenate,C", po::value< std::string >(), "Path to a file listing PanMAN paths (one per line) to concatenate into a single PanMAN")
+    ("orientation,O", po::value< std::string >(), "Path to a file listing sample orientation files (one per line, same order as --concatenate)")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
 
     ("test", "Only for test purposes, not for users")
@@ -321,6 +323,133 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::Tree *T) {
     std::cout << "\nNetwork Write execution time: " << writeTime.count()
               << " nanoseconds\n";
 
+}
+
+std::vector< std::string > readPathList(const std::string& path) {
+  std::ifstream in(path);
+  if(!in) {
+      panmanUtils::printError("Cannot open panMAN list file: " + path);
+      exit(-1);
+  }
+  std::vector< std::string > out;
+  std::string line;
+  while(std::getline(in, line)) {
+      while(!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) {
+          line.pop_back();
+      }
+      if(!line.empty()) {
+          out.push_back(line);
+      }
+  }
+  return out;
+}
+
+std::unordered_map< std::string, bool > readOrientationFile(const std::string& path) {
+  std::ifstream in(path);
+  if(!in) {
+      panmanUtils::printError("Cannot open orientation file: " + path);
+      exit(-1);
+  }
+  std::unordered_map< std::string, bool > out;
+  std::string line;
+  while(std::getline(in, line)) {
+      if(line.empty()) {
+          continue;
+      }
+      std::vector< std::string > tokens;
+      panmanUtils::stringSplit(line, '\t', tokens);
+      if(tokens.size() < 2) {
+          tokens.clear();
+          panmanUtils::stringSplit(line, ' ', tokens);
+      }
+      if(tokens.size() < 2) {
+          panmanUtils::printError("Invalid orientation line in " + path + ": '" + line + "'");
+          exit(-1);
+      }
+      int v = std::stoi(tokens[1]);
+      if(v != 0 && v != 1) {
+          panmanUtils::printError("Orientation flag must be 0 or 1 in " + path + ": '" + line + "'");
+          exit(-1);
+      }
+      out[tokens[0]] = (v == 1);
+  }
+  return out;
+}
+
+void concatenate(po::variables_map& globalVm) {
+  if(!globalVm.count("orientation")) {
+      panmanUtils::printError("--concatenate requires --orientation (-O).");
+      return;
+  }
+  if(!globalVm.count("output-file")) {
+      panmanUtils::printError("--concatenate requires --output-file (-o).");
+      return;
+  }
+
+  std::string panmanListPath = globalVm["concatenate"].as< std::string >();
+  std::string orientListPath = globalVm["orientation"].as< std::string >();
+
+  std::vector< std::string > panmanPaths = readPathList(panmanListPath);
+  std::vector< std::string > orientPaths = readPathList(orientListPath);
+
+  if(panmanPaths.size() != orientPaths.size()) {
+      panmanUtils::printError(
+          "Number of entries in --concatenate (" + std::to_string(panmanPaths.size())
+          + ") does not match --orientation (" + std::to_string(orientPaths.size()) + ").");
+      return;
+  }
+  if(panmanPaths.size() < 2) {
+      panmanUtils::printError("--concatenate requires at least 2 PanMAN paths.");
+      return;
+  }
+
+  auto loadStart = std::chrono::high_resolution_clock::now();
+
+  std::vector< panmanUtils::TreeGroup* > loadedGroups;
+  std::vector< panmanUtils::Tree* > inputTrees;
+  std::vector< std::unordered_map< std::string, bool > > orientations;
+  loadedGroups.reserve(panmanPaths.size());
+  inputTrees.reserve(panmanPaths.size());
+  orientations.reserve(panmanPaths.size());
+
+  for(size_t r = 0; r < panmanPaths.size(); r++) {
+      std::cout << "Loading PanMAN " << r << ": " << panmanPaths[r] << std::endl;
+      std::ifstream inputFile(panmanPaths[r]);
+      if(!inputFile) {
+          panmanUtils::printError("Cannot open PanMAN file: " + panmanPaths[r]);
+          return;
+      }
+      boost::iostreams::filtering_streambuf< boost::iostreams::input > inPMATBuffer;
+      inPMATBuffer.push(boost::iostreams::lzma_decompressor());
+      inPMATBuffer.push(inputFile);
+      std::istream inputStream(&inPMATBuffer);
+      panmanUtils::TreeGroup* tg = new panmanUtils::TreeGroup(inputStream);
+      if(tg->trees.size() != 1) {
+          panmanUtils::printError(
+              "PanMAN " + panmanPaths[r] + " contains " + std::to_string(tg->trees.size())
+              + " trees; --concatenate requires exactly 1 tree per PanMAN.");
+          return;
+      }
+      loadedGroups.push_back(tg);
+      inputTrees.push_back(&tg->trees[0]);
+      orientations.push_back(readOrientationFile(orientPaths[r]));
+  }
+
+  auto loadEnd = std::chrono::high_resolution_clock::now();
+  std::chrono::nanoseconds loadTime = loadEnd - loadStart;
+  std::cout << "Load time: " << loadTime.count() << " nanoseconds\n";
+
+  auto mergeStart = std::chrono::high_resolution_clock::now();
+  panmanUtils::Tree* merged = new panmanUtils::Tree(inputTrees, orientations);
+  auto mergeEnd = std::chrono::high_resolution_clock::now();
+  std::chrono::nanoseconds mergeTime = mergeEnd - mergeStart;
+  std::cout << "Concatenation time: " << mergeTime.count() << " nanoseconds\n";
+
+  std::vector< panmanUtils::Tree* > mergedVec;
+  mergedVec.push_back(merged);
+  panmanUtils::TreeGroup* mergedTG = new panmanUtils::TreeGroup(mergedVec);
+
+  writePanMAN(globalVm, mergedTG);
 }
 
 void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
@@ -1582,6 +1711,9 @@ void parseAndExecute(int argc, char* argv[]) {
         std::ofstream outputFile;
         std::streambuf * buf;
         createNet(globalVm, outputFile, buf);
+        return;
+    } else if (globalVm.count("concatenate")) {
+        concatenate(globalVm);
         return;
     } else {
         panmanUtils::printError("Incorrect Format");
