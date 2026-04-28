@@ -6625,6 +6625,127 @@ panmanUtils::Tree::Tree(Node* newRoot, const std::vector< Block >& b,
     blockGaps = bgl;
 }
 
+panmanUtils::Tree::Tree(const std::vector< Tree* >& inputTrees,
+                        const std::vector< std::unordered_map< std::string, bool > >& orientations) {
+
+    const size_t R = inputTrees.size();
+    if(R < 2) {
+        std::cerr << "Error: --concatenate requires at least 2 input PanMANs.\n";
+        exit(-1);
+    }
+    if(orientations.size() != R) {
+        std::cerr << "Error: number of orientation files (" << orientations.size()
+                  << ") does not match number of input PanMANs (" << R << ").\n";
+        exit(-1);
+    }
+
+    // Phase 1: validate one block per input, identical topology, complete leaf coverage
+    for(size_t r = 0; r < R; r++) {
+        if(inputTrees[r]->blocks.size() != 1) {
+            std::cerr << "Error: input PanMAN " << r << " has "
+                      << inputTrees[r]->blocks.size()
+                      << " blocks; --concatenate requires exactly 1 block per input.\n";
+            exit(-1);
+        }
+    }
+
+    const auto& refNodes = inputTrees[0]->allNodes;
+    for(size_t r = 1; r < R; r++) {
+        const auto& curNodes = inputTrees[r]->allNodes;
+        if(curNodes.size() != refNodes.size()) {
+            std::cerr << "Error: input PanMAN " << r << " has " << curNodes.size()
+                      << " nodes; PanMAN 0 has " << refNodes.size()
+                      << ". Guide trees must be identical.\n";
+            exit(-1);
+        }
+        for(const auto& kv: refNodes) {
+            if(curNodes.find(kv.first) == curNodes.end()) {
+                std::cerr << "Error: node identifier '" << kv.first
+                          << "' present in PanMAN 0 but missing from PanMAN " << r << ".\n";
+                exit(-1);
+            }
+        }
+    }
+
+    std::vector< std::string > leafIds;
+    leafIds.reserve(refNodes.size());
+    for(const auto& kv: refNodes) {
+        if(kv.second->children.empty()) {
+            leafIds.push_back(kv.first);
+        }
+    }
+
+    for(size_t r = 0; r < R; r++) {
+        for(const auto& leaf: leafIds) {
+            if(orientations[r].find(leaf) == orientations[r].end()) {
+                std::cerr << "Error: leaf '" << leaf
+                          << "' is missing from orientation file for PanMAN "
+                          << r << ".\n";
+                exit(-1);
+            }
+        }
+    }
+
+    // Phase 2: build merged tree skeleton from input 0's newick and copy R consensus blocks
+    std::string newick = inputTrees[0]->getNewickString(inputTrees[0]->root);
+    root = createTreeFromNewickString(newick);
+
+    blocks.reserve(R);
+    for(size_t r = 0; r < R; r++) {
+        blocks.emplace_back((int32_t)r, -1, inputTrees[r]->blocks[0].consensusSeq);
+    }
+
+    // Phase 3: copy nucleotide mutations from each input, remapping primaryBlockId 0 -> r
+    std::unordered_map< std::string, std::vector< Node* > > srcByMergedId;
+    srcByMergedId.reserve(allNodes.size());
+    for(const auto& kv: allNodes) {
+        std::vector< Node* > srcs(R);
+        for(size_t r = 0; r < R; r++) {
+            srcs[r] = inputTrees[r]->allNodes.at(kv.first);
+        }
+        srcByMergedId.emplace(kv.first, std::move(srcs));
+    }
+
+    tbb::parallel_for_each(allNodes, [&](auto& kv) {
+        Node* mNode = kv.second;
+        const auto& srcs = srcByMergedId.at(kv.first);
+        size_t totalNuc = 0;
+        for(size_t r = 0; r < R; r++) {
+            totalNuc += srcs[r]->nucMutation.size();
+        }
+        mNode->nucMutation.reserve(totalNuc);
+        for(size_t r = 0; r < R; r++) {
+            for(const auto& nm: srcs[r]->nucMutation) {
+                NucMut copy = nm;
+                copy.primaryBlockId = (int32_t)r;
+                mNode->nucMutation.push_back(copy);
+            }
+        }
+    });
+
+    // Phase 4: per-region block-Fitch to infer ancestral inversions and emit BI/BIn mutations
+    for(size_t r = 0; r < R; r++) {
+        std::unordered_map< std::string, int > states;
+        states.reserve(allNodes.size());
+        for(const auto& leaf: leafIds) {
+            bool inverted = orientations[r].at(leaf);
+            // 2 = present forward, 4 = present inverted (matches existing block-Fitch encoding)
+            states[leaf] = inverted ? 4 : 2;
+        }
+
+        std::unordered_map< std::string,
+            std::pair< panmanUtils::BlockMutationType, bool > > mutations;
+
+        blockFitchForwardPassNew(root, states);
+        blockFitchBackwardPassNew(root, states, 1);
+        blockFitchAssignMutationsNew(root, states, mutations, 1);
+
+        for(const auto& mut: mutations) {
+            allNodes.at(mut.first)->blockMutation.emplace_back((size_t)r, mut.second);
+        }
+    }
+}
+
 std::pair< panmanUtils::Tree, panmanUtils::Tree > panmanUtils::Tree::splitByComplexMutations(const std::string& nodeId3) {
 
     // if (allNodes.find(nodeId3) == allNodes.end()) {

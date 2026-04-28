@@ -497,6 +497,8 @@ class Tree {
          std::unordered_map< std::string, bool >& si,
          const BlockGapList& bgl);
     
+    Tree(const std::vector< Tree* >& inputTrees,
+         const std::vector< std::unordered_map< std::string, bool > >& orientations);
 
     void protoMATToTree(const panman::Tree::Reader& mainTree);
     void protoMATToTree(const panmanOld::tree& mainTree);
