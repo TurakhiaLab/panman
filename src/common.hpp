@@ -41,7 +41,8 @@ enum FILE_TYPE {
     MSA = 3,
     MSA_OPTIMIZE = 4,
     GFA_HUMAN = 5,
-    VCF_MUTICHROMO = 6
+    VCF_MUTICHROMO = 6,
+    MAF = 7
 };
 
 

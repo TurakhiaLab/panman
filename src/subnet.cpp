@@ -143,12 +143,13 @@ panmanUtils::TreeGroup* panmanUtils::TreeGroup::subnetworkExtract(std::unordered
         std::vector< std::string > subtreeNodeIds = nodeIds[i];
         std::set< std::string > cplxMutationNodeIds;
         for (auto mutation: complexMutations) {
-            if (mutation.treeIndex1 == i) {
-                cplxMutationNodeIds.insert(mutation.sequenceId1);
-            } else if(mutation.treeIndex2 == i) {
-                cplxMutationNodeIds.insert(mutation.sequenceId2);
-            } else if(mutation.treeIndex3 == i) {
-                cplxMutationNodeIds.insert(mutation.sequenceId3);
+            if (mutation.childTreeIndex == i) {
+                cplxMutationNodeIds.insert(mutation.childSequenceId);
+            }
+            for (const auto& parent: mutation.parents) {
+                if (parent.treeIndex == i) {
+                    cplxMutationNodeIds.insert(parent.sequenceId);
+                }
             }
         }
 

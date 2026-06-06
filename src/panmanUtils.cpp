@@ -1,6 +1,8 @@
 #include <iostream>
 #include <chrono>
 #include <filesystem>
+#include <sstream>
+#include <limits>
 #include <tbb/parallel_for_each.h>
 #include <boost/program_options.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
@@ -8,6 +10,10 @@
 // #include <boost/iostreams/filter/xz.hpp>
 #include <boost/iostreams/filter/lzma.hpp>
 #include <json/json.h>
+
+#include <capnp/serialize.h>
+#include <kj/io.h>
+#include <kj/std/iostream.h>
 
 #include <fstream>
 
@@ -149,9 +155,12 @@ void setupOptionDescriptions() {
     ("input-pangraph,P", po::value< std::string >(), "Input PanGraph JSON file to build a PanMAN")
     ("input-gfa,G", po::value< std::string >(), "Input GFA file to build a PanMAN")
     ("input-msa,M", po::value< std::string >(), "Input MSA file (FASTA format) to build a PanMAN")
+    ("input-maf,A", po::value< std::string >(), "Input MAF file to build a PanMAN")
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
     ("protein", "Enable protein alphabet mode for sequence encoding/decoding")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
+    ("network-from-spr", po::value< std::string >(), "Build a PanMAN network from TreeKnit output. The value is the TreeKnit directory containing chrXX_window_N_N+1 subdirectories (each with MCCs.json and resolved Newick trees). Requires --alignment-dir and --refFile.")
+    ("alignment-dir", po::value< std::string >(), "Directory of per-window MSA files named chrXX_A_B.fa, required for --network-from-spr")
 
     ("test", "Only for test purposes, not for users")
 
@@ -337,6 +346,85 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::Tree *T) {
 
 }
 
+// Serialized size in bytes for a Cap'n Proto sub-message.
+static inline std::size_t capnpBytes(capnp::MessageSize s) {
+    return s.wordCount * sizeof(capnp::word);
+}
+
+// Re-serializes the in-memory TreeGroup with the existing writeToFile path so
+// we can walk it as a panman::TreeGroup::Reader and ask Cap'n Proto for the
+// serialized byte size of each sub-message via Reader::totalSize().
+void reportSizes(panmanUtils::TreeGroup &TG) {
+    std::stringstream ss(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        kj::std::StdOutputStream os(ss);
+        TG.writeToFile(os);
+    }
+    const std::string serialized = ss.str();
+
+    if (serialized.size() % sizeof(capnp::word) != 0) {
+        std::cerr << "reportSizes: serialized buffer is not word-aligned ("
+                  << serialized.size() << " bytes)\n";
+        return;
+    }
+
+    auto words = kj::arrayPtr(
+        reinterpret_cast<const capnp::word *>(serialized.data()),
+        serialized.size() / sizeof(capnp::word));
+
+    capnp::ReaderOptions opts;
+    opts.traversalLimitInWords = std::numeric_limits<uint64_t>::max();
+    capnp::FlatArrayMessageReader messageReader(words, opts);
+    auto root = messageReader.getRoot<panman::TreeGroup>();
+
+    std::cout << "\n=== Cap'n Proto serialized sizes ===\n";
+    std::cout << "Total file (writeMessage frame): " << serialized.size() << " bytes\n";
+    std::cout << "TreeGroup root totalSize       : " << capnpBytes(root.totalSize()) << " bytes\n";
+
+    auto trees = root.getTrees();
+    for (uint i = 0; i < trees.size(); ++i) {
+        auto tree = trees[i];
+        std::cout << "  Tree[" << i << "] total            : "
+                  << capnpBytes(tree.totalSize())/1024 << " KB\n";
+        std::cout << "    nodes (" << tree.getNodes().size() << " entries) : "
+                  << capnpBytes(tree.getNodes().totalSize())/1024 << " KB\n";
+        std::cout << "    consensusSeqMap            : "
+                  << capnpBytes(tree.getConsensusSeqMap().totalSize())/1024 << " KB\n";
+        std::cout << "    gaps                       : "
+                  << capnpBytes(tree.getGaps().totalSize())/1024 << " KB\n";
+        std::cout << "    blockGaps                  : "
+                  << capnpBytes(tree.getBlockGaps().totalSize())/1024 << " KB\n";
+        std::cout << "    chrLists                   : "
+                  << capnpBytes(tree.getChrLists().totalSize())/1024 << " KB\n";
+        if (tree.hasNewick()) {
+            try {
+                std::cout << "    newick                     : "
+                          << capnpBytes(tree.getNewick().totalSize())/1024 << " KB\n";
+            } catch (const kj::Exception&) {
+                std::cout << "    newick                     : (legacy Text format)\n";
+            }
+        }
+        std::cout << "    circularSequences          : "
+                  << capnpBytes(tree.getCircularSequences().totalSize())/1024 << " KB\n";
+        std::cout << "    rotationIndexes            : "
+                  << capnpBytes(tree.getRotationIndexes().totalSize())/1024 << " KB\n";
+        std::cout << "    sequencesInverted          : "
+                  << capnpBytes(tree.getSequencesInverted().totalSize())/1024 << " KB\n";
+
+        std::size_t mutBytes = 0, annBytes = 0;
+        for (auto node : tree.getNodes()) {
+            mutBytes += capnpBytes(node.getMutations().totalSize());
+            annBytes += capnpBytes(node.getAnnotations().totalSize());
+        }
+        std::cout << "      sum mutations across nodes  : " << mutBytes/1024 << " KB\n";
+        std::cout << "      sum annotations across nodes: " << annBytes/1024 << " KB\n";
+    }
+
+    auto cm = root.getComplexMutations();
+    std::cout << "  complexMutations (" << cm.size() << ")        : "
+              << capnpBytes(cm.totalSize()) << " bytes\n";
+}
+
 void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
     // If command was summary, print the summary of the PanMAT
     if(TG == nullptr) {
@@ -368,6 +456,8 @@ void summary(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstr
     auto summaryEnd = std::chrono::high_resolution_clock::now();
     std::chrono::nanoseconds summaryTime = summaryEnd - summaryStart;
     std::cout << "\nSummary creation time: " << summaryTime.count() << " nanoseconds\n";
+
+    reportSizes(*TG);
 }
 
 void fasta(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstream &outputFile, std::streambuf * buf) {
@@ -1598,10 +1688,95 @@ void parseAndExecute(int argc, char* argv[]) {
 
         writePanMAN(globalVm, TG);
         return;
+    } else if(globalVm.count("input-maf")) {
+        // Create PanMAT from MAF and Newick files
+
+        std::string fileName = globalVm["input-maf"].as< std::string >();
+        if(!globalVm.count("input-newick")) {
+            panmanUtils::printError("File containing newick string not provided!");
+            return;
+        }
+
+        if(!globalVm.count("output-file")) {
+            panmanUtils::printError("Output file not provided!");
+            std::cout << globalDesc;
+            return;
+        }
+
+        std::string reference = "";
+        if (globalVm.count("reference")) {
+            reference = globalVm["reference"].as<std::string>();
+        }
+
+        std::string newickFileName = globalVm["input-newick"].as< std::string >();
+
+        std::cout << "Creating PanMAN from MAF and Newick" << std::endl;
+
+        std::ifstream inputStream(fileName);
+        std::ifstream newickInputStream(newickFileName);
+
+        auto treeBuiltStart = std::chrono::high_resolution_clock::now();
+
+        T = new panmanUtils::Tree(inputStream, newickInputStream,
+                                  panmanUtils::FILE_TYPE::MAF, reference);
+
+        // checkFunction(T);
+
+        std::vector<panmanUtils::Tree*> tg;
+        tg.push_back(T);
+
+        TG = new panmanUtils::TreeGroup(tg);
+
+        auto treeBuiltEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds treeBuiltTime = treeBuiltEnd - treeBuiltStart;
+        std::cout << "Data load time: " << treeBuiltTime.count() << " nanoseconds \n";
+
+        newickInputStream.close();
+        inputStream.close();
+
+        writePanMAN(globalVm, TG);
+        return;
     } else if (globalVm.count("create-network")) {
         std::ofstream outputFile;
         std::streambuf * buf;
         createNet(globalVm, outputFile, buf);
+        return;
+    } else if (globalVm.count("network-from-spr")) {
+        // Build a PanMAN network from TreeKnit output (directory of window subdirs),
+        // per-window MSAs, and a reference FASTA.
+        std::string treeknitDir = globalVm["network-from-spr"].as< std::string >();
+
+        if (!globalVm.count("alignment-dir")) {
+            panmanUtils::printError("--alignment-dir (directory of per-window MSA files) is required for --network-from-spr");
+            return;
+        }
+        if (!globalVm.count("refFile")) {
+            panmanUtils::printError("--refFile (reference FASTA) is required for --network-from-spr");
+            return;
+        }
+        if (!globalVm.count("output-file")) {
+            panmanUtils::printError("Output file not provided!");
+            std::cout << globalDesc;
+            return;
+        }
+
+        std::string alignmentDir = globalVm["alignment-dir"].as< std::string >();
+        std::string refFile = globalVm["refFile"].as< std::string >();
+
+        auto buildStart = std::chrono::high_resolution_clock::now();
+        panmanUtils::TreeGroup* networkTG =
+            panmanUtils::buildNetworkFromTreeknit(treeknitDir, alignmentDir, refFile);
+        auto buildEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds buildTime = buildEnd - buildStart;
+        std::cout << "Network build time: " << buildTime.count()
+                  << " nanoseconds" << std::endl;
+
+        if (networkTG == nullptr) {
+            panmanUtils::printError("Failed to build network from TreeKnit output.");
+            return;
+        }
+
+        writePanMAN(globalVm, networkTG);
         return;
     } else {
         panmanUtils::printError("Incorrect Format");

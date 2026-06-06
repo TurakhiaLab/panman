@@ -13,6 +13,8 @@
 #include "panman.capnp.h"
 #include "common.hpp"
 
+std::string reconstructNewick(const panman::Tree::Reader& tree);
+
 #include <capnp/message.h>
 #include <capnp/serialize-packed.h>
 #include <kj/std/iostream.h>
@@ -73,7 +75,8 @@ void writeNodes(capnp::List<panman::Node>::Builder& nodesBuilder, size_t nodeInd
 
 void writeNewick(panman::Tree::Builder& treeToWrite){
     std::string newick = "((A,B),C);";
-    treeToWrite.setNewick(newick);
+    auto newickList = treeToWrite.initNewick(1);
+    newickList.set(0, newick);
 }
 
 void writeToProto(){
@@ -100,7 +103,7 @@ public:
         protoToTree(inputTree);
     }
     void protoToTree(const panman::Tree::Reader &inputTree) {
-        std::cout << inputTree.getNewick().cStr() << std::endl;
+        std::cout << reconstructNewick(inputTree) << std::endl;
         for (auto v: inputTree.getNodes()){
             for (auto u: v.getMutations()){
                 for (auto q: u.getNucMutation()){

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
+#include <map>
 #include <queue>
 #include <atomic>
 #include <tbb/concurrent_unordered_map.h>
@@ -21,6 +22,8 @@
 #include <capnp/message.h>
 #include <capnp/serialize-packed.h>
 #include <kj/std/iostream.h>
+
+std::string reconstructNewick(const panman::Tree::Reader& tree);
 
 namespace panmanUtils {
 
@@ -297,13 +300,15 @@ struct BlockMut {
 struct Block {
     int32_t primaryBlockId;
     int32_t secondaryBlockId;
-
+    
+    int64_t blockLength;
+    
     std::vector< uint32_t > consensusSeq;
     std::string chromosomeName;
 
-    Block(size_t primaryBlockId, std::string seq, Alphabet alphabet = getActiveAlphabet());
+    Block(size_t primaryBlockId, std::string seq, Alphabet alphabet = getActiveAlphabet(), int64_t blockLength_ = 0);
     // seq is a compressed form of the sequence where each nucleotide is stored in 4 bytes
-    Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq);  
+    Block(int32_t primaryBlockId, int32_t secondaryBlockId, const std::vector< uint32_t >& seq, int64_t blockLength_ = 0);  
 };
 
 // List of gaps in the global coordinate system of the PanMAT
@@ -321,6 +326,27 @@ struct GapList {
 struct BlockGapList {
     std::vector< uint32_t > blockPosition;
     std::vector< uint32_t > blockGapLength;
+};
+
+// Block graph derived from a MAF. Block homology comes directly from the MAF:
+// each alignment record is grouped (by identical gapped consensus) into a block
+// "group". For every sequence we keep its block occurrences in MAF-coordinate
+// order; the PanMAN consensus/pseudo-root is then built by progressively
+// aligning each sequence's occurrences to a growing reference backbone.
+struct MAFBlockGraph {
+    // group id -> gapped consensus shared by all occurrences of the block
+    std::vector<std::string> consensusByGroup;
+    // One occurrence of a block in a sequence (one MAF row).
+    struct Occ {
+        int group;            // block group id (index into consensusByGroup)
+        std::string row;      // aligned, gapped row text
+        bool strand;          // true = '+', false = '-'
+        int64_t start;        // MAF start coordinate (for ordering)
+    };
+    // sequence name -> its occurrences sorted by MAF start coordinate
+    std::unordered_map<std::string, std::vector<Occ>> seqOccs;
+    // sequence names in first-seen order (deterministic reference selection)
+    std::vector<std::string> seqOrder;
 };
 
 
@@ -591,6 +617,10 @@ class Tree {
 
     void printMAFNew(std::ostream& fout);
     void generateSequencesFromMAF(std::ifstream& fin, std::ofstream& fout);
+    // Parse a MAF into a block graph (see MAFBlockGraph). Each alignment record
+    // becomes a column whose rows are the homologous segments; within-record
+    // duplications are split into parallel instance columns.
+    void readMAF(std::ifstream& fin, MAFBlockGraph& graph);
     void printVCFParallel(std::string reference, std::ostream& fout);
     void printVCFParallel(panmanUtils::Node* node, std::string& fileName);
     void extractAminoAcidTranslations(std::ostream& fout, int64_t start, int64_t end);
@@ -660,268 +690,361 @@ class Tree {
 
 };
 
+// Directed edge in a PanMAN Network (in addition to tree edges stored via Node::parent/children)
+struct NetworkEdge {
+    Node* parent;
+    Node* child;
+};
+
+// Phylogenetic network built from a sequence of trees related by single-SPR moves.
+// Tree 1 provides the base topology (Node::parent/children); each subsequent SPR move
+// adds a single directed "network edge" from the new grafting parent to the moved clade
+// root. Clade identity across trees is determined by leaf-set equality.
+class Network {
+  public:
+    // Root of the base (tree 1) topology.
+    Node* root = nullptr;
+
+    // All nodes owned by this network (keyed by identifier).
+    std::unordered_map< std::string, Node* > allNodes;
+
+    // Auxiliary, non-tree parent->child edges introduced by SPR moves.
+    std::vector< NetworkEdge > networkEdges;
+
+    // Depth of each node in tree 1 (root has depth 0). Nodes that were added later
+    // (graft points whose clade did not exist in tree 1) are absent from this map.
+    std::unordered_map< std::string, size_t > tree1Depth;
+
+    // Map from clade (leaf set) -> Node. Used to identify "the same" internal node
+    // across successive trees.
+    std::map< std::set< std::string >, Node* > leafsetToNode;
+
+    // Build the network by reading a text file containing a sequence of Newick trees,
+    // each optionally preceded by a header line of the form:
+    //     Step N: SPR move MCC {a,b,c} -> sibling of {d,e} ...
+    // The first tree provides the base topology; each subsequent tree contributes
+    // one SPR-derived network edge.
+    explicit Network(std::istream& fin);
+    ~Network();
+
+    // Number of tree-1 leaves.
+    size_t numLeaves() const;
+
+    // Summary: #nodes, #tree edges, #network edges, #leaves.
+    void printSummary(std::ostream& out) const;
+
+    // Print the base tree in Newick format plus an extra section listing the
+    // network edges as "parent -> child" pairs (one per line).
+    void printNetwork(std::ostream& out) const;
+
+  private:
+    // Lightweight parse-only node used while parsing each Newick tree.
+    struct PNode {
+        std::string label;                    // empty for internal nodes
+        PNode* parent = nullptr;
+        std::vector< PNode* > children;
+        std::set< std::string > leafSet;
+    };
+
+    // Monotonic counter used to synthesize internal node identifiers.
+    size_t m_nextInternalId = 0;
+    std::string newInternalId();
+
+    // ---- Newick parsing helpers ----
+    PNode* parseNewick(const std::string& newick);
+    PNode* parseNewickHelper(const std::string& s, size_t& pos);
+    void computeLeafSets(PNode* node);
+    void freePNode(PNode* node);
+    PNode* findByLeafSet(PNode* root, const std::set< std::string >& ls);
+
+    // ---- Network construction helpers ----
+    // Materialize tree 1 from its parse tree, creating Node* objects with
+    // parent/children set, and populating `leafsetToNode`, `allNodes`, `tree1Depth`.
+    void buildTree1(PNode* pRoot);
+
+    // Return the network node representing this leaf set, creating a new one if
+    // necessary. Single-element sets yield leaf nodes; otherwise, an internal
+    // network node is created.
+    Node* getOrCreateNode(const std::set< std::string >& ls);
+
+    // Parse the "MCC {...}" portion of a step-header line into a leaf-set.
+    std::set< std::string > parseMCCFromHeader(const std::string& header);
+
+    // Add a directed network edge parent->child, guarding against duplicates,
+    // redundancy with tree-1 edges, and cycles. In case of a cycle, resolve by
+    // keeping the node that is deeper in tree 1 as the child and discarding the
+    // edge whose direction contradicts that.
+    void addNetworkEdgeSafe(Node* par, Node* ch);
+
+    // Is `anc` an ancestor of `desc` in the current DAG (tree + network edges)?
+    bool isAncestor(Node* anc, Node* desc) const;
+
+    // ---- Newick printing ----
+    void printNewick(std::ostream& out, Node* node) const;
+};
+
+// Coordinates of a parent sequence segment contributing to a complex mutation
+struct ParentContribution {
+    size_t treeIndex;
+    std::string sequenceId;
+
+    int32_t primaryBlockIdStart;
+    int32_t secondaryBlockIdStart;
+    int32_t nucPositionStart;
+    int32_t nucGapPositionStart;
+
+    int32_t primaryBlockIdEnd;
+    int32_t secondaryBlockIdEnd;
+    int32_t nucPositionEnd;
+    int32_t nucGapPositionEnd;
+
+    ParentContribution() = default;
+
+    ParentContribution(size_t tIndex, std::string sId,
+                       std::tuple< int,int,int,int > startCoords,
+                       std::tuple< int,int,int,int > endCoords) {
+        treeIndex = tIndex;
+        sequenceId = std::move(sId);
+        primaryBlockIdStart = std::get<0>(startCoords);
+        secondaryBlockIdStart = std::get<1>(startCoords);
+        nucPositionStart = std::get<2>(startCoords);
+        nucGapPositionStart = std::get<3>(startCoords);
+        primaryBlockIdEnd = std::get<0>(endCoords);
+        secondaryBlockIdEnd = std::get<1>(endCoords);
+        nucPositionEnd = std::get<2>(endCoords);
+        nucGapPositionEnd = std::get<3>(endCoords);
+    }
+
+    static ParentContribution fromCapnProto(panman::ParentContribution::Reader pc) {
+        ParentContribution parent;
+        parent.treeIndex = pc.getTreeIndex();
+        parent.sequenceId = pc.getSequenceId();
+
+        parent.primaryBlockIdStart = (pc.getBlockIdStart() >> 32);
+        parent.secondaryBlockIdStart = (pc.getBlockGapExistStart()?
+                                        (pc.getBlockIdStart() & 0xFFFFFFFF): -1);
+        parent.nucPositionStart = pc.getNucPositionStart();
+        parent.nucGapPositionStart = (pc.getNucGapExistStart()?
+                                      pc.getNucGapPositionStart() : -1);
+
+        parent.primaryBlockIdEnd = (pc.getBlockIdEnd() >> 32);
+        parent.secondaryBlockIdEnd = (pc.getBlockGapExistEnd()?
+                                      (pc.getBlockIdEnd() & 0xFFFFFFFF) : -1);
+        parent.nucPositionEnd = pc.getNucPositionEnd();
+        parent.nucGapPositionEnd = (pc.getNucGapExistEnd()?
+                                    pc.getNucGapPositionEnd() : -1);
+        return parent;
+    }
+
+    static ParentContribution fromProtobuf(const panmanOld::parentContribution& pc) {
+        ParentContribution parent;
+        parent.treeIndex = pc.treeindex();
+        parent.sequenceId = pc.sequenceid();
+
+        parent.primaryBlockIdStart = (pc.blockidstart() >> 32);
+        parent.secondaryBlockIdStart = (pc.blockgapexiststart()?
+                                      (pc.blockidstart() & 0xFFFFFFFF) : -1);
+        parent.nucPositionStart = pc.nucpositionstart();
+        parent.nucGapPositionStart = (pc.nucgapexiststart()?
+                                      pc.nucgappositionstart() : -1);
+
+        parent.primaryBlockIdEnd = (pc.blockidend() >> 32);
+        parent.secondaryBlockIdEnd = (pc.blockgapexistend()?
+                                      (pc.blockidend() & 0xFFFFFFFF) : -1);
+        parent.nucPositionEnd = pc.nucpositionend();
+        parent.nucGapPositionEnd = (pc.nucgapexistend()?
+                                    pc.nucgappositionend() : -1);
+        return parent;
+    }
+
+    void toCapnProto(panman::ParentContribution::Builder& pc) const {
+        pc.setTreeIndex(treeIndex);
+        pc.setSequenceId(sequenceId);
+
+        if(secondaryBlockIdStart != -1) {
+            pc.setBlockGapExistStart(true);
+            pc.setBlockIdStart(((int64_t)primaryBlockIdStart << 32) + secondaryBlockIdStart);
+        } else {
+            pc.setBlockGapExistStart(false);
+            pc.setBlockIdStart(((int64_t)primaryBlockIdStart << 32));
+        }
+        pc.setNucPositionStart(nucPositionStart);
+        if(nucGapPositionStart != -1) {
+            pc.setNucGapExistStart(true);
+            pc.setNucGapPositionStart(nucGapPositionStart);
+        }
+
+        if(secondaryBlockIdEnd != -1) {
+            pc.setBlockGapExistEnd(true);
+            pc.setBlockIdEnd(((int64_t)primaryBlockIdEnd << 32) + secondaryBlockIdEnd);
+        } else {
+            pc.setBlockGapExistEnd(false);
+            pc.setBlockIdEnd(((int64_t)primaryBlockIdEnd << 32));
+        }
+        pc.setNucPositionEnd(nucPositionEnd);
+        if(nucGapPositionEnd != -1) {
+            pc.setNucGapExistEnd(true);
+            pc.setNucGapPositionEnd(nucGapPositionEnd);
+        }
+    }
+
+    panmanOld::parentContribution toProtobuf() const {
+        panmanOld::parentContribution pc;
+        pc.set_treeindex(treeIndex);
+        pc.set_sequenceid(sequenceId);
+
+        if(secondaryBlockIdStart != -1) {
+            pc.set_blockgapexiststart(true);
+            pc.set_blockidstart(((int64_t)primaryBlockIdStart << 32) + secondaryBlockIdStart);
+        } else {
+            pc.set_blockgapexiststart(false);
+            pc.set_blockidstart(((int64_t)primaryBlockIdStart << 32));
+        }
+        pc.set_nucpositionstart(nucPositionStart);
+        if(nucGapPositionStart != -1) {
+            pc.set_nucgapexiststart(true);
+            pc.set_nucgappositionstart(nucGapPositionStart);
+        }
+
+        if(secondaryBlockIdEnd != -1) {
+            pc.set_blockgapexistend(true);
+            pc.set_blockidend(((int64_t)primaryBlockIdEnd << 32) + secondaryBlockIdEnd);
+        } else {
+            pc.set_blockgapexistend(false);
+            pc.set_blockidend(((int64_t)primaryBlockIdEnd << 32));
+        }
+        pc.set_nucpositionend(nucPositionEnd);
+        if(nucGapPositionEnd != -1) {
+            pc.set_nucgapexistend(true);
+            pc.set_nucgappositionend(nucGapPositionEnd);
+        }
+        return pc;
+    }
+};
+
 // Represents complex mutations like Horizontal Gene Transfer or Recombinations
 struct ComplexMutation {
     char mutationType;
-    size_t treeIndex1, treeIndex2, treeIndex3;
-    std::string sequenceId1, sequenceId2, sequenceId3;
+    size_t childTreeIndex;
+    std::string childSequenceId;
+    std::vector< ParentContribution > parents;
 
-    // coordinates of start in parent 1
-    int32_t primaryBlockIdStart1;
-    int32_t secondaryBlockIdStart1;
-    int32_t nucPositionStart1;
-    int32_t nucGapPositionStart1;
-
-    // coordinates of end in parent 1
-    int32_t primaryBlockIdEnd1;
-    int32_t secondaryBlockIdEnd1;
-    int32_t nucPositionEnd1;
-    int32_t nucGapPositionEnd1;
-
-    // coordinates of start in parent 2
-    int32_t primaryBlockIdStart2;
-    int32_t secondaryBlockIdStart2;
-    int32_t nucPositionStart2;
-    int32_t nucGapPositionStart2;
-
-    // coordinates of end in parent 2
-    int32_t primaryBlockIdEnd2;
-    int32_t secondaryBlockIdEnd2;
-    int32_t nucPositionEnd2;
-    int32_t nucGapPositionEnd2;
-
-    ComplexMutation(char mutType, int tIndex1, int tIndex2, int tIndex3, std::string sId1,
-                    std::string sId2, std::string sId3, std::tuple< int,int,int,int > t1,
-                    std::tuple< int,int,int,int > t2, std::tuple< int,int,int,int > t3,
-                    std::tuple< int,int,int,int > t4) {
+    ComplexMutation(char mutType, size_t childTreeIdx, std::string childSeqId,
+                    std::vector< ParentContribution > parentContribs) {
         mutationType = mutType;
-        treeIndex1 = tIndex1;
-        treeIndex2 = tIndex2;
-        treeIndex3 = tIndex3;
+        childTreeIndex = childTreeIdx;
+        childSequenceId = std::move(childSeqId);
+        parents = std::move(parentContribs);
+    }
 
-        sequenceId1 = sId1;
-        sequenceId2 = sId2;
-        sequenceId3 = sId3;
+    static ParentContribution legacyParentFromCapnProto(
+        size_t treeIndex, const std::string& sequenceId,
+        int64_t blockIdStart, bool blockGapExistStart,
+        int32_t nucPositionStart, int32_t nucGapPositionStart, bool nucGapExistStart,
+        int64_t blockIdEnd, bool blockGapExistEnd,
+        int32_t nucPositionEnd, int32_t nucGapPositionEnd, bool nucGapExistEnd) {
+        ParentContribution parent;
+        parent.treeIndex = treeIndex;
+        parent.sequenceId = sequenceId;
+        parent.primaryBlockIdStart = (blockIdStart >> 32);
+        parent.secondaryBlockIdStart = (blockGapExistStart?
+                                        (blockIdStart & 0xFFFFFFFF) : -1);
+        parent.nucPositionStart = nucPositionStart;
+        parent.nucGapPositionStart = (nucGapExistStart? nucGapPositionStart : -1);
+        parent.primaryBlockIdEnd = (blockIdEnd >> 32);
+        parent.secondaryBlockIdEnd = (blockGapExistEnd?
+                                      (blockIdEnd & 0xFFFFFFFF) : -1);
+        parent.nucPositionEnd = nucPositionEnd;
+        parent.nucGapPositionEnd = (nucGapExistEnd? nucGapPositionEnd : -1);
+        return parent;
+    }
 
-        primaryBlockIdStart1 = std::get<0>(t1);
-        secondaryBlockIdStart1 = std::get<1>(t1);
-        nucPositionStart1 = std::get<2>(t1);
-        nucGapPositionStart1 = std::get<3>(t1);
+    static void readLegacyInlineParents(panman::ComplexMutation::Reader cm,
+                                        std::vector< ParentContribution >& out) {
+        out.push_back(legacyParentFromCapnProto(
+            cm.getTreeIndex1(), cm.getSequenceId1(),
+            cm.getBlockIdStart1(), cm.getBlockGapExistStart1(),
+            cm.getNucPositionStart1(), cm.getNucGapPositionStart1(), cm.getNucGapExistStart1(),
+            cm.getBlockIdEnd1(), cm.getBlockGapExistEnd1(),
+            cm.getNucPositionEnd1(), cm.getNucGapPositionEnd1(), cm.getNucGapExistEnd1()));
+        out.push_back(legacyParentFromCapnProto(
+            cm.getTreeIndex2(), cm.getSequenceId2(),
+            cm.getBlockIdStart2(), cm.getBlockGapExistStart2(),
+            cm.getNucPositionStart2(), cm.getNucGapPositionStart2(), cm.getNucGapExistStart2(),
+            cm.getBlockIdEnd2(), cm.getBlockGapExistEnd2(),
+            cm.getNucPositionEnd2(), cm.getNucGapPositionEnd2(), cm.getNucGapExistEnd2()));
+    }
 
-        primaryBlockIdEnd1 = std::get<0>(t2);
-        secondaryBlockIdEnd1 = std::get<1>(t2);
-        nucPositionEnd1 = std::get<2>(t2);
-        nucGapPositionEnd1 = std::get<3>(t2);
-
-        primaryBlockIdStart2 = std::get<0>(t3);
-        secondaryBlockIdStart2 = std::get<1>(t3);
-        nucPositionStart2 = std::get<2>(t3);
-        nucGapPositionStart2 = std::get<3>(t3);
-
-        primaryBlockIdEnd2 = std::get<0>(t4);
-        secondaryBlockIdEnd2 = std::get<1>(t4);
-        nucPositionEnd2 = std::get<2>(t4);
-        nucGapPositionEnd2 = std::get<3>(t4);
+    static void readLegacyInlineParents(const panmanOld::complexMutation& cm,
+                                        std::vector< ParentContribution >& out) {
+        out.push_back(legacyParentFromCapnProto(
+            cm.treeindex1(), cm.sequenceid1(),
+            cm.blockidstart1(), cm.blockgapexiststart1(),
+            cm.nucpositionstart1(), cm.nucgappositionstart1(), cm.nucgapexiststart1(),
+            cm.blockidend1(), cm.blockgapexistend1(),
+            cm.nucpositionend1(), cm.nucgappositionend1(), cm.nucgapexistend1()));
+        out.push_back(legacyParentFromCapnProto(
+            cm.treeindex2(), cm.sequenceid2(),
+            cm.blockidstart2(), cm.blockgapexiststart2(),
+            cm.nucpositionstart2(), cm.nucgappositionstart2(), cm.nucgapexiststart2(),
+            cm.blockidend2(), cm.blockgapexistend2(),
+            cm.nucpositionend2(), cm.nucgappositionend2(), cm.nucgapexistend2()));
     }
 
     ComplexMutation(panman::ComplexMutation::Reader cm) {
         mutationType = (cm.getMutationType()? 'H': 'R');
-        treeIndex1 = cm.getTreeIndex1();
-        treeIndex2 = cm.getTreeIndex2();
-        treeIndex3 = cm.getTreeIndex3();
-        sequenceId1 = cm.getSequenceId1();
-        sequenceId2 = cm.getSequenceId2();
-        sequenceId3 = cm.getSequenceId3();
+        childTreeIndex = cm.getTreeIndex3();
+        childSequenceId = cm.getSequenceId3();
 
-        primaryBlockIdStart1 = (cm.getBlockIdStart1() >> 32);
-        secondaryBlockIdStart1 = (cm.getBlockGapExistEnd1()?
-                                  (cm.getBlockIdStart1()&(0xFFFFFFFF)): -1);
-        nucPositionStart1 = cm.getNucPositionStart1();
-        nucGapPositionStart1 = (cm.getNucGapExistStart1()? (cm.getNucGapPositionStart1()) : -1);
-
-        primaryBlockIdStart2 = (cm.getBlockIdStart2() >> 32);
-        secondaryBlockIdStart2 = (cm.getNucGapExistStart2()?
-                                  (cm.getBlockIdStart2()&(0xFFFFFFFF)): -1);
-        nucPositionStart2 = cm.getNucPositionStart2();
-        nucGapPositionStart2 = (cm.getNucGapExistStart2()? (cm.getNucGapPositionStart2()) : -1);
-
-        primaryBlockIdEnd1 = (cm.getBlockIdEnd1() >> 32);
-        secondaryBlockIdEnd1 = (cm.getBlockGapExistEnd1()? (cm.getBlockIdEnd1()&(0xFFFFFFFF)): -1);
-        nucPositionEnd1 = cm.getNucPositionEnd1();
-        nucGapPositionEnd1 = (cm.getNucGapExistEnd1()? (cm.getNucGapPositionEnd1()) : -1);
-
-        primaryBlockIdEnd2 = (cm.getBlockIdEnd2() >> 32);
-        secondaryBlockIdEnd2 = (cm.getBlockGapExistEnd2()? (cm.getBlockIdEnd2()&(0xFFFFFFFF)): -1);
-        nucPositionEnd2 = cm.getNucPositionEnd2();
-        nucGapPositionEnd2 = (cm.getNucGapExistEnd2()? (cm.getNucGapPositionEnd2()) : -1);
+        if(cm.hasParents()) {
+            try {
+                for(auto parentReader: cm.getParents()) {
+                    parents.push_back(ParentContribution::fromCapnProto(parentReader));
+                }
+            } catch (const kj::Exception&) {
+                parents.clear();
+                readLegacyInlineParents(cm, parents);
+            }
+        } else {
+            readLegacyInlineParents(cm, parents);
+        }
     }
 
-    void toCapnProto(panman::ComplexMutation::Builder& cm) {
+    void toCapnProto(panman::ComplexMutation::Builder& cm) const {
         cm.setMutationType(mutationType == 'H');
-        cm.setTreeIndex1(treeIndex1);
-        cm.setTreeIndex2(treeIndex2);
-        cm.setTreeIndex3(treeIndex3);
-        cm.setSequenceId1(sequenceId1);
-        cm.setSequenceId2(sequenceId2);
-        cm.setSequenceId3(sequenceId3);
+        cm.setTreeIndex3(childTreeIndex);
+        cm.setSequenceId3(childSequenceId);
 
-        if(secondaryBlockIdStart1 != -1) {
-            cm.setBlockGapExistStart1(true);
-            cm.setBlockIdStart1(((int64_t)primaryBlockIdStart1 << 32)+secondaryBlockIdStart1);
-        } else {
-            cm.setBlockGapExistStart1(false);
-            cm.setBlockIdStart1(((int64_t)primaryBlockIdStart1 << 32));
+        auto parentsBuilder = cm.initParents(parents.size());
+        for(size_t i = 0; i < parents.size(); i++) {
+            auto parentBuilder = parentsBuilder[i];
+            parents[i].toCapnProto(parentBuilder);
         }
-        cm.setNucPositionStart1(nucPositionStart1);
-
-        if(nucGapPositionStart1 != -1) {
-            cm.setNucGapExistStart1(true);
-            cm.setNucGapPositionStart1(nucGapPositionStart1);
-        }
-
-        if(secondaryBlockIdStart2 != -1) {
-            cm.setBlockGapExistStart2(true);
-            cm.setBlockIdStart2(((int64_t)primaryBlockIdStart2 << 32)+secondaryBlockIdStart2);
-        } else {
-            cm.setBlockGapExistStart2(false);
-            cm.setBlockIdStart2(((int64_t)primaryBlockIdStart2 << 32));
-        }
-        cm.setNucPositionStart2(nucPositionStart2);
-
-        if(nucGapPositionStart2 != -1) {
-            cm.setNucGapExistStart2(true);
-            cm.setNucGapPositionStart2(nucGapPositionStart2);
-        }
-
-        if(secondaryBlockIdEnd1 != -1) {
-            cm.setBlockGapExistEnd1(true);
-            cm.setBlockIdEnd1(((int64_t)primaryBlockIdEnd1 << 32)+secondaryBlockIdEnd1);
-        } else {
-            cm.setBlockGapExistEnd1(false);
-            cm.setBlockIdEnd1(((int64_t)primaryBlockIdEnd1 << 32));
-        }
-        cm.setNucPositionEnd1(nucPositionEnd1);
-
-        if(nucGapPositionEnd1 != -1) {
-            cm.setNucGapExistEnd1(true);
-            cm.setNucGapPositionEnd1(nucGapPositionEnd1);
-        }
-
-        if(secondaryBlockIdEnd2 != -1) {
-            cm.setBlockGapExistEnd2(true);
-            cm.setBlockIdEnd2(((int64_t)primaryBlockIdEnd2 << 32)+secondaryBlockIdEnd2);
-        } else {
-            cm.setBlockGapExistEnd2(false);
-            cm.setBlockIdEnd2(((int64_t)primaryBlockIdEnd2 << 32));
-        }
-        cm.setNucPositionEnd2(nucPositionEnd2);
-
-        if(nucGapPositionEnd2 != -1) {
-            cm.setNucGapExistEnd2(true);
-            cm.setNucGapPositionEnd2(nucGapPositionEnd2);
-        }
-
-        // return cm;
     }
 
     ComplexMutation(panmanOld::complexMutation cm) {
         mutationType = (cm.mutationtype()? 'H': 'R');
-        treeIndex1 = cm.treeindex1();
-        treeIndex2 = cm.treeindex2();
-        treeIndex3 = cm.treeindex3();
-        sequenceId1 = cm.sequenceid1();
-        sequenceId2 = cm.sequenceid2();
-        sequenceId3 = cm.sequenceid3();
+        childTreeIndex = cm.treeindex3();
+        childSequenceId = cm.sequenceid3();
 
-        primaryBlockIdStart1 = (cm.blockidstart1() >> 32);
-        secondaryBlockIdStart1 = (cm.blockgapexiststart1()?
-                                  (cm.blockidstart1()&(0xFFFFFFFF)): -1);
-        nucPositionStart1 = cm.nucpositionstart1();
-        nucGapPositionStart1 = (cm.nucgapexiststart1()? (cm.nucgappositionstart1()) : -1);
-
-        primaryBlockIdStart2 = (cm.blockidstart2() >> 32);
-        secondaryBlockIdStart2 = (cm.blockgapexiststart2()?
-                                  (cm.blockidstart2()&(0xFFFFFFFF)): -1);
-        nucPositionStart2 = cm.nucpositionstart2();
-        nucGapPositionStart2 = (cm.nucgapexiststart2()? (cm.nucgappositionstart2()) : -1);
-
-        primaryBlockIdEnd1 = (cm.blockidend1() >> 32);
-        secondaryBlockIdEnd1 = (cm.blockgapexistend1()? (cm.blockidend1()&(0xFFFFFFFF)): -1);
-        nucPositionEnd1 = cm.nucpositionend1();
-        nucGapPositionEnd1 = (cm.nucgapexistend1()? (cm.nucgappositionend1()) : -1);
-
-        primaryBlockIdEnd2 = (cm.blockidend2() >> 32);
-        secondaryBlockIdEnd2 = (cm.blockgapexistend2()? (cm.blockidend2()&(0xFFFFFFFF)): -1);
-        nucPositionEnd2 = cm.nucpositionend2();
-        nucGapPositionEnd2 = (cm.nucgapexistend2()? (cm.nucgappositionend2()) : -1);
+        if(cm.parents_size() > 0) {
+            for(int i = 0; i < cm.parents_size(); i++) {
+                parents.push_back(ParentContribution::fromProtobuf(cm.parents(i)));
+            }
+        } else {
+            readLegacyInlineParents(cm, parents);
+        }
     }
 
-    panmanOld::complexMutation toProtobuf() {
+    panmanOld::complexMutation toProtobuf() const {
         panmanOld::complexMutation cm;
         cm.set_mutationtype(mutationType == 'H');
-        cm.set_treeindex1(treeIndex1);
-        cm.set_treeindex2(treeIndex2);
-        cm.set_treeindex3(treeIndex3);
-        cm.set_sequenceid1(sequenceId1);
-        cm.set_sequenceid2(sequenceId2);
-        cm.set_sequenceid3(sequenceId3);
+        cm.set_treeindex3(childTreeIndex);
+        cm.set_sequenceid3(childSequenceId);
 
-        if(secondaryBlockIdStart1 != -1) {
-            cm.set_blockgapexiststart1(true);
-            cm.set_blockidstart1(((int64_t)primaryBlockIdStart1 << 32)+secondaryBlockIdStart1);
-        } else {
-            cm.set_blockgapexiststart1(false);
-            cm.set_blockidstart1(((int64_t)primaryBlockIdStart1 << 32));
+        for(const auto& parent: parents) {
+            *cm.add_parents() = parent.toProtobuf();
         }
-        cm.set_nucpositionstart1(nucPositionStart1);
-
-        if(nucGapPositionStart1 != -1) {
-            cm.set_nucgapexiststart1(true);
-            cm.set_nucgappositionstart1(nucGapPositionStart1);
-        }
-
-        if(secondaryBlockIdStart2 != -1) {
-            cm.set_blockgapexiststart2(true);
-            cm.set_blockidstart2(((int64_t)primaryBlockIdStart2 << 32)+secondaryBlockIdStart2);
-        } else {
-            cm.set_blockgapexiststart2(false);
-            cm.set_blockidstart2(((int64_t)primaryBlockIdStart2 << 32));
-        }
-        cm.set_nucpositionstart2(nucPositionStart2);
-
-        if(nucGapPositionStart2 != -1) {
-            cm.set_nucgapexiststart2(true);
-            cm.set_nucgappositionstart2(nucGapPositionStart2);
-        }
-
-        if(secondaryBlockIdEnd1 != -1) {
-            cm.set_blockgapexistend1(true);
-            cm.set_blockidend1(((int64_t)primaryBlockIdEnd1 << 32)+secondaryBlockIdEnd1);
-        } else {
-            cm.set_blockgapexistend1(false);
-            cm.set_blockidend1(((int64_t)primaryBlockIdEnd1 << 32));
-        }
-        cm.set_nucpositionend1(nucPositionEnd1);
-
-        if(nucGapPositionEnd1 != -1) {
-            cm.set_nucgapexistend1(true);
-            cm.set_nucgappositionend1(nucGapPositionEnd1);
-        }
-
-        if(secondaryBlockIdEnd2 != -1) {
-            cm.set_blockgapexistend2(true);
-            cm.set_blockidend2(((int64_t)primaryBlockIdEnd2 << 32)+secondaryBlockIdEnd2);
-        } else {
-            cm.set_blockgapexistend2(false);
-            cm.set_blockidend2(((int64_t)primaryBlockIdEnd2 << 32));
-        }
-        cm.set_nucpositionend2(nucPositionEnd2);
-
-        if(nucGapPositionEnd2 != -1) {
-            cm.set_nucgapexistend2(true);
-            cm.set_nucgappositionend2(nucGapPositionEnd2);
-        }
-
         return cm;
     }
 
@@ -947,5 +1070,19 @@ class TreeGroup {
     void writeToFile(kj::std::StdOutputStream& fout);
     void printComplexMutations(std::ostream& fout);
 };
+
+// Build a PanMAN (TreeGroup) from TreeKnit output. Inputs:
+//   treeknitDir  - directory of chrXX_window_N_N+1 subdirectories, each containing
+//                  MCCs.json (exactly 2 MCCs -> one SPR move) and per-window
+//                  <chrXX_A_B>_resolved.nwk files.
+//   alignmentDir - directory of per-window MSA files named chrXX_A_B.fa.
+//   refFile      - reference FASTA (.fa / .fa.gz / .fa.xz), one record per chromosome.
+// Each window becomes a PanMAT (one block per window, uncovered reference gaps merged
+// into the left neighbour block). Adjacent windows are linked by one SPR-derived
+// recombination complex mutation (smaller MCC = moved clade; breakpoints = MSA
+// coordinates of the child window block; parents identified by node id).
+TreeGroup* buildNetworkFromTreeknit(const std::string& treeknitDir,
+                                    const std::string& alignmentDir,
+                                    const std::string& refFile);
 
 };

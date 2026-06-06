@@ -82,6 +82,7 @@ void panmanUtils::Tree::printMAF(std::ostream& fout) {
 
     for(auto u: allNodes) {
         if(u.second->children.size() == 0) {
+            
             sequenceNames.push_back(u.first);
             sequence_t sequence;
             blockExists_t blockExists;

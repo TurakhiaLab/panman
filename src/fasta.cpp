@@ -2034,31 +2034,24 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
 
 
         int32_t maxBlockId = 0;
-        std::string consensusSeq_string = "";
+        // std::string consensusSeq_string = "";
         // Create consensus sequence of blocks
         size_t seqlen=0;
         for(size_t i = 0; i < blocks.size(); i++) {
             int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
             blockLengths[primaryBlockId] = 0;
             maxBlockId = std::max(maxBlockId, primaryBlockId);
+            int64_t endFlag = blocks[i].blockLength;
             if (blockSequence[primaryBlockId]) {
                 for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
-                    bool endFlag = false;
+                    if (endFlag <= 0) break;
                     for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
                         const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
-
-                        if(nucCode == 0) {
-                            endFlag = true;
-                            break;
-                        }
+                        endFlag -= 1;
                         seqlen+=1;
                         const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
                         sequence[primaryBlockId].push_back({nucleotide, {}});
-                        consensusSeq_string += nucleotide;
-                    }
-
-                    if(endFlag) {
-                        break;
+                        // consensusSeq_string += nucleotide;
                     }
                 }
                 // End character to incorporate for gaps at the end
@@ -2066,20 +2059,14 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
                 // blockLengths[primaryBlockId] += len;
             } else {
                 int len = 0;
+                int64_t endFlag = blocks[i].blockLength;
                 for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
-                    bool endFlag = false;
+                    if (endFlag <= 0) break;
                     for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
                         const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
-                        if(nucCode == 0) {
-                            endFlag = true;
-                            break;
-                        }
-                        consensusSeq_string += nucCode;
+                        endFlag -= 1;
+                        // consensusSeq_string += nucCode;
                         len++;
-                    }
-
-                    if(endFlag) {
-                        break;
                     }
                 }
                 blockLengths[primaryBlockId] += len;

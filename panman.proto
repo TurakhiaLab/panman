@@ -94,8 +94,31 @@ message tree
     alphabetType alphabet = 11;
 }
 
+message parentContribution {
+    int32           treeIndex = 1;
+    string          sequenceId = 2;
+
+    int64           blockIdStart = 3;
+    bool            blockGapExistStart = 4;
+    int32           nucPositionStart = 5;
+    int32           nucGapPositionStart = 6;
+    bool            nucGapExistStart = 7;
+
+    int64           blockIdEnd = 8;
+    bool            blockGapExistEnd = 9;
+    int32           nucPositionEnd = 10;
+    int32           nucGapPositionEnd = 11;
+    bool            nucGapExistEnd = 12;
+}
+
 message complexMutation {
     bool            mutationType = 1;
+
+    // Current format: variable number of parents plus child (treeIndex3/sequenceId3).
+    repeated parentContribution parents = 28;
+
+    // v1 inline two-parent format. Field numbers must not change so older binary
+    // PanMAN files remain readable. Current code never writes these parent fields.
     int32           treeIndex1 = 2;
     int32           treeIndex2 = 3;
     int32           treeIndex3 = 4;

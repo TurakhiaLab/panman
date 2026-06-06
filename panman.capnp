@@ -31,6 +31,7 @@ struct Node
 struct ConsensusSeqToBlockIds
 {
     blockId @0: List(Int64);
+    blockLength @4: Int64;
     consensusSeq @1: List(UInt32);
     blockGapExist @2: List(Bool);
     chromosomeName @3: List(Text);
@@ -94,6 +95,23 @@ struct Tree
     alphabet @9: Alphabet = dna;
 }
 
+struct ParentContribution {
+    treeIndex @0: Int32;
+    sequenceId @1: Text;
+
+    blockIdStart @2: Int64;
+    blockGapExistStart @3: Bool;
+    nucPositionStart @4: Int32;
+    nucGapPositionStart @5: Int32;
+    nucGapExistStart @6: Bool;
+
+    blockIdEnd @7: Int64;
+    blockGapExistEnd @8: Bool;
+    nucPositionEnd @9: Int32;
+    nucGapPositionEnd @10: Int32;
+    nucGapExistEnd @11: Bool;
+}
+
 struct ComplexMutation {
     mutationType @0: Bool;
     treeIndex1 @1: Int32;
@@ -127,6 +145,9 @@ struct ComplexMutation {
     nucGapExistEnd2 @25: Bool;
 
     sequenceId3 @26: Text;
+
+    # v2 format: variable number of parents. Absent in v1 files.
+    parents @27: List(ParentContribution);
 }
 
 struct TreeGroup
