@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <sstream>
 #include <limits>
+#include <unordered_set>
+#include <vector>
 #include <tbb/parallel_for_each.h>
 #include <boost/program_options.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
@@ -159,8 +161,14 @@ void setupOptionDescriptions() {
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
     ("protein", "Enable protein alphabet mode for sequence encoding/decoding")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
-    ("network-from-spr", po::value< std::string >(), "Build a PanMAN network from TreeKnit output. The value is the TreeKnit directory containing chrXX_window_N_N+1 subdirectories (each with MCCs.json and resolved Newick trees). Requires --alignment-dir and --refFile.")
-    ("alignment-dir", po::value< std::string >(), "Directory of per-window MSA files named chrXX_A_B.fa, required for --network-from-spr")
+    ("network-from-treeknit", po::value< std::string >(), "Build a PanMAN network from TreeKnit output. The value is the TreeKnit directory containing chrXX_window_N_N+1 subdirectories (each with MCCs.json and resolved Newick trees). Requires --alignment-dir and --refFile.")
+    ("alignment-dir", po::value< std::string >(), "Directory of per-window MSA files named chrXX_A_B.fa, required for --network-from-treeknit")
+    ("network-from-spr", "Build a PanMAN network from consecutive SPR-related window trees. Requires --trees-dir, --msa-root, and --refFile.")
+    ("trees-dir", po::value< std::string >(), "Directory of per-window Newick files named chrXX_A_B.nwk (GRCh38 ref coords, 1-based)")
+    ("msa-root", po::value< std::string >(), "Parent of per-chromosome dirs (chrXX/full_msa/ or legacy chrXX_full_msa/)")
+    ("chroms", po::value< std::string >(), "Chromosome filter for --network-from-spr, e.g. 'chr1-4' or 'chr1,chr3,chr10'")
+    ("tar-dir", po::value< std::string >(), "Directory containing per-chromosome tar.gz archives (hprcv2.0_chrXX_full_msa.tar.gz). "
+                                              "If a chromosome dir is not found in --msa-root, it is extracted from the tar, processed, then cleaned up.")
 
     ("test", "Only for test purposes, not for users")
 
@@ -178,6 +186,10 @@ void setupOptionDescriptions() {
     ("reroot,r", "Reroot a PanMAT in a PanMAN based on the input sequence id (--reference)")
     ("aa-translation,v", "Extract amino acid translations in TSV file")
     ("extended-newick,e", "Print PanMAN's network in extended-newick format")
+    ("to-trees", "Export a network-from-spr PanMAN as tskit tree-sequence text tables (nodes/edges/sites/mutations)")
+    ("layout", po::value< std::string >(), "Output layout for --to-trees: 'concatenate' (default, one tree-sequence) or 'per-chromosome' (one per chromosome)")
+    ("with-mutations", "For --to-trees: also write the (large) sites and mutations tables. Off by default; only nodes/edges/sequence_length are written.")
+    ("dedupe-blocks", "Load the PanMAN, remove duplicate block ids from each chromosome's block list, and write the corrected PanMAN (use with --output-file)")
     ("printMutations,p", "Print mutations from root to each node")
     ("acr,q", "ACR method [fitch(default), mppa]")
     ("index",po::value< bool >(0), "Generating indexes and print sequence (passed as reference) between x:y")
@@ -1741,17 +1753,15 @@ void parseAndExecute(int argc, char* argv[]) {
         std::streambuf * buf;
         createNet(globalVm, outputFile, buf);
         return;
-    } else if (globalVm.count("network-from-spr")) {
-        // Build a PanMAN network from TreeKnit output (directory of window subdirs),
-        // per-window MSAs, and a reference FASTA.
-        std::string treeknitDir = globalVm["network-from-spr"].as< std::string >();
+    } else if (globalVm.count("network-from-treeknit")) {
+        std::string treeknitDir = globalVm["network-from-treeknit"].as< std::string >();
 
         if (!globalVm.count("alignment-dir")) {
-            panmanUtils::printError("--alignment-dir (directory of per-window MSA files) is required for --network-from-spr");
+            panmanUtils::printError("--alignment-dir (directory of per-window MSA files) is required for --network-from-treeknit");
             return;
         }
         if (!globalVm.count("refFile")) {
-            panmanUtils::printError("--refFile (reference FASTA) is required for --network-from-spr");
+            panmanUtils::printError("--refFile (reference FASTA) is required for --network-from-treeknit");
             return;
         }
         if (!globalVm.count("output-file")) {
@@ -1773,6 +1783,52 @@ void parseAndExecute(int argc, char* argv[]) {
 
         if (networkTG == nullptr) {
             panmanUtils::printError("Failed to build network from TreeKnit output.");
+            return;
+        }
+
+        writePanMAN(globalVm, networkTG);
+        return;
+    } else if (globalVm.count("network-from-spr")) {
+        if (!globalVm.count("trees-dir")) {
+            panmanUtils::printError("--trees-dir (directory of per-window Newick files) is required for --network-from-spr");
+            return;
+        }
+        if (!globalVm.count("msa-root")) {
+            panmanUtils::printError("--msa-root (parent of chrXX/full_msa directories) is required for --network-from-spr");
+            return;
+        }
+        if (!globalVm.count("refFile")) {
+            panmanUtils::printError("--refFile (reference FASTA) is required for --network-from-spr");
+            return;
+        }
+        if (!globalVm.count("output-file")) {
+            panmanUtils::printError("Output file not provided!");
+            std::cout << globalDesc;
+            return;
+        }
+
+        std::string treesDir = globalVm["trees-dir"].as< std::string >();
+        std::string msaRoot  = globalVm["msa-root"].as< std::string >();
+        std::string refFile  = globalVm["refFile"].as< std::string >();
+        std::string chroms;
+        if (globalVm.count("chroms")) {
+            chroms = globalVm["chroms"].as< std::string >();
+        }
+        std::string tarDirPath;
+        if (globalVm.count("tar-dir")) {
+            tarDirPath = globalVm["tar-dir"].as< std::string >();
+        }
+
+        auto buildStart = std::chrono::high_resolution_clock::now();
+        panmanUtils::TreeGroup* networkTG =
+            panmanUtils::buildNetworkFromSprDirs(treesDir, msaRoot, refFile, chroms, tarDirPath);
+        auto buildEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds buildTime = buildEnd - buildStart;
+        std::cout << "Network build time: " << buildTime.count()
+                  << " nanoseconds" << std::endl;
+
+        if (networkTG == nullptr) {
+            panmanUtils::printError("Failed to build network from SPR tree directories.");
             return;
         }
 
@@ -1854,6 +1910,74 @@ void parseAndExecute(int argc, char* argv[]) {
         return;
     } else if (globalVm.count("printConsensus")) {
         printConsensus(TG, globalVm, outputFile, buf);
+    } else if (globalVm.count("dedupe-blocks")) {
+        if (TG == nullptr) {
+            panmanUtils::printError("No PanMAN loaded!");
+            return;
+        }
+        if (!globalVm.count("output-file")) {
+            panmanUtils::printError("Output file prefix not provided (use --output-file)!");
+            return;
+        }
+        int64_t totalRemoved = 0;
+        for (auto& tree : TG->trees) {
+            for (auto& chr : tree.chrList) {
+                std::unordered_set<int64_t> seen;
+                std::vector<int64_t> deduped;
+                deduped.reserve(chr.blockIds.size());
+                for (int64_t bid : chr.blockIds) {
+                    if (seen.insert(bid).second) {
+                        deduped.push_back(bid);
+                    } else {
+                        totalRemoved++;
+                    }
+                }
+                if (deduped.size() != chr.blockIds.size()) {
+                    std::cout << "  chr '" << chr.chrName << "': "
+                              << chr.blockIds.size() << " -> " << deduped.size()
+                              << " block ids (" << (chr.blockIds.size() - deduped.size())
+                              << " duplicate(s) removed)" << std::endl;
+                    chr.blockIds = std::move(deduped);
+                }
+            }
+        }
+        std::cout << "Removed " << totalRemoved
+                  << " duplicate block id(s) from chromosome block lists." << std::endl;
+        writePanMAN(globalVm, TG);
+        return;
+    } else if (globalVm.count("to-trees")) {
+        if (TG == nullptr) {
+            panmanUtils::printError("No PanMAN loaded!");
+            return;
+        }
+        if (!globalVm.count("output-file")) {
+            panmanUtils::printError("Output file prefix not provided (use --output-file)!");
+            return;
+        }
+        std::string prefix = globalVm["output-file"].as< std::string >();
+        std::string reference;
+        if (globalVm.count("reference")) {
+            reference = globalVm["reference"].as< std::string >();
+        }
+        bool perChromosome = false;
+        if (globalVm.count("layout")) {
+            std::string layout = globalVm["layout"].as< std::string >();
+            if (layout == "per-chromosome" || layout == "per-chrom") {
+                perChromosome = true;
+            } else if (layout != "concatenate" && layout != "concat") {
+                panmanUtils::printError("Unknown --layout '" + layout +
+                                        "'. Use 'concatenate' or 'per-chromosome'.");
+                return;
+            }
+        }
+        bool emitMutations = globalVm.count("with-mutations") > 0;
+        auto tsStart = std::chrono::high_resolution_clock::now();
+        panmanUtils::writeTreeSequenceTables(*TG, prefix, reference, perChromosome, emitMutations);
+        auto tsEnd = std::chrono::high_resolution_clock::now();
+        std::chrono::nanoseconds tsTime = tsEnd - tsStart;
+        std::cout << "Tree-sequence export time: " << tsTime.count()
+                  << " nanoseconds" << std::endl;
+        return;
     } else {
         char** splitCommandArray;
 

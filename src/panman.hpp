@@ -1050,6 +1050,19 @@ struct ComplexMutation {
 
 };
 
+// Serialized network edge for the single-tree + network-edges architecture.
+// Matches the Cap'n Proto NetworkEdge struct.
+struct SerializedNetworkEdge {
+    std::string parentNodeId;
+    std::string childNodeId;
+    std::vector< int64_t > activeBlockIds;
+
+    SerializedNetworkEdge() = default;
+    SerializedNetworkEdge(std::string p, std::string c, std::vector< int64_t > ids)
+        : parentNodeId(std::move(p)), childNodeId(std::move(c)),
+          activeBlockIds(std::move(ids)) {}
+};
+
 // Data structure to represent PanMAN
 class TreeGroup {
   public:
@@ -1057,6 +1070,8 @@ class TreeGroup {
     std::vector< Tree > trees;
     // List of complex mutations linking PanMATs
     std::vector< ComplexMutation > complexMutations;
+    // Network edges for recombination (single-tree architecture)
+    std::vector< SerializedNetworkEdge > networkEdges;
 
     TreeGroup(std::istream& fin, bool isOld = false);
     // List of PanMAT files and a file with all the complex mutations relating these files
@@ -1069,6 +1084,10 @@ class TreeGroup {
     void printFASTA(std::ofstream& fout, bool rootSeq = false);
     void writeToFile(kj::std::StdOutputStream& fout);
     void printComplexMutations(std::ostream& fout);
+
+    std::unordered_map< std::string, std::string >
+        getActiveParentMapForBlock(const Tree& tree, int64_t blockId) const;
+    bool validateActiveEdgesFormTreeForBlock(const Tree& tree, int64_t blockId) const;
 };
 
 // Build a PanMAN (TreeGroup) from TreeKnit output. Inputs:
@@ -1084,5 +1103,27 @@ class TreeGroup {
 TreeGroup* buildNetworkFromTreeknit(const std::string& treeknitDir,
                                     const std::string& alignmentDir,
                                     const std::string& refFile);
+
+TreeGroup* buildNetworkFromSprDirs(const std::string& treesDir,
+                                   const std::string& msaRoot,
+                                   const std::string& refFile,
+                                   const std::string& chromFilter = "",
+                                   const std::string& tarDir = "");
+
+// Export an SPR-built PanMAN (single base tree + networkEdges) as tskit
+// text tables (nodes/edges/sites/mutations) that can be assembled into a
+// .trees tree sequence. See src/toTrees.cpp and scripts/panman_to_trees.py.
+//   outPrefix      - output file prefix (tables written under ./info/).
+//   referenceName  - tip whose ungapped coordinates define the genome axis
+//                    (defaults to "GRCh38", then the first tip).
+//   perChromosome  - if true, one tree-sequence per chromosome; else a single
+//                    tree-sequence with chromosomes concatenated end-to-end.
+//   emitMutations  - if true, also write the sites and mutations tables (point
+//                    substitutions). Off by default: nodes/edges/sequence_length
+//                    are sufficient to build a .trees and the mutations table is
+//                    very large.
+void writeTreeSequenceTables(TreeGroup& TG, const std::string& outPrefix,
+                             const std::string& referenceName,
+                             bool perChromosome, bool emitMutations = false);
 
 };

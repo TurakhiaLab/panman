@@ -150,8 +150,15 @@ struct ComplexMutation {
     parents @27: List(ParentContribution);
 }
 
+struct NetworkEdge {
+    parentNodeId @0: Text;
+    childNodeId @1: Text;
+    activeBlockIds @2: List(Int64);
+}
+
 struct TreeGroup
 {
     trees @0: List(Tree);
     complexMutations @1: List(ComplexMutation);
+    networkEdges @2: List(NetworkEdge);
 }

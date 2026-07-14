@@ -44,6 +44,7 @@
 #include "consensus.cpp"
 #include "ratioTest.cpp"
 #include "network.cpp"
+#include "toTrees.cpp"
 #include "panmanUtils.hpp"
 
 constexpr size_t NEWICK_CHUNK_SIZE = 1 * 1024 * 1024;
@@ -8353,6 +8354,24 @@ panmanUtils::TreeGroup::TreeGroup(std::istream& fin, bool isOld) {
         for (auto compMutFromTG: TG.getComplexMutations()){
             complexMutations.emplace_back(compMutFromTG);
         }
+
+        if (TG.hasNetworkEdges()) {
+            try {
+                for (auto ne : TG.getNetworkEdges()) {
+                    SerializedNetworkEdge edge;
+                    edge.parentNodeId = ne.getParentNodeId();
+                    edge.childNodeId  = ne.getChildNodeId();
+                    if (ne.hasActiveBlockIds()) {
+                        for (auto bid : ne.getActiveBlockIds()) {
+                            edge.activeBlockIds.push_back(bid);
+                        }
+                    }
+                    networkEdges.push_back(std::move(edge));
+                }
+            } catch (const kj::Exception&) {
+                // Old file without networkEdges - ignore
+            }
+        }
     } else {
         panmanOld::treeGroup TG;
         if(!TG.ParseFromIstream(&fin)) {
@@ -8543,11 +8562,23 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
 
     }
 
+    if (!networkEdges.empty()) {
+        auto neBuilder = treeGroupToWrite.initNetworkEdges(networkEdges.size());
+        for (size_t i = 0; i < networkEdges.size(); i++) {
+            neBuilder[i].setParentNodeId(networkEdges[i].parentNodeId);
+            neBuilder[i].setChildNodeId(networkEdges[i].childNodeId);
+            auto abIds = neBuilder[i].initActiveBlockIds(
+                networkEdges[i].activeBlockIds.size());
+            for (size_t j = 0; j < networkEdges[i].activeBlockIds.size(); j++) {
+                abIds.set(j, networkEdges[i].activeBlockIds[j]);
+            }
+        }
+        std::cout << "Writing " << networkEdges.size()
+                  << " network edges..." << std::endl;
+    }
+
     // ToDo check if the write was successful
     ::capnp::writeMessage(fout, message);
-    // if(!treeGroupToWrite.SerializeToOstream(&fout)) {
-    //     std::cerr << "Failed to write to output file." << std::endl;
-    // }
 }
 
 void panmanUtils::TreeGroup::printComplexMutations(std::ostream& fout) {
@@ -8579,4 +8610,45 @@ void panmanUtils::TreeGroup::printComplexMutations(std::ostream& fout) {
         }
         fout << " " << u.childTreeIndex << " " << u.childSequenceId << "\n";
     }
+}
+
+std::unordered_map< std::string, std::string >
+panmanUtils::TreeGroup::getActiveParentMapForBlock(
+    const panmanUtils::Tree& tree, int64_t blockId) const {
+    std::unordered_map< std::string, std::string > overrides;
+    for (const auto& ne : networkEdges) {
+        for (int64_t bid : ne.activeBlockIds) {
+            if (bid == blockId) {
+                overrides[ne.childNodeId] = ne.parentNodeId;
+                break;
+            }
+        }
+    }
+    return overrides;
+}
+
+bool panmanUtils::TreeGroup::validateActiveEdgesFormTreeForBlock(
+    const panmanUtils::Tree& tree, int64_t blockId) const {
+    auto overrides = getActiveParentMapForBlock(tree, blockId);
+    std::unordered_map< std::string, std::string > effectiveParent;
+    for (const auto& kv : tree.allNodes) {
+        const Node* n = kv.second;
+        if (n->parent) {
+            effectiveParent[n->identifier] = n->parent->identifier;
+        }
+    }
+    for (const auto& ov : overrides) {
+        effectiveParent[ov.first] = ov.second;
+    }
+    std::unordered_set< std::string > visited;
+    for (const auto& kv : effectiveParent) {
+        visited.clear();
+        std::string cur = kv.first;
+        while (effectiveParent.count(cur)) {
+            if (visited.count(cur)) return false;
+            visited.insert(cur);
+            cur = effectiveParent[cur];
+        }
+    }
+    return true;
 }

@@ -9,7 +9,9 @@
 //  by leaf-set equality.
 // ============================================================================
 
+#include <algorithm>
 #include <functional>
+#include <random>
 #include <unordered_set>
 #include <queue>
 
@@ -432,7 +434,8 @@ struct TkWindow {
     std::string chrom;       // chrXX
     long long start = 0;     // reference start (A)
     long long end = 0;       // reference end (B)
-    std::string newickPath;  // path to <name>_resolved.nwk
+    std::string newickPath;  // path to <name>_resolved.nwk or <name>.nwk
+    int chrIdx = 0;          // chromosome index (for block annotation)
 };
 
 struct TkMove {
@@ -803,5 +806,1055 @@ panmanUtils::TreeGroup* panmanUtils::buildNetworkFromTreeknit(
 
     std::cout << "Built network from TreeKnit: " << TG->trees.size() << " trees, "
               << TG->complexMutations.size() << " complex mutations." << std::endl;
+    return TG;
+}
+
+// ============================================================================
+//  buildNetworkFromSprDirs : single-tree + network-edges architecture
+// ============================================================================
+
+namespace {
+
+// ----- debug helpers -----
+bool sprDebugEnabled() {
+    static int val = -1;
+    if (val < 0) val = (std::getenv("PANMAN_SPR_DEBUG") != nullptr) ? 1 : 0;
+    return val == 1;
+}
+void sprDebugLog(const std::string& msg) {
+    std::cerr << "[SPR-DBG] " << msg << std::endl;
+}
+void sprDebugClade(const char* label, const std::vector< std::string >& clade) {
+    std::ostringstream os;
+    os << "  " << label << " = {";
+    for (size_t i = 0; i < clade.size(); i++) {
+        if (i) os << ", ";
+        os << clade[i];
+    }
+    os << "}";
+    sprDebugLog(os.str());
+}
+void sprDebugTreeStats(const char* label, const panmanUtils::Tree& T) {
+    std::ostringstream os;
+    os << label << ": nodes=" << T.allNodes.size()
+       << " blocks=" << T.blocks.size()
+       << " gaps=" << T.gaps.size();
+    sprDebugLog(os.str());
+}
+
+// ----- MSA path resolution -----
+std::string resolveMsaPath(const std::string& msaRoot, const TkWindow& w) {
+    fs::path nested = fs::path(msaRoot) / w.chrom / "full_msa" / (w.name + ".fa");
+    if (fs::exists(nested)) return nested.string();
+    fs::path flat = fs::path(msaRoot) / (w.chrom + "_full_msa") / (w.name + ".fa");
+    if (fs::exists(flat)) return flat.string();
+    fs::path nestedFasta = fs::path(msaRoot) / w.chrom / "full_msa" / (w.name + ".fasta");
+    if (fs::exists(nestedFasta)) return nestedFasta.string();
+    return "";
+}
+
+// ----- Read a FASTA MSA into a map<seqName, sequence> -----
+size_t readMsaFile(const std::string& path,
+                   std::map< std::string, std::string >& seqs) {
+    seqs.clear();
+    std::ifstream in(path);
+    if (!in.is_open()) return 0;
+    std::string line, curId, curSeq;
+    auto flush = [&]() {
+        if (!curId.empty() && !curSeq.empty()) {
+            seqs[curId] = curSeq;
+        }
+    };
+    while (std::getline(in, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (!line.empty() && line[0] == '>') {
+            flush();
+            curId = line.substr(1);
+            size_t sp = curId.find_first_of(" \t");
+            if (sp != std::string::npos) curId = curId.substr(0, sp);
+            curSeq.clear();
+        } else {
+            curSeq += line;
+        }
+    }
+    flush();
+    size_t alignLen = 0;
+    for (const auto& kv : seqs) {
+        if (kv.second.size() > alignLen) alignLen = kv.second.size();
+    }
+    return alignLen;
+}
+
+// ----- SPR inference from consecutive Newick trees -----
+struct SprMoveInfo {
+    std::vector< std::string > movedClade;
+    std::vector< std::string > acceptorClade;
+    std::vector< std::string > donorClade;
+};
+
+struct SprStep {
+    size_t windowIdx;
+    SprMoveInfo spr;
+};
+
+struct SimpleNode {
+    std::string label;
+    SimpleNode* parent = nullptr;
+    std::vector< SimpleNode* > children;
+    std::set< std::string > leafSet;
+};
+
+SimpleNode* parseSimpleNewick(const std::string& newick) {
+    std::string s = newick;
+    while (!s.empty() && (s.back() == ';' || s.back() == ' ' ||
+                          s.back() == '\t' || s.back() == '\n' ||
+                          s.back() == '\r')) s.pop_back();
+    size_t start = 0;
+    while (start < s.size() && (s[start] == ' ' || s[start] == '\t')) start++;
+    s = s.substr(start);
+    if (s.empty()) return nullptr;
+
+    std::function< SimpleNode*(const std::string&, size_t&) > parse =
+        [&](const std::string& str, size_t& pos) -> SimpleNode* {
+        SimpleNode* node = new SimpleNode();
+        if (pos < str.size() && str[pos] == '(') {
+            pos++;
+            while (true) {
+                SimpleNode* child = parse(str, pos);
+                child->parent = node;
+                node->children.push_back(child);
+                if (pos < str.size() && str[pos] == ',') { pos++; continue; }
+                if (pos < str.size() && str[pos] == ')') { pos++; break; }
+                break;
+            }
+        }
+        std::string label;
+        while (pos < str.size() && str[pos] != ',' && str[pos] != ')' &&
+               str[pos] != ':') {
+            label += str[pos++];
+        }
+        while (!label.empty() && (label.front() == ' ' || label.front() == '\t'))
+            label.erase(label.begin());
+        while (!label.empty() && (label.back() == ' ' || label.back() == '\t'))
+            label.pop_back();
+        node->label = label;
+        if (pos < str.size() && str[pos] == ':') {
+            pos++;
+            while (pos < str.size() && str[pos] != ',' && str[pos] != ')') pos++;
+        }
+        return node;
+    };
+    size_t pos = 0;
+    return parse(s, pos);
+}
+
+void computeSimpleLeafSets(SimpleNode* node) {
+    node->leafSet.clear();
+    if (node->children.empty()) {
+        if (!node->label.empty()) node->leafSet.insert(node->label);
+    } else {
+        for (auto* c : node->children) {
+            computeSimpleLeafSets(c);
+            node->leafSet.insert(c->leafSet.begin(), c->leafSet.end());
+        }
+    }
+}
+
+void freeSimpleNode(SimpleNode* node) {
+    if (!node) return;
+    for (auto* c : node->children) freeSimpleNode(c);
+    delete node;
+}
+
+SimpleNode* findSimpleByLeafSet(SimpleNode* root,
+                                const std::set< std::string >& ls) {
+    if (!root) return nullptr;
+    if (root->leafSet == ls) return root;
+    for (auto* c : root->children) {
+        auto* r = findSimpleByLeafSet(c, ls);
+        if (r) return r;
+    }
+    return nullptr;
+}
+
+bool resolveSprMove(SimpleNode* pRoot, SimpleNode* movedNode, SprMoveInfo& info) {
+    if (!movedNode || !movedNode->parent) return false;
+
+    SimpleNode* mPrev = findSimpleByLeafSet(pRoot, movedNode->leafSet);
+    if (!mPrev || !mPrev->parent) return false;
+
+    for (SimpleNode* sibling : movedNode->parent->children) {
+        if (sibling == movedNode) continue;
+        SimpleNode* sPrev = findSimpleByLeafSet(pRoot, sibling->leafSet);
+        if (!sPrev || !sPrev->parent) continue;
+
+        info.movedClade.assign(movedNode->leafSet.begin(), movedNode->leafSet.end());
+        info.acceptorClade.assign(sPrev->parent->leafSet.begin(),
+                                  sPrev->parent->leafSet.end());
+        info.donorClade.assign(mPrev->parent->leafSet.begin(),
+                               mPrev->parent->leafSet.end());
+        return true;
+    }
+    return false;
+}
+
+bool inferSprMove(const std::string& prevNewick, const std::string& currNewick,
+                  SprMoveInfo& spr) {
+    SimpleNode* pRoot = parseSimpleNewick(prevNewick);
+    SimpleNode* cRoot = parseSimpleNewick(currNewick);
+    if (!pRoot || !cRoot) {
+        freeSimpleNode(pRoot);
+        freeSimpleNode(cRoot);
+        return false;
+    }
+    computeSimpleLeafSets(pRoot);
+    computeSimpleLeafSets(cRoot);
+
+    std::vector< SimpleNode* > candidates;
+    std::function< void(SimpleNode*) > walk = [&](SimpleNode* n) {
+        if (!n->leafSet.empty() && n->parent) {
+            SimpleNode* pMatch = findSimpleByLeafSet(pRoot, n->leafSet);
+            if (pMatch && pMatch->parent && n->parent &&
+                pMatch->parent->leafSet != n->parent->leafSet) {
+                candidates.push_back(n);
+            }
+        }
+        for (SimpleNode* c : n->children) walk(c);
+    };
+    walk(cRoot);
+
+    if (candidates.empty()) {
+        freeSimpleNode(pRoot);
+        freeSimpleNode(cRoot);
+        return false;
+    }
+
+    std::sort(candidates.begin(), candidates.end(),
+              [](SimpleNode* a, SimpleNode* b) {
+                  if (a->leafSet.size() != b->leafSet.size()) {
+                      return a->leafSet.size() < b->leafSet.size();
+                  }
+                  return a->leafSet < b->leafSet;
+              });
+
+    bool found = false;
+    size_t minSize = candidates.front()->leafSet.size();
+
+    for (SimpleNode* movedNode : candidates) {
+        if (movedNode->leafSet.size() > minSize) break;
+        SprMoveInfo attempt;
+        if (resolveSprMove(pRoot, movedNode, attempt)) {
+            spr = std::move(attempt);
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        for (SimpleNode* movedNode : candidates) {
+            if (movedNode->leafSet.size() == minSize) continue;
+            SprMoveInfo attempt;
+            if (resolveSprMove(pRoot, movedNode, attempt)) {
+                spr = std::move(attempt);
+                found = true;
+                break;
+            }
+        }
+    }
+
+    freeSimpleNode(pRoot);
+    freeSimpleNode(cRoot);
+    return found;
+}
+
+std::vector< SprStep > collectSprSteps(const std::vector< TkWindow >& windows) {
+    std::vector< SprStep > steps;
+    for (size_t i = 1; i < windows.size(); i++) {
+        if (windows[i].newickPath.empty() || windows[i - 1].newickPath.empty())
+            continue;
+        std::ifstream prevIfs(windows[i - 1].newickPath);
+        std::ifstream currIfs(windows[i].newickPath);
+        std::string prevNwk, currNwk;
+        std::getline(prevIfs, prevNwk);
+        std::getline(currIfs, currNwk);
+
+        SprMoveInfo spr;
+        if (prevNwk == currNwk) {
+            if (sprDebugEnabled()) {
+                sprDebugLog("identical trees for "
+                            + windows[i - 1].name + " -> " + windows[i].name
+                            + "; no SPR.");
+            }
+        } else if (inferSprMove(prevNwk, currNwk, spr)) {
+            steps.push_back({ i, spr });
+        } else {
+            std::cerr << "Warning: could not infer SPR move for "
+                      << windows[i - 1].name << " -> " << windows[i].name
+                      << "; skipping." << std::endl;
+        }
+    }
+    return steps;
+}
+
+// ----- SPR application/undo on tree -----
+struct AppliedSpr {
+    panmanUtils::Node* node;
+    panmanUtils::Node* originalParent;
+    size_t originalChildIndex;
+};
+
+AppliedSpr applySprToTree(panmanUtils::Tree& tree,
+                          panmanUtils::Node* movedNode,
+                          panmanUtils::Node* newParent) {
+    AppliedSpr result;
+    result.node = movedNode;
+    result.originalParent = movedNode->parent;
+    result.originalChildIndex = 0;
+    if (movedNode->parent) {
+        auto& siblings = movedNode->parent->children;
+        for (size_t i = 0; i < siblings.size(); i++) {
+            if (siblings[i] == movedNode) {
+                result.originalChildIndex = i;
+                siblings.erase(siblings.begin() + i);
+                break;
+            }
+        }
+    }
+    movedNode->parent = newParent;
+    newParent->children.push_back(movedNode);
+    return result;
+}
+
+void undoSpr(const AppliedSpr& applied) {
+    if (!applied.node || !applied.originalParent) return;
+    panmanUtils::Node* node = applied.node;
+    panmanUtils::Node* currParent = node->parent;
+    if (currParent) {
+        auto& siblings = currParent->children;
+        for (auto it = siblings.begin(); it != siblings.end(); ++it) {
+            if (*it == node) {
+                siblings.erase(it);
+                break;
+            }
+        }
+    }
+    node->parent = applied.originalParent;
+    auto& targetChildren = applied.originalParent->children;
+    size_t idx = std::min(applied.originalChildIndex, targetChildren.size());
+    targetChildren.insert(targetChildren.begin() + idx, node);
+}
+
+bool isAncestorOf(panmanUtils::Node* anc, panmanUtils::Node* desc) {
+    if (!anc || !desc) return false;
+    panmanUtils::Node* cur = desc;
+    while (cur) {
+        if (cur == anc) return true;
+        cur = cur->parent;
+    }
+    return false;
+}
+
+// ----- Run Fitch for a single block on the current tree topology -----
+void runFitchForBlock(panmanUtils::Tree& tree,
+                      const std::map< std::string, std::string >& leafSeqs,
+                      size_t alignLen, int32_t blockId,
+                      const std::string& refName) {
+    panmanUtils::Alphabet alphabet = panmanUtils::getActiveAlphabet();
+    std::string consensusSeq(alignLen, 'N');
+
+    // Find reference sequence if available
+    std::string refSeqStr;
+    if (!refName.empty()) {
+        auto it = leafSeqs.find(refName);
+        if (it != leafSeqs.end()) refSeqStr = it->second;
+    }
+    if (!refSeqStr.empty()) {
+        consensusSeq = refSeqStr;
+    }
+
+    tbb::concurrent_unordered_map< std::string,
+        std::vector< std::tuple< int, int8_t, int8_t > > > nonGapMutations;
+    std::unordered_map< std::string, std::mutex > nodeMutexes;
+    for (const auto& kv : tree.allNodes) {
+        nodeMutexes[kv.first];
+    }
+
+    tbb::parallel_for((size_t)0, alignLen, [&](size_t i) {
+        std::unordered_map< std::string, int > states;
+        std::unordered_map< std::string,
+            std::pair< panmanUtils::NucMutationType, char > > mutations;
+
+        for (const auto& kv : leafSeqs) {
+            char c = (i < kv.second.size()) ? kv.second[i] : '-';
+            if (c != '-') {
+                states[kv.first] = (1 << panmanUtils::getCodeFromSymbol(c, alphabet));
+            } else {
+                states[kv.first] = 1;
+            }
+        }
+
+        int refState = -1;
+        if (!refSeqStr.empty() && i < refSeqStr.size()) {
+            refState = 1 << panmanUtils::getCodeFromSymbol(refSeqStr[i], alphabet);
+        }
+
+        tree.nucFitchForwardPass(tree.root, states, refState);
+
+        if (states[tree.root->identifier] != 1) {
+            int codeLocal = 0, currentState = states[tree.root->identifier];
+            while (currentState > 0) { currentState >>= 1; codeLocal++; }
+            codeLocal--;
+            consensusSeq[i] = panmanUtils::getSymbolFromCode(codeLocal, alphabet);
+        } else {
+            consensusSeq[i] = '-';
+        }
+
+        int rootState = (1 << panmanUtils::getCodeFromSymbol(consensusSeq[i], alphabet));
+        tree.nucFitchBackwardPass(tree.root, states, rootState);
+        tree.nucFitchAssignMutations(tree.root, states, mutations, rootState);
+
+        for (const auto& mut : mutations) {
+            nodeMutexes[mut.first].lock();
+            nonGapMutations[mut.first].push_back(std::make_tuple(
+                (int)i, (int8_t)mut.second.first,
+                (int8_t)panmanUtils::getCodeFromSymbol(mut.second.second, alphabet)));
+            nodeMutexes[mut.first].unlock();
+        }
+    });
+
+    tree.blocks.emplace_back((size_t)blockId, consensusSeq, alphabet, (int64_t)alignLen);
+    tree.root->blockMutation.emplace_back(
+        (size_t)blockId, std::make_pair(panmanUtils::BlockMutationType::BI, false));
+
+    tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
+        nodeMutexes[u.first].lock();
+        std::sort(u.second.begin(), u.second.end());
+        nodeMutexes[u.first].unlock();
+        size_t currentStart = 0;
+        for (size_t j = 1; j < u.second.size(); j++) {
+            if (j - currentStart == panmanUtils::mutationPayloadCapacity(alphabet) ||
+                std::get<0>(u.second[j]) != std::get<0>(u.second[j - 1]) + 1 ||
+                std::get<1>(u.second[j]) != std::get<1>(u.second[j - 1])) {
+                nodeMutexes[u.first].lock();
+                tree.allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, j);
+                nodeMutexes[u.first].unlock();
+                currentStart = j;
+            }
+        }
+        nodeMutexes[u.first].lock();
+        tree.allNodes[u.first]->nucMutation.emplace_back(
+            u.second, currentStart, u.second.size());
+        nodeMutexes[u.first].unlock();
+    });
+}
+
+// ----- Build a Tree from MSA + Newick (for window 0) -----
+panmanUtils::Tree* buildWindowPanmat(
+    const TkWindow& w,
+    const std::vector< TkWindow >& windows,
+    size_t wIdx,
+    const std::string& msaRoot,
+    const fs::path& tmpDir,
+    std::function< const std::string&(const std::string&) > getRefSeq) {
+
+    std::string msaPath = resolveMsaPath(msaRoot, w);
+    if (msaPath.empty()) {
+        std::cerr << "Error: no MSA found for " << w.name << std::endl;
+        return nullptr;
+    }
+    if (w.newickPath.empty()) {
+        std::cerr << "Error: no Newick found for " << w.name << std::endl;
+        return nullptr;
+    }
+
+    std::string suffix;
+    if (wIdx + 1 < windows.size() && windows[wIdx + 1].chrom == w.chrom) {
+        const std::string& refSeq = getRefSeq(w.chrom);
+        if (!refSeq.empty()) {
+            long long gapBeg = w.end;
+            long long gapLen = windows[wIdx + 1].start - w.end - 1;
+            if (gapLen > 0 && gapBeg >= 0 &&
+                gapBeg + gapLen <= static_cast<long long>(refSeq.size())) {
+                suffix = refSeq.substr(static_cast<size_t>(gapBeg),
+                                       static_cast<size_t>(gapLen));
+            }
+        }
+    }
+
+    std::string useMsaPath = msaPath;
+    std::string tmpMsa;
+    if (!suffix.empty()) {
+        tmpMsa = (tmpDir / (w.name + ".aug.fa")).string();
+        if (writeAugmentedMSA(msaPath, suffix, tmpMsa)) {
+            useMsaPath = tmpMsa;
+        } else {
+            tmpMsa.clear();
+        }
+    }
+
+    std::ifstream msaIfs(useMsaPath);
+    std::ifstream nwkIfs(w.newickPath);
+    panmanUtils::Tree* T = new panmanUtils::Tree(
+        msaIfs, nwkIfs, panmanUtils::FILE_TYPE::MSA, std::string("GRCh38"));
+    msaIfs.close();
+    nwkIfs.close();
+
+    std::error_code ec;
+    if (!tmpMsa.empty()) fs::remove(tmpMsa, ec);
+    return T;
+}
+
+// ----- Block chromosome annotation -----
+void annotateBlockChromosome(panmanUtils::Tree& tree, int chrIdx,
+                             const std::string& chromName,
+                             int32_t blockId = 0) {
+    int64_t blockIdEncoded = ((int64_t)blockId << 32);
+    bool found = false;
+    for (auto& chr : tree.chrList) {
+        if (chr.chrName == chromName) {
+            chr.blockIds.push_back(blockIdEncoded);
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        std::vector< int64_t > ids = { blockIdEncoded };
+        tree.chrList.emplace_back((int64_t)chrIdx, ids);
+        tree.chrList.back().chrName = chromName;
+    }
+}
+
+// ----- Chromosome filter parser -----
+std::set< std::string > parseChromFilter(const std::string& filterStr) {
+    std::set< std::string > result;
+    if (filterStr.empty()) return result;
+    std::istringstream iss(filterStr);
+    std::string token;
+    while (std::getline(iss, token, ',')) {
+        std::string trimmed;
+        for (char c : token) {
+            if (!std::isspace(static_cast<unsigned char>(c)))
+                trimmed += c;
+        }
+        if (trimmed.empty()) continue;
+        size_t dashPos = trimmed.find('-', 3);
+        if (dashPos != std::string::npos && trimmed.rfind("chr", 0) == 0) {
+            std::string prefix = "chr";
+            try {
+                int lo = std::stoi(trimmed.substr(3, dashPos - 3));
+                int hi = std::stoi(trimmed.substr(dashPos + 1));
+                if (lo > hi) std::swap(lo, hi);
+                for (int c = lo; c <= hi; c++) {
+                    result.insert(prefix + std::to_string(c));
+                }
+            } catch (...) {
+                result.insert(trimmed);
+            }
+        } else {
+            result.insert(trimmed);
+        }
+    }
+    return result;
+}
+
+// ----- Tar handling for chromosome archives -----
+// Resolve the per-chromosome MSA archive. Dataset builds use different name
+// prefixes (e.g. hprcv2.0_, hprcv1.1_), so accept any file ending in
+// "_<chrom>_full_msa.tar.gz" (token-safe: chr1 does not match chr10), a
+// bare "<chrom>_full_msa.tar.gz", or the legacy hprcv2.0_ name.
+fs::path resolveChromTar(const std::string& tarDir, const std::string& chrom) {
+    std::error_code ec;
+    fs::path legacy = fs::path(tarDir) / ("hprcv2.0_" + chrom + "_full_msa.tar.gz");
+    if (fs::exists(legacy, ec)) return legacy;
+    fs::path noPrefix = fs::path(tarDir) / (chrom + "_full_msa.tar.gz");
+    if (fs::exists(noPrefix, ec)) return noPrefix;
+
+    const std::string suffix = "_" + chrom + "_full_msa.tar.gz";
+    if (fs::exists(fs::path(tarDir), ec)) {
+        for (const auto& e : fs::directory_iterator(fs::path(tarDir), ec)) {
+            if (!e.is_regular_file(ec)) continue;
+            const std::string fn = e.path().filename().string();
+            if (fn.size() >= suffix.size() &&
+                fn.compare(fn.size() - suffix.size(), suffix.size(), suffix) == 0) {
+                return e.path();
+            }
+        }
+    }
+    return fs::path();
+}
+
+bool extractChromTar(const std::string& tarDir, const std::string& chrom,
+                     const std::string& msaRoot) {
+    fs::path tarPath = resolveChromTar(tarDir, chrom);
+    std::error_code ec;
+    if (tarPath.empty() || !fs::exists(tarPath, ec)) {
+        std::cerr << "Warning: no MSA tar found for " << chrom << " in " << tarDir
+                  << " (expected a file ending in \"_" << chrom
+                  << "_full_msa.tar.gz\")" << std::endl;
+        return false;
+    }
+
+    // Auto-detect strip count by reading first entry
+    std::string detectCmd = "tar -tzf " + tarPath.string() + " 2>/dev/null | head -1";
+    std::array< char, 512 > buf;
+    std::string firstEntry;
+    FILE* pipe = popen(detectCmd.c_str(), "r");
+    if (pipe) {
+        while (fgets(buf.data(), buf.size(), pipe) != nullptr) {
+            firstEntry += buf.data();
+        }
+        pclose(pipe);
+    }
+    while (!firstEntry.empty() && (firstEntry.back() == '\n' || firstEntry.back() == '\r'))
+        firstEntry.pop_back();
+
+    int stripCount = 0;
+    if (!firstEntry.empty()) {
+        // Find prefix before chrXX/
+        std::string chromSlash = chrom + "/";
+        size_t chromPos = firstEntry.find(chromSlash);
+        if (chromPos != std::string::npos && chromPos > 0) {
+            std::string prefix = firstEntry.substr(0, chromPos);
+            for (char c : prefix) {
+                if (c == '/') stripCount++;
+            }
+        }
+    }
+
+    std::string cmd = "tar -xzf " + tarPath.string();
+    if (stripCount > 0) {
+        cmd += " --strip-components=" + std::to_string(stripCount);
+    }
+    cmd += " -C " + msaRoot;
+
+    std::cout << "Extracting " << tarPath.filename().string()
+              << " into " << msaRoot;
+    if (stripCount > 0) std::cout << " (stripping " << stripCount << " components)";
+    std::cout << " ..." << std::endl;
+
+    int ret = std::system(cmd.c_str());
+    if (ret != 0) {
+        std::cerr << "Error: tar extraction failed (exit " << ret << "): "
+                  << cmd << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void cleanupExtractedChrom(const std::string& msaRoot, const std::string& chrom) {
+    std::error_code ec;
+    fs::path msaDir = fs::path(msaRoot) / chrom / "full_msa";
+    if (!fs::exists(msaDir, ec)) return;
+    std::cout << "Cleaning up extracted .fa files for " << chrom << std::endl;
+    size_t removed = 0;
+    for (auto& entry : fs::directory_iterator(msaDir, ec)) {
+        if (!entry.is_regular_file(ec)) continue;
+        std::string ext = entry.path().extension().string();
+        if (ext == ".fa" || ext == ".fasta") {
+            fs::remove(entry.path(), ec);
+            removed++;
+        }
+    }
+    if (removed > 0) {
+        std::cout << "  removed " << removed << " extracted MSA files" << std::endl;
+    }
+}
+
+bool chromMsaDirExists(const std::string& msaRoot, const std::string& chrom) {
+    std::error_code ec;
+    fs::path nested = fs::path(msaRoot) / chrom / "full_msa";
+    fs::path flat   = fs::path(msaRoot) / (chrom + "_full_msa");
+    return fs::exists(nested, ec) || fs::exists(flat, ec);
+}
+
+} // namespace (end of helpers for buildNetworkFromSprDirs)
+
+panmanUtils::TreeGroup* panmanUtils::buildNetworkFromSprDirs(
+    const std::string& treesDir, const std::string& msaRoot,
+    const std::string& refFile, const std::string& chromFilter,
+    const std::string& tarDir) {
+
+    std::error_code ec;
+
+    // ----- 1. Discover windows from flat Newick files -----
+    std::vector< TkWindow > windows;
+    if (!fs::exists(treesDir, ec)) {
+        std::cerr << "Error: trees directory does not exist: " << treesDir << std::endl;
+        return nullptr;
+    }
+    for (const auto& entry : fs::directory_iterator(treesDir, ec)) {
+        if (!entry.is_regular_file(ec)) continue;
+        std::string fname = entry.path().filename().string();
+        if (!tkEndsWith(fname, ".nwk")) continue;
+        std::string baseName = fname.substr(0, fname.size() - 4);
+        std::string chrom;
+        long long a = 0, b = 0;
+        if (!parseWindowName(baseName, chrom, a, b)) continue;
+        TkWindow w;
+        w.name = baseName;
+        w.chrom = chrom;
+        w.start = a;
+        w.end = b;
+        w.newickPath = entry.path().string();
+        windows.push_back(w);
+    }
+    if (windows.empty()) {
+        std::cerr << "Error: no .nwk files found in " << treesDir << std::endl;
+        return nullptr;
+    }
+
+    // ----- 2. Apply chromosome filter -----
+    std::set< std::string > chromFilterSet = parseChromFilter(chromFilter);
+    if (!chromFilterSet.empty()) {
+        std::vector< TkWindow > filtered;
+        for (auto& w : windows) {
+            if (chromFilterSet.count(w.chrom)) filtered.push_back(w);
+        }
+        if (filtered.empty()) {
+            std::cerr << "Error: no windows match chromosome filter '"
+                      << chromFilter << "'" << std::endl;
+            return nullptr;
+        }
+        std::cout << "Chromosome filter: " << windows.size() << " windows -> "
+                  << filtered.size() << " windows" << std::endl;
+        windows = std::move(filtered);
+    }
+
+    // Sort by chromosome then start position
+    std::sort(windows.begin(), windows.end(),
+              [](const TkWindow& a, const TkWindow& b) {
+                  if (a.chrom != b.chrom) return a.chrom < b.chrom;
+                  return a.start < b.start;
+              });
+
+    // Assign chromosome indices
+    std::map< std::string, int > chromToIdx;
+    for (auto& w : windows) {
+        if (chromToIdx.find(w.chrom) == chromToIdx.end()) {
+            int idx = static_cast<int>(chromToIdx.size());
+            chromToIdx[w.chrom] = idx;
+        }
+        w.chrIdx = chromToIdx[w.chrom];
+    }
+
+    std::cout << "Discovered " << windows.size() << " windows across "
+              << chromToIdx.size() << " chromosomes." << std::endl;
+
+    // ----- 3. Load reference chromosomes -----
+    std::unordered_map< std::string, std::string > refChromCache;
+    auto getRefSeq = [&](const std::string& chrom) -> const std::string& {
+        auto it = refChromCache.find(chrom);
+        if (it != refChromCache.end()) return it->second;
+        std::string seq = refFile.empty() ? std::string()
+                                          : loadReferenceChromosome(refFile, chrom);
+        refChromCache[chrom] = std::move(seq);
+        return refChromCache[chrom];
+    };
+
+    fs::path tmpDir = fs::path(".") / "tmp_spr_build";
+    fs::create_directories(tmpDir, ec);
+
+    // ----- 4. Infer SPR moves between consecutive windows -----
+    std::vector< SprStep > sprSteps = collectSprSteps(windows);
+    std::cout << "Inferred " << sprSteps.size() << " SPR moves from "
+              << windows.size() << " windows." << std::endl;
+
+    // ----- 5. Build single tree from window 0 -----
+    std::string extractedChrom;
+    auto ensureChromExtracted = [&](const std::string& chrom) {
+        if (tarDir.empty()) return;
+        if (extractedChrom == chrom) return;
+        if (!extractedChrom.empty()) {
+            cleanupExtractedChrom(msaRoot, extractedChrom);
+            extractedChrom.clear();
+        }
+        if (extractChromTar(tarDir, chrom, msaRoot)) {
+            extractedChrom = chrom;
+        }
+    };
+    auto cleanupCurrentChrom = [&]() {
+        if (!extractedChrom.empty()) {
+            cleanupExtractedChrom(msaRoot, extractedChrom);
+            extractedChrom.clear();
+        }
+    };
+
+    const TkWindow& anchorWin = windows[0];
+    ensureChromExtracted(anchorWin.chrom);
+
+    std::cout << "Building base tree from " << anchorWin.name
+              << " (window 1/" << windows.size() << ")" << std::endl;
+    panmanUtils::Tree* tree0Ptr =
+        buildWindowPanmat(anchorWin, windows, 0, msaRoot, tmpDir, getRefSeq);
+    if (!tree0Ptr) {
+        std::cerr << "Error: failed to build base tree from " << anchorWin.name
+                  << std::endl;
+        cleanupCurrentChrom();
+        fs::remove_all(tmpDir, ec);
+        return nullptr;
+    }
+    annotateBlockChromosome(*tree0Ptr, anchorWin.chrIdx, anchorWin.chrom);
+    if (tree0Ptr->root) {
+        tree0Ptr->root->isComMutHead = true;
+        tree0Ptr->root->treeIndex = 0;
+    }
+    if (sprDebugEnabled()) {
+        sprDebugTreeStats("base tree (window 0)", *tree0Ptr);
+    }
+
+    // Build a lookup: windowIdx → SprStep
+    std::unordered_map< size_t, size_t > windowToSprStep;
+    for (size_t s = 0; s < sprSteps.size(); s++) {
+        windowToSprStep[sprSteps[s].windowIdx] = s;
+    }
+
+    // ----- 6. Process windows 1..N -----
+    std::vector< panmanUtils::SerializedNetworkEdge > networkEdges;
+    std::vector< AppliedSpr > appliedSprs;
+    size_t sprBuilt = 0;
+    size_t sprSkippedMap = 0;
+    size_t sprSkippedCycle = 0;
+    size_t blocksAdded = 1;
+
+    // Union graph = base-tree edges (parent -> child) plus every emitted network
+    // edge (acceptor -> moved). A tskit tree sequence needs one global time per
+    // node with time[parent] > time[child] on every edge, so this union must be
+    // acyclic. We seed it with the base tree and reject any SPR network edge that
+    // would close a directed cycle (keeping the earlier edge as the parent).
+    std::unordered_map< std::string, std::vector< std::string > > unionChildren;
+    for (const auto& kv : tree0Ptr->allNodes) {
+        const panmanUtils::Node* n = kv.second;
+        if (n->parent) unionChildren[n->parent->identifier].push_back(n->identifier);
+    }
+    // Would adding edge acceptor -> moved create a cycle? It does iff `moved`
+    // can already reach `acceptor` through the current union graph.
+    auto wouldCloseCycle = [&](const std::string& moved,
+                               const std::string& acceptor) -> bool {
+        if (moved == acceptor) return true;
+        std::unordered_set< std::string > visited;
+        std::vector< std::string > stack{ moved };
+        visited.insert(moved);
+        while (!stack.empty()) {
+            std::string cur = std::move(stack.back());
+            stack.pop_back();
+            auto it = unionChildren.find(cur);
+            if (it == unionChildren.end()) continue;
+            for (const std::string& nxt : it->second) {
+                if (nxt == acceptor) return true;
+                if (visited.insert(nxt).second) stack.push_back(nxt);
+            }
+        }
+        return false;
+    };
+
+    auto removeUnionChild = [&](const std::string& parent,
+                                const std::string& child) {
+        auto it = unionChildren.find(parent);
+        if (it == unionChildren.end()) return;
+        auto& ch = it->second;
+        ch.erase(std::remove(ch.begin(), ch.end(), child), ch.end());
+    };
+
+    std::mt19937 cycleRng(std::random_device{}());
+
+    for (size_t wIdx = 1; wIdx < windows.size(); wIdx++) {
+        const TkWindow& wCurr = windows[wIdx];
+
+        ensureChromExtracted(wCurr.chrom);
+
+        // 6a. Apply SPR if one was inferred
+        auto sprIt = windowToSprStep.find(wIdx);
+        if (sprIt != windowToSprStep.end()) {
+            const SprStep& step = sprSteps[sprIt->second];
+            const SprMoveInfo& spr = step.spr;
+            const std::string edgeLabel =
+                windows[wIdx - 1].name + " -> " + wCurr.name;
+
+            if (sprDebugEnabled()) {
+                std::ostringstream os;
+                os << "--- SPR at window " << wIdx << " " << edgeLabel;
+                sprDebugLog(os.str());
+            }
+
+            panmanUtils::Node* movedNode =
+                findMRCA(*tree0Ptr, spr.movedClade);
+            panmanUtils::Node* acceptorNode =
+                findMRCA(*tree0Ptr, spr.acceptorClade);
+            panmanUtils::Node* donorNode =
+                findMRCA(*tree0Ptr, spr.donorClade);
+
+            if (!acceptorNode && donorNode && donorNode->parent) {
+                acceptorNode = donorNode->parent;
+            }
+
+            bool wouldCycleInTree = movedNode && acceptorNode &&
+                                    isAncestorOf(movedNode, acceptorNode);
+            if (!movedNode || !acceptorNode ||
+                movedNode == acceptorNode || movedNode == tree0Ptr->root ||
+                wouldCycleInTree) {
+                if (sprDebugEnabled()) {
+                    sprDebugLog(wouldCycleInTree
+                        ? "skip SPR: acceptor is descendant of moved in current tree"
+                        : "skip SPR: mapping failed or trivial");
+                    sprDebugClade("moved", spr.movedClade);
+                    sprDebugClade("acceptor", spr.acceptorClade);
+                }
+                sprSkippedMap++;
+            } else {
+                const std::string& accId = acceptorNode->identifier;
+                const std::string& movId = movedNode->identifier;
+                bool emitEdge = true;
+
+                if (wouldCloseCycle(movId, accId)) {
+                    // Direct 2-cycle: union already has movId -> accId and this SPR
+                    // wants accId -> movId. Randomly keep one parent direction.
+                    bool hasReverse = false;
+                    auto revIt = unionChildren.find(movId);
+                    if (revIt != unionChildren.end()) {
+                        for (const std::string& c : revIt->second) {
+                            if (c == accId) { hasReverse = true; break; }
+                        }
+                    }
+                    if (hasReverse && (cycleRng() & 1)) {
+                        networkEdges.erase(
+                            std::remove_if(networkEdges.begin(), networkEdges.end(),
+                                [&](const panmanUtils::SerializedNetworkEdge& e) {
+                                    return e.parentNodeId == movId &&
+                                           e.childNodeId == accId;
+                                }),
+                            networkEdges.end());
+                        removeUnionChild(movId, accId);
+                        if (sprDebugEnabled()) {
+                            sprDebugLog("cycle resolve: kept new parent " + accId +
+                                        " -> " + movId + " (dropped reverse)");
+                        }
+                    } else {
+                        emitEdge = false;
+                        sprSkippedCycle++;
+                        if (sprDebugEnabled()) {
+                            sprDebugLog(hasReverse
+                                ? "cycle resolve: kept existing parent " + movId +
+                                  " -> " + accId + " (skipped new SPR edge)"
+                                : "skip SPR: would close directed cycle in union graph");
+                        }
+                    }
+                }
+
+                if (emitEdge) {
+                    networkEdges.emplace_back(
+                        accId, movId,
+                        std::vector< int64_t >{ static_cast<int64_t>(wIdx) });
+                    unionChildren[accId].push_back(movId);
+
+                    appliedSprs.push_back(
+                        applySprToTree(*tree0Ptr, movedNode, acceptorNode));
+
+                    sprBuilt++;
+                    if (sprDebugEnabled()) {
+                        std::ostringstream os;
+                        os << "applied SPR: reparent "
+                           << movId << " -> " << accId;
+                        sprDebugLog(os.str());
+                    }
+                }
+            }
+        }
+
+        // 6b. Read MSA for this window
+        std::string msaPath = resolveMsaPath(msaRoot, wCurr);
+        if (msaPath.empty()) {
+            std::cerr << "Warning: no MSA found for " << wCurr.name
+                      << "; skipping block." << std::endl;
+            continue;
+        }
+
+        std::string useMsaPath = msaPath;
+        std::string tmpMsa;
+        std::string suffix;
+        if (wIdx + 1 < windows.size() &&
+            windows[wIdx + 1].chrom == wCurr.chrom) {
+            const std::string& refSeq = getRefSeq(wCurr.chrom);
+            if (!refSeq.empty()) {
+                long long gapBeg = wCurr.end;
+                long long gapLen = windows[wIdx + 1].start - wCurr.end - 1;
+                if (gapLen > 0 && gapBeg >= 0 &&
+                    gapBeg + gapLen <=
+                        static_cast<long long>(refSeq.size())) {
+                    suffix = refSeq.substr(static_cast<size_t>(gapBeg),
+                                           static_cast<size_t>(gapLen));
+                }
+            }
+        }
+        if (!suffix.empty()) {
+            tmpMsa = (tmpDir / (wCurr.name + ".aug.fa")).string();
+            if (writeAugmentedMSA(msaPath, suffix, tmpMsa)) {
+                useMsaPath = tmpMsa;
+            } else {
+                tmpMsa.clear();
+            }
+        }
+
+        std::map< std::string, std::string > leafSeqs;
+        size_t alignLen = readMsaFile(useMsaPath, leafSeqs);
+        if (!tmpMsa.empty()) fs::remove(tmpMsa, ec);
+
+        if (leafSeqs.empty() || alignLen == 0) {
+            std::cerr << "Warning: empty MSA for " << wCurr.name
+                      << "; skipping block." << std::endl;
+            continue;
+        }
+
+        // 6c. Run Fitch on the current (SPR-modified) topology
+        int32_t blockId = static_cast<int32_t>(wIdx);
+        runFitchForBlock(*tree0Ptr, leafSeqs, alignLen, blockId,
+                         std::string("GRCh38"));
+        annotateBlockChromosome(*tree0Ptr, wCurr.chrIdx, wCurr.chrom,
+                                blockId);
+        blocksAdded++;
+
+        std::cout << "Window " << (wIdx + 1) << "/" << windows.size()
+                  << " " << wCurr.name
+                  << ": block " << blockId
+                  << " (" << alignLen << " cols, "
+                  << leafSeqs.size() << " seqs)" << std::endl;
+    }
+
+    // Cleanup any remaining extracted chromosome
+    cleanupCurrentChrom();
+
+    // ----- 7. Restore base tree topology -----
+    for (auto it = appliedSprs.rbegin(); it != appliedSprs.rend(); ++it) {
+        undoSpr(*it);
+    }
+    appliedSprs.clear();
+
+    if (sprDebugEnabled()) {
+        std::ostringstream os;
+        os << "SPR summary: applied=" << sprBuilt
+           << " skipped=" << sprSkippedMap
+           << " cycle_skipped=" << sprSkippedCycle
+           << " edges=" << networkEdges.size()
+           << " blocks=" << blocksAdded;
+        sprDebugLog(os.str());
+    }
+
+    fs::remove_all(tmpDir, ec);
+
+    // ----- 8. Create TreeGroup with 1 tree + network edges -----
+    std::vector< panmanUtils::Tree* > treePtrs = { tree0Ptr };
+    panmanUtils::TreeGroup* TG = new panmanUtils::TreeGroup(treePtrs);
+    TG->networkEdges = std::move(networkEdges);
+
+    std::cout << "Built single-tree network: " << windows.size() << " windows, "
+              << blocksAdded << " blocks, "
+              << tree0Ptr->allNodes.size() << " nodes, "
+              << chromToIdx.size() << " chromosomes, "
+              << TG->networkEdges.size() << " network edges";
+    if (sprSkippedCycle > 0) {
+        std::cout << " (" << sprSkippedCycle
+                  << " SPR edge(s) skipped to keep union graph acyclic)";
+    }
+    std::cout << "." << std::endl;
+
+    delete tree0Ptr;
     return TG;
 }
