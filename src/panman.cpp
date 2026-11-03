@@ -22,6 +22,7 @@
 #include <boost/iostreams/filter/lzma.hpp>
 #include <typeinfo>
 #include <capnp/serialize.h>
+#include <capnp/any.h>
 #include <kj/io.h>
 #include <limits>
 
@@ -2248,15 +2249,51 @@ int doPreOrderLoop(panmanUtils::Node* node){
     return c;
 }
 
-std::string reconstructNewick(const panman::Tree::Reader& tree) {
+static std::string joinNewickTextChunks(capnp::List<capnp::Text>::Reader parts) {
     std::string result;
-    auto newickList = tree.getNewick();
-
-    for (auto chunk : newickList) {
+    for (auto chunk : parts) {
         result.append(chunk.cStr());
     }
-
     return result;
+}
+
+static std::string readNewickFromAnyPointer(const capnp::AnyPointer::Reader& ptr) {
+    if (ptr.isNull()) {
+        return "";
+    }
+
+    try {
+        return joinNewickTextChunks(ptr.getAs<capnp::List<capnp::Text>>());
+    } catch (const kj::Exception&) {}
+
+    try {
+        return ptr.getAs<capnp::Text>().cStr();
+    } catch (const kj::Exception&) {}
+
+    return "";
+}
+
+static std::string readNewickField0(const panman::Tree::Reader& tree) {
+    capnp::AnyStruct::Reader anyTree(tree);
+    auto pointers = anyTree.getPointerSection();
+    if (pointers.size() == 0) {
+        return "";
+    }
+    return readNewickFromAnyPointer(pointers[0]);
+}
+
+std::string reconstructNewick(const panman::Tree::Reader& tree) {
+    if (!tree.hasNewick()) {
+        return "";
+    }
+
+    // Always decode pointer slot 0 without assuming Text vs List(Text), so legacy
+    // files written when newick @0 was Text remain readable.
+    try {
+        return readNewickField0(tree);
+    } catch (const kj::Exception&) {}
+
+    return "";
 }
 
 void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
