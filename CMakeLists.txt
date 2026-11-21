@@ -45,17 +45,19 @@ find_package(Boost REQUIRED COMPONENTS program_options iostreams filesystem date
 include_directories(${Boost_INCLUDE_DIRS})
 
 # JSONCPP
-include(${CMAKE_TOOLCHAIN_FILE}) # Needed if using vcpkg
+if(CMAKE_TOOLCHAIN_FILE)
+    include(${CMAKE_TOOLCHAIN_FILE})
+endif()
 find_package(jsoncpp CONFIG REQUIRED)
 
-# TBB
-# if(NOT APPLE)
-include(${TBB_DIR}/cmake/TBBBuild.cmake)
-tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
-find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
-# else()
-# 	find_package(TBB REQUIRED)
-# endif()
+# Accept an installed classic TBB package, retaining the legacy source build.
+if(EXISTS "${TBB_DIR}/cmake/TBBBuild.cmake")
+    include(${TBB_DIR}/cmake/TBBBuild.cmake)
+    tbb_build(TBB_ROOT ${TBB_DIR} CONFIG_DIR TBB_DIR MAKE_ARGS tbb_cpf=1)
+    find_package(TBB REQUIRED tbbmalloc tbbmalloc_proxy tbb_preview)
+else()
+    find_package(TBB CONFIG REQUIRED)
+endif()
 
 # ------------------ Source Files ------------------
 file(GLOB PANMAT_SRCS
@@ -81,7 +83,7 @@ endif()
 target_compile_options(panmanUtils PRIVATE -DTBB_SUPPRESS_DEPRECATED_MESSAGES)
 
 # Only link Abseil on macOS
-if(APPLE)
+if(APPLE AND Protobuf_VERSION VERSION_GREATER_EQUAL "22")
     find_package(absl CONFIG REQUIRED)
     target_link_libraries(panmanUtils PRIVATE
         absl::log
@@ -93,9 +95,9 @@ endif()
 
 # ------------------ Linking ------------------
 target_link_libraries(panmanUtils PRIVATE
-    stdc++
     JsonCpp::JsonCpp
     ${Boost_LIBRARIES}
+    TBB::tbb
     ${TBB_IMPORTED_TARGETS}
     ${CAPNP_LIBRARIES}
     ${Protobuf_LIBRARIES}

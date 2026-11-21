@@ -138,12 +138,18 @@ void panmanUtils::Tree::printMAF(std::ostream& fout) {
         }
     }
 
-    std::atomic<int> ctr3 = 0;
+    struct MafRow {
+        std::string name;
+        int32_t start;
+        int32_t sourceSize;
+        bool strand;
+        std::string text;
+    };
 
     fout << "##maf version=1\n";
 
     for(auto& common: blocksWithSameSequences) {
-        fout << "a\n";
+        std::vector<MafRow> rows;
         for(auto& b: common.second) {
             tbb::concurrent_unordered_map< std::string, std::pair< std::pair< int, int >, std::pair< std::string, bool > > > sequenceIdToSequence;
 
@@ -176,13 +182,40 @@ void panmanUtils::Tree::printMAF(std::ostream& fout) {
                         stringSequence += '-';
                     }
                 }
-                ctr3+=stringSequence.length();
                 sequenceIdToSequence[u] = std::make_pair(std::make_pair(primaryBlockId, secondaryBlockId), std::make_pair(stringSequence, blockStrand));
             });
 
-            for(auto u: sequenceIdToSequence) {
-                fout << "s\t" << u.first << "\t"<< sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)] <<"\t" << stripGaps(u.second.second.first).length() << "\t" << (u.second.second.second? "+\t":"-\t") << sequenceLengths[u.first] << "\t" << u.second.second.first << "\n";
+            for(const auto& u: sequenceIdToSequence) {
+                rows.push_back({u.first,
+                    sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)],
+                    sequenceLengths[u.first], u.second.second.second, u.second.second.first});
             }
+        }
+
+        // Filter across every row in this alignment record, including homologous
+        // block instances. Internal terminal slots and unused insertion slots
+        // can produce all-gap columns; retain any column containing a base.
+        size_t width = 0;
+        for(const auto& row: rows) {
+            width = std::max(width, row.text.size());
+        }
+        std::vector<bool> keep(width, false);
+        for(const auto& row: rows) {
+            for(size_t col = 0; col < row.text.size(); ++col) {
+                if(row.text[col] != '-') keep[col] = true;
+            }
+        }
+        if(std::find(keep.begin(), keep.end(), true) == keep.end()) continue;
+
+        fout << "a\n";
+        for(const auto& row: rows) {
+            std::string aligned;
+            for(size_t col = 0; col < width; ++col) {
+                if(keep[col]) aligned += col < row.text.size() ? row.text[col] : '-';
+            }
+            fout << "s\t" << row.name << "\t" << row.start << "\t"
+                 << stripGaps(aligned).length() << "\t" << (row.strand ? "+\t" : "-\t")
+                 << row.sourceSize << "\t" << aligned << "\n";
         }
         fout << "\n";
     }

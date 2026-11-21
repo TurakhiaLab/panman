@@ -41,14 +41,11 @@ jobs:
       - name: Linux-specific steps
         if: runner.os == 'Linux'
         run: |
-          sudo apt update
-          sudo apt install -y gcc-10 g++-10
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10 --slave /usr/bin/gcov gcov /usr/bin/gcov-10
-          sudo update-alternatives --set gcc /usr/bin/gcc-10
-          chmod +x install/installationUbuntu.sh
-          sudo ./install/installationUbuntu.sh
-          cd build
-          ./panmanUtils --help
+          bash install/installationUbuntu.sh --prefix "$RUNNER_TEMP/panman"
+          "$RUNNER_TEMP/panman/bin/panmanUtils" --help
+          python3 tests/test_maf_export.py "$RUNNER_TEMP/panman/bin/panmanUtils"
+          # Verify that reinstalling reuses the environment and build directory.
+          bash install/installationUbuntu.sh --prefix "$RUNNER_TEMP/panman"
 
       # - name: macOS-specific steps
       #   if: runner.os == 'macOS'
