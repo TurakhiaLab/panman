@@ -1,4 +1,6 @@
 #include "panmanUtils.hpp"
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
 
 void panmanUtils::printSequenceLines(const sequence_t& sequence,\
                                      const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, bool aligned, std::ostream& fout, int offset, bool debug) {
@@ -157,7 +159,8 @@ std::string panmanUtils::printSequenceLinesNew(const std::vector<std::vector<std
                           const std::vector<bool>& blockExists, 
                           const std::vector<bool>& blockStrand, size_t lineSize, bool aligned, int offset, bool debug,
                           const std::vector<size_t>& chrBlockLengths,
-                          int chrID) {
+                          int chrID,
+                          const std::vector<int64_t>& customBlockOrder) {
 
     // String that stores the sequence to be printed
     std::string line;
@@ -166,7 +169,25 @@ std::string panmanUtils::printSequenceLinesNew(const std::vector<std::vector<std
         startID = chrID==0?0:chrBlockLengths[chrID-1];
         endID = chrBlockLengths[chrID];
     }
-    for(size_t i = startID; i < endID; i++) {
+
+    std::vector<size_t> blocksToVisit;
+    if (!aligned && !customBlockOrder.empty()) {
+        for (auto bid : customBlockOrder) {
+            size_t pId = (bid > 0xFFFFFFFF) ? (size_t)(bid >> 32) : (size_t)bid;
+            if (chrID == -1 || (pId >= startID && pId < endID)) {
+                blocksToVisit.push_back(pId);
+            }
+        }
+    } else {
+        blocksToVisit.reserve(endID - startID);
+        for(size_t i = startID; i < endID; i++) {
+            blocksToVisit.push_back(i);
+        }
+    }
+
+    for(size_t idx = 0; idx < blocksToVisit.size(); idx++) {
+        size_t i = blocksToVisit[idx];
+        if (i >= blockExists.size() || i >= sequence.size()) continue;
         // Non-gap block - the only type being used currently
         if(blockExists[i]) {
             // line += ">" + std::to_string(i) + "\n";
@@ -234,6 +255,7 @@ std::string panmanUtils::printSequenceLinesNew(const std::vector<std::vector<std
 
     // From offset to end
     std::string currentLine = "";
+    currentLine.reserve(line.length() + line.length() / lineSize + 2);
     int c=0;
     for(size_t i = ctr; i < line.length(); i++) {
         currentLine += line[i];
@@ -1945,21 +1967,23 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
     
 
     int offset = 0;
-    if(!aligned && circularSequences.find(tipNode->identifier) != circularSequences.end()) {
+    auto circIt = circularSequences.find(tipNode->identifier);
+    if(!aligned && circIt != circularSequences.end()) {
         // If MSA is to be printed, offset doesn't matter
-        offset = circularSequences[tipNode->identifier];
+        offset = circIt->second;
     }
-    std::vector< std::vector< std::pair< char, std::vector< char > > > > sequencePrint = sequence;
-    std::vector< bool > blockExistsPrint = blockExists;
-    std::vector< bool > blockStrandPrint = blockStrand;
+    std::vector< std::vector< std::pair< char, std::vector< char > > > > sequencePrint = std::move(sequence);
+    std::vector< bool > blockExistsPrint = std::move(blockExists);
+    std::vector< bool > blockStrandPrint = std::move(blockStrand);
 
-    if(rotationIndexes.find(tipNode->identifier) != rotationIndexes.end() && rotationIndexes[tipNode->identifier] != 0) {
+    auto rotIt = rotationIndexes.find(tipNode->identifier);
+    if(rotIt != rotationIndexes.end() && rotIt->second != 0) {
         int ctr = -1, rotInd = 0;
         for(size_t i = 0; i < blockExistsPrint.size(); i++) {
             if(blockExistsPrint[i]) {
                 ctr++;
             }
-            if(ctr == rotationIndexes[tipNode->identifier]) {
+            if(ctr == rotIt->second) {
                 rotInd = i;
                 break;
             }
@@ -1970,7 +1994,8 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
         rotate(blockStrandPrint.begin(), blockStrandPrint.begin() + rotInd, blockStrandPrint.end());
     }
 
-    if(sequenceInverted.find(tipNode->identifier) != sequenceInverted.end() && sequenceInverted[tipNode->identifier]) {
+    auto invIt = sequenceInverted.find(tipNode->identifier);
+    if(invIt != sequenceInverted.end() && invIt->second) {
         // std::cout << "inverting" << std::endl;
         reverse(sequencePrint.begin(), sequencePrint.end());
         reverse(blockExistsPrint.begin(), blockExistsPrint.end());
@@ -1979,9 +2004,15 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
     
     
     std::string line="";
+    std::vector<int64_t> customOrder;
+    auto sboIt = sequenceBlockOrders.find(tipNode->identifier);
+    if (sboIt != sequenceBlockOrders.end()) {
+        customOrder = sboIt->second;
+    }
+
     if (chrID == -1){
         line += '>' + tipNode->identifier + '\n';
-        line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false, std::vector<size_t>(), -1);
+        line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false, std::vector<size_t>(), -1, customOrder);
     } else {
         std::vector<size_t> chrBlockLenghts(chrList.size(), 0);
         for(size_t i=0; i<chrList.size();i++){
@@ -1991,7 +2022,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
         for (int i=0; i<chrList.size();i++){
             if (chrID != -1 && i != chrID) continue;
             line += '>' + tipNode->identifier + "\tchr" + std::to_string(i) + '\n';
-            line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false, chrBlockLenghts, i);
+            line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false, chrBlockLenghts, i, customOrder);
             line += '\n';   
         }
     }
@@ -2001,111 +2032,102 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
 
 void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex, int chrID) {
 
-    std::unordered_map< std::string, std::mutex > nodeMutexes;
-    for(auto u: allNodes) {
-        if (u.second->children.size() == 0) {
-            nodeMutexes[u.first];
+    std::vector<panmanUtils::Node*> tipNodes;
+    for (auto &keyValue: allNodes) {
+        if (keyValue.second->children.size() == 0) {
+            tipNodes.push_back(keyValue.second);
         }
     }
 
     std::mutex printMutex;
-	int counting=0;
-    for (auto &keyValue: allNodes) {
-    // tbb::parallel_for_each(allNodes.begin(), allNodes.end(), [&](const std::pair<std::string, panmanUtils::Node*>& keyValue) {
-        panmanUtils::Node* node = keyValue.second;
-        // Create a stringstream for each thread to avoid race conditions on fout
-        if (node->children.size() != 0) {
-            continue;
-        }
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, tipNodes.size()),
+        [&](const tbb::blocked_range<size_t>& r) {
+            for (size_t idx = r.begin(); idx != r.end(); ++idx) {
+                panmanUtils::Node* node = tipNodes[idx];
 
-        // Get block sequnece of the Tip
-        std::vector< bool >  blockSequence(blocks.size() + 1, false, {});
-        std::vector<panmanUtils::Node*> nodesFromTipToRoot;
-        getNodesFromTipToRoot(node, nodesFromTipToRoot);
-        getBlockSequence(nodesFromTipToRoot, blockSequence);
+                // Get block sequence of the Tip
+                std::vector< bool > blockSequence(blocks.size() + 1, false, {});
+                std::vector<panmanUtils::Node*> nodesFromTipToRoot;
+                getNodesFromTipToRoot(node, nodesFromTipToRoot);
+                getBlockSequence(nodesFromTipToRoot, blockSequence);
 
-        // Blocks length
-        std::unordered_map<int, int> blockLengths;
+                // Blocks length
+                std::unordered_map<int, int> blockLengths;
 
-        // Expanding blocks only if exist in tip 
-        std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence(blocks.size() + 1);
-        std::vector< bool >  blockExists(blocks.size() + 1, false, {});
-        std::vector< bool >  blockStrand(blocks.size() + 1, true, {});
+                // Expanding blocks only if exist in tip 
+                std::vector< std::vector< std::pair< char, std::vector< char > > > > sequence(blocks.size() + 1);
+                std::vector< bool > blockExists(blocks.size() + 1, false, {});
+                std::vector< bool > blockStrand(blocks.size() + 1, true, {});
 
-
-        int32_t maxBlockId = 0;
-        // std::string consensusSeq_string = "";
-        // Create consensus sequence of blocks
-        size_t seqlen=0;
-        for(size_t i = 0; i < blocks.size(); i++) {
-            int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
-            blockLengths[primaryBlockId] = 0;
-            maxBlockId = std::max(maxBlockId, primaryBlockId);
-            int64_t endFlag = blocks[i].blockLength;
-            if (blockSequence[primaryBlockId]) {
-                for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
-                    if (endFlag <= 0) break;
-                    for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
-                        const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
-                        endFlag -= 1;
-                        seqlen+=1;
-                        const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
-                        sequence[primaryBlockId].push_back({nucleotide, {}});
-                        // consensusSeq_string += nucleotide;
+                int32_t maxBlockId = 0;
+                size_t seqlen = 0;
+                for(size_t i = 0; i < blocks.size(); i++) {
+                    int32_t primaryBlockId = ((int32_t)blocks[i].primaryBlockId);
+                    blockLengths[primaryBlockId] = 0;
+                    maxBlockId = std::max(maxBlockId, primaryBlockId);
+                    int64_t endFlag = blocks[i].blockLength;
+                    if (blockSequence[primaryBlockId]) {
+                        if (endFlag > 0) {
+                            sequence[primaryBlockId].reserve(endFlag + 1);
+                        }
+                        for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
+                            if (endFlag <= 0) break;
+                            for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
+                                endFlag -= 1;
+                                seqlen += 1;
+                                const char nucleotide = panmanUtils::getSymbolFromCode(nucCode, alphabet);
+                                sequence[primaryBlockId].push_back({nucleotide, {}});
+                            }
+                        }
+                        // End character to incorporate for gaps at the end
+                        sequence[primaryBlockId].push_back({'x', {}});
+                    } else {
+                        int len = 0;
+                        int64_t endFlag = blocks[i].blockLength;
+                        for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
+                            if (endFlag <= 0) break;
+                            for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
+                                const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
+                                endFlag -= 1;
+                                len++;
+                            }
+                        }
+                        blockLengths[primaryBlockId] += len;
                     }
                 }
-                // End character to incorporate for gaps at the end
-                sequence[primaryBlockId].push_back({'x', {}});
-                // blockLengths[primaryBlockId] += len;
-            } else {
-                int len = 0;
-                int64_t endFlag = blocks[i].blockLength;
-                for(size_t j = 0; j < blocks[i].consensusSeq.size(); j++) {
-                    if (endFlag <= 0) break;
-                    for(size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); k++) {
-                        const int nucCode = static_cast<int>(panmanUtils::packedConsensusSymbolAt(blocks[i].consensusSeq[j], k, alphabet));
-                        endFlag -= 1;
-                        // consensusSeq_string += nucCode;
-                        len++;
+
+                sequence.resize(maxBlockId + 1);
+                blockExists.resize(maxBlockId + 1);
+                blockStrand.resize(maxBlockId + 1);
+
+                // Assigning nucleotide gaps in blocks
+                for(size_t i = 0; i < gaps.size(); i++) {
+                    int32_t primaryBId = (gaps[i].primaryBlockId);
+                    int32_t secondaryBId = (gaps[i].secondaryBlockId);
+                    if (blockSequence[primaryBId]){
+                        for(size_t j = 0; j < gaps[i].nucPosition.size(); j++) {
+                            int len = gaps[i].nucGapLength[j];
+                            int pos = gaps[i].nucPosition[j];
+                            sequence[primaryBId][pos].second.resize(len, '-');
+                        }
+                    } else {
+                        int len = 0;
+                        for(size_t j = 0; j < gaps[i].nucPosition.size(); j++) {
+                            len += gaps[i].nucGapLength[j];
+                        }
+                        blockLengths[primaryBId] += len;
                     }
                 }
-                blockLengths[primaryBlockId] += len;
-            }
-        }
 
-        // std::cout << "consensusSeq_string: " << consensusSeq_string << std::endl;
+                std::string line = printFASTAUltraFastHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex, chrID);
 
-        sequence.resize(maxBlockId + 1);
-        blockExists.resize(maxBlockId + 1);
-        blockStrand.resize(maxBlockId + 1);
-
-        // Assigning nucleotide gaps in blocks
-        for(size_t i = 0; i < gaps.size(); i++) {
-            int32_t primaryBId = (gaps[i].primaryBlockId);
-            int32_t secondaryBId = (gaps[i].secondaryBlockId);
-            if (blockSequence[primaryBId]){
-                for(size_t j = 0; j < gaps[i].nucPosition.size(); j++) {
-                    int len = gaps[i].nucGapLength[j];
-                    int pos = gaps[i].nucPosition[j];
-                    sequence[primaryBId][pos].second.resize(len, '-');
-                    // blockLengths[primaryBId] += len;
+                {
+                    std::lock_guard<std::mutex> guard(printMutex);
+                    fout << line << "\n";
                 }
-            } else {
-                int len=0;
-                for(size_t j = 0; j < gaps[i].nucPosition.size(); j++) {
-                    len += gaps[i].nucGapLength[j];
-                }
-                blockLengths[primaryBId] += len;
             }
-        }
-
-        std::string line = printFASTAUltraFastHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex, chrID);
-        // nodeMutexes[node->identifier].lock();
-        std::lock_guard<std::mutex> guard(printMutex);
-        fout << line << "\n";
-        // nodeMutexes[node->identifier].unlock();
-    // });
-    }
+        });
 }
 
 std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extractSequenceHelper(
@@ -2263,21 +2285,23 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
     panmanUtils::Node* tipNode = nodesFromTipToRoot[nodesFromTipToRoot.size()-1];
 
     int offset = 0;
-    if(!aligned && circularSequences.find(tipNode->identifier) != circularSequences.end()) {
+    auto circIt = circularSequences.find(tipNode->identifier);
+    if(!aligned && circIt != circularSequences.end()) {
         // If MSA is to be printed, offset doesn't matter
-        offset = circularSequences[tipNode->identifier];
+        offset = circIt->second;
     }
-    std::vector< std::vector< std::pair< char, std::vector< char > > > > sequencePrint = sequence;
-    std::vector< bool > blockExistsPrint = blockExists;
-    std::vector< bool > blockStrandPrint = blockStrand;
+    std::vector< std::vector< std::pair< char, std::vector< char > > > > sequencePrint = std::move(sequence);
+    std::vector< bool > blockExistsPrint = std::move(blockExists);
+    std::vector< bool > blockStrandPrint = std::move(blockStrand);
 
-    if(rotationIndexes.find(tipNode->identifier) != rotationIndexes.end() && rotationIndexes[tipNode->identifier] != 0) {
+    auto rotIt = rotationIndexes.find(tipNode->identifier);
+    if(rotIt != rotationIndexes.end() && rotIt->second != 0) {
         int ctr = -1, rotInd = 0;
         for(size_t i = 0; i < blockExistsPrint.size(); i++) {
             if(blockExistsPrint[i]) {
                 ctr++;
             }
-            if(ctr == rotationIndexes[tipNode->identifier]) {
+            if(ctr == rotIt->second) {
                 rotInd = i;
                 break;
             }
@@ -2288,7 +2312,8 @@ std::pair<std::vector<std::string>, std::vector<int>> panmanUtils::Tree::extract
         rotate(blockStrandPrint.begin(), blockStrandPrint.begin() + rotInd, blockStrandPrint.end());
     }
 
-    if(sequenceInverted.find(tipNode->identifier) != sequenceInverted.end() && sequenceInverted[tipNode->identifier]) {
+    auto invIt = sequenceInverted.find(tipNode->identifier);
+    if(invIt != sequenceInverted.end() && invIt->second) {
         // std::cout << "inverting" << std::endl;
         reverse(sequencePrint.begin(), sequencePrint.end());
         reverse(blockExistsPrint.begin(), blockExistsPrint.end());

@@ -523,6 +523,9 @@ class Tree {
     // Specifies whether sequence is inverted or not by the rotation algorithm
     std::unordered_map< std::string, bool > sequenceInverted;
 
+    // Specifies the physical block order if sequence does not follow default linear order
+    std::unordered_map< std::string, std::vector< int64_t > > sequenceBlockOrders;
+
     std::unordered_map< std::string, Node* > allNodes;
 
     Tree(const panman::Tree::Reader& mainTree);

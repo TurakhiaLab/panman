@@ -76,6 +76,12 @@ struct SequenceInverted
     inverted @1: Bool;
 }
 
+struct SequenceBlockOrder
+{
+    sequenceId @0: Text;
+    orderedBlockIds @1: List(Int64);
+}
+
 enum Alphabet {
     dna @0;
     protein @1;
@@ -93,6 +99,7 @@ struct Tree
     sequencesInverted @7: List(SequenceInverted);
     chrLists @8: List(ChrList);
     alphabet @9: Alphabet = dna;
+    sequenceBlockOrders @10: List(SequenceBlockOrder);
 }
 
 struct ParentContribution {

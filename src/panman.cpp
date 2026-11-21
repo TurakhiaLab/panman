@@ -3108,6 +3108,20 @@ void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
         auto blockIdList = consensusMapElement.getBlockId();
         auto blockGapExistList = consensusMapElement.getBlockGapExist();
         auto blockLength = consensusMapElement.getBlockLength();
+        if (blockLength == 0 && alphabet == Alphabet::DNA) {
+            for (auto word: seq) {
+                bool done = false;
+                for (size_t k = 0; k < panmanUtils::consensusSymbolsPerPackedWord(alphabet); ++k) {
+                    uint32_t sym = panmanUtils::packedConsensusSymbolAt(word, k, alphabet);
+                    if (sym == 0) {
+                        done = true;
+                        break;
+                    }
+                    blockLength++;
+                }
+                if (done) break;
+            }
+        }
         for (auto j=0;j<blockIdList.size();j++){
             std::pair< int32_t, int32_t > blockId;
             blockId.first = (blockIdList[j] >> 32);
@@ -3188,6 +3202,20 @@ void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
         tempChr.loadFromProtobuf(chrFromTree);
         chrList.push_back(tempChr);
     }
+
+    /* Sequence Block Orders (v2 / non-linear sequence paths) */
+    try {
+        if (mainTree.hasSequenceBlockOrders()) {
+            for (auto sboFromTree : mainTree.getSequenceBlockOrders()) {
+                std::string seqId = sboFromTree.getSequenceId().cStr();
+                std::vector<int64_t> order;
+                for (auto bid : sboFromTree.getOrderedBlockIds()) {
+                    order.push_back(bid);
+                }
+                sequenceBlockOrders[seqId] = std::move(order);
+            }
+        }
+    } catch (const kj::Exception&) {}
 
 }
 
@@ -8547,6 +8575,20 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
                 }
             }
             assert(chrListCount==tree.chrList.size());
+        }
+
+        /* write sequence block orders */
+        if (!tree.sequenceBlockOrders.empty()) {
+            ::capnp::List<panman::SequenceBlockOrder>::Builder sboBuilder = treeToWrite.initSequenceBlockOrders(tree.sequenceBlockOrders.size());
+            size_t sboCount = 0;
+            for(const auto& u: tree.sequenceBlockOrders) {
+                panman::SequenceBlockOrder::Builder sbo = sboBuilder[sboCount++];
+                sbo.setSequenceId(u.first);
+                ::capnp::List<int64_t>::Builder idsBuilder = sbo.initOrderedBlockIds(u.second.size());
+                for(size_t j = 0; j < u.second.size(); j++) {
+                    idsBuilder.set(j, u.second[j]);
+                }
+            }
         }
         
     }

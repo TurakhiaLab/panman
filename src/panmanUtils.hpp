@@ -55,7 +55,8 @@ std::string printSequenceLinesNew(const std::vector<std::vector<std::pair<char,s
                           const std::vector<bool>& blockExists, 
                           const std::vector<bool>& blockStrand, size_t lineSize,
                         bool aligned, int offset = 0, bool debug = false,
-                        const std::vector<size_t>& chrBlockLengths = {}, int chrID = -1);
+                        const std::vector<size_t>& chrBlockLengths = {}, int chrID = -1,
+                        const std::vector<int64_t>& customBlockOrder = {});
 void printSubsequenceLines(const sequence_t& sequence,\
                                      const blockExists_t& blockExists, blockStrand_t& blockStrand, size_t lineSize, 
                                      const std::tuple<int, int, int, int>& panMATStart, 
