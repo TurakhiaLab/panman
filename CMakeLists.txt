@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.18)
 
 project(panmanUtils)
 
@@ -68,7 +68,29 @@ file(GLOB PANMAT_SRCS
 )
 
 # ------------------ Executable ------------------
-add_executable(panmanUtils ${PANMAT_SRCS})
+add_executable(panmanUtils ${PANMAT_SRCS} src/constructionBackend.cpp)
+target_include_directories(panmanUtils PRIVATE "${CMAKE_SOURCE_DIR}/src")
+option(PANMAN_ENABLE_CUDA "Build optional CUDA construction inference" ON)
+if(PANMAN_ENABLE_CUDA)
+    include(CheckLanguage)
+    check_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
+        enable_language(CUDA)
+        target_sources(panmanUtils PRIVATE gpu/constructionInference.cu)
+        if(NOT CMAKE_CUDA_ARCHITECTURES)
+            if(CMAKE_VERSION VERSION_LESS "3.23")
+                message(FATAL_ERROR "Set CMAKE_CUDA_ARCHITECTURES explicitly or use CMake >= 3.23 for CUDA")
+            endif()
+            set(CMAKE_CUDA_ARCHITECTURES all-major)
+        endif()
+        set_target_properties(panmanUtils PROPERTIES CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON
+                              CUDA_ARCHITECTURES "${CMAKE_CUDA_ARCHITECTURES}")
+        target_compile_definitions(panmanUtils PRIVATE PANMAN_HAS_CUDA=1)
+        message(STATUS "Construction backend: CPU and CUDA")
+    else()
+        message(STATUS "CUDA compiler unavailable; construction auto uses CPU")
+    endif()
+endif()
 
 # CapnProto and Protobuf Codegen
 if(DEFINED CapnProto_PATH)
@@ -104,3 +126,18 @@ target_link_libraries(panmanUtils PRIVATE
 )
 
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
+
+# Small deterministic unit tests plus file-format integration tests. CUDA parity
+# is exercised by the integration suite when a device is actually available.
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(panman_layout_tests tests/test_layout.cpp)
+    target_include_directories(panman_layout_tests PRIVATE "${CMAKE_SOURCE_DIR}/src")
+    add_test(NAME layout_and_inference COMMAND panman_layout_tests)
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME maf_export COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/test_maf_export.py" "$<TARGET_FILE:panmanUtils>")
+        add_test(NAME maf_multichrom COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/test_maf_multichrom.py" "$<TARGET_FILE:panmanUtils>")
+        add_test(NAME construction_compatibility COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/test_construction.py" "$<TARGET_FILE:panmanUtils>" --capnp "${CAPNP_EXECUTABLE}")
+    endif()
+endif()

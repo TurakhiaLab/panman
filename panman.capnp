@@ -87,6 +87,20 @@ enum Alphabet {
     protein @1;
 }
 
+# Ranges use half-open, sequential primary block IDs (not packed IDs).
+struct BlockRange {
+    start @0: UInt64;
+    end @1: UInt64;
+}
+struct SequenceChromosomeRanges {
+    sequenceId @0: Text;
+    chromosomeName @1: Text;
+    ranges @2: List(BlockRange);
+}
+struct HomologyGroup {
+    blockIds @0: List(Int64); # Existing packed block IDs, including copy instances.
+}
+
 struct Tree
 {
     newick @0: List(Text);
@@ -100,6 +114,8 @@ struct Tree
     chrLists @8: List(ChrList);
     alphabet @9: Alphabet = dna;
     sequenceBlockOrders @10: List(SequenceBlockOrder);
+    sequenceChromosomeRanges @11: List(SequenceChromosomeRanges);
+    homologyGroups @12: List(HomologyGroup);
 }
 
 struct ParentContribution {

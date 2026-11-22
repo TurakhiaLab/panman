@@ -27,6 +27,8 @@
   - [Using DockerFile](#file)
   - [Using Installation Script](#script)
 - [PanMAN Construction](#construct)
+  - [From MAF, including multiple chromosomes](docs/maf.md)
+  - [Range construction, CPU/CUDA, and compatibility](docs/construction.md)
   - [From PanGraph/GFA/MSA](#pangraph)
   - [From Raw Sequences](#raw)
   - [From Fragment Assemblies](#frag)

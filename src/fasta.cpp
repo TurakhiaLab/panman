@@ -1818,7 +1818,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
                             const std::vector<panmanUtils::Node*>& nodesFromTipToRoot, 
                             std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
                             std::vector<bool>& blockExists, 
-                            std::vector<bool>& blockStrand, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex, int chrID) {
+                            std::vector<bool>& blockStrand, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex, int chrID, bool splitChromosomes) {
 
     
     for (auto node: nodesFromTipToRoot){
@@ -1966,6 +1966,33 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
     
     
 
+    if(!chromosomeRanges.empty() && !aligned && !allIndex) {
+        if(splitChromosomes && chrID<0) {
+            std::string output;
+            // Reconstruct the genome once, then emit its actual chromosome paths.
+            // Missing chromosomes/genomes do not create empty FASTA records.
+            for(const auto& path:chromosomeRanges)if(path.sequenceId==tipNode->identifier) {
+                std::vector<int64_t> order;
+                for(const auto& range:path.ranges)for(size_t id=range.first;id<range.second;++id)
+                    if(id<blockExists.size() && blockExists[id])order.push_back((int64_t)id<<32);
+                if(order.empty())continue;
+                auto text=printSequenceLinesNew(sequence,blockLengths,blockExists,blockStrand,
+                    70,false,0,false,{},-1,order);
+                if(text.empty())continue;
+                output+=">"+tipNode->identifier+"."+path.chromosomeName+"\n"+text+"\n";
+            }
+            return output;
+        }
+        std::string chromosome=chrID<0?std::string():chrList.at(chrID).chrName;
+        auto ids=chromosomeBlockIds(tipNode->identifier,chromosome);
+        std::vector<int64_t> order;
+        for(size_t id:ids)if(id<blockExists.size() && blockExists[id])order.push_back((int64_t)id<<32);
+        std::string line=">"+tipNode->identifier+(chrID<0?"":"\t"+chromosome)+"\n";
+        if(!order.empty())line+=printSequenceLinesNew(sequence,blockLengths,blockExists,blockStrand,
+            70,false,0,false,{},-1,order);
+        return line;
+    }
+
     int offset = 0;
     auto circIt = circularSequences.find(tipNode->identifier);
     if(!aligned && circIt != circularSequences.end()) {
@@ -2021,7 +2048,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
         }
         for (int i=0; i<chrList.size();i++){
             if (chrID != -1 && i != chrID) continue;
-            line += '>' + tipNode->identifier + "\tchr" + std::to_string(i) + '\n';
+            line += '>' + tipNode->identifier + "\t" + (chrList[i].chrName.empty() ? "chr" + std::to_string(i) : chrList[i].chrName) + '\n';
             line += panmanUtils::printSequenceLinesNew(sequencePrint, blockLengths, blockExistsPrint, blockStrandPrint, 70, aligned, offset, false, chrBlockLenghts, i, customOrder);
             line += '\n';   
         }
@@ -2030,7 +2057,7 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
     return line;
 }
 
-void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex, int chrID) {
+void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bool rootSeq, const std::tuple< int, int, int, int >& panMATStart, const std::tuple< int, int, int, int >& panMATEnd, bool allIndex, int chrID, bool splitChromosomes) {
 
     std::vector<panmanUtils::Node*> tipNodes;
     for (auto &keyValue: allNodes) {
@@ -2120,7 +2147,7 @@ void panmanUtils::Tree::printFASTAUltraFast(std::ostream& fout, bool aligned, bo
                     }
                 }
 
-                std::string line = printFASTAUltraFastHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex, chrID);
+                std::string line = printFASTAUltraFastHelper(blockSequence, blockLengths, nodesFromTipToRoot, sequence, blockExists, blockStrand, aligned, rootSeq, panMATStart, panMATEnd, allIndex, chrID, splitChromosomes);
 
                 {
                     std::lock_guard<std::mutex> guard(printMutex);

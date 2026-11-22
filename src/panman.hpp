@@ -1,4 +1,5 @@
 #pragma once
+#include "constructionBackend.hpp"
 #include <vector>
 #include <string>
 #include <iostream>
@@ -329,19 +330,24 @@ struct BlockGapList {
 };
 
 // Block graph derived from a MAF. Block homology comes directly from the MAF:
-// each alignment record is grouped (by identical gapped consensus) into a block
+// each alignment record is grouped (by chromosome and identical gapped consensus) into a block
 // "group". For every sequence we keep its block occurrences in MAF-coordinate
 // order; the PanMAN consensus/pseudo-root is then built by progressively
 // aligning each sequence's occurrences to a growing reference backbone.
 struct MAFBlockGraph {
     // group id -> gapped consensus shared by all occurrences of the block
     std::vector<std::string> consensusByGroup;
+    std::vector<std::string> chromosomeByGroup;
+    std::vector<std::string> chromosomeOrder;
+    bool qualifiedSources = false;
     // One occurrence of a block in a sequence (one MAF row).
     struct Occ {
         int group;            // block group id (index into consensusByGroup)
         std::string row;      // aligned, gapped row text
         bool strand;          // true = '+', false = '-'
-        int64_t start;        // MAF start coordinate (for ordering)
+        int64_t start;        // MAF start, normalized for qualified-source input
+        int64_t forwardStart; // forward genomic coordinate independent of strand
+        std::string chromosome;
     };
     // sequence name -> its occurrences sorted by MAF start coordinate
     std::unordered_map<std::string, std::vector<Occ>> seqOccs;
@@ -349,6 +355,11 @@ struct MAFBlockGraph {
     std::vector<std::string> seqOrder;
 };
 
+
+struct ChromosomeRanges {
+    std::string sequenceId, chromosomeName;
+    std::vector<std::pair<uint64_t,uint64_t>> ranges;
+};
 
 // PanMAT tree node
 class Node {
@@ -435,7 +446,7 @@ class Tree {
                           std::vector<std::vector<std::pair<char,std::vector<char>>>>& sequence,
                           std::vector<bool>& blockExists, 
                           std::vector<bool>& blockStrand, 
-                          bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false, int chrID = -1);
+                          bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start = {-1,-1,-1,-1}, const std::tuple<int, int, int, int>& end={-1,-1,-1,-1}, bool allIndex = false, int chrID = -1, bool splitChromosomes = false);
     
     std::pair<std::vector<std::string>, std::vector<int>> extractSequenceHelper(
                           const std::vector<bool>& blockSequence,
@@ -508,6 +519,14 @@ class Tree {
     Node *root;
     Alphabet alphabet = Alphabet::DNA;
     std::vector< Chr > chrList;
+    std::vector<ChromosomeRanges> chromosomeRanges;
+    std::vector<std::vector<int64_t>> homologyGroups;
+    void validateChromosomeRanges() const;
+    void readChromosomeMetadata(const panman::Tree::Reader& input);
+    void writeChromosomeMetadata(panman::Tree::Builder output, const std::set<std::string>& owners) const;
+    std::vector<size_t> chromosomeBlockIds(const std::string& sample, const std::string& chromosome) const;
+    void printRangeMAF(std::ostream& output);
+    void buildFromMAF(std::ifstream& input, const std::string& reference);
     std::vector< Block > blocks;
     std::vector< GapList > gaps;
 
@@ -611,7 +630,7 @@ class Tree {
     void printBfs(Node* node = nullptr);
     void printFASTA(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
     void printFASTANew(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false);
-    void printFASTAUltraFast(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false, int chrID = -1);
+    void printFASTAUltraFast(std::ostream& fout, bool aligned = false, bool rootSeq = false, const std::tuple<int, int, int, int> &start={-1,-1,-1,-1}, const std::tuple<int, int, int, int> &end={-1,-1,-1,-1}, bool allIndex = false, int chrID = -1, bool splitChromosomes = false);
     void printSingleNode(std::ostream& fout, const sequence_t& sequence,
                                          const blockExists_t& blockExists, const blockStrand_t& blockStrand,
                                          std::string nodeIdentifier, std::tuple< int, int, int, int > &panMATStart, std::tuple< int, int, int, int > &panMATEnd);
@@ -638,7 +657,7 @@ class Tree {
 
     Node* subtreeExtractParallel(std::vector< std::string > nodeIds, const std::set< std::string >& nodeIdsToDefinitelyInclude = {});
     // Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
-    void writeToFile(kj::std::StdOutputStream& fout, Node* node = nullptr);
+    void writeToFile(kj::std::StdOutputStream& fout, Node* node = nullptr, bool reportCompression = false);
     std::string getNewickString(Node* node);
     std::string getStringFromReference(std::string reference, bool aligned = true,
                                        bool incorporateInversions=true);
@@ -1085,7 +1104,7 @@ class TreeGroup {
     TreeGroup* subnetworkExtract(std::unordered_map< int, std::vector< std::string > >& nodeIds);
 
     void printFASTA(std::ofstream& fout, bool rootSeq = false);
-    void writeToFile(kj::std::StdOutputStream& fout);
+    void writeToFile(kj::std::StdOutputStream& fout, bool reportCompression = false);
     void printComplexMutations(std::ostream& fout);
 
     std::unordered_map< std::string, std::string >

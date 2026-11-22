@@ -167,7 +167,7 @@ panmanUtils::TreeGroup* panmanUtils::TreeGroup::subnetworkExtract(std::unordered
 
         boost::iostreams::filtering_streambuf< boost::iostreams::output>
         outPMATBuffer;
-        outPMATBuffer.push(boost::iostreams::gzip_compressor());
+        outPMATBuffer.push(boost::iostreams::lzma_compressor());
         outPMATBuffer.push(outputFile);
         std::ostream outstream(&outPMATBuffer);
         kj::std::StdOutputStream outputStream(outstream);

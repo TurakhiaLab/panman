@@ -152,12 +152,13 @@ void setupOptionDescriptions() {
     globalDesc.add_options()
     ("help,h", "Print help messages")
     ("version,V", "Print panmanUtils version")
+    ("protobuf2capnp", "Convert a legacy protobuf PanMAN to Capn Proto")
     ("input-panman,I", po::value< std::string >(), "Input PanMAN file path")
     // ("input-panmat,T", po::value< std::string >(), "Input PanMAT file path")
     ("input-pangraph,P", po::value< std::string >(), "Input PanGraph JSON file to build a PanMAN")
     ("input-gfa,G", po::value< std::string >(), "Input GFA file to build a PanMAN")
     ("input-msa,M", po::value< std::string >(), "Input MSA file (FASTA format) to build a PanMAN")
-    ("input-maf,A", po::value< std::string >(), "Input MAF file to build a PanMAN")
+    ("input-maf,A", po::value< std::string >(), "Input MAF; sources may be <Newick-tip>.<chromosome>")
     ("input-newick,N", po::value< std::string >(), "Input tree topology as Newick string")
     ("protein", "Enable protein alphabet mode for sequence encoding/decoding")
     ("create-network,K",po::value< std::vector<std::string>>(), "Create PanMAN with network of trees from single or multiple PanMAN files")
@@ -176,6 +177,7 @@ void setupOptionDescriptions() {
     ("summary,s", "Print PanMAN summary")
     ("newick,t", "Print newick string of all trees in a PanMAN")
     ("fasta,f", "Print tip sequences (FASTA format)")
+    ("concatenate", "With --fasta, concatenate chromosomes into one record per genome")
     // ("fasta-fast", "Print tip/internal sequences (FASTA format)")
     ("fasta-aligned,m", "Print MSA of sequences for each PanMAT in a PanMAN (FASTA format)")
     ("subnet,b", "Extract subnet of given PanMAN to a new PanMAN file based on the list of nodes provided in the input-file")
@@ -199,6 +201,12 @@ void setupOptionDescriptions() {
     ("toUsher", "Convert a PanMAT in PanMAN to Usher-MAT")
     // ("samples",po::value< bool >() ,"Samples in the PanMAN")
     ("chrID", po::value< std::string >(), "Chromosome ID for indexing")
+    ("chromosome", po::value<std::string>(), "Chromosome/scaffold name for FASTA extraction")
+    ("list-chromosomes", "List chromosome/scaffold names and IDs")
+    ("backend", po::value<std::string>()->default_value("auto"), "MAF inference backend: auto, cpu, cuda")
+    ("refine-passes", po::value<unsigned>()->default_value(2), "MAF refinement passes (0 disables merging)")
+    ("match-budget", po::value<size_t>()->default_value(1000000), "Maximum matching pairs per MAF path")
+    ("refine-budget", po::value<size_t>()->default_value(2000000), "Maximum graph work during refinement")
   
     ("low-mem-mode", "Perform Fitch Algrorithm in batch to save memory consumption")
     ("reference,n", po::value< std::string >(), "Identifier of reference sequence for PanMAN construction (optional), VCF extract (required), or reroot (required)")
@@ -320,7 +328,7 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::TreeGroup *TG) {
 
     kj::std::StdOutputStream outputStream(outstream);
 
-    TG->writeToFile(outputStream);
+    TG->writeToFile(outputStream,true);
     boost::iostreams::close(outPMATBuffer);
     outputFile.close();
 
@@ -347,7 +355,7 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::Tree *T) {
     outPMATBuffer.push(outputFile);
     std::ostream outstream(&outPMATBuffer);
     kj::std::StdOutputStream outputStream(outstream);
-    T->writeToFile(outputStream);
+    T->writeToFile(outputStream,nullptr,true);
     boost::iostreams::close(outPMATBuffer);
     outputFile.close();
 
@@ -497,13 +505,30 @@ void fasta(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstrea
         if (globalVm.count("chrID")) {
             std::string chrIDStr = globalVm["chrID"].as< std::string >();
             try {
-                chrID = std::stoi(chrIDStr);
-            } catch (const std::invalid_argument& e) {
+                size_t parsed = 0;
+                chrID = std::stoi(chrIDStr, &parsed);
+                if(parsed != chrIDStr.size() || chrID < -1
+                   || (chrID >= 0 && (size_t)chrID >= T->chrList.size())) {
+                    panmanUtils::printError("Chromosome ID is outside this tree's chromosome list.");
+                    exit(1);
+                }
+            } catch (const std::exception& e) {
                 panmanUtils::printError("Invalid chromosome ID provided. It should be an integer.");
                 exit(1);
             }
         }
-        T->printFASTAUltraFast(fout, false, false, {-1,-1,-1,-1}, {-1,-1,-1,-1}, false, chrID);
+        if(globalVm.count("chromosome")) {
+            if(globalVm.count("chrID"))throw std::runtime_error("Use --chrID or --chromosome, not both");
+            const auto& name=globalVm["chromosome"].as<std::string>();
+            chrID=-1;
+            for(size_t c=0;c<T->chrList.size();++c)if(T->chrList[c].chrName==name)chrID=c;
+            if(chrID<0)throw std::runtime_error("Unknown chromosome: "+name);
+        }
+        if(globalVm.count("concatenate") && (globalVm.count("chrID") || globalVm.count("chromosome")))
+            throw std::runtime_error("--concatenate cannot be combined with --chrID or --chromosome");
+        bool splitChromosomes=!T->chromosomeRanges.empty() && !globalVm.count("concatenate")
+            && !globalVm.count("chrID") && !globalVm.count("chromosome");
+        T->printFASTAUltraFast(fout, false, false, {-1,-1,-1,-1}, {-1,-1,-1,-1}, false, chrID, splitChromosomes);
 
         if(globalVm.count("output-file")) outputFile.close();
     }
@@ -1150,7 +1175,8 @@ void createNet(po::variables_map &globalVm, std::ofstream &outputFile, std::stre
     inPMATBuffer.push(files[0]);
     std::istream inputStream(&inPMATBuffer);
     panmanUtils::TreeGroup* TG = new panmanUtils::TreeGroup(inputStream);
-    
+    for(const auto& tree:TG->trees)if(!tree.chromosomeRanges.empty())
+        throw std::runtime_error("Network construction from per-tip chromosome ranges is not yet supported");
 
     std::vector< panmanUtils::Tree* > tg;
     for (int i=0; i<TG->trees.size(); i++) {
@@ -1477,6 +1503,14 @@ void parseAndExecute(int argc, char* argv[]) {
 
     int threads = 64;
     if (globalVm.count("threads")) threads = globalVm["threads"].as<std::int32_t>();
+    auto& buildOptions=panmanUtils::constructionOptions();
+    buildOptions.backend=globalVm["backend"].as<std::string>();
+    buildOptions.refinementPasses=globalVm["refine-passes"].as<unsigned>();
+    buildOptions.matchBudget=globalVm["match-budget"].as<size_t>();
+    buildOptions.refinementBudget=globalVm["refine-budget"].as<size_t>();
+    if(buildOptions.backend!="auto" && buildOptions.backend!="cpu" && buildOptions.backend!="cuda")
+        throw std::runtime_error("--backend must be auto, cpu, or cuda");
+    if(!buildOptions.matchBudget)throw std::runtime_error("--match-budget must be positive");
     tbb::task_scheduler_init init(threads);
 
 
@@ -1494,6 +1528,7 @@ void parseAndExecute(int argc, char* argv[]) {
         return;
     } else if (globalVm.count("protobuf2capnp")) {
         protobuf2capnp(TG, globalVm);
+        return;
     } else if(globalVm.count("input-panmat")) {
         // Load PanMAT file directly into memory
 
@@ -1729,8 +1764,13 @@ void parseAndExecute(int argc, char* argv[]) {
 
         auto treeBuiltStart = std::chrono::high_resolution_clock::now();
 
-        T = new panmanUtils::Tree(inputStream, newickInputStream,
-                                  panmanUtils::FILE_TYPE::MAF, reference);
+        try {
+            T = new panmanUtils::Tree(inputStream, newickInputStream,
+                                      panmanUtils::FILE_TYPE::MAF, reference, "", panmanUtils::getActiveAlphabet());
+        } catch(const std::exception& error) {
+            std::cerr << "MAF import failed: " << error.what() << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
 
         // checkFunction(T);
 
@@ -1845,6 +1885,16 @@ void parseAndExecute(int argc, char* argv[]) {
     std::ofstream outputFile;
     std::streambuf * buf;
 
+    if(TG && globalVm.count("list-chromosomes")) {
+        for(size_t t=0;t<TG->trees.size();++t)for(size_t c=0;c<TG->trees[t].chrList.size();++c)
+            std::cout<<t<<"\t"<<c<<"\t"<<TG->trees[t].chrList[c].chrName<<"\n";
+        return;
+    }
+    if(TG)for(const auto& tree:TG->trees)if(!tree.chromosomeRanges.empty()) {
+        for(const char* option:{"vcf","gfa","to-trees","toUsher","aa-translation","index","dedupe-blocks","create-network"})
+            if(globalVm.count(option))throw std::runtime_error(std::string("--")+option+
+                " is not yet supported for per-tip chromosome ranges; use FASTA/MAF export");
+    }
     if(globalVm.count("summary")) {
         summary(TG, globalVm, outputFile, buf);
         return;
@@ -2278,5 +2328,6 @@ void debuggingCode() {
 }
 
 int main(int argc, char* argv[]) {
-    parseAndExecute(argc, argv);
+    try {parseAndExecute(argc, argv);return 0;}
+    catch(const std::exception& error) {std::cerr<<"Error: "<<error.what()<<std::endl;return 1;}
 }

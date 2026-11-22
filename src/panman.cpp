@@ -27,11 +27,16 @@
 #include <capnp/any.h>
 #include <kj/io.h>
 #include <limits>
+#include <functional>
+#include <numeric>
+#include <stdexcept>
 
 #include "chaining.cpp"
 #include "rotation.cpp"
 #include "fitchSankoff.cpp"
 #include "summary.cpp"
+#include "constructionProgress.hpp"
+#include "chromosomeRanges.cpp"
 #include "fasta.cpp"
 #include "maf.cpp"
 #include "vcf.cpp"
@@ -85,6 +90,8 @@ MafGappedConsensus parseMafGappedConsensus(const std::string& gapped) {
 }
 
 } // namespace
+
+#include "mafConstruction.cpp"
 
 char panmanUtils::getNucleotideFromCode(int code) {
     return getSymbolFromCode(code, getActiveAlphabet());
@@ -893,7 +900,35 @@ std::vector<std::pair<int, char>> parseWalk(const std::string& walkStr) {
 
 void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
 
+    if(!fin) throw std::runtime_error("Cannot open input MAF file.");
+    ConstructionProgress inputProgress;
+    size_t inputBytes=0, totalBytes=0, rowCount=0, lineCount=0;
+    const auto initialPosition=fin.tellg();
+    if(initialPosition>=std::streampos(0)) {
+        fin.seekg(0,std::ios::end);
+        const auto endPosition=fin.tellg();
+        fin.clear();fin.seekg(initialPosition);
+        if(endPosition>=initialPosition)totalBytes=static_cast<size_t>(endPosition-initialPosition);
+    } else fin.clear();
+    auto reportInput=[&](bool force=false,const std::string& extra=std::string()) {
+        std::string detail="bytes; blocks="+std::to_string(graph.consensusByGroup.size())+
+            "; rows="+std::to_string(rowCount)+"; genomes="+std::to_string(graph.seqOrder.size());
+        if(!extra.empty())detail+="; "+extra;
+        inputProgress.update("Reading MAF",totalBytes?std::min(inputBytes,totalBytes):inputBytes,totalBytes,detail,force);
+    };
+    reportInput(true);
     std::string line;
+    std::string blockChromosome;
+    std::set<std::string> seenChromosomes;
+    std::vector<std::string> tips;
+    for(const auto& node : allNodes) {
+        if(node.second->children.empty()) tips.push_back(node.first);
+    }
+    // Exact tip names retain their original meaning. Otherwise match the
+    // longest sample prefix, so sample IDs themselves may contain dots.
+    std::sort(tips.begin(), tips.end(), [](const std::string& a, const std::string& b) {
+        return a.size() != b.size() ? a.size() > b.size() : a < b;
+    });
 
     // A single aligned row of an alignment record.
     struct AlignmentEntry {
@@ -901,12 +936,12 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
         int64_t start;
         bool strand;
         std::string alignedSeq;
+        int64_t forwardStart;
+        std::string chromosome;
     };
     std::vector<AlignmentEntry> currentBlock;
 
-    // Identical gapped consensus -> a single block group, so homologous
-    // alignment records share a block group id (and one stored consensus).
-    std::unordered_map<std::string, int> consensusToGroup;
+    // Each alignment record defines its own homology group.
     std::unordered_map<std::string, bool> seenSeq;
 
     auto processBlock = [&]() {
@@ -916,6 +951,7 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
         size_t alnLen = currentBlock[0].alignedSeq.size();
         std::string consensus(alnLen, '-');
         for (size_t pos = 0; pos < alnLen; pos++) {
+            if((pos & 65535)==0 && pos)reportInput(false,"consensus columns="+std::to_string(pos)+"/"+std::to_string(alnLen));
             std::unordered_map<char, int> freq;
             for (auto& entry : currentBlock) {
                 if (pos < entry.alignedSeq.size()) {
@@ -925,7 +961,7 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
             char best = '-';
             int bestCount = -1;
             for (auto& kv : freq) {
-                if (kv.second > bestCount) {
+                if (kv.second > bestCount || (kv.second == bestCount && kv.first < best)) {
                     bestCount = kv.second;
                     best = kv.first;
                 }
@@ -933,16 +969,9 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
             consensus[pos] = best;
         }
 
-        // Find or create the block group (consensus identity) for this record.
-        int group;
-        auto it = consensusToGroup.find(consensus);
-        if (it == consensusToGroup.end()) {
-            group = (int)graph.consensusByGroup.size();
-            consensusToGroup[consensus] = group;
-            graph.consensusByGroup.push_back(consensus);
-        } else {
-            group = it->second;
-        }
+        int group = graph.consensusByGroup.size();
+        graph.consensusByGroup.push_back(consensus);
+        graph.chromosomeByGroup.push_back(blockChromosome);
 
         // One occurrence per aligned row. Within-record duplications (the same
         // sequence appearing twice) simply become two occurrences of the group.
@@ -952,14 +981,20 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
                 graph.seqOrder.push_back(entry.seqName);
             }
             graph.seqOccs[entry.seqName].push_back(
-                {group, entry.alignedSeq, entry.strand, entry.start});
+                {group, entry.alignedSeq, entry.strand, entry.start, entry.forwardStart, entry.chromosome});
         }
 
         currentBlock.clear();
     };
 
     while (std::getline(fin, line)) {
-        if (line.empty() || line[0] == '#') continue;
+        inputBytes+=line.size()+1;
+        if((++lineCount & 1023)==0)reportInput();
+        if(line.find_first_not_of(" \t\r") == std::string::npos) {
+            processBlock();
+            continue;
+        }
+        if(line[0] == '#') continue;
 
         if (line[0] == 'a') {
             processBlock();
@@ -972,21 +1007,73 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
             int64_t start, srcSize;
             int size;
 
-            iss >> tag >> seqName >> start >> size >> strandStr >> srcSize >> alignedSeq;
-
-            currentBlock.push_back({seqName, start, strandStr == "+", alignedSeq});
+            if(!(iss >> tag >> seqName >> start >> size >> strandStr >> srcSize >> alignedSeq)
+               || (strandStr != "+" && strandStr != "-") || start < 0 || size < 0
+               || srcSize < size || start > srcSize - size
+               || (size_t)size != (size_t)std::count_if(alignedSeq.begin(), alignedSeq.end(),
+                                                      [](char c) { return c != '-'; })) {
+                throw std::runtime_error("Invalid MAF s row: " + line);
+            }
+            std::string sample, chromosome = "chr0";
+            bool qualified = false;
+            auto exact = allNodes.find(seqName);
+            if(exact != allNodes.end() && exact->second->children.empty()) {
+                sample = seqName;
+            } else {
+                for(const auto& tip : tips) {
+                    if(seqName.size() > tip.size() + 1
+                       && seqName.compare(0, tip.size() + 1, tip + ".") == 0) {
+                        sample = tip;
+                        chromosome = seqName.substr(tip.size() + 1);
+                        qualified = true;
+                        break;
+                    }
+                }
+            }
+            if(sample.empty()) throw std::runtime_error("MAF source '" + seqName
+                + "' must match a Newick tip or use <tip>.<chromosome>.");
+            graph.qualifiedSources = graph.qualifiedSources || qualified;
+            if(currentBlock.empty()) blockChromosome = chromosome;
+            if(seenChromosomes.insert(chromosome).second) graph.chromosomeOrder.push_back(chromosome);
+            if(!currentBlock.empty() && alignedSeq.size() != currentBlock.front().alignedSeq.size())
+                throw std::runtime_error("MAF rows in one alignment record must have equal widths.");
+            // Qualified sources use forward chromosome coordinates for ordering,
+            // regardless of the strand of the aligned row.
+            int64_t forwardStart = strandStr == "-" ? srcSize - start - size : start;
+            std::transform(alignedSeq.begin(),alignedSeq.end(),alignedSeq.begin(),[](unsigned char c){return std::toupper(c);});
+            for(char c:alignedSeq) {
+                int code=getCodeFromSymbol(c,alphabet);
+                if(code<0 || code>=getCodec(alphabet).stateCount || getSymbolFromCode(code,alphabet)!=c)
+                    throw std::runtime_error("Unsupported MAF symbol: "+std::string(1,c));
+            }
+            currentBlock.push_back({sample, start, strandStr == "+", alignedSeq, forwardStart, chromosome});
+            ++rowCount;
         }
     }
 
     // Process the last record
     processBlock();
+    reportInput(true,"complete; chromosome/scaffold names="+std::to_string(graph.chromosomeOrder.size()));
+
+    for(const auto& tip : tips) {
+        if(!seenSeq[tip]) graph.seqOrder.push_back(tip);
+    }
 
     // Order each sequence's occurrences by MAF start coordinate.
+    ConstructionProgress sortingProgress;
+    size_t sortedGenomes=0;
+    sortingProgress.update("Sorting input occurrences",0,graph.seqOccs.size(),"genomes",true);
     for (auto& kv : graph.seqOccs) {
+        if(graph.qualifiedSources) {
+            for(auto& occurrence : kv.second) occurrence.start = occurrence.forwardStart;
+        }
         std::stable_sort(kv.second.begin(), kv.second.end(),
                          [](const MAFBlockGraph::Occ& a, const MAFBlockGraph::Occ& b) {
                              return a.start < b.start;
                          });
+        ++sortedGenomes;
+        sortingProgress.update("Sorting input occurrences",sortedGenomes,graph.seqOccs.size(),
+            "genome="+kv.first+"; blocks="+std::to_string(kv.second.size()),sortedGenomes==graph.seqOccs.size());
     }
 }
 
@@ -2448,581 +2535,20 @@ panmanUtils::Tree::Tree(std::ifstream& fin, std::ifstream& secondFin, FILE_TYPE 
         
         return;
     } else if(ftype == panmanUtils::FILE_TYPE::MAF) {
-
-        std::string newickString;
-        std::getline(secondFin, newickString);
+        if(!secondFin)throw std::runtime_error("Cannot open input Newick file");
+        std::string newickString, line;
+        while(std::getline(secondFin,line))for(unsigned char c:line)
+            if(!std::isspace(c))newickString+=c;
+        if(newickString.empty() || newickString.front()!='(' || newickString.back()!=';')
+            throw std::runtime_error("MAF input requires a parenthesized Newick tree ending in ';'");
+        int depth=0;
+        for(char c:newickString) {
+            if(c=='(')++depth;
+            if(c==')' && --depth<0)throw std::runtime_error("Unbalanced Newick tree");
+        }
+        if(depth)throw std::runtime_error("Unbalanced Newick tree");
         root = createTreeFromNewickString(newickString);
-
-        // Block homology comes directly from the MAF (records grouped by
-        // identical consensus). The PanMAN consensus/pseudo-root is built by
-        // progressively aligning each sequence's coordinate-ordered block
-        // occurrences to a growing reference backbone: an occurrence reuses the
-        // next matching backbone instance after the current position, otherwise
-        // a new (duplicate) instance is inserted. This avoids chain_align's
-        // heuristic block matching and uses the explicit MAF block identities.
-        MAFBlockGraph graph;
-        readMAF(fin, graph);
-
-        if(graph.seqOrder.empty()) {
-            std::cout << "MAF contained no sequences." << std::endl;
-            return;
-        }
-
-        // Per-sequence orientation: a sequence whose rows are mostly reverse
-        // strand is globally inverted relative to the block consensus. We feed
-        // its occurrences in reverse coordinate order so they align to the
-        // backbone, and record the inversion (recovered on reconstruction).
-        std::unordered_map<std::string, bool> invertedSeq;
-        for(const auto& seq : graph.seqOrder) {
-            int fwd = 0, rev = 0;
-            for(const auto& o : graph.seqOccs[seq]) (o.strand ? fwd : rev)++;
-            invertedSeq[seq] = (rev > fwd);
-        }
-
-        // Build the processing order: reference (-r if present, else the first
-        // sequence) first, then the remaining sequences in first-seen order.
-        std::string refSeq = graph.seqOrder[0];
-        if(reference.length()) {
-            for(const auto& seq : graph.seqOrder) {
-                if(seq.find(reference) != std::string::npos) { refSeq = seq; break; }
-            }
-        }
-        std::vector<std::string> processOrder;
-        processOrder.push_back(refSeq);
-        for(const auto& seq : graph.seqOrder) {
-            if(seq != refSeq) processOrder.push_back(seq);
-        }
-
-        // Backbone instance: a block group with the per-sequence aligned rows
-        // and strands of the sequences that pass through this instance.
-        struct BackboneInstance {
-            int group;
-            std::unordered_map<std::string, std::string> rows;
-            std::unordered_map<std::string, bool> strand;
-            std::unordered_map<std::string, int64_t> startCoord;
-        };
-        std::vector<BackboneInstance> backbone;
-
-        // Each sequence is aligned to the current backbone by longest common
-        // subsequence over the explicit MAF block identities (co-linear
-        // chaining). Matched blocks reuse the existing backbone instance;
-        // off-chain blocks are inserted as new (duplicate) instances right after
-        // the preceding matched anchor. Inverted sequences are fed in reverse
-        // coordinate order (and flagged), so they align to the backbone too.
-        std::cout << "Building reference backbone..." << std::endl;
-        std::vector<int> dp;
-        for(const auto& seq : processOrder) {
-            const auto& occs = graph.seqOccs[seq];
-            bool inv = invertedSeq[seq];
-            size_t m = occs.size();
-            std::vector<int> F(m);
-            std::vector<size_t> Fidx(m);
-            for(size_t idx = 0; idx < m; idx++) {
-                size_t oi = inv ? (m - 1 - idx) : idx;
-                F[idx] = occs[oi].group;
-                Fidx[idx] = oi;
-            }
-            size_t n = backbone.size();
-
-            // LCS DP (suffix form): dp[i*(m+1)+j] = LCS of B[i..] and F[j..].
-            dp.assign((n + 1) * (m + 1), 0);
-            for(size_t i = n; i-- > 0; ) {
-                int Bi = backbone[i].group;
-                int* row = &dp[i * (m + 1)];
-                int* row1 = &dp[(i + 1) * (m + 1)];
-                for(size_t j = m; j-- > 0; ) {
-                    if(Bi == F[j]) row[j] = row1[j + 1] + 1;
-                    else row[j] = (row1[j] >= row[j + 1]) ? row1[j] : row[j + 1];
-                }
-            }
-            std::vector< std::pair<size_t, size_t> > matches;
-            {
-                size_t i = 0, j = 0;
-                while(i < n && j < m) {
-                    if(backbone[i].group == F[j]) { matches.emplace_back(i, j); i++; j++; }
-                    else if(dp[(i + 1) * (m + 1) + j] >= dp[i * (m + 1) + (j + 1)]) i++;
-                    else j++;
-                }
-            }
-
-            // Rebuild the backbone by merging matched anchors, S's off-chain
-            // blocks (new instances) and the backbone's S-absent blocks.
-            std::vector<BackboneInstance> nb;
-            nb.reserve(n + m);
-            auto addSeqRow = [&](BackboneInstance& inst, size_t fj) {
-                const auto& o = occs[Fidx[fj]];
-                inst.rows[seq] = o.row;
-                inst.strand[seq] = o.strand;
-                inst.startCoord[seq] = o.start;
-            };
-            size_t prevB = 0, prevF = 0;
-            for(size_t mi = 0; mi <= matches.size(); mi++) {
-                size_t bk = (mi < matches.size()) ? matches[mi].first : n;
-                size_t fk = (mi < matches.size()) ? matches[mi].second : m;
-                for(size_t j = prevF; j < fk; j++) {
-                    BackboneInstance inst;
-                    inst.group = F[j];
-                    addSeqRow(inst, j);
-                    nb.push_back(std::move(inst));
-                }
-                for(size_t i = prevB; i < bk; i++) {
-                    nb.push_back(std::move(backbone[i]));
-                }
-                if(mi < matches.size()) {
-                    BackboneInstance inst = std::move(backbone[bk]);
-                    addSeqRow(inst, fk);
-                    nb.push_back(std::move(inst));
-                    prevB = bk + 1;
-                    prevF = fk + 1;
-                }
-            }
-            backbone = std::move(nb);
-        }
-
-        size_t numInstances = backbone.size();
-        std::cout << "Length of Pseudo Root: " << numInstances << std::endl;
-
-        // Column-major data in pseudo-root (backbone) order:
-        //   groupByRank[r]                 : block group id of column r
-        //   columnRows[r][seq]             : aligned gapped row of seq in column r
-        //   alignedSequences[seq][r]       : r if seq present at column r else -1
-        //   alignedStrandSequences[seq][r] : strand (1/0) if present else -1
-        std::vector<int> groupByRank(numInstances);
-        std::vector< std::unordered_map<std::string, std::string> > columnRows(numInstances);
-        std::unordered_map< std::string, std::vector< int > > alignedSequences;
-        std::unordered_map< std::string, std::vector< int > > alignedStrandSequences;
-
-        for(const auto& seq : graph.seqOrder) {
-            alignedSequences[seq].assign(numInstances, -1);
-            alignedStrandSequences[seq].assign(numInstances, -1);
-        }
-
-        // Circular genomes are linearized at different origins, so each
-        // sequence's blocks appear in the backbone as a cyclic rotation of its
-        // genomic order. Recover each genome's original start by rotating to its
-        // genomic-first block: for a forward sequence that is its smallest-start
-        // block; for an inverted sequence (reconstructed via rotate-then-reverse)
-        // it is its largest-start block, so the reversal lands the start first.
-        std::unordered_map<std::string, int> presentCounter, minRank, maxRank;
-        std::unordered_map<std::string, int64_t> minStart, maxStart;
-        for(size_t r = 0; r < numInstances; r++) {
-            for(const auto& sc : backbone[r].startCoord) {
-                const std::string& s = sc.first;
-                int rank = presentCounter[s]++;
-                auto mit = minStart.find(s);
-                if(mit == minStart.end() || sc.second < mit->second) {
-                    minStart[s] = sc.second; minRank[s] = rank;
-                }
-                auto Mit = maxStart.find(s);
-                if(Mit == maxStart.end() || sc.second > Mit->second) {
-                    maxStart[s] = sc.second; maxRank[s] = rank;
-                }
-            }
-        }
-
-        for(size_t r = 0; r < numInstances; r++) {
-            groupByRank[r] = backbone[r].group;
-            for(const auto& ss : backbone[r].strand) {
-                alignedSequences[ss.first][r] = (int)r;
-                alignedStrandSequences[ss.first][r] = ss.second ? 1 : 0;
-            }
-            columnRows[r] = std::move(backbone[r].rows);
-        }
-
-        for(const auto& seq : graph.seqOrder) {
-            bool inv = invertedSeq[seq];
-            sequenceInverted[seq] = inv;
-            int rot = 0;
-            if(inv) {
-                if(maxRank.count(seq)) rot = maxRank[seq];
-            } else {
-                if(minRank.count(seq)) rot = minRank[seq];
-            }
-            rotationIndexes[seq] = rot;
-        }
-
-        // Check if tree is a polytomy to decide between Fitch and Sankoff
-        bool polytomy = hasPolytomy(root);
-
-        // Strip '-' from each block's gapped MAF consensus; record GapList entries
-        // and a per-column map from gapped indices to (nucPosition, gapPos).
-        std::vector< MafGappedConsensus > blockParsed(numInstances);
-        for(size_t i = 0; i < numInstances; i++) {
-            blockParsed[i] = parseMafGappedConsensus(
-                graph.consensusByGroup[groupByRank[i]]);
-        }
-
-        for(size_t i = 0; i < numInstances; i++) {
-            const std::string& gapFreeConsensus = blockParsed[i].gapFree;
-            blocks.emplace_back(i, gapFreeConsensus, alphabet, gapFreeConsensus.size());
-        }
-
-        for(size_t i = 0; i < numInstances; i++) {
-            GapList g;
-            g.primaryBlockId = i;
-            g.secondaryBlockId = -1;
-            for(const auto& gapEntry : blockParsed[i].gaps) {
-                g.nucPosition.push_back(gapEntry.first);
-                g.nucGapLength.push_back(gapEntry.second);
-            }
-            gaps.push_back(g);
-        }
-
-        tbb::concurrent_unordered_map< size_t, std::unordered_map< std::string,
-            std::pair< BlockMutationType, bool > > > globalBlockMutations;
-
-        std::cout << "Inferring Block mutations..." << std::endl;
-        tbb::parallel_for((size_t)0, numInstances, [&](size_t i) {
-            if(!polytomy) {
-                // Apply Fitch's algorithm if not a polytomy
-                std::unordered_map< std::string, int > states;
-                std::unordered_map< std::string, std::pair< BlockMutationType, bool > > mutations;
-
-                int defaultState = -1;
-
-                for(const auto& u: alignedSequences) {
-                    if(reference.length()) {
-                        if(u.first.find(reference) != std::string::npos) {
-                            if(u.second[i] == -1) {
-                                defaultState = 1;
-                            } else if(alignedStrandSequences.at(u.first)[i]) {
-                                defaultState = 2;
-                            } else {
-                                defaultState = 4;
-                            }
-                        }
-                    }
-
-                    if(u.second[i] == -1) {
-                        states[u.first] = 1;
-                    } else if(alignedStrandSequences.at(u.first)[i]) {
-                        // forward strand
-                        states[u.first] = 2;
-                    } else {
-                        // reverse strand
-                        states[u.first] = 4;
-                    }
-                }
-
-                blockFitchForwardPassNew(root, states);
-                if(defaultState != -1) {
-                    blockFitchBackwardPassNew(root, states, 1, defaultState);
-                } else {
-                    blockFitchBackwardPassNew(root, states, 1);
-                }
-                blockFitchAssignMutationsNew(root, states, mutations, 1);
-                globalBlockMutations[i] = mutations;
-            } else {
-                // Apply Sankoff's algorithm if the tree is a polytomy
-                std::unordered_map< std::string, std::vector < int > > stateSets;
-                std::unordered_map< std::string, int > states;
-                std::unordered_map< std::string, std::pair< BlockMutationType, bool > > mutations;
-
-                int defaultState = -1;
-
-                for(const auto& u: alignedSequences) {
-                    if(reference.length()) {
-                        if(u.first.find(reference) != std::string::npos) {
-                            if(u.second[i] == -1) {
-                                defaultState = 0;
-                            } else if(alignedStrandSequences.at(u.first)[i]) {
-                                defaultState = 1;
-                            } else {
-                                defaultState = 2;
-                            }
-                        }
-                    }
-
-                    std::vector< int > currentState(3, SANKOFF_INF);
-                    if(u.second[i] == -1) {
-                        currentState[0] = 0;
-                    } else if(alignedStrandSequences.at(u.first)[i]) {
-                        // forward strand
-                        currentState[1] = 0;
-                    } else {
-                        // reverse strand
-                        currentState[2] = 0;
-                    }
-                    stateSets[u.first] = currentState;
-                }
-
-                blockSankoffForwardPass(root, stateSets);
-                if(defaultState != -1) {
-                    blockSankoffBackwardPass(root, stateSets, states, 0, defaultState);
-                } else {
-                    blockSankoffBackwardPass(root, stateSets, states, 0);
-                }
-                blockSankoffAssignMutations(root, states, mutations, 0);
-                globalBlockMutations[i] = mutations;
-            }
-        });
-
-        std::unordered_map< std::string, std::mutex > nodeMutexes;
-
-        for(auto u: allNodes) {
-            nodeMutexes[u.first];
-        }
-
-        tbb::parallel_for_each(globalBlockMutations, [&](auto& pos) {
-            auto& mutations = pos.second;
-            for(const auto& node: allNodes) {
-                if(mutations.find(node.first) != mutations.end()) {
-                    nodeMutexes[node.first].lock();
-                    node.second->blockMutation.emplace_back(pos.first, mutations[node.first]);
-                    nodeMutexes[node.first].unlock();
-                }
-            }
-        });
-
-        tbb::concurrent_unordered_map< std::string,
-            std::vector< std::tuple< int,int,int,int,int,int > > > nonGapMutations;
-        tbb::concurrent_unordered_map< std::string,
-            std::vector< std::tuple< int,int,int,int,int,int > > > gapMutations;
-
-        std::cout << "Inferring Nuc mutations..." << std::endl;
-        tbb::parallel_for((size_t)0, numInstances, [&](size_t i) {
-            const MafGappedConsensus& parsed = blockParsed[i];
-            const auto& colRows = columnRows[i];
-            const int sankoffStateCount = static_cast<int>(getCodec(alphabet).stateCount);
-
-            std::vector< std::pair< char, std::vector< char > > > sequence(
-                parsed.gapFree.size() + 1, {'-', {}});
-            for(size_t j = 0; j < parsed.gapFree.size(); j++) {
-                sequence[j].first = parsed.gapFree[j];
-            }
-            for(const auto& gapEntry : parsed.gaps) {
-                sequence[gapEntry.first].second.resize(gapEntry.second, '-');
-            }
-
-            tbb::concurrent_unordered_map< std::string,
-                std::vector< std::pair< char, std::vector< char > > > > individualSequences;
-
-            tbb::parallel_for_each(alignedSequences, [&](const auto& u) {
-                if(u.second[i] == -1) {
-                    return;
-                }
-                const std::string& gappedRow = colRows.at(u.first);
-                if(gappedRow.size() != parsed.oldToNew.size()) {
-                    return;
-                }
-                std::vector< std::pair< char, std::vector< char > > > currentSequence = sequence;
-                for(size_t oldPos = 0; oldPos < gappedRow.size(); oldPos++) {
-                    char c = gappedRow[oldPos];
-                    int newPos = parsed.oldToNew[oldPos].first;
-                    int gapPos = parsed.oldToNew[oldPos].second;
-                    if(gapPos >= 0) {
-                        if(gapPos < (int)currentSequence[newPos].second.size()) {
-                            currentSequence[newPos].second[gapPos] = c;
-                        }
-                    } else {
-                        currentSequence[newPos].first = c;
-                    }
-                }
-                individualSequences[u.first] = std::move(currentSequence);
-            });
-
-            tbb::parallel_for((size_t)0, sequence.size(), [&](size_t j) {
-                tbb::parallel_for((size_t)0, sequence[j].second.size(), [&](size_t k) {
-                    if(!polytomy) {
-                        std::unordered_map< std::string, int > states;
-                        std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
-
-                        int defaultState = -1;
-                        for(const auto& u: individualSequences) {
-                            if(reference.length() && u.first.find(reference) != std::string::npos) {
-                                if(u.second[j].second[k] != '-') {
-                                    defaultState = (1 << getCodeFromSymbol(u.second[j].second[k], alphabet));
-                                } else {
-                                    defaultState = 1;
-                                }
-                            }
-
-                            if(u.second[j].second[k] != '-') {
-                                states[u.first] = (1 << getCodeFromSymbol(u.second[j].second[k], alphabet));
-                            } else {
-                                states[u.first] = 1;
-                            }
-                        }
-                        nucFitchForwardPass(root, states);
-                        if(defaultState != -1) {
-                            nucFitchBackwardPass(root, states,
-                                (1 << getCodeFromSymbol(sequence[j].second[k], alphabet)), defaultState);
-                        } else {
-                            nucFitchBackwardPass(root, states,
-                                (1 << getCodeFromSymbol(sequence[j].second[k], alphabet)));
-                        }
-                        nucFitchAssignMutations(root, states, mutations,
-                            (1 << getCodeFromSymbol(sequence[j].second[k], alphabet)));
-                        for(auto mutation: mutations) {
-                            nodeMutexes[mutation.first].lock();
-                            gapMutations[mutation.first].push_back(
-                                std::make_tuple((int)i, -1, (int)j, (int)k,
-                                    mutation.second.first,
-                                    getCodeFromSymbol(mutation.second.second, alphabet)));
-                            nodeMutexes[mutation.first].unlock();
-                        }
-                    } else {
-                        std::unordered_map< std::string, std::vector< int > > stateSets;
-                        std::unordered_map< std::string, int > states;
-                        std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
-
-                        int defaultState = -1;
-                        for(const auto& u: individualSequences) {
-                            if(reference.length() && u.first.find(reference) != std::string::npos) {
-                                if(u.second[j].second[k] != '-') {
-                                    defaultState = getCodeFromSymbol(u.second[j].second[k], alphabet);
-                                } else {
-                                    defaultState = 0;
-                                }
-                            }
-
-                            std::vector< int > currentState(sankoffStateCount, SANKOFF_INF);
-                            if(u.second[j].second[k] != '-') {
-                                currentState[getCodeFromSymbol(u.second[j].second[k], alphabet)] = 0;
-                            } else {
-                                currentState[0] = 0;
-                            }
-                            stateSets[u.first] = currentState;
-                        }
-                        nucSankoffForwardPass(root, stateSets);
-                        if(defaultState != -1) {
-                            nucSankoffBackwardPass(root, stateSets, states,
-                                getCodeFromSymbol(sequence[j].second[k], alphabet), defaultState);
-                        } else {
-                            nucSankoffBackwardPass(root, stateSets, states,
-                                getCodeFromSymbol(sequence[j].second[k], alphabet));
-                        }
-                        nucSankoffAssignMutations(root, states, mutations,
-                            getCodeFromSymbol(sequence[j].second[k], alphabet));
-                        for(auto mutation: mutations) {
-                            nodeMutexes[mutation.first].lock();
-                            gapMutations[mutation.first].push_back(
-                                std::make_tuple((int)i, -1, (int)j, (int)k,
-                                    mutation.second.first,
-                                    getCodeFromSymbol(mutation.second.second, alphabet)));
-                            nodeMutexes[mutation.first].unlock();
-                        }
-                    }
-                });
-
-                if(!polytomy) {
-                    std::unordered_map< std::string, int > states;
-                    std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
-
-                    int defaultState = -1;
-                    for(const auto& u: individualSequences) {
-                        if(reference.length() && u.first.find(reference) != std::string::npos) {
-                            if(u.second[j].first != '-') {
-                                defaultState = (1 << getCodeFromSymbol(u.second[j].first, alphabet));
-                            } else {
-                                defaultState = 1;
-                            }
-                        }
-
-                        if(u.second[j].first != '-') {
-                            states[u.first] = (1 << getCodeFromSymbol(u.second[j].first, alphabet));
-                        } else {
-                            states[u.first] = 1;
-                        }
-                    }
-                    nucFitchForwardPass(root, states);
-                    if(defaultState != -1) {
-                        nucFitchBackwardPass(root, states,
-                            (1 << getCodeFromSymbol(sequence[j].first, alphabet)), defaultState);
-                    } else {
-                        nucFitchBackwardPass(root, states,
-                            (1 << getCodeFromSymbol(sequence[j].first, alphabet)));
-                    }
-                    nucFitchAssignMutations(root, states, mutations,
-                        (1 << getCodeFromSymbol(sequence[j].first, alphabet)));
-                    for(auto mutation: mutations) {
-                        nodeMutexes[mutation.first].lock();
-                        nonGapMutations[mutation.first].push_back(
-                            std::make_tuple((int)i, -1, (int)j, -1, mutation.second.first,
-                                getCodeFromSymbol(mutation.second.second, alphabet)));
-                        nodeMutexes[mutation.first].unlock();
-                    }
-                } else {
-                    std::unordered_map< std::string, std::vector< int > > stateSets;
-                    std::unordered_map< std::string, int > states;
-                    std::unordered_map< std::string, std::pair< panmanUtils::NucMutationType, char > > mutations;
-
-                    int defaultState = -1;
-                    for(const auto& u: individualSequences) {
-                        if(reference.length() && u.first.find(reference) != std::string::npos) {
-                            if(u.second[j].first != '-') {
-                                defaultState = getCodeFromSymbol(u.second[j].first, alphabet);
-                            } else {
-                                defaultState = 0;
-                            }
-                        }
-
-                        std::vector< int > currentState(sankoffStateCount, SANKOFF_INF);
-                        if(u.second[j].first != '-') {
-                            currentState[getCodeFromSymbol(u.second[j].first, alphabet)] = 0;
-                        } else {
-                            currentState[0] = 0;
-                        }
-                        stateSets[u.first] = currentState;
-                    }
-                    nucSankoffForwardPass(root, stateSets);
-                    if(defaultState != -1) {
-                        nucSankoffBackwardPass(root, stateSets, states,
-                            getCodeFromSymbol(sequence[j].first, alphabet), defaultState);
-                    } else {
-                        nucSankoffBackwardPass(root, stateSets, states,
-                            getCodeFromSymbol(sequence[j].first, alphabet));
-                    }
-                    nucSankoffAssignMutations(root, states, mutations,
-                        getCodeFromSymbol(sequence[j].first, alphabet));
-                    for(auto mutation: mutations) {
-                        nodeMutexes[mutation.first].lock();
-                        nonGapMutations[mutation.first].push_back(
-                            std::make_tuple((int)i, -1, (int)j, -1, mutation.second.first,
-                                getCodeFromSymbol(mutation.second.second, alphabet)));
-                        nodeMutexes[mutation.first].unlock();
-                    }
-                }
-            });
-        });
-
-        tbb::parallel_for_each(nonGapMutations, [&](auto& u) {
-            nodeMutexes[u.first].lock();
-            std::sort(u.second.begin(), u.second.end());
-            nodeMutexes[u.first].unlock();
-            size_t currentStart = 0;
-            for(size_t i = 1; i < u.second.size(); i++) {
-                if(i - currentStart == panmanUtils::mutationPayloadCapacity(alphabet) || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
-                    nodeMutexes[u.first].lock();
-                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
-                    nodeMutexes[u.first].unlock();
-                    currentStart = i;
-                    continue;
-                }
-            }
-            nodeMutexes[u.first].lock();
-            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
-            nodeMutexes[u.first].unlock();
-        });
-
-        tbb::parallel_for_each(gapMutations, [&](auto& u) {
-            nodeMutexes[u.first].lock();
-            std::sort(u.second.begin(), u.second.end());
-            nodeMutexes[u.first].unlock();
-            size_t currentStart = 0;
-            for(size_t i = 1; i < u.second.size(); i++) {
-                if(i - currentStart == panmanUtils::mutationPayloadCapacity(alphabet) || std::get<0>(u.second[i]) != std::get<0>(u.second[i-1]) || std::get<2>(u.second[i]) != std::get<2>(u.second[i-1]) || std::get<3>(u.second[i]) != std::get<3>(u.second[i-1])+1 || std::get<4>(u.second[i]) != std::get<4>(u.second[i-1])) {
-                    nodeMutexes[u.first].lock();
-                    allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, i);
-                    nodeMutexes[u.first].unlock();
-                    currentStart = i;
-                    continue;
-                }
-            }
-            nodeMutexes[u.first].lock();
-            allNodes[u.first]->nucMutation.emplace_back(u.second, currentStart, u.second.size());
-            nodeMutexes[u.first].unlock();
-        });
+        buildFromMAF(fin,reference);
     }
 }
 
@@ -3217,6 +2743,7 @@ void panmanUtils::Tree::protoMATToTree(const panman::Tree::Reader& mainTree) {
         }
     } catch (const kj::Exception&) {}
 
+    readChromosomeMetadata(mainTree);
 }
 
 panmanUtils::Tree::Tree(const panman::Tree::Reader& mainTree) {
@@ -4433,7 +3960,7 @@ void getNodesRootedAt(std::set<std::string>& nodeIds, panmanUtils::Node* node) {
 }
 
 // Write PanMAT to file
-void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils::Node* node) {
+void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils::Node* node, bool reportCompression) {
     if(node == nullptr) {
         node = root;
     }
@@ -4442,6 +3969,23 @@ void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils:
     std::set< std::string > nodeIds;
     getNodesRootedAt(nodeIds, node);
 
+    if(node != root) {
+        Tree view = *this;
+        view.root=node;
+        for(auto it=view.allNodes.begin();it!=view.allNodes.end();) {
+            if(!nodeIds.count(it->first)) it=view.allNodes.erase(it); else ++it;
+        }
+        for(auto it=view.circularSequences.begin();it!=view.circularSequences.end();) {
+            if(!nodeIds.count(it->first)) it=view.circularSequences.erase(it);else ++it;
+        }
+        for(auto it=view.rotationIndexes.begin();it!=view.rotationIndexes.end();) {
+            if(!nodeIds.count(it->first)) it=view.rotationIndexes.erase(it);else ++it;
+        }
+        for(auto it=view.sequenceInverted.begin();it!=view.sequenceInverted.end();) {
+            if(!nodeIds.count(it->first)) it=view.sequenceInverted.erase(it);else ++it;
+        }
+        view.writeToFile(fout,nullptr,reportCompression);return;
+    }
     capnp::MallocMessageBuilder message;
     panman::Tree::Builder treeToWrite = message.initRoot<panman::Tree>();
     treeToWrite.setAlphabet(static_cast<panman::Alphabet>(
@@ -4462,7 +4006,9 @@ void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils:
 
     std::map< std::vector< uint32_t >, std::vector< std::pair< int64_t, bool > > > consensusSeqToBlockIds;
 
+    std::unordered_map<int32_t,int64_t> serializedBlockLengths;
     for(auto block: blocks) {
+        serializedBlockLengths[block.primaryBlockId]=block.blockLength;
         int64_t blockId;
         bool blockGapExists = false;
         if(block.secondaryBlockId != -1) {
@@ -4485,9 +4031,10 @@ void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils:
     for(auto u: consensusSeqToBlockIds) {
         panman::ConsensusSeqToBlockIds::Builder c = consensusSeqMapBuilder[consensusSeqMapBuilderCount];
         
-        ::capnp::List<int64_t>::Builder blockIdBuilder = c.initBlockId(u.first.size());
+        c.setBlockLength(serializedBlockLengths.at(u.second.front().first>>32));
+        ::capnp::List<int64_t>::Builder blockIdBuilder = c.initBlockId(u.second.size());
         ::capnp::List<uint32_t>::Builder conSeqBuilder = c.initConsensusSeq(u.first.size());
-        ::capnp::List<bool>::Builder blockGapExistBuilder = c.initBlockGapExist(u.first.size());
+        ::capnp::List<bool>::Builder blockGapExistBuilder = c.initBlockGapExist(u.second.size());
         
         for(auto v=0; v<u.second.size(); v++) {
             blockIdBuilder.set(v,u.second[v].first);
@@ -4564,7 +4111,11 @@ void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils:
     }
     assert(sequenceInvertedCount == sequenceInverted.size());
 
+    writeChromosomeMetadata(treeToWrite,nodeIds);
+
     // Todo:: check if write was successful
+    if(reportCompression)
+        std::cout << "Compressing and writing PanMAN (LZMA level 9)..." << std::endl;
     ::capnp::writeMessage(fout, message);
     // if (!treeToWrite.SerializeToOstream(&fout)) {
     //     std::cerr << "Failed to write to output file." << std::endl;
@@ -7611,6 +7162,10 @@ std::pair< panmanUtils::Tree, panmanUtils::Tree > panmanUtils::Tree::splitByComp
     Tree childTree(newRoot, blocks, gaps, circularSequences, rotationIndexes, sequenceInverted,
                    blockGaps);
     childTree.alphabet = alphabet;
+    childTree.chrList = chrList;
+    childTree.sequenceBlockOrders = sequenceBlockOrders;
+    childTree.chromosomeRanges = chromosomeRanges;
+    childTree.homologyGroups = homologyGroups;
 
     // Removing child tree's nodes from current tree
     std::queue< Node* > q;
@@ -8421,7 +7976,7 @@ void panmanUtils::TreeGroup::printFASTA(std::ofstream& fout, bool rootSeq ) {
 }
 
 
-void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
+void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout, bool reportCompression) {
     capnp::MallocMessageBuilder message;
     panman::TreeGroup::Builder treeGroupToWrite = message.initRoot<panman::TreeGroup>();
 
@@ -8542,54 +8097,9 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
         }
         assert(sequenceInvertedCount == tree.sequenceInverted.size());
 
-        /* write chr information */
-        int chrListSize = tree.chrList.size();
-        int backComp=0;
-        if (chrListSize == 0) {
-            std::cerr << "Warning: No chromosome information found for this tree\n" 
-            << "Probably older PanMANs (backward compatible)\n"
-            << "Assuming Single Chromosome for all sequences in this tree." 
-            << std::endl;
-            chrListSize = 1;
-            backComp=1;
-        }
-        ::capnp::List<panman::ChrList>::Builder chrListBuilder = treeToWrite.initChrLists(chrListSize);
-        if (backComp==1){
-            panman::ChrList::Builder cl = chrListBuilder[0];
-            cl.setChrIdx(0);
-            cl.setChrName("chr0");
-            ::capnp::List<int64_t>::Builder chrBlockIds = cl.initBlockIds(tree.blocks.size());
-            for (int j=0; j<tree.blocks.size(); j++){
-                int64_t blockId = ((int64_t)tree.blocks[j].primaryBlockId << 32);
-                chrBlockIds.set(j, blockId);
-            }
-        } else {
-            size_t chrListCount = 0;
-            for(auto u: tree.chrList) {
-                panman::ChrList::Builder cl = chrListBuilder[chrListCount++];
-                cl.setChrIdx(u.chrIdx);
-                cl.setChrName(u.chrName);
-                ::capnp::List<int64_t>::Builder chrBlockIds = cl.initBlockIds(u.blockIds.size());
-                for(size_t v = 0; v < u.blockIds.size(); v++) {
-                    chrBlockIds.set(v, u.blockIds[v]);
-                }
-            }
-            assert(chrListCount==tree.chrList.size());
-        }
-
-        /* write sequence block orders */
-        if (!tree.sequenceBlockOrders.empty()) {
-            ::capnp::List<panman::SequenceBlockOrder>::Builder sboBuilder = treeToWrite.initSequenceBlockOrders(tree.sequenceBlockOrders.size());
-            size_t sboCount = 0;
-            for(const auto& u: tree.sequenceBlockOrders) {
-                panman::SequenceBlockOrder::Builder sbo = sboBuilder[sboCount++];
-                sbo.setSequenceId(u.first);
-                ::capnp::List<int64_t>::Builder idsBuilder = sbo.initOrderedBlockIds(u.second.size());
-                for(size_t j = 0; j < u.second.size(); j++) {
-                    idsBuilder.set(j, u.second[j]);
-                }
-            }
-        }
+        std::set<std::string> owners;
+        for(const auto& item:tree.allNodes) owners.insert(item.first);
+        tree.writeChromosomeMetadata(treeToWrite,owners);
         
     }
 
@@ -8620,6 +8130,8 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout) {
     }
 
     // ToDo check if the write was successful
+    if(reportCompression)
+        std::cout << "Compressing and writing PanMAN (LZMA level 9)..." << std::endl;
     ::capnp::writeMessage(fout, message);
 }
 

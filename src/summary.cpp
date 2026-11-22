@@ -308,6 +308,13 @@ void panmanUtils::Tree::printSummary(std::ostream &out) {
     out << "Mean Tree Depth: " << m_meanDepth << std::endl;
     std::cout << root->level << std::endl;
 
-    getBlockMutationsParallel();
+    if(chromosomeRanges.empty()) getBlockMutationsParallel();
+    else {
+        size_t ranges=0;for(const auto& path:chromosomeRanges)ranges+=path.ranges.size();
+        out<<"Pseudo-root block instances: "<<blocks.size()<<'\n';
+        out<<"Explicit copied homology groups: "<<homologyGroups.size()<<'\n';
+        out<<"Tip chromosome records: "<<chromosomeRanges.size()<<'\n';
+        out<<"Tip chromosome ranges: "<<ranges<<'\n';
+    }
 
 }

@@ -44,6 +44,7 @@ jobs:
           bash install/installationUbuntu.sh --prefix "$RUNNER_TEMP/panman"
           "$RUNNER_TEMP/panman/bin/panmanUtils" --help
           python3 tests/test_maf_export.py "$RUNNER_TEMP/panman/bin/panmanUtils"
+          python3 tests/test_maf_multichrom.py "$RUNNER_TEMP/panman/bin/panmanUtils"
           # Verify that reinstalling reuses the environment and build directory.
           bash install/installationUbuntu.sh --prefix "$RUNNER_TEMP/panman"
 

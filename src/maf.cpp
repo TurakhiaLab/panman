@@ -66,17 +66,29 @@ void panmanUtils::Tree::generateSequencesFromMAF(std::ifstream& fin, std::ofstre
 }
 
 void panmanUtils::Tree::printMAF(std::ostream& fout) {
+    if(!chromosomeRanges.empty()) {printRangeMAF(fout);return;}
     std::vector< std::string > sequenceNames;
 
-    std::map< std::vector< uint32_t >, std::vector< std::pair< int,int > > > blocksWithSameSequences;
+    std::unordered_map<int, int> blockChromosome;
+    std::vector<std::string> chromosomeNames;
+    bool qualifySources = chrList.size() > 1 || !sequenceBlockOrders.empty();
+    for(size_t c = 0; c < chrList.size(); ++c) {
+        const auto& chromosome = chrList[c];
+        chromosomeNames.push_back(chromosome.chrName.empty() ? "chr" + std::to_string(c) : chromosome.chrName);
+        if(!chromosome.chrName.empty() && chromosome.chrName != "chr0") qualifySources = true;
+        for(int64_t id : chromosome.blockIds) blockChromosome[(int)(id >> 32)] = c;
+    }
+    if(chromosomeNames.empty()) chromosomeNames.push_back("chr0");
 
-    for(auto b: blocks) {
-        blocksWithSameSequences[b.consensusSeq].push_back(std::make_pair(b.primaryBlockId, b.secondaryBlockId));
+    // Identical consensus on different chromosomes must remain separate records.
+    std::map<std::pair<int, std::vector<uint32_t>>, std::vector<std::pair<int,int>>> blocksWithSameSequences;
+    for(const auto& b : blocks) {
+        blocksWithSameSequences[{blockChromosome[b.primaryBlockId], b.consensusSeq}].push_back(
+            {b.primaryBlockId, b.secondaryBlockId});
     }
 
-    // sequence name, primary bid, secondary bid -> actual sequence offset
-    std::map< std::tuple< std::string, int32_t, int32_t >, int32_t > sequenceBlockToStartPoint;
-    std::map< std::string, int32_t > sequenceLengths;
+    std::map<std::tuple<std::string, int32_t, int32_t>, int32_t> sequenceBlockToStartPoint;
+    std::map<std::pair<std::string, int>, int32_t> sequenceLengths;
 
     int ctr2=0;
 
@@ -103,26 +115,28 @@ void panmanUtils::Tree::printMAF(std::ostream& fout) {
                 reverse(blockIds.begin(), blockIds.end());
             }
 
-            int ctr = 0;
-
-            for(size_t i = 0; i < sequence.size(); i++) {
-                if(blockExists[i].first) {
-                    sequenceBlockToStartPoint[std::make_tuple(u.first, blockIds[i], -1)] = ctr;
-                    for(size_t j = 0; j < sequence[i].first.size(); j++) {
-                        for(size_t k = 0; k < sequence[i].first[j].second.size(); k++) {
-                            if(sequence[i].first[j].second[k] != '-' && sequence[i].first[j].second[k] != 'x') {
-                                ctr++;
-                            }
-                            ctr2++;
-                        }
-                        if(sequence[i].first[j].first != '-' && sequence[i].first[j].first != 'x') {
-                            ctr++;
-                        }
-                        ctr2++;
+            std::vector<size_t> order;
+            auto custom = sequenceBlockOrders.find(u.first);
+            if(custom != sequenceBlockOrders.end() && !custom->second.empty()) {
+                for(int64_t encoded : custom->second) order.push_back((size_t)(encoded >> 32));
+            } else {
+                for(size_t i = 0; i < sequence.size(); ++i) order.push_back(i);
+            }
+            std::vector<int32_t> chromosomeLengths(chromosomeNames.size(), 0);
+            for(size_t i : order) {
+                if(i >= sequence.size() || !blockExists[i].first) continue;
+                int chromosome = blockChromosome[blockIds[i]];
+                sequenceBlockToStartPoint[std::make_tuple(u.first, blockIds[i], -1)] = chromosomeLengths[chromosome];
+                for(const auto& position : sequence[i].first) {
+                    for(char c : position.second) {
+                        if(c != '-' && c != 'x') ++chromosomeLengths[chromosome];
                     }
+                    if(position.first != '-' && position.first != 'x') ++chromosomeLengths[chromosome];
                 }
             }
-            sequenceLengths[u.first] = ctr;
+            for(size_t c = 0; c < chromosomeLengths.size(); ++c)
+                sequenceLengths[{u.first, (int)c}] = chromosomeLengths[c];
+            int ctr = chromosomeLengths[0];
             if(circularSequences.find(u.first) != circularSequences.end()) {
                 int offset = circularSequences[u.first];
                 for(auto& v: sequenceBlockToStartPoint) {
@@ -186,9 +200,13 @@ void panmanUtils::Tree::printMAF(std::ostream& fout) {
             });
 
             for(const auto& u: sequenceIdToSequence) {
-                rows.push_back({u.first,
-                    sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)],
-                    sequenceLengths[u.first], u.second.second.second, u.second.second.first});
+                int chromosome = common.first.first;
+                int sourceSize = sequenceLengths[{u.first, chromosome}];
+                int start = sequenceBlockToStartPoint[std::make_tuple(u.first, u.second.first.first, u.second.first.second)];
+                if(qualifySources && !u.second.second.second)
+                    start = sourceSize - start - stripGaps(u.second.second.first).size();
+                std::string source = qualifySources ? u.first + "." + chromosomeNames[chromosome] : u.first;
+                rows.push_back({source, start, sourceSize, u.second.second.second, u.second.second.first});
             }
         }
 
