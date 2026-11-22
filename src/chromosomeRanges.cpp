@@ -4,7 +4,16 @@ std::map<size_t,panmanUtils::MafCoordinate> panmanUtils::Tree::mafCoordinates(co
     std::map<size_t,MafCoordinate> result;
     auto node=allNodes.find(sample);if(node==allNodes.end())return result;
     const std::string marker="panman:maf-coordinates:v1\n";
-    for(const auto& annotation:node->second->annotations)if(annotation.compare(0,marker.size(),marker)==0) {
+    for(const auto& annotation:node->second->annotations) {
+        if(annotation.compare(0,mafCoordinateCodec::marker().size(),mafCoordinateCodec::marker())==0) {
+            mafCoordinateCodec::decode(annotation,result);continue;
+        }
+        if(annotation.compare(0,marker.size(),marker)!=0) {
+            if(annotation.rfind("panman:maf-coordinates:",0)==0)
+                throw std::runtime_error("Unsupported MAF coordinate annotation version");
+            continue;
+        }
+        // Read the original absolute/text encoding unchanged for existing files.
         std::istringstream input(annotation.substr(marker.size()));
         size_t id;MafCoordinate row;
         while(input>>id) {

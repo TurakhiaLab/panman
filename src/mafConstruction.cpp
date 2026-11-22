@@ -51,19 +51,19 @@ void panmanUtils::Tree::buildFromMAF(std::ifstream& input, const std::string& re
              <<" repeat groups omitted from anchors; index builds "<<layout.stats.indexBuilds
              <<", reuses "<<layout.stats.indexReuses<<"; batches "<<layout.stats.batches
              <<", largest "<<layout.stats.largestBatch<<"; refinement work "<<layout.stats.refinementWork<<'\n';
-    // Overlapping occurrences cannot derive coordinates from concatenation.
-    // Use versioned chunks in existing tip annotations: no schema change and
-    // no duplicate storage of the aligned nucleotide sequences.
-    const std::string marker="panman:maf-coordinates:v1\n";
+    // Coordinate deltas and per-chromosome headers avoid repeating absolute
+    // positions/source names. Independent chunks bound annotation size and keep
+    // overlaps lossless; all data still uses the existing annotation field.
     for(size_t p=0;p<paths.size();++p) {
-        std::string chunk=marker;
+        mafCoordinateCodec::Encoder encoder;
+        auto& annotations=allNodes.at(sources[p].sample)->annotations;
         for(size_t j=0;j<paths[p].instances.size();++j) {
             const auto& row=*sources[p].rows[j];
-            chunk+=std::to_string(paths[p].instances[j])+" "+std::to_string(row.forwardStart)+" "+
-                std::to_string(row.sourceSize)+" "+std::to_string(row.row.size())+" "+row.source+" "+row.lowercase+"\n";
-            if(chunk.size()>=65536) {allNodes.at(sources[p].sample)->annotations.push_back(std::move(chunk));chunk=marker;}
+            if(!encoder.accepts(row.source,row.sourceSize))annotations.push_back(encoder.finish());
+            encoder.add(paths[p].instances[j],row.forwardStart,row.sourceSize,row.row.size(),row.source,row.lowercase);
+            if(encoder.full())annotations.push_back(encoder.finish());
         }
-        if(chunk.size()>marker.size())allNodes.at(sources[p].sample)->annotations.push_back(std::move(chunk));
+        if(!encoder.empty())annotations.push_back(encoder.finish());
     }
     if(layout.instances.size()>size_t(std::numeric_limits<int32_t>::max()))
         throw std::runtime_error("MAF layout exceeds the 32-bit primary block ID limit.");

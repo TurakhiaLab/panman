@@ -204,3 +204,25 @@ The compression log reports this requested limit; liblzma may use fewer workers
 when the serialized data contains fewer independent compression blocks. Worker
 memory requirements depend on the compression level, so more threads increase
 peak memory use. File format and readers remain compatible.
+
+### Compact coordinate annotations
+
+New MAF construction writes `panman:maf-coordinates:v2` annotations. Each
+independent chunk stores a source name and chromosome length once, then uses
+printable variable-length integers for increasing block-ID and forward-start
+deltas. Flags omit unchanged alignment widths and default uppercase case;
+lowercase runs store offsets and lengths. The payload contains only ASCII, so it
+uses the existing annotation Text field without a schema change. Chunk payloads
+target 64 KiB and reset their delta state independently.
+
+The current reader supports both original v1 annotations and compact v2
+annotations. Files without coordinate annotations retain their historical
+behavior. Older executables that only understand v1 do not interpret v2
+coordinate annotations; use the updated reader for coordinate-preserving exports.
+Existing files are not rewritten automatically, and new imports use v2.
+
+A controlled 6,258-block / 54,566-row UCSC excerpt at LZMA level 9 shrank from
+1,594,996 to 1,397,816 bytes (12.4%). Coordinate annotation text shrank from
+2,565,698 to 332,968 bytes. Decoded coordinate tables, all noncoordinate serialized
+data, and exported MAF were identical. This is an excerpt benchmark, not a
+measurement of the complete all.maf dataset.

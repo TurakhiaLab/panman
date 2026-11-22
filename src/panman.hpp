@@ -1,5 +1,6 @@
 #pragma once
 #include "constructionBackend.hpp"
+#include "mafCoordinateCodec.hpp"
 #include <vector>
 #include <string>
 #include <iostream>
@@ -358,13 +359,6 @@ struct MAFBlockGraph {
     std::vector<std::string> seqOrder;
 };
 
-
-// Stored using existing tip annotations, not new schema fields.
-struct MafCoordinate {
-    int64_t start, sourceSize;
-    size_t width;
-    std::string source, lowercase;
-};
 
 struct ChromosomeRanges {
     std::string sequenceId, chromosomeName;
