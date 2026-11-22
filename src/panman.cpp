@@ -938,6 +938,8 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
         std::string alignedSeq;
         int64_t forwardStart;
         std::string chromosome;
+        int64_t sourceSize;
+        std::string source, lowercase;
     };
     std::vector<AlignmentEntry> currentBlock;
 
@@ -981,7 +983,7 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
                 graph.seqOrder.push_back(entry.seqName);
             }
             graph.seqOccs[entry.seqName].push_back(
-                {group, entry.alignedSeq, entry.strand, entry.start, entry.forwardStart, entry.chromosome});
+                {group, entry.alignedSeq, entry.strand, entry.start, entry.forwardStart, entry.chromosome, entry.sourceSize, entry.source, entry.lowercase});
         }
 
         currentBlock.clear();
@@ -1040,13 +1042,21 @@ void panmanUtils::Tree::readMAF(std::ifstream& fin, MAFBlockGraph& graph) {
             // Qualified sources use forward chromosome coordinates for ordering,
             // regardless of the strand of the aligned row.
             int64_t forwardStart = strandStr == "-" ? srcSize - start - size : start;
+            std::string lowercase;
+            for(size_t i=0;i<alignedSeq.size();) {
+                if(!std::islower(static_cast<unsigned char>(alignedSeq[i]))) {++i;continue;}
+                size_t first=i++;
+                while(i<alignedSeq.size() && std::islower(static_cast<unsigned char>(alignedSeq[i])))++i;
+                lowercase+=std::to_string(first)+":"+std::to_string(i)+",";
+            }
+            if(lowercase.empty())lowercase=".";
             std::transform(alignedSeq.begin(),alignedSeq.end(),alignedSeq.begin(),[](unsigned char c){return std::toupper(c);});
             for(char c:alignedSeq) {
                 int code=getCodeFromSymbol(c,alphabet);
                 if(code<0 || code>=getCodec(alphabet).stateCount || getSymbolFromCode(code,alphabet)!=c)
                     throw std::runtime_error("Unsupported MAF symbol: "+std::string(1,c));
             }
-            currentBlock.push_back({sample, start, strandStr == "+", alignedSeq, forwardStart, chromosome});
+            currentBlock.push_back({sample, start, strandStr == "+", alignedSeq, forwardStart, chromosome, srcSize, seqName, lowercase});
             ++rowCount;
         }
     }
@@ -3960,7 +3970,7 @@ void getNodesRootedAt(std::set<std::string>& nodeIds, panmanUtils::Node* node) {
 }
 
 // Write PanMAT to file
-void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils::Node* node, bool reportCompression) {
+void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils::Node* node, bool reportCompression, int compressionLevel) {
     if(node == nullptr) {
         node = root;
     }
@@ -3984,7 +3994,7 @@ void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils:
         for(auto it=view.sequenceInverted.begin();it!=view.sequenceInverted.end();) {
             if(!nodeIds.count(it->first)) it=view.sequenceInverted.erase(it);else ++it;
         }
-        view.writeToFile(fout,nullptr,reportCompression);return;
+        view.writeToFile(fout,nullptr,reportCompression,compressionLevel);return;
     }
     capnp::MallocMessageBuilder message;
     panman::Tree::Builder treeToWrite = message.initRoot<panman::Tree>();
@@ -4115,7 +4125,7 @@ void panmanUtils::Tree::writeToFile(kj::std::StdOutputStream& fout, panmanUtils:
 
     // Todo:: check if write was successful
     if(reportCompression)
-        std::cout << "Compressing and writing PanMAN (LZMA level 9)..." << std::endl;
+        std::cout << "Compressing and writing PanMAN (LZMA level " << compressionLevel << ")..." << std::endl;
     ::capnp::writeMessage(fout, message);
     // if (!treeToWrite.SerializeToOstream(&fout)) {
     //     std::cerr << "Failed to write to output file." << std::endl;
@@ -7976,7 +7986,7 @@ void panmanUtils::TreeGroup::printFASTA(std::ofstream& fout, bool rootSeq ) {
 }
 
 
-void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout, bool reportCompression) {
+void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout, bool reportCompression, int compressionLevel) {
     capnp::MallocMessageBuilder message;
     panman::TreeGroup::Builder treeGroupToWrite = message.initRoot<panman::TreeGroup>();
 
@@ -8131,7 +8141,7 @@ void panmanUtils::TreeGroup::writeToFile(kj::std::StdOutputStream& fout, bool re
 
     // ToDo check if the write was successful
     if(reportCompression)
-        std::cout << "Compressing and writing PanMAN (LZMA level 9)..." << std::endl;
+        std::cout << "Compressing and writing PanMAN (LZMA level " << compressionLevel << ")..." << std::endl;
     ::capnp::writeMessage(fout, message);
 }
 

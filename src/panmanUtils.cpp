@@ -1,3 +1,4 @@
+#include "compressionPolicy.hpp"
 #include <iostream>
 #include <chrono>
 #include <filesystem>
@@ -216,7 +217,8 @@ void setupOptionDescriptions() {
     // ("tree-group", po::value< std::vector< std::string > >()->multitoken(), "File paths of PMATs to generate tree group")
     ("input-file,i", po::value< std::string >(), "Path to the input file, required for --subnet, --annotate, and --create-network")
     ("output-file,o", po::value< std::string >(), "Prefix of the output file name")
-    ("threads", po::value< std::int32_t >(), "Number of threads")
+    ("compression-level", po::value<int>(), "LZMA level 0-9; automatic: 9 below 10G stored consensus bases, otherwise 3")
+    ("threads", po::value< std::int32_t >(), "Maximum worker threads for construction and LZMA compression")
     // ("complexmutation-file", po::value< std::string >(), "File path of complex mutation file for tree group")
 
     // ("panman-in", po::value< std::string >(), "Input file path for PanMAT Group")
@@ -309,6 +311,18 @@ void setupOptionDescriptions() {
         ("output-file,o", po::value< std::string >(), "Output file name");
 }
 
+// Share the CLI worker limit with liblzma, including interactive output paths.
+// liblzma starts fewer workers when the input has fewer compression blocks.
+static uint32_t compressionThreadCount=64;
+
+static int compressionLevel(const po::variables_map& options,uint64_t bases) {
+    const bool explicitLevel=options.count("compression-level");
+    int level=explicitLevel?options["compression-level"].as<int>():panmanUtils::automaticCompressionLevel(bases);
+    std::cout<<"Compression: LZMA level "<<level<<" ("<<(explicitLevel?"override":"automatic")
+             <<"; "<<bases<<" stored consensus bases; "<<compressionThreadCount<<" compression threads)"<<std::endl;
+    return level;
+}
+
 void writePanMAN(po::variables_map &globalVm, panmanUtils::TreeGroup *TG) {
     std::cout << "Writing PanMAN" << std::endl;
     std::string fileName = globalVm["output-file"].as< std::string >();
@@ -321,14 +335,17 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::TreeGroup *TG) {
 
     // outPMATBuffer.push(boost::iostreams::gzip_compressor());
     boost::iostreams::lzma_params params;
-    params.level = 9; // Highest compression level
+    uint64_t bases=0;
+    for(const auto& tree:TG->trees)bases+=panmanUtils::storedConsensusBases(tree.blocks,tree.alphabet);
+    params.level = compressionLevel(globalVm,bases);
+    params.threads = compressionThreadCount;
     outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
     outPMATBuffer.push(outputFile);
     std::ostream outstream(&outPMATBuffer);
 
     kj::std::StdOutputStream outputStream(outstream);
 
-    TG->writeToFile(outputStream,true);
+    TG->writeToFile(outputStream,true,params.level);
     boost::iostreams::close(outPMATBuffer);
     outputFile.close();
 
@@ -350,12 +367,13 @@ void writePanMAN(po::variables_map &globalVm, panmanUtils::Tree *T) {
 
     // outPMATBuffer.push(boost::iostreams::gzip_compressor());
     boost::iostreams::lzma_params params;
-    params.level = 9; // Highest compression level
+    params.level = compressionLevel(globalVm,panmanUtils::storedConsensusBases(T->blocks,T->alphabet));
+    params.threads = compressionThreadCount;
     outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
     outPMATBuffer.push(outputFile);
     std::ostream outstream(&outPMATBuffer);
     kj::std::StdOutputStream outputStream(outstream);
-    T->writeToFile(outputStream,nullptr,true);
+    T->writeToFile(outputStream,nullptr,true,params.level);
     boost::iostreams::close(outPMATBuffer);
     outputFile.close();
 
@@ -757,12 +775,13 @@ void subnetwork(panmanUtils::Tree *T, po::variables_map &globalVm, std::ofstream
 
     // outPMATBuffer.push(boost::iostreams::gzip_compressor());
     boost::iostreams::lzma_params params;
-    params.level = 9; // Highest compression level
+    params.level = compressionLevel(globalVm,panmanUtils::storedConsensusBases(T->blocks,T->alphabet));
+    params.threads = compressionThreadCount;
     outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
     outPMATBuffer.push(outputFiles);
     std::ostream outstream(&outPMATBuffer);
     kj::std::StdOutputStream outputStream(outstream);
-    T->writeToFile(outputStream, T->subtreeExtractParallel(nodeIds));
+    T->writeToFile(outputStream, T->subtreeExtractParallel(nodeIds),true,params.level);
     boost::iostreams::close(outPMATBuffer);
     outputFiles.close();
 
@@ -824,13 +843,16 @@ void subnet(panmanUtils::TreeGroup *TG, po::variables_map &globalVm, std::ofstre
 
     // outPMATBuffer.push(boost::iostreams::gzip_compressor());
     boost::iostreams::lzma_params params;
-    params.level = 9; // Highest compression level
+    panmanUtils::TreeGroup* subnetwork = TG->subnetworkExtract(nodeIds);
+    uint64_t bases=0;
+    for(const auto& tree:subnetwork->trees)bases+=panmanUtils::storedConsensusBases(tree.blocks,tree.alphabet);
+    params.level = compressionLevel(globalVm,bases);
+    params.threads = compressionThreadCount;
     outPMATBuffer.push(boost::iostreams::lzma_compressor(params));
     outPMATBuffer.push(outputFiles);
     std::ostream outstream(&outPMATBuffer);
     kj::std::StdOutputStream outputStream(outstream);
-    panmanUtils::TreeGroup* subnetwork = TG->subnetworkExtract(nodeIds);
-    subnetwork->writeToFile(outputStream);
+    subnetwork->writeToFile(outputStream,true,params.level);
 
     boost::iostreams::close(outPMATBuffer);
     outputFiles.close();
@@ -1511,6 +1533,12 @@ void parseAndExecute(int argc, char* argv[]) {
     if(buildOptions.backend!="auto" && buildOptions.backend!="cpu" && buildOptions.backend!="cuda")
         throw std::runtime_error("--backend must be auto, cpu, or cuda");
     if(!buildOptions.matchBudget)throw std::runtime_error("--match-budget must be positive");
+    if(globalVm.count("compression-level")) {
+        int level=globalVm["compression-level"].as<int>();
+        if(level<0 || level>9)throw std::runtime_error("--compression-level must be between 0 and 9");
+    }
+    if(threads<1)throw std::runtime_error("--threads must be at least 1");
+    compressionThreadCount=static_cast<uint32_t>(threads);
     tbb::task_scheduler_init init(threads);
 
 

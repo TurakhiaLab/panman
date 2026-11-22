@@ -51,6 +51,20 @@ void panmanUtils::Tree::buildFromMAF(std::ifstream& input, const std::string& re
              <<" repeat groups omitted from anchors; index builds "<<layout.stats.indexBuilds
              <<", reuses "<<layout.stats.indexReuses<<"; batches "<<layout.stats.batches
              <<", largest "<<layout.stats.largestBatch<<"; refinement work "<<layout.stats.refinementWork<<'\n';
+    // Overlapping occurrences cannot derive coordinates from concatenation.
+    // Use versioned chunks in existing tip annotations: no schema change and
+    // no duplicate storage of the aligned nucleotide sequences.
+    const std::string marker="panman:maf-coordinates:v1\n";
+    for(size_t p=0;p<paths.size();++p) {
+        std::string chunk=marker;
+        for(size_t j=0;j<paths[p].instances.size();++j) {
+            const auto& row=*sources[p].rows[j];
+            chunk+=std::to_string(paths[p].instances[j])+" "+std::to_string(row.forwardStart)+" "+
+                std::to_string(row.sourceSize)+" "+std::to_string(row.row.size())+" "+row.source+" "+row.lowercase+"\n";
+            if(chunk.size()>=65536) {allNodes.at(sources[p].sample)->annotations.push_back(std::move(chunk));chunk=marker;}
+        }
+        if(chunk.size()>marker.size())allNodes.at(sources[p].sample)->annotations.push_back(std::move(chunk));
+    }
     if(layout.instances.size()>size_t(std::numeric_limits<int32_t>::max()))
         throw std::runtime_error("MAF layout exceeds the 32-bit primary block ID limit.");
     // Resolve every path before inference. Mutations never need renumbering.

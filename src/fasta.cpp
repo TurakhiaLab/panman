@@ -1967,29 +1967,48 @@ std::string panmanUtils::Tree::printFASTAUltraFastHelper(
     
 
     if(!chromosomeRanges.empty() && !aligned && !allIndex) {
+        const auto coordinates=mafCoordinates(tipNode->identifier);
+        auto render=[&](const ChromosomeRanges& path) {
+            std::vector<int64_t> order;
+            for(const auto& range:path.ranges)for(size_t id=range.first;id<range.second;++id)
+                if(id<blockExists.size() && blockExists[id])order.push_back((int64_t)id<<32);
+            if(order.empty())return std::string();
+            if(coordinates.empty())return printSequenceLinesNew(sequence,blockLengths,blockExists,blockStrand,
+                70,false,0,false,{},-1,order);
+            // Overlay occurrences at their original forward positions. Uncovered
+            // sequence is N, and overlapping rows do not lengthen the chromosome.
+            const auto size=coordinates.at(size_t(order.front()>>32)).sourceSize;
+            std::string chromosome(size,getCodec(alphabet).unknownChar);
+            for(int64_t packed:order) {
+                size_t id=size_t(packed>>32);const auto& location=coordinates.at(id);
+                auto bases=printSequenceLinesNew(sequence,blockLengths,blockExists,blockStrand,
+                    70,false,0,false,{},-1,{packed});
+                bases.erase(std::remove(bases.begin(),bases.end(),'\n'),bases.end());
+                if(location.sourceSize!=size || bases.size()>size_t(size-location.start))
+                    throw std::runtime_error("Inconsistent original MAF source coordinates");
+                for(size_t j=0;j<bases.size();++j) {
+                    char& old=chromosome[location.start+j];
+                    if(old!=getCodec(alphabet).unknownChar && bases[j]!=getCodec(alphabet).unknownChar && old!=bases[j])
+                        throw std::runtime_error("Conflicting overlapping MAF bases in "+tipNode->identifier+"."+path.chromosomeName);
+                    if(bases[j]!=getCodec(alphabet).unknownChar)old=bases[j];
+                }
+            }
+            std::string wrapped;
+            for(size_t j=0;j<chromosome.size();j+=70)wrapped+=chromosome.substr(j,70)+"\n";
+            return wrapped;
+        };
         if(splitChromosomes && chrID<0) {
             std::string output;
-            // Reconstruct the genome once, then emit its actual chromosome paths.
-            // Missing chromosomes/genomes do not create empty FASTA records.
             for(const auto& path:chromosomeRanges)if(path.sequenceId==tipNode->identifier) {
-                std::vector<int64_t> order;
-                for(const auto& range:path.ranges)for(size_t id=range.first;id<range.second;++id)
-                    if(id<blockExists.size() && blockExists[id])order.push_back((int64_t)id<<32);
-                if(order.empty())continue;
-                auto text=printSequenceLinesNew(sequence,blockLengths,blockExists,blockStrand,
-                    70,false,0,false,{},-1,order);
-                if(text.empty())continue;
-                output+=">"+tipNode->identifier+"."+path.chromosomeName+"\n"+text+"\n";
+                auto text=render(path);
+                if(!text.empty())output+=">"+tipNode->identifier+"."+path.chromosomeName+"\n"+text+"\n";
             }
             return output;
         }
         std::string chromosome=chrID<0?std::string():chrList.at(chrID).chrName;
-        auto ids=chromosomeBlockIds(tipNode->identifier,chromosome);
-        std::vector<int64_t> order;
-        for(size_t id:ids)if(id<blockExists.size() && blockExists[id])order.push_back((int64_t)id<<32);
         std::string line=">"+tipNode->identifier+(chrID<0?"":"\t"+chromosome)+"\n";
-        if(!order.empty())line+=printSequenceLinesNew(sequence,blockLengths,blockExists,blockStrand,
-            70,false,0,false,{},-1,order);
+        for(const auto& path:chromosomeRanges)if(path.sequenceId==tipNode->identifier &&
+            (chrID<0 || path.chromosomeName==chromosome))line+=render(path);
         return line;
     }
 

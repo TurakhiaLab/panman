@@ -110,10 +110,14 @@ indexing/translation, block deduplication, and network creation from these new
 files currently fail explicitly rather than applying incompatible assumptions.
 Legacy files retain their existing operations.
 
-Input MAFs need not cover whole chromosomes. Reconstruction includes only the
-supplied row occurrences, including repetitions/overlaps if present, and does
-not invent uncovered bases. Exported coordinates describe those reconstructed
-segments; original uncovered coordinate intervals are not preserved. A genome
+Input MAFs need not cover whole chromosomes. All supplied alignment occurrences,
+including repetitions and overlaps, remain encoded in blocks/mutations. Original
+source positions, lengths, source spelling, alignment widths and lowercase runs
+are retained in versioned tip annotations using the existing schema. MAF export
+preserves these rows and coordinates; record/row ordering and non-sequence MAF
+lines are not retained. FASTA overlays occurrences at their original positions,
+fills uncovered intervals with unknown symbols and reports conflicting overlaps.
+Older files without these annotations retain concatenated coordinates. A genome
 with no input rows, or no rows on a requested chromosome, has an empty sequence.
 
 ## Build and validation
@@ -184,3 +188,19 @@ reuse both the root order and its position index. Sample ownership is always
 checked again, including when the index is reused. Progress and final layout
 statistics report index builds, reuses, batch count and largest batch. Changed
 batch boundaries can change block duplication relative to earlier builds.
+
+Output compression selects LZMA level 9 below 10,000,000,000 stored consensus
+bases, and level 3 at or above that threshold. The count follows the serialized
+consensus dictionary: duplicated instances of an identical packed consensus count
+once per tree; separate trees have separate dictionaries. Reconstructed genome
+lengths and Ns generated during FASTA export do not contribute. This threshold
+is a heuristic rather than a benchmark-derived cutoff. Set
+`--compression-level 0` through `--compression-level 9` to override it. The chosen
+level and consensus count are logged; file format and reader compatibility are
+unchanged.
+
+`--threads N` controls both construction workers and LZMA compression workers.
+The compression log reports this requested limit; liblzma may use fewer workers
+when the serialized data contains fewer independent compression blocks. Worker
+memory requirements depend on the compression level, so more threads increase
+peak memory use. File format and readers remain compatible.

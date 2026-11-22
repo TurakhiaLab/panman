@@ -1,3 +1,22 @@
+// Original MAF positions live in existing tip annotations. Older files lack
+// this table and continue using their historical concatenated coordinates.
+std::map<size_t,panmanUtils::MafCoordinate> panmanUtils::Tree::mafCoordinates(const std::string& sample) const {
+    std::map<size_t,MafCoordinate> result;
+    auto node=allNodes.find(sample);if(node==allNodes.end())return result;
+    const std::string marker="panman:maf-coordinates:v1\n";
+    for(const auto& annotation:node->second->annotations)if(annotation.compare(0,marker.size(),marker)==0) {
+        std::istringstream input(annotation.substr(marker.size()));
+        size_t id;MafCoordinate row;
+        while(input>>id) {
+            if(!(input>>row.start>>row.sourceSize>>row.width>>row.source>>row.lowercase) || row.start<0 ||
+               row.sourceSize<row.start || !result.emplace(id,row).second)
+                throw std::runtime_error("Invalid original MAF coordinates for "+sample);
+        }
+        if(!input.eof())throw std::runtime_error("Invalid original MAF coordinate annotation");
+    }
+    return result;
+}
+
 // Shared additive metadata and chromosome resolver. Legacy files retain their
 // existing reconstruction path when sequenceChromosomeRanges is absent.
 void panmanUtils::Tree::validateChromosomeRanges() const {
@@ -98,13 +117,14 @@ std::vector<size_t> panmanUtils::Tree::chromosomeBlockIds(const std::string& sam
 }
 
 void panmanUtils::Tree::printRangeMAF(std::ostream& output) {
-    struct Row {std::string name,text;int64_t start,size,total;bool strand;};
+    struct Row {std::string name,text;int64_t start,size,total;bool strand;bool original=false;};
     std::vector<size_t> leader(blocks.size());std::iota(leader.begin(),leader.end(),0);
     for(const auto& group:homologyGroups)for(int64_t id:group)leader[id>>32]=group.front()>>32;
     std::map<size_t,std::vector<Row>> records;
     std::set<std::string> samples;
     for(const auto& item:allNodes)if(item.second->children.empty())samples.insert(item.first);
     for(const auto& sample:samples) {
+        const auto coordinates=mafCoordinates(sample);
         sequence_t sequence;blockExists_t present;blockStrand_t strands;
         getSequenceFromReference(sequence,present,strands,sample,true);
         for(const auto& path:chromosomeRanges) if(path.sequenceId==sample) {
@@ -124,7 +144,26 @@ void panmanUtils::Tree::printRangeMAF(std::ostream& output) {
             for(const auto& range:path.ranges)for(size_t id=range.first;id<range.second;++id) {
                 if(id>=present.size() || !present[id].first)continue;
                 auto row=std::move(rows[index++]);row.total=total;
-                if(!row.strand)row.start=total-row.start-row.size;
+                auto original=coordinates.find(id);
+                if(original!=coordinates.end()) {
+                    const auto& source=original->second;
+                    if(row.text.size()<source.width || row.size>source.sourceSize-source.start)
+                        throw std::runtime_error("Original MAF coordinates no longer match reconstructed sequence");
+                    row.name=source.source;row.start=source.start;row.total=source.sourceSize;
+                    // Remove only the reconstruction sentinel; real all-gap
+                    // columns in the original alignment must survive a round-trip.
+                    row.text.resize(source.width);row.original=true;
+                    if(source.lowercase!=".") {
+                        std::istringstream runs(source.lowercase);size_t first,last;char colon,comma;
+                        while(runs>>first>>colon>>last>>comma) {
+                            if(colon!=':' || comma!=',' || first>last || last>row.text.size())
+                                throw std::runtime_error("Invalid MAF lowercase annotation");
+                            for(size_t k=first;k<last;++k)row.text[k]=std::tolower(static_cast<unsigned char>(row.text[k]));
+                        }
+                        if(!runs.eof())throw std::runtime_error("Invalid MAF lowercase annotation");
+                    }
+                }
+                if(!row.strand)row.start=row.total-row.start-row.size;
                 records[leader[id]].push_back(std::move(row));
             }
         }
@@ -132,7 +171,8 @@ void panmanUtils::Tree::printRangeMAF(std::ostream& output) {
     output<<"##maf version=1\n";
     for(auto& record:records) {
         size_t width=0;for(const auto& row:record.second)width=std::max(width,row.text.size());
-        std::vector<bool> keep(width,false);
+        bool original=std::all_of(record.second.begin(),record.second.end(),[](const Row& row){return row.original;});
+        std::vector<bool> keep(width,original);
         for(const auto& row:record.second)for(size_t i=0;i<row.text.size();++i)if(row.text[i]!='-')keep[i]=true;
         if(std::find(keep.begin(),keep.end(),true)==keep.end())continue;
         output<<"\na\n";

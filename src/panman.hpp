@@ -348,6 +348,9 @@ struct MAFBlockGraph {
         int64_t start;        // MAF start, normalized for qualified-source input
         int64_t forwardStart; // forward genomic coordinate independent of strand
         std::string chromosome;
+        int64_t sourceSize;
+        std::string source; // Preserve original bare/qualified MAF source spelling.
+        std::string lowercase;
     };
     // sequence name -> its occurrences sorted by MAF start coordinate
     std::unordered_map<std::string, std::vector<Occ>> seqOccs;
@@ -355,6 +358,13 @@ struct MAFBlockGraph {
     std::vector<std::string> seqOrder;
 };
 
+
+// Stored using existing tip annotations, not new schema fields.
+struct MafCoordinate {
+    int64_t start, sourceSize;
+    size_t width;
+    std::string source, lowercase;
+};
 
 struct ChromosomeRanges {
     std::string sequenceId, chromosomeName;
@@ -646,6 +656,7 @@ class Tree {
     void printVCFParallel(std::string reference, std::ostream& fout);
     void printVCFParallel(panmanUtils::Node* node, std::string& fileName);
     void extractAminoAcidTranslations(std::ostream& fout, int64_t start, int64_t end);
+    std::map<size_t,MafCoordinate> mafCoordinates(const std::string& sample) const;
     void printConsensus(std::ostream& fout);
     void printPseduoRoot(std::ostream& fout);
     // Extract PanMAT representing a segment of the genome. The start and end coordinates
@@ -657,7 +668,7 @@ class Tree {
 
     Node* subtreeExtractParallel(std::vector< std::string > nodeIds, const std::set< std::string >& nodeIdsToDefinitelyInclude = {});
     // Node* subtreeExtractParallel(std::vector< std::string > nodeIds);
-    void writeToFile(kj::std::StdOutputStream& fout, Node* node = nullptr, bool reportCompression = false);
+    void writeToFile(kj::std::StdOutputStream& fout, Node* node = nullptr, bool reportCompression = false, int compressionLevel = 9);
     std::string getNewickString(Node* node);
     std::string getStringFromReference(std::string reference, bool aligned = true,
                                        bool incorporateInversions=true);
@@ -1104,7 +1115,7 @@ class TreeGroup {
     TreeGroup* subnetworkExtract(std::unordered_map< int, std::vector< std::string > >& nodeIds);
 
     void printFASTA(std::ofstream& fout, bool rootSeq = false);
-    void writeToFile(kj::std::StdOutputStream& fout, bool reportCompression = false);
+    void writeToFile(kj::std::StdOutputStream& fout, bool reportCompression = false, int compressionLevel = 9);
     void printComplexMutations(std::ostream& fout);
 
     std::unordered_map< std::string, std::string >
