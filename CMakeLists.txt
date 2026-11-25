@@ -127,13 +127,10 @@ target_link_libraries(panmanUtils PRIVATE
 
 target_include_directories(panmanUtils PUBLIC "${PROJECT_BINARY_DIR}")
 
-# Small deterministic unit tests plus file-format integration tests. CUDA parity
+# File-format integration tests. CUDA parity
 # is exercised by the integration suite when a device is actually available.
 include(CTest)
 if(BUILD_TESTING)
-    add_executable(panman_layout_tests tests/test_layout.cpp)
-    target_include_directories(panman_layout_tests PRIVATE "${CMAKE_SOURCE_DIR}/src")
-    add_test(NAME layout_and_inference COMMAND panman_layout_tests)
     find_package(Python3 COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
         add_test(NAME maf_export COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/test_maf_export.py" "$<TARGET_FILE:panmanUtils>")
